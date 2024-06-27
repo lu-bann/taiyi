@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+  API_KEY_INFURA: ${{ secrets.API_KEY_INFURA }}
+
+jobs:
+  build-rust:
+    name: Rust Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy,rustfmt
+          submodules: true
+      - name: Install cargo tools
+        run: |
+          curl -L https://github.com/DevinR528/cargo-sort/releases/download/v1.0.9/cargo-sort-x86_64-unknown-linux-gnu.tar.gz | tar -zxvf - -C ~/.cargo/bin/
+          curl -L https://github.com/est31/cargo-udeps/releases/download/v0.1.47/cargo-udeps-v0.1.47-x86_64-unknown-linux-gnu.tar.gz | tar -xzvf - -C /tmp/
+          mv /tmp/cargo-udeps-v0.1.47-x86_64-unknown-linux-gnu/cargo-udeps ~/.cargo/bin/
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Format check
+        run: |
+          cargo +nightly fmt --all -- --check
+      - name: Lint check
+        run: |
+          make lint
+      - name: Run tests
+        run: |
+          make test
+
+  build-foundry:
+    name: Foundry Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Initialize submodules
+        run: |
+          git submodule update --init --recursive
+      - name: Change directory to contracts
+        working-directory: contracts
+        run: echo "Changed directory to contracts"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test
+      - name: Check code formatting
+        run: |
+          forge fmt --check
+        id: fmt-check

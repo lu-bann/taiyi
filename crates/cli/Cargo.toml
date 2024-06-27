@@ -1,0 +1,11 @@
+[package]
+name = "luban-cli"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-core = { workspace = true }
+clap = { version = "4.5.4", features = ["derive"] }
+eyre = { workspace = true }
+luban-preconfer = { workspace = true }
+tokio = { workspace = true }

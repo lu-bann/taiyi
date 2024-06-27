@@ -1,0 +1,51 @@
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+
+[submodule "lib/axiom-std"]
+	path = lib/axiom-std
+	url = https://github.com/axiom-crypto/axiom-std
+
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+
+[submodule "lib/eigenlayer-middleware"]
+	path = lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware
+
+[submodule "lib/axiom-v2-periphery"]
+	path = lib/axiom-v2-periphery
+	url = https://github.com/axiom-crypto/axiom-v2-periphery
+
+[submodule "lib/eigenlayer-contracts"]
+	path = lib/eigenlayer-contracts
+	url = https://github.com/Layr-Labs/eigenlayer-contracts
+
+[submodule "lib/openzeppelin-contracts-upgradeable"]
+	path = lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+
+[submodule "lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+
+[submodule "lib/eigenlayer-contracts/lib/ds-test"]
+	path = lib/eigenlayer-contracts/lib/ds-test
+	url = https://github.com/dapphub/ds-test
+
+[submodule "lib/eigenlayer-contracts/lib/forge-std"]
+	path = lib/eigenlayer-contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+
+[submodule "lib/eigenlayer-contracts/lib/openzeppelin-contracts"]
+	path = lib/eigenlayer-contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+
+[submodule "lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0"]
+	path = lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+
+[submodule "lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0"]
+	path = lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable

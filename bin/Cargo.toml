@@ -1,0 +1,11 @@
+[package]
+name = "luban"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+luban-cli ={ workspace = true }
+
+[[bin]]
+name = "luban"
+path = "src/main.rs"

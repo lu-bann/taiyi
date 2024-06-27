@@ -1,0 +1,17 @@
+[package]
+name = "luban-primitives"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-consensus = { workspace = true }
+alloy-core = { workspace = true, features = ["ssz"] }
+alloy-rlp = { version = "0.3.4", features = ["derive"] }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-sol-types = { version = "0.7.4" }
+ethereum_ssz = "0.5.4"
+ethereum_ssz_derive = "0.5.4"
+serde = { workspace = true }
+serde_json ={ workspace = true }
+
+[lib]
