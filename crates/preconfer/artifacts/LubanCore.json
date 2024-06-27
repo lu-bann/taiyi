@@ -1,0 +1,1994 @@
+{
+    "abi": [
+        {
+            "type": "constructor",
+            "inputs": [
+                {
+                    "name": "_owner",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_axiomV2QueryAddress",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_querySchema",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "receive",
+            "stateMutability": "payable"
+        },
+        {
+            "type": "function",
+            "name": "DOMAIN_SEPARATOR",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "collectTip",
+            "inputs": [
+                {
+                    "name": "preconfer",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "preconferSignature",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "exhaust",
+            "inputs": [
+                {
+                    "name": "tipTx",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.TipTx",
+                    "components": [
+                        {
+                            "name": "gasLimit",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "from",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "to",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "prePay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "afterPay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "nonce",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "name": "userSignature",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                },
+                {
+                    "name": "preconferSignature",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "gasBurner",
+            "inputs": [
+                {
+                    "name": "gasLimit",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getLubanEscrow",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "contract LubanEscrow"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPreconfConditionsHash",
+            "inputs": [
+                {
+                    "name": "preconfConditions",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.PreconfConditions",
+                    "components": [
+                        {
+                            "name": "inclusionMetaData",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.InclusionMeta",
+                            "components": [
+                                {
+                                    "name": "startingBlockNumber",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "orderingMetaData",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.OrderingMeta",
+                            "components": [
+                                {
+                                    "name": "txCount",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "index",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "blockNumber",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPreconfRequestHash",
+            "inputs": [
+                {
+                    "name": "preconfReq",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.PreconfRequest",
+                    "components": [
+                        {
+                            "name": "tipTx",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.TipTx",
+                            "components": [
+                                {
+                                    "name": "gasLimit",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "from",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "to",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "prePay",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "afterPay",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "nonce",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "prefConditions",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.PreconfConditions",
+                            "components": [
+                                {
+                                    "name": "inclusionMetaData",
+                                    "type": "tuple",
+                                    "internalType": "struct ILubanCore.InclusionMeta",
+                                    "components": [
+                                        {
+                                            "name": "startingBlockNumber",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "orderingMetaData",
+                                    "type": "tuple",
+                                    "internalType": "struct ILubanCore.OrderingMeta",
+                                    "components": [
+                                        {
+                                            "name": "txCount",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        },
+                                        {
+                                            "name": "index",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "blockNumber",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "preconfTx",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.PreconfTx",
+                            "components": [
+                                {
+                                    "name": "to",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "value",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "callData",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                },
+                                {
+                                    "name": "ethTransfer",
+                                    "type": "bool",
+                                    "internalType": "bool"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "tipTxSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "initSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "preconferSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPreconfRequestStatus",
+            "inputs": [
+                {
+                    "name": "preconferSignature",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint8",
+                    "internalType": "enum ILubanCore.PreconfRequestStatus"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPreconferBalance",
+            "inputs": [
+                {
+                    "name": "preconfer",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "preconferSig",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getTipTxAndPreconfConditionsHash",
+            "inputs": [
+                {
+                    "name": "tipTx",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.TipTx",
+                    "components": [
+                        {
+                            "name": "gasLimit",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "from",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "to",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "prePay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "afterPay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "nonce",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "name": "preconfConditions",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.PreconfConditions",
+                    "components": [
+                        {
+                            "name": "inclusionMetaData",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.InclusionMeta",
+                            "components": [
+                                {
+                                    "name": "startingBlockNumber",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "orderingMetaData",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.OrderingMeta",
+                            "components": [
+                                {
+                                    "name": "txCount",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "index",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "blockNumber",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getTipTxHash",
+            "inputs": [
+                {
+                    "name": "tipTx",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.TipTx",
+                    "components": [
+                        {
+                            "name": "gasLimit",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "from",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "to",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "prePay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "afterPay",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "nonce",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "handlePayment",
+            "inputs": [
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "preconferAddr",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "preconferSig",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "payable"
+        },
+        {
+            "type": "function",
+            "name": "lubanChallengeManager",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "contract LubanChallengeManager"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "lubanEscrow",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "contract LubanEscrow"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "owner",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "preconfRequestStatus",
+            "inputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint8",
+                    "internalType": "enum ILubanCore.PreconfRequestStatus"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "preconferList",
+            "inputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "preconferTips",
+            "inputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "registerPreconfer",
+            "inputs": [
+                {
+                    "name": "preconfer",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "settleRequest",
+            "inputs": [
+                {
+                    "name": "preconfReq",
+                    "type": "tuple",
+                    "internalType": "struct ILubanCore.PreconfRequest",
+                    "components": [
+                        {
+                            "name": "tipTx",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.TipTx",
+                            "components": [
+                                {
+                                    "name": "gasLimit",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "from",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "to",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "prePay",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "afterPay",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "nonce",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "prefConditions",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.PreconfConditions",
+                            "components": [
+                                {
+                                    "name": "inclusionMetaData",
+                                    "type": "tuple",
+                                    "internalType": "struct ILubanCore.InclusionMeta",
+                                    "components": [
+                                        {
+                                            "name": "startingBlockNumber",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "orderingMetaData",
+                                    "type": "tuple",
+                                    "internalType": "struct ILubanCore.OrderingMeta",
+                                    "components": [
+                                        {
+                                            "name": "txCount",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        },
+                                        {
+                                            "name": "index",
+                                            "type": "uint256",
+                                            "internalType": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "blockNumber",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "preconfTx",
+                            "type": "tuple",
+                            "internalType": "struct ILubanCore.PreconfTx",
+                            "components": [
+                                {
+                                    "name": "to",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "value",
+                                    "type": "uint256",
+                                    "internalType": "uint256"
+                                },
+                                {
+                                    "name": "callData",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                },
+                                {
+                                    "name": "ethTransfer",
+                                    "type": "bool",
+                                    "internalType": "bool"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "tipTxSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "initSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        },
+                        {
+                            "name": "preconferSignature",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "payable"
+        },
+        {
+            "type": "event",
+            "name": "Exhausted",
+            "inputs": [
+                {
+                    "name": "preconfer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "TipCollected",
+            "inputs": [
+                {
+                    "name": "preconfer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "preconferSignature",
+                    "type": "bytes32",
+                    "indexed": false,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "error",
+            "name": "ECDSAInvalidSignature",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ECDSAInvalidSignatureLength",
+            "inputs": [
+                {
+                    "name": "length",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "ECDSAInvalidSignatureS",
+            "inputs": [
+                {
+                    "name": "s",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ]
+        }
+    ],
+    "bytecode": {
+        "object": "0x608060405234801561001057600080fd5b506040516147f83803806147f883398101604081905261002f9161023b565b600280546001600160a01b0319166001600160a01b03851617905560408051808201825260098152684c7562616e436f726560b81b6020918201528151808301835260038152620312e360ec1b9082015281517f8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f918101919091527fbe5008919e97ec9e4d515ced535da0ce78148eb6029d17ff3fb19f1a7c2c8bda918101919091527fe6bbd6277e1bf288eed5e8d1780f9a50b239e86b153736bceebccf4ea79d90b3606082015246608082018190529060a00160408051601f19818403018152908290528051602090910120600355309061012b90610205565b6001600160a01b039091168152602001604051809103906000f080158015610157573d6000803e3d6000fd5b506000806101000a8154816001600160a01b0302191690836001600160a01b031602179055508281833060405161018d90610212565b6001600160a01b0394851681526001600160401b0390931660208401526040830191909152919091166060820152608001604051809103906000f0801580156101da573d6000803e3d6000fd5b50600180546001600160a01b0319166001600160a01b03929092169190911790555061027792505050565b6113c58061204183390190565b6113f28061340683390190565b80516001600160a01b038116811461023657600080fd5b919050565b60008060006060848603121561025057600080fd5b6102598461021f565b92506102676020850161021f565b9150604084015190509250925092565b611dbb806102866000396000f3fe6080604052600436106101635760003560e01c80637aead2ca116100c0578063c58699db11610074578063d28dc10811610059578063d28dc10814610424578063e8976bd414610444578063e9a074351461047c57600080fd5b8063c58699db146103e4578063cf2302971461040457600080fd5b806392cc094f116100a557806392cc094f14610367578063a7fa583414610387578063b84776b7146103b457600080fd5b80637aead2ca1461031a5780638da5cb5b1461033a57600080fd5b8063529c76b51161011757806365ddf81a116100fc57806365ddf81a146102af5780636f5119e2146102cf57806375df7d16146102ef57600080fd5b8063529c76b51461023257806355c8b1531461026f57600080fd5b80634ab8980b116101485780634ab8980b146101ea5780634e8a0acb1461020c5780634fbab3621461021f57600080fd5b80633644e5151461016f5780633f7bd24e1461019857600080fd5b3661016a57005b600080fd5b34801561017b57600080fd5b5061018560035481565b6040519081526020015b60405180910390f35b3480156101a457600080fd5b506001546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161018f565b3480156101f657600080fd5b5061020a6102053660046116df565b61049c565b005b61020a61021a366004611752565b61071c565b61020a61022d3660046117ac565b610851565b34801561023e57600080fd5b5061026261024d3660046117e8565b60009081526006602052604090205460ff1690565b60405161018f9190611830565b34801561027b57600080fd5b5061029f61028a366004611871565b60046020526000908152604090205460ff1681565b604051901515815260200161018f565b3480156102bb57600080fd5b506101856102ca3660046117ac565b610d1a565b3480156102db57600080fd5b5061020a6102ea3660046118a4565b610d8e565b3480156102fb57600080fd5b5060005473ffffffffffffffffffffffffffffffffffffffff166101c5565b34801561032657600080fd5b50610185610335366004611927565b610fcb565b34801561034657600080fd5b506002546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b34801561037357600080fd5b5061018561038236600461198c565b611013565b34801561039357600080fd5b506000546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b3480156103c057600080fd5b506102626103cf3660046117e8565b60066020526000908152604090205460ff1681565b3480156103f057600080fd5b506101856103ff3660046117e8565b61105f565b34801561041057600080fd5b5061018561041f3660046119a8565b6110b1565b34801561043057600080fd5b5061018561043f3660046119c4565b6110bf565b34801561045057600080fd5b5061018561045f3660046116df565b600560209081526000928352604080842090915290825290205481565b34801561048857600080fd5b5061020a610497366004611871565b611141565b60015473ffffffffffffffffffffffffffffffffffffffff16331461052e5760405162461bcd60e51b815260206004820152603160248201527f4f6e6c79204c7562616e4368616c6c656e67654d616e616765722063616e206360448201527f616c6c20746869732066756e6374696f6e00000000000000000000000000000060648201526084015b60405180910390fd5b73ffffffffffffffffffffffffffffffffffffffff82166000908152600560209081526040808320848452909152902054806105ac5760405162461bcd60e51b815260206004820152601160248201527f4e6f2074697020746f20636f6c6c6563740000000000000000000000000000006044820152606401610525565b60008373ffffffffffffffffffffffffffffffffffffffff168260405160006040518083038185875af1925050503d8060008114610606576040519150601f19603f3d011682016040523d82523d6000602084013e61060b565b606091505b505090508061065c5760405162461bcd60e51b815260206004820152601460248201527f4661696c656420746f2073656e642045746865720000000000000000000000006044820152606401610525565b60008381526006602090815260409182902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166003179055815184815290810185905273ffffffffffffffffffffffffffffffffffffffff8616917fe57f6388512f43ef7d4668918e17d0781d919a9565cfe442734bf22e4bf2c1b1910160405180910390a2505073ffffffffffffffffffffffffffffffffffffffff909116600090815260056020908152604080832093835292905290812055565b60005473ffffffffffffffffffffffffffffffffffffffff1633146107a95760405162461bcd60e51b815260206004820152602760248201527f4f6e6c79204c7562616e457363726f772063616e2063616c6c2074686973206660448201527f756e6374696f6e000000000000000000000000000000000000000000000000006064820152608401610525565b8334146107f85760405162461bcd60e51b815260206004820152601560248201527f4d69736d6174636865642065746865722073656e7400000000000000000000006044820152606401610525565b73ffffffffffffffffffffffffffffffffffffffff83166000908152600560205260408120859161082984866119fa565b815260200190815260200160002060008282546108469190611a65565b909155505050505050565b3360009081526004602052604090205460ff166108b05760405162461bcd60e51b815260206004820152601960248201527f43616c6c6572206973206e6f74206120707265636f6e666572000000000000006044820152606401610525565b80366108c0610140830183611a78565b905060c0830161012084013543146109405760405162461bcd60e51b815260206004820152603360248201527f507265636f6e662072657175657374207375626d69747465642061742074686560448201527f2077726f6e6720626c6f636b206e756d626572000000000000000000000000006064820152608401610525565b600061094c84836110bf565b905061095e6040850160208601611871565b73ffffffffffffffffffffffffffffffffffffffff1661098b82610986610180890189611ab6565b61121d565b73ffffffffffffffffffffffffffffffffffffffff16146109ee5760405162461bcd60e51b815260206004820152601660248201527f496e76616c69642075736572207369676e6174757265000000000000000000006044820152606401610525565b6109fe6060850160408601611871565b73ffffffffffffffffffffffffffffffffffffffff16610a3c610a25610180880188611ab6565b610a2e916119fa565b6109866101a0890189611ab6565b73ffffffffffffffffffffffffffffffffffffffff1614610a9f5760405162461bcd60e51b815260206004820152601b60248201527f496e76616c696420707265636f6e666572207369676e617475726500000000006044820152606401610525565b610aaf6080840160608501611b2b565b610ba2576000610ac26040850185611ab6565b905011610b115760405162461bcd60e51b815260206004820152601160248201527f43616c6c6461746120697320656d7074790000000000000000000000000000006044820152606401610525565b6000610b206020850185611871565b73ffffffffffffffffffffffffffffffffffffffff166020850135610b486040870187611ab6565b604051610b56929190611b46565b60006040518083038185875af1925050503d8060008114610b93576040519150601f19603f3d011682016040523d82523d6000602084013e610b98565b606091505b5050905050610c16565b6000610bb16020850185611871565b73ffffffffffffffffffffffffffffffffffffffff16846020013560405160006040518083038185875af1925050503d8060008114610c0c576040519150601f19603f3d011682016040523d82523d6000602084013e610c11565b606091505b505050505b60005473ffffffffffffffffffffffffffffffffffffffff1663a5bea53985610c43610160890189611ab6565b6001610c536101a08c018c611ab6565b6040518763ffffffff1660e01b8152600401610c7496959493929190611c03565b600060405180830381600087803b158015610c8e57600080fd5b505af1158015610ca2573d6000803e3d6000fd5b5050505060026006600087806101a00190610cbd9190611ab6565b610cc6916119fa565b8152602081019190915260400160002080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001836003811115610d0e57610d0e611801565b02179055505050505050565b60008160c08101610d2f610140830183611a78565b610d3d610160860186611ab6565b610d4b610180880188611ab6565b610d596101a08a018a611ab6565b604051602001610d7199989796959493929190611c50565b604051602081830303815290604052805190602001209050919050565b3360009081526004602052604090205460ff16610ded5760405162461bcd60e51b815260206004820152601960248201527f43616c6c6572206973206e6f74206120707265636f6e666572000000000000006044820152606401610525565b6000610df8866110b1565b9050610e0a6040870160208801611871565b73ffffffffffffffffffffffffffffffffffffffff16610e2b82878761121d565b73ffffffffffffffffffffffffffffffffffffffff1614610e8e5760405162461bcd60e51b815260206004820152601160248201527f496e76616c6964207369676e61747572650000000000000000000000000000006044820152606401610525565b610e98863561105f565b50600080546040517fa5bea53900000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff9091169163a5bea53991610ef8918a918a918a918a908a90600401611c03565b600060405180830381600087803b158015610f1257600080fd5b505af1158015610f26573d6000803e3d6000fd5b50505050600160066000858590610f3d91906119fa565b8152602081019190915260400160002080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001836003811115610f8557610f85611801565b02179055506040516060870135815233907f4d64a99bb001db3754a34d830c8df741fa7f36cf7a2c3fd2acd143afbe9e90369060200160405180910390a2505050505050565b73ffffffffffffffffffffffffffffffffffffffff8316600090815260056020526040812081610ffb84866119fa565b81526020019081526020016000205490509392505050565b600060035461102183611267565b6040517f1901000000000000000000000000000000000000000000000000000000000000602082015260228101929092526042820152606201610d71565b6000805a905060005b838110156110aa57835a61107c8484611a65565b6110869190611d9b565b116110aa575a6110969083611d9b565b6110a09082611a65565b90505a9150611068565b9392505050565b600060035461102183611393565b6000806110cb846110b1565b905060006110d884611013565b6003546040517f190100000000000000000000000000000000000000000000000000000000000060208201526022810191909152604281018490526062810182905290915060820160405160208183030381529060405280519060200120925050505b92915050565b60025473ffffffffffffffffffffffffffffffffffffffff1633146111ce5760405162461bcd60e51b815260206004820152602160248201527f4f6e6c79206f776e65722063616e2063616c6c20746869732066756e6374696f60448201527f6e000000000000000000000000000000000000000000000000000000000000006064820152608401610525565b73ffffffffffffffffffffffffffffffffffffffff16600090815260046020526040902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001179055565b600061125f8484848080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061143d92505050565b949350505050565b6040517f507265636f6e66436f6e646974696f6e7328000000000000000000000000000060208201527f496e636c7573696f6e4d65746120696e636c7573696f6e4d657461446174612c60328201527f4f72646572696e674d657461206f72646572696e674d657461446174612c000060528201527f75696e7432353620626c6f636b4e756d6265720000000000000000000000000060708201527f29000000000000000000000000000000000000000000000000000000000000006083820152600090608401604080518083037fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe001815282825280516020918201208184015284358383015284013560608084019190915290840135608083015283013560a082015260c001610d71565b60007f3bc6fb1900544ed4382c879c9c0ee4b973fdd96b34409f8cbaeb11b7ca17a8d582356113c86040850160208601611871565b6113d86060860160408701611871565b60408051602081019590955284019290925273ffffffffffffffffffffffffffffffffffffffff90811660608481019190915291166080838101919091529084013560a0838101919091529084013560c083015283013560e082015261010001610d71565b60008060008061144d8686611467565b92509250925061145d82826114b4565b5090949350505050565b600080600083516041036114a15760208401516040850151606086015160001a611493888285856115bc565b9550955095505050506114ad565b50508151600091506002905b9250925092565b60008260038111156114c8576114c8611801565b036114d1575050565b60018260038111156114e5576114e5611801565b0361151c576040517ff645eedf00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600282600381111561153057611530611801565b0361156a576040517ffce698f700000000000000000000000000000000000000000000000000000000815260048101829052602401610525565b600382600381111561157e5761157e611801565b036115b8576040517fd78bce0c00000000000000000000000000000000000000000000000000000000815260048101829052602401610525565b5050565b600080807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a08411156115f757506000915060039050826116ac565b604080516000808252602082018084528a905260ff891692820192909252606081018790526080810186905260019060a0016020604051602081039080840390855afa15801561164b573d6000803e3d6000fd5b50506040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0015191505073ffffffffffffffffffffffffffffffffffffffff81166116a2575060009250600191508290506116ac565b9250600091508190505b9450945094915050565b803573ffffffffffffffffffffffffffffffffffffffff811681146116da57600080fd5b919050565b600080604083850312156116f257600080fd5b6116fb836116b6565b946020939093013593505050565b60008083601f84011261171b57600080fd5b50813567ffffffffffffffff81111561173357600080fd5b60208301915083602082850101111561174b57600080fd5b9250929050565b6000806000806060858703121561176857600080fd5b84359350611778602086016116b6565b9250604085013567ffffffffffffffff81111561179457600080fd5b6117a087828801611709565b95989497509550505050565b6000602082840312156117be57600080fd5b813567ffffffffffffffff8111156117d557600080fd5b82016101c081850312156110aa57600080fd5b6000602082840312156117fa57600080fd5b5035919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b602081016004831061186b577f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b91905290565b60006020828403121561188357600080fd5b6110aa826116b6565b600060c0828403121561189e57600080fd5b50919050565b600080600080600061010086880312156118bd57600080fd5b6118c7878761188c565b945060c086013567ffffffffffffffff808211156118e457600080fd5b6118f089838a01611709565b909650945060e088013591508082111561190957600080fd5b5061191688828901611709565b969995985093965092949392505050565b60008060006040848603121561193c57600080fd5b611945846116b6565b9250602084013567ffffffffffffffff81111561196157600080fd5b61196d86828701611709565b9497909650939450505050565b60006080828403121561189e57600080fd5b60006080828403121561199e57600080fd5b6110aa838361197a565b600060c082840312156119ba57600080fd5b6110aa838361188c565b60008061014083850312156119d857600080fd5b6119e2848461188c565b91506119f18460c0850161197a565b90509250929050565b8035602083101561113b577fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff602084900360031b1b1692915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b8082018082111561113b5761113b611a36565b600082357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81833603018112611aac57600080fd5b9190910192915050565b60008083357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe1843603018112611aeb57600080fd5b83018035915067ffffffffffffffff821115611b0657600080fd5b60200191503681900382131561174b57600080fd5b803580151581146116da57600080fd5b600060208284031215611b3d57600080fd5b6110aa82611b1b565b8183823760009101908152919050565b80358252611b66602082016116b6565b73ffffffffffffffffffffffffffffffffffffffff808216602085015280611b90604085016116b6565b1660408501525050606081013560608301526080810135608083015260a081013560a08301525050565b8183528181602085013750600060208284010152600060207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f840116840101905092915050565b6000610120611c12838a611b56565b8060c0840152611c25818401888a611bba565b905085151560e0840152828103610100840152611c43818587611bba565b9998505050505050505050565b60006101c0611c5f838d611b56565b8a3560c084015260208b013560e084015260408b013561010084015260608b01356101208401528061014084015273ffffffffffffffffffffffffffffffffffffffff611cab8b6116b6565b16818401525060208901356101e083015260408901357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe18a3603018112611cf157600080fd5b890160208101903567ffffffffffffffff811115611d0e57600080fd5b803603821315611d1d57600080fd5b6080610200850152611d3461024085018284611bba565b915050611d4360608b01611b1b565b1515610220840152828103610160840152611d5f81898b611bba565b9050828103610180840152611d75818789611bba565b90508281036101a0840152611d8b818587611bba565b9c9b505050505050505050505050565b8181038181111561113b5761113b611a3656fea164736f6c6343000819000a608060405260001960065534801561001657600080fd5b506040516113c53803806113c5833981016040819052610035916100c3565b60016000556001600160a01b0381166100945760405162461bcd60e51b815260206004820181905260248201527f4c7562616e436f726520616464726573732063616e6e6f74206265207a65726f604482015260640160405180910390fd5b600580546001600160a01b039092166001600160a01b03199283168117909155600180549092161790556100f3565b6000602082840312156100d557600080fd5b81516001600160a01b03811681146100ec57600080fd5b9392505050565b6112c3806101026000396000f3fe6080604052600436106100d65760003560e01c8063745400c91161007f578063b6dae30a11610059578063b6dae30a1461028e578063b7d03797146102d1578063b9330829146102fe578063d0e30db01461031457600080fd5b8063745400c9146102215780639e67ec5d14610241578063a5bea5391461026e57600080fd5b80632e1a7d4d116100b05780632e1a7d4d1461019157806370a08231146101b157806370ae92d2146101f457600080fd5b80630f308979146100ea5780631820cabb1461014157806327e235e31461016457600080fd5b366100e5576100e3610318565b005b600080fd5b3480156100f657600080fd5b506001546101179073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff90911681526020015b60405180910390f35b34801561014d57600080fd5b50610156604081565b604051908152602001610138565b34801561017057600080fd5b5061015661017f366004610fde565b60026020526000908152604090205481565b34801561019d57600080fd5b506100e36101ac366004611000565b610424565b3480156101bd57600080fd5b506101566101cc366004610fde565b73ffffffffffffffffffffffffffffffffffffffff1660009081526002602052604090205490565b34801561020057600080fd5b5061015661020f366004610fde565b60046020526000908152604090205481565b34801561022d57600080fd5b506100e361023c366004611000565b61067c565b34801561024d57600080fd5b506005546101179073ffffffffffffffffffffffffffffffffffffffff1681565b34801561027a57600080fd5b506100e3610289366004611062565b61076a565b34801561029a57600080fd5b506101566102a9366004610fde565b73ffffffffffffffffffffffffffffffffffffffff1660009081526003602052604090205490565b3480156102dd57600080fd5b506101566102ec366004610fde565b60036020526000908152604090205481565b34801561030a57600080fd5b5061015660065481565b6100e35b600034116103ad576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602860248201527f4465706f73697420616d6f756e74206d7573742062652067726561746572207460448201527f68616e207a65726f00000000000000000000000000000000000000000000000060648201526084015b60405180910390fd5b33600090815260026020526040812080543492906103cc908490611135565b909155505060065433600081815260036020526040908190209290925590517f2da466a7b24304f47e87fa2e1e5a81b9831ce54fec19055ce277ca2f39ba42c49061041a9034815260200190565b60405180910390a2565b61042c610cad565b336000908152600260205260409020548111156104a5576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601460248201527f496e73756666696369656e742062616c616e636500000000000000000000000060448201526064016103a4565b60065433600090815260036020526040902054148015906104e157503360009081526003602052604090819020546104dd9190611135565b4310155b610547576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601460248201527f5769746864726177616c206973206c6f636b656400000000000000000000000060448201526064016103a4565b3360009081526002602052604081208054839290610566908490611148565b9091555050604051600090339083908381818185875af1925050503d80600081146105ad576040519150601f19603f3d011682016040523d82523d6000602084013e6105b2565b606091505b505090508061061d576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601460248201527f4661696c656420746f2073656e6420457468657200000000000000000000000060448201526064016103a4565b60065433600081815260036020526040908190209290925590517f7084f5476618d8e60b11ef0d7d3f06914655adb8793e28ff7f018d4c76d505d5906106669085815260200190565b60405180910390a2506106796001600055565b50565b3360009081526002602052604090205481111561071b576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602860248201527f496e73756666696369656e742062616c616e636520746f20726571756573742060448201527f776974686472617700000000000000000000000000000000000000000000000060648201526084016103a4565b3360008181526003602052604090819020439055517f7a20b0fa4183ed600fe1a67a078e6ba00e5992b52d176df6d13dc2936acc290d9061075f9084815260200190565b60405180910390a250565b610772610cad565b60055473ffffffffffffffffffffffffffffffffffffffff163314610819576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602760248201527f4f6e6c79204c7562616e436f72652063616e20696e697469617465207468697360448201527f207061796f75740000000000000000000000000000000000000000000000000060648201526084016103a4565b6001546040517fcf23029700000000000000000000000000000000000000000000000000000000815260009173ffffffffffffffffffffffffffffffffffffffff169063cf23029790610870908a9060040161115b565b602060405180830381865afa15801561088d573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108b191906111c5565b90506108c36040880160208901610fde565b73ffffffffffffffffffffffffffffffffffffffff166108e4828888610cf0565b73ffffffffffffffffffffffffffffffffffffffff1614610961576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601160248201527f496e76616c6964207369676e617475726500000000000000000000000000000060448201526064016103a4565b600084610972578760600135610984565b610984608089013560608a0135611135565b9050806002600061099b60408c0160208d01610fde565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020541015610a3e576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601460248201527f496e73756666696369656e742062616c616e636500000000000000000000000060448201526064016103a4565b60046000610a5260408b0160208c01610fde565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020548860a0013514610af9576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601360248201527f496e636f727265637420746970206e6f6e63650000000000000000000000000060448201526064016103a4565b60046000610b0d60408b0160208c01610fde565b73ffffffffffffffffffffffffffffffffffffffff16815260208101919091526040016000908120805491610b41836111de565b9091555081905060026000610b5c60408c0160208d01610fde565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000828254610ba59190611148565b909155505060015473ffffffffffffffffffffffffffffffffffffffff16634e8a0acb8280610bda60608d0160408e01610fde565b88886040518663ffffffff1660e01b8152600401610bfb9493929190611216565b6000604051808303818588803b158015610c1457600080fd5b505af1158015610c28573d6000803e3d6000fd5b50610c3f93505060408b0191505060208a01610fde565b73ffffffffffffffffffffffffffffffffffffffff167f729659476ddfdbe82b4e16c19895d9f939f33a114b5c9f17b679b06daf7393fc8287604051610c919291909182521515602082015260400190565b60405180910390a25050610ca56001600055565b505050505050565b600260005403610ce9576040517f3ee5aeb500000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6002600055565b6000610d328484848080601f016020809104026020016040519081016040528093929190818152602001838380828437600092019190915250610d3a92505050565b949350505050565b600080600080610d4a8686610d66565b925092509250610d5a8282610db3565b50909150505b92915050565b60008060008351604103610da05760208401516040850151606086015160001a610d9288828585610ebb565b955095509550505050610dac565b50508151600091506002905b9250925092565b6000826003811115610dc757610dc7611287565b03610dd0575050565b6001826003811115610de457610de4611287565b03610e1b576040517ff645eedf00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6002826003811115610e2f57610e2f611287565b03610e69576040517ffce698f7000000000000000000000000000000000000000000000000000000008152600481018290526024016103a4565b6003826003811115610e7d57610e7d611287565b03610eb7576040517fd78bce0c000000000000000000000000000000000000000000000000000000008152600481018290526024016103a4565b5050565b600080807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0841115610ef65750600091506003905082610fab565b604080516000808252602082018084528a905260ff891692820192909252606081018790526080810186905260019060a0016020604051602081039080840390855afa158015610f4a573d6000803e3d6000fd5b50506040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0015191505073ffffffffffffffffffffffffffffffffffffffff8116610fa157506000925060019150829050610fab565b9250600091508190505b9450945094915050565b803573ffffffffffffffffffffffffffffffffffffffff81168114610fd957600080fd5b919050565b600060208284031215610ff057600080fd5b610ff982610fb5565b9392505050565b60006020828403121561101257600080fd5b5035919050565b60008083601f84011261102b57600080fd5b50813567ffffffffffffffff81111561104357600080fd5b60208301915083602082850101111561105b57600080fd5b9250929050565b60008060008060008086880361012081121561107d57600080fd5b60c081121561108b57600080fd5b5086955060c087013567ffffffffffffffff808211156110aa57600080fd5b6110b68a838b01611019565b909750955060e0890135915081151582146110d057600080fd5b90935061010088013590808211156110e757600080fd5b506110f489828a01611019565b979a9699509497509295939492505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b80820180821115610d6057610d60611106565b81810381811115610d6057610d60611106565b8135815260c0810161116f60208401610fb5565b73ffffffffffffffffffffffffffffffffffffffff80821660208501528061119960408701610fb5565b1660408501525050606083013560608301526080830135608083015260a083013560a083015292915050565b6000602082840312156111d757600080fd5b5051919050565b60007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff820361120f5761120f611106565b5060010190565b84815273ffffffffffffffffffffffffffffffffffffffff8416602082015260606040820152816060820152818360808301376000818301608090810191909152601f9092017fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe01601019392505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fdfea164736f6c6343000819000a60e060405234801561001057600080fd5b506040516113f23803806113f283398101604081905261002f916100b4565b836001600160a01b0381166100575760405163d86f565560e01b815260040160405180910390fd5b6001600160a01b0390811660805260a0929092526001600160401b039290921660c052600080546001600160a01b0319169290911691909117905550610111565b80516001600160a01b03811681146100af57600080fd5b919050565b600080600080608085870312156100ca57600080fd5b6100d385610098565b60208601519094506001600160401b03811681146100f057600080fd5b6040860151909350915061010660608601610098565b905092959194509250565b60805160a05160c0516112a561014d60003960006102b101526000610353015260008181609f0152818161010101526101f301526112a56000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c80630f308979146100515780632a75d3be1461009a5780638193399c146100c1578063dc5cd53c146100d6575b600080fd5b6000546100719073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200160405180910390f35b6100717f000000000000000000000000000000000000000000000000000000000000000081565b6100d46100cf3660046110bb565b6100e9565b005b6100d46100e43660046110bb565b6101db565b3373ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001614610158576040517f25ce393e00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60405173ffffffffffffffffffffffffffffffffffffffff881681528590879067ffffffffffffffff8b16907fd6d9923f6afa6ae6afc97c99da22b8ccadc9beafe897857b2434da0a402da98c9060200160405180910390a46101c160018989898987876102af565b6101d188888888888888886103e3565b5050505050505050565b3373ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000161461024a576040517f25ce393e00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60405173ffffffffffffffffffffffffffffffffffffffff881681528590879067ffffffffffffffff8b16907fc6d3309bf887e48755c9a455e332b73641b6bf2fd018e3b608bf21676c4c0af59060200160405180910390a46101c160008989898987875b7f000000000000000000000000000000000000000000000000000000000000000067ffffffffffffffff168667ffffffffffffffff1614610351576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601e60248201527f536f7572636520636861696e20494420646f6573206e6f74206d61746368000060448201526064015b60405180910390fd5b7f000000000000000000000000000000000000000000000000000000000000000084146103da576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601460248201527f496e76616c696420717565727920736368656d610000000000000000000000006044820152606401610348565b50505050505050565b60006040518060c001604052808686600081811061040357610403611185565b9050602002013560001c81526020018686600181811061042557610425611185565b9050602002013560001c73ffffffffffffffffffffffffffffffffffffffff1681526020018686600281811061045d5761045d611185565b9050602002013560001c73ffffffffffffffffffffffffffffffffffffffff1681526020018686600381811061049557610495611185565b9050602002013560001c8152602001868660048181106104b7576104b7611185565b9050602002013560001c8152602001868660058181106104d9576104d9611185565b9050602002013560001c8152509050600060405180602001604052808787600681811061050857610508611185565b9050602002013560001c8152509050600060405180604001604052808888600781811061053757610537611185565b9050602002013560001c81526020018888600881811061055957610559611185565b9050602002013560001c8152509050600060405180606001604052808481526020018381526020018989600981811061059457610594611185565b9050602002013560001c81525090506000602067ffffffffffffffff8111156105bf576105bf6111b4565b6040519080825280601f01601f1916602001820160405280156105e9576020820181803683370190505b50905060005b6020811015610670578989600e81811061060b5761060b611185565b90506020020135816020811061062357610623611185565b1a60f81b82828151811061063957610639611185565b60200101907effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916908160001a9053506001016105ef565b5060408051602080825281830190925260009160208201818036833701905050905060005b6020811015610716578a8a600f8181106106b1576106b1611185565b9050602002013581602081106106c9576106c9611185565b1a60f81b8282815181106106df576106df611185565b60200101907effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916908160001a905350600101610695565b5060008054604080517fd28dc108000000000000000000000000000000000000000000000000000000008152895160048201526020808b015173ffffffffffffffffffffffffffffffffffffffff90811660248401528b8401518116604484015260608c0151606484015260808c0151608484015260a08c015160a484015288515160c484015281890151805160e4850152909101516101048301529187015161012482015291169063d28dc1089061014401602060405180830381865afa1580156107e6573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061080a91906111e3565b9050866020015173ffffffffffffffffffffffffffffffffffffffff166108318285610db4565b73ffffffffffffffffffffffffffffffffffffffff16146108ae576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601660248201527f496e76616c69642075736572207369676e6174757265000000000000000000006044820152606401610348565b604087015173ffffffffffffffffffffffffffffffffffffffff166108db6108d5856111fc565b84610db4565b73ffffffffffffffffffffffffffffffffffffffff1614610958576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601b60248201527f496e76616c696420707265636f6e666572207369676e617475726500000000006044820152606401610348565b6000805473ffffffffffffffffffffffffffffffffffffffff1663529c76b5610980856111fc565b6040518263ffffffff1660e01b815260040161099e91815260200190565b602060405180830381865afa1580156109bb573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906109df9190611241565b905060038160038111156109f5576109f5611269565b03610a82576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602960248201527f507265636f6e66526571756573742068617320616c7265616479206265656e2060448201527f636f6c6c656374656400000000000000000000000000000000000000000000006064820152608401610348565b6000816003811115610a9657610a96611269565b03610b34578460400151431015610b2f576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603660248201527f507265636f6e665265717565737420686173206e6f742072656163686564207460448201527f686520626c6f636b2072657175657374656420796574000000000000000000006064820152608401610348565b610da2565b6001816003811115610b4857610b48611269565b03610c0557600054604089015173ffffffffffffffffffffffffffffffffffffffff90911690634ab8980b90610b7d866111fc565b6040517fffffffff0000000000000000000000000000000000000000000000000000000060e085901b16815273ffffffffffffffffffffffffffffffffffffffff90921660048301526024820152604401600060405180830381600087803b158015610be857600080fd5b505af1158015610bfc573d6000803e3d6000fd5b50505050610da2565b6002816003811115610c1957610c19611269565b03610da2578560200151600003610c5a57600054604089015173ffffffffffffffffffffffffffffffffffffffff90911690634ab8980b90610b7d866111fc565b60008c8c6010818110610c6f57610c6f611185565b9050602002013560001c905060008d8d6011818110610c9057610c90611185565b6000546020909102929092013592505073ffffffffffffffffffffffffffffffffffffffff8381169116148015610ce657507f4fbab3620000000000000000000000000000000000000000000000000000000081145b15610d9f5760005460408b015173ffffffffffffffffffffffffffffffffffffffff90911690634ab8980b90610d1b886111fc565b6040517fffffffff0000000000000000000000000000000000000000000000000000000060e085901b16815273ffffffffffffffffffffffffffffffffffffffff90921660048301526024820152604401600060405180830381600087803b158015610d8657600080fd5b505af1158015610d9a573d6000803e3d6000fd5b505050505b50505b50505050505050505050505050505050565b600080600080610dc48686610dde565b925092509250610dd48282610e2b565b5090949350505050565b60008060008351604103610e185760208401516040850151606086015160001a610e0a88828585610f33565b955095509550505050610e24565b50508151600091506002905b9250925092565b6000826003811115610e3f57610e3f611269565b03610e48575050565b6001826003811115610e5c57610e5c611269565b03610e93576040517ff645eedf00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6002826003811115610ea757610ea7611269565b03610ee1576040517ffce698f700000000000000000000000000000000000000000000000000000000815260048101829052602401610348565b6003826003811115610ef557610ef5611269565b03610f2f576040517fd78bce0c00000000000000000000000000000000000000000000000000000000815260048101829052602401610348565b5050565b600080807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0841115610f6e5750600091506003905082611023565b604080516000808252602082018084528a905260ff891692820192909252606081018790526080810186905260019060a0016020604051602081039080840390855afa158015610fc2573d6000803e3d6000fd5b50506040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0015191505073ffffffffffffffffffffffffffffffffffffffff811661101957506000925060019150829050611023565b9250600091508190505b9450945094915050565b60008083601f84011261103f57600080fd5b50813567ffffffffffffffff81111561105757600080fd5b6020830191508360208260051b850101111561107257600080fd5b9250929050565b60008083601f84011261108b57600080fd5b50813567ffffffffffffffff8111156110a357600080fd5b60208301915083602082850101111561107257600080fd5b60008060008060008060008060c0898b0312156110d757600080fd5b883567ffffffffffffffff80821682146110f057600080fd5b90985060208a01359073ffffffffffffffffffffffffffffffffffffffff8216821461111b57600080fd5b90975060408a0135965060608a0135955060808a0135908082111561113f57600080fd5b61114b8c838d0161102d565b909650945060a08b013591508082111561116457600080fd5b506111718b828c01611079565b999c989b5096995094979396929594505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b6000602082840312156111f557600080fd5b5051919050565b8051602080830151919081101561123b577fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8160200360031b1b821691505b50919050565b60006020828403121561125357600080fd5b81516004811061126257600080fd5b9392505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fdfea164736f6c6343000819000a",
+        "sourceMap": "410:10808:51:-:0;;;2562:721;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;2652:5;:14;;-1:-1:-1;;;;;;2652:14:51;-1:-1:-1;;;;;2652:14:51;;;;;2918:18;;;;;;;;;;;-1:-1:-1;;;2918:18:51;;;;;2992:12;;;;;;;;;;-1:-1:-1;;;2992:12:51;;;;2807:265;;1295:95;2807:265;;;786:25:58;;;;2908:29:51;827:18:58;;;820:34;;;;2982:23:51;870:18:58;;;863:34;2736:9:51;913:18:58;;;906:34;;;2736:9:51;758:19:58;;2807:265:51;;;-1:-1:-1;;2807:265:51;;;;;;;;;;2784:298;;2807:265;2784:298;;;;2765:16;:317;3131:4;;3107:30;;;:::i;:::-;-1:-1:-1;;;;;1115:32:58;;;1097:51;;1085:2;1070:18;3107:30:51;;;;;;;;;;;;;;;;;;;;;;;3093:11;;:44;;;;;-1:-1:-1;;;;;3093:44:51;;;;;-1:-1:-1;;;;;3093:44:51;;;;;;3209:20;3238:7;3248:12;3270:4;3183:93;;;;;:::i;:::-;-1:-1:-1;;;;;1444:15:58;;;1426:34;;-1:-1:-1;;;;;1496:31:58;;;1491:2;1476:18;;1469:59;1516:2;1544:18;;1537:34;;;;1607:15;;;;1602:2;1587:18;;1580:43;1375:3;1360:19;3183:93:51;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;3147:21:51;:129;;-1:-1:-1;;;;;;3147:129:51;-1:-1:-1;;;;;3147:129:51;;;;;;;;;;-1:-1:-1;410:10808:51;;-1:-1:-1;;;410:10808:51;;;;;;;;;:::o;:::-;;;;;;;;:::o;14:177:58:-;93:13;;-1:-1:-1;;;;;135:31:58;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:354::-;284:6;292;300;353:2;341:9;332:7;328:23;324:32;321:52;;;369:1;366;359:12;321:52;392:40;422:9;392:40;:::i;:::-;382:50;;451:49;496:2;485:9;481:18;451:49;:::i;:::-;441:59;;540:2;529:9;525:18;519:25;509:35;;196:354;;;;;:::o;1159:470::-;410:10808:51;;;;;;",
+        "linkReferences": {}
+    },
+    "deployedBytecode": {
+        "object": "0x6080604052600436106101635760003560e01c80637aead2ca116100c0578063c58699db11610074578063d28dc10811610059578063d28dc10814610424578063e8976bd414610444578063e9a074351461047c57600080fd5b8063c58699db146103e4578063cf2302971461040457600080fd5b806392cc094f116100a557806392cc094f14610367578063a7fa583414610387578063b84776b7146103b457600080fd5b80637aead2ca1461031a5780638da5cb5b1461033a57600080fd5b8063529c76b51161011757806365ddf81a116100fc57806365ddf81a146102af5780636f5119e2146102cf57806375df7d16146102ef57600080fd5b8063529c76b51461023257806355c8b1531461026f57600080fd5b80634ab8980b116101485780634ab8980b146101ea5780634e8a0acb1461020c5780634fbab3621461021f57600080fd5b80633644e5151461016f5780633f7bd24e1461019857600080fd5b3661016a57005b600080fd5b34801561017b57600080fd5b5061018560035481565b6040519081526020015b60405180910390f35b3480156101a457600080fd5b506001546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161018f565b3480156101f657600080fd5b5061020a6102053660046116df565b61049c565b005b61020a61021a366004611752565b61071c565b61020a61022d3660046117ac565b610851565b34801561023e57600080fd5b5061026261024d3660046117e8565b60009081526006602052604090205460ff1690565b60405161018f9190611830565b34801561027b57600080fd5b5061029f61028a366004611871565b60046020526000908152604090205460ff1681565b604051901515815260200161018f565b3480156102bb57600080fd5b506101856102ca3660046117ac565b610d1a565b3480156102db57600080fd5b5061020a6102ea3660046118a4565b610d8e565b3480156102fb57600080fd5b5060005473ffffffffffffffffffffffffffffffffffffffff166101c5565b34801561032657600080fd5b50610185610335366004611927565b610fcb565b34801561034657600080fd5b506002546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b34801561037357600080fd5b5061018561038236600461198c565b611013565b34801561039357600080fd5b506000546101c59073ffffffffffffffffffffffffffffffffffffffff1681565b3480156103c057600080fd5b506102626103cf3660046117e8565b60066020526000908152604090205460ff1681565b3480156103f057600080fd5b506101856103ff3660046117e8565b61105f565b34801561041057600080fd5b5061018561041f3660046119a8565b6110b1565b34801561043057600080fd5b5061018561043f3660046119c4565b6110bf565b34801561045057600080fd5b5061018561045f3660046116df565b600560209081526000928352604080842090915290825290205481565b34801561048857600080fd5b5061020a610497366004611871565b611141565b60015473ffffffffffffffffffffffffffffffffffffffff16331461052e5760405162461bcd60e51b815260206004820152603160248201527f4f6e6c79204c7562616e4368616c6c656e67654d616e616765722063616e206360448201527f616c6c20746869732066756e6374696f6e00000000000000000000000000000060648201526084015b60405180910390fd5b73ffffffffffffffffffffffffffffffffffffffff82166000908152600560209081526040808320848452909152902054806105ac5760405162461bcd60e51b815260206004820152601160248201527f4e6f2074697020746f20636f6c6c6563740000000000000000000000000000006044820152606401610525565b60008373ffffffffffffffffffffffffffffffffffffffff168260405160006040518083038185875af1925050503d8060008114610606576040519150601f19603f3d011682016040523d82523d6000602084013e61060b565b606091505b505090508061065c5760405162461bcd60e51b815260206004820152601460248201527f4661696c656420746f2073656e642045746865720000000000000000000000006044820152606401610525565b60008381526006602090815260409182902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166003179055815184815290810185905273ffffffffffffffffffffffffffffffffffffffff8616917fe57f6388512f43ef7d4668918e17d0781d919a9565cfe442734bf22e4bf2c1b1910160405180910390a2505073ffffffffffffffffffffffffffffffffffffffff909116600090815260056020908152604080832093835292905290812055565b60005473ffffffffffffffffffffffffffffffffffffffff1633146107a95760405162461bcd60e51b815260206004820152602760248201527f4f6e6c79204c7562616e457363726f772063616e2063616c6c2074686973206660448201527f756e6374696f6e000000000000000000000000000000000000000000000000006064820152608401610525565b8334146107f85760405162461bcd60e51b815260206004820152601560248201527f4d69736d6174636865642065746865722073656e7400000000000000000000006044820152606401610525565b73ffffffffffffffffffffffffffffffffffffffff83166000908152600560205260408120859161082984866119fa565b815260200190815260200160002060008282546108469190611a65565b909155505050505050565b3360009081526004602052604090205460ff166108b05760405162461bcd60e51b815260206004820152601960248201527f43616c6c6572206973206e6f74206120707265636f6e666572000000000000006044820152606401610525565b80366108c0610140830183611a78565b905060c0830161012084013543146109405760405162461bcd60e51b815260206004820152603360248201527f507265636f6e662072657175657374207375626d69747465642061742074686560448201527f2077726f6e6720626c6f636b206e756d626572000000000000000000000000006064820152608401610525565b600061094c84836110bf565b905061095e6040850160208601611871565b73ffffffffffffffffffffffffffffffffffffffff1661098b82610986610180890189611ab6565b61121d565b73ffffffffffffffffffffffffffffffffffffffff16146109ee5760405162461bcd60e51b815260206004820152601660248201527f496e76616c69642075736572207369676e6174757265000000000000000000006044820152606401610525565b6109fe6060850160408601611871565b73ffffffffffffffffffffffffffffffffffffffff16610a3c610a25610180880188611ab6565b610a2e916119fa565b6109866101a0890189611ab6565b73ffffffffffffffffffffffffffffffffffffffff1614610a9f5760405162461bcd60e51b815260206004820152601b60248201527f496e76616c696420707265636f6e666572207369676e617475726500000000006044820152606401610525565b610aaf6080840160608501611b2b565b610ba2576000610ac26040850185611ab6565b905011610b115760405162461bcd60e51b815260206004820152601160248201527f43616c6c6461746120697320656d7074790000000000000000000000000000006044820152606401610525565b6000610b206020850185611871565b73ffffffffffffffffffffffffffffffffffffffff166020850135610b486040870187611ab6565b604051610b56929190611b46565b60006040518083038185875af1925050503d8060008114610b93576040519150601f19603f3d011682016040523d82523d6000602084013e610b98565b606091505b5050905050610c16565b6000610bb16020850185611871565b73ffffffffffffffffffffffffffffffffffffffff16846020013560405160006040518083038185875af1925050503d8060008114610c0c576040519150601f19603f3d011682016040523d82523d6000602084013e610c11565b606091505b505050505b60005473ffffffffffffffffffffffffffffffffffffffff1663a5bea53985610c43610160890189611ab6565b6001610c536101a08c018c611ab6565b6040518763ffffffff1660e01b8152600401610c7496959493929190611c03565b600060405180830381600087803b158015610c8e57600080fd5b505af1158015610ca2573d6000803e3d6000fd5b5050505060026006600087806101a00190610cbd9190611ab6565b610cc6916119fa565b8152602081019190915260400160002080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001836003811115610d0e57610d0e611801565b02179055505050505050565b60008160c08101610d2f610140830183611a78565b610d3d610160860186611ab6565b610d4b610180880188611ab6565b610d596101a08a018a611ab6565b604051602001610d7199989796959493929190611c50565b604051602081830303815290604052805190602001209050919050565b3360009081526004602052604090205460ff16610ded5760405162461bcd60e51b815260206004820152601960248201527f43616c6c6572206973206e6f74206120707265636f6e666572000000000000006044820152606401610525565b6000610df8866110b1565b9050610e0a6040870160208801611871565b73ffffffffffffffffffffffffffffffffffffffff16610e2b82878761121d565b73ffffffffffffffffffffffffffffffffffffffff1614610e8e5760405162461bcd60e51b815260206004820152601160248201527f496e76616c6964207369676e61747572650000000000000000000000000000006044820152606401610525565b610e98863561105f565b50600080546040517fa5bea53900000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff9091169163a5bea53991610ef8918a918a918a918a908a90600401611c03565b600060405180830381600087803b158015610f1257600080fd5b505af1158015610f26573d6000803e3d6000fd5b50505050600160066000858590610f3d91906119fa565b8152602081019190915260400160002080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001836003811115610f8557610f85611801565b02179055506040516060870135815233907f4d64a99bb001db3754a34d830c8df741fa7f36cf7a2c3fd2acd143afbe9e90369060200160405180910390a2505050505050565b73ffffffffffffffffffffffffffffffffffffffff8316600090815260056020526040812081610ffb84866119fa565b81526020019081526020016000205490509392505050565b600060035461102183611267565b6040517f1901000000000000000000000000000000000000000000000000000000000000602082015260228101929092526042820152606201610d71565b6000805a905060005b838110156110aa57835a61107c8484611a65565b6110869190611d9b565b116110aa575a6110969083611d9b565b6110a09082611a65565b90505a9150611068565b9392505050565b600060035461102183611393565b6000806110cb846110b1565b905060006110d884611013565b6003546040517f190100000000000000000000000000000000000000000000000000000000000060208201526022810191909152604281018490526062810182905290915060820160405160208183030381529060405280519060200120925050505b92915050565b60025473ffffffffffffffffffffffffffffffffffffffff1633146111ce5760405162461bcd60e51b815260206004820152602160248201527f4f6e6c79206f776e65722063616e2063616c6c20746869732066756e6374696f60448201527f6e000000000000000000000000000000000000000000000000000000000000006064820152608401610525565b73ffffffffffffffffffffffffffffffffffffffff16600090815260046020526040902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001179055565b600061125f8484848080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061143d92505050565b949350505050565b6040517f507265636f6e66436f6e646974696f6e7328000000000000000000000000000060208201527f496e636c7573696f6e4d65746120696e636c7573696f6e4d657461446174612c60328201527f4f72646572696e674d657461206f72646572696e674d657461446174612c000060528201527f75696e7432353620626c6f636b4e756d6265720000000000000000000000000060708201527f29000000000000000000000000000000000000000000000000000000000000006083820152600090608401604080518083037fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe001815282825280516020918201208184015284358383015284013560608084019190915290840135608083015283013560a082015260c001610d71565b60007f3bc6fb1900544ed4382c879c9c0ee4b973fdd96b34409f8cbaeb11b7ca17a8d582356113c86040850160208601611871565b6113d86060860160408701611871565b60408051602081019590955284019290925273ffffffffffffffffffffffffffffffffffffffff90811660608481019190915291166080838101919091529084013560a0838101919091529084013560c083015283013560e082015261010001610d71565b60008060008061144d8686611467565b92509250925061145d82826114b4565b5090949350505050565b600080600083516041036114a15760208401516040850151606086015160001a611493888285856115bc565b9550955095505050506114ad565b50508151600091506002905b9250925092565b60008260038111156114c8576114c8611801565b036114d1575050565b60018260038111156114e5576114e5611801565b0361151c576040517ff645eedf00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600282600381111561153057611530611801565b0361156a576040517ffce698f700000000000000000000000000000000000000000000000000000000815260048101829052602401610525565b600382600381111561157e5761157e611801565b036115b8576040517fd78bce0c00000000000000000000000000000000000000000000000000000000815260048101829052602401610525565b5050565b600080807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a08411156115f757506000915060039050826116ac565b604080516000808252602082018084528a905260ff891692820192909252606081018790526080810186905260019060a0016020604051602081039080840390855afa15801561164b573d6000803e3d6000fd5b50506040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0015191505073ffffffffffffffffffffffffffffffffffffffff81166116a2575060009250600191508290506116ac565b9250600091508190505b9450945094915050565b803573ffffffffffffffffffffffffffffffffffffffff811681146116da57600080fd5b919050565b600080604083850312156116f257600080fd5b6116fb836116b6565b946020939093013593505050565b60008083601f84011261171b57600080fd5b50813567ffffffffffffffff81111561173357600080fd5b60208301915083602082850101111561174b57600080fd5b9250929050565b6000806000806060858703121561176857600080fd5b84359350611778602086016116b6565b9250604085013567ffffffffffffffff81111561179457600080fd5b6117a087828801611709565b95989497509550505050565b6000602082840312156117be57600080fd5b813567ffffffffffffffff8111156117d557600080fd5b82016101c081850312156110aa57600080fd5b6000602082840312156117fa57600080fd5b5035919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b602081016004831061186b577f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b91905290565b60006020828403121561188357600080fd5b6110aa826116b6565b600060c0828403121561189e57600080fd5b50919050565b600080600080600061010086880312156118bd57600080fd5b6118c7878761188c565b945060c086013567ffffffffffffffff808211156118e457600080fd5b6118f089838a01611709565b909650945060e088013591508082111561190957600080fd5b5061191688828901611709565b969995985093965092949392505050565b60008060006040848603121561193c57600080fd5b611945846116b6565b9250602084013567ffffffffffffffff81111561196157600080fd5b61196d86828701611709565b9497909650939450505050565b60006080828403121561189e57600080fd5b60006080828403121561199e57600080fd5b6110aa838361197a565b600060c082840312156119ba57600080fd5b6110aa838361188c565b60008061014083850312156119d857600080fd5b6119e2848461188c565b91506119f18460c0850161197a565b90509250929050565b8035602083101561113b577fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff602084900360031b1b1692915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b8082018082111561113b5761113b611a36565b600082357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81833603018112611aac57600080fd5b9190910192915050565b60008083357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe1843603018112611aeb57600080fd5b83018035915067ffffffffffffffff821115611b0657600080fd5b60200191503681900382131561174b57600080fd5b803580151581146116da57600080fd5b600060208284031215611b3d57600080fd5b6110aa82611b1b565b8183823760009101908152919050565b80358252611b66602082016116b6565b73ffffffffffffffffffffffffffffffffffffffff808216602085015280611b90604085016116b6565b1660408501525050606081013560608301526080810135608083015260a081013560a08301525050565b8183528181602085013750600060208284010152600060207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f840116840101905092915050565b6000610120611c12838a611b56565b8060c0840152611c25818401888a611bba565b905085151560e0840152828103610100840152611c43818587611bba565b9998505050505050505050565b60006101c0611c5f838d611b56565b8a3560c084015260208b013560e084015260408b013561010084015260608b01356101208401528061014084015273ffffffffffffffffffffffffffffffffffffffff611cab8b6116b6565b16818401525060208901356101e083015260408901357fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe18a3603018112611cf157600080fd5b890160208101903567ffffffffffffffff811115611d0e57600080fd5b803603821315611d1d57600080fd5b6080610200850152611d3461024085018284611bba565b915050611d4360608b01611b1b565b1515610220840152828103610160840152611d5f81898b611bba565b9050828103610180840152611d75818789611bba565b90508281036101a0840152611d8b818587611bba565b9c9b505050505050505050505050565b8181038181111561113b5761113b611a3656fea164736f6c6343000819000a",
+        "sourceMap": "410:10808:51:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1716:31;;;;;;;;;;;;;;;;;;;160:25:58;;;148:2;133:18;1716:31:51;;;;;;;;1633:50;;;;;;;;;;-1:-1:-1;1633:50:51;;;;;;;;;;;403:42:58;391:55;;;373:74;;361:2;346:18;1633:50:51;196:257:58;7439:612:51;;;;;;;;;;-1:-1:-1;7439:612:51;;;;;:::i;:::-;;:::i;:::-;;7088:345;;;;;;:::i;:::-;;:::i;4220:1545::-;;;;;;:::i;:::-;;:::i;3453:170::-;;;;;;;;;;-1:-1:-1;3453:170:51;;;;;:::i;:::-;3537:20;3576:40;;;:20;:40;;;;;;;;;3453:170;;;;;;;;:::i;1754:45::-;;;;;;;;;;-1:-1:-1;1754:45:51;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;3468:14:58;;3461:22;3443:41;;3431:2;3416:18;1754:45:51;3303:187:58;8816:425:51;;;;;;;;;;-1:-1:-1;8816:425:51;;;;;:::i;:::-;;:::i;6376:587::-;;;;;;;;;;-1:-1:-1;6376:587:51;;;;;:::i;:::-;;:::i;3629:97::-;;;;;;;;;;-1:-1:-1;3678:11:51;3708;;;3629:97;;3732:180;;;;;;;;;;-1:-1:-1;3732:180:51;;;;;:::i;:::-;;:::i;1690:20::-;;;;;;;;;;-1:-1:-1;1690:20:51;;;;;;;;10140:237;;;;;;;;;;-1:-1:-1;10140:237:51;;;;;:::i;:::-;;:::i;1597:30::-;;;;;;;;;;-1:-1:-1;1597:30:51;;;;;;;;1879:68;;;;;;;;;;-1:-1:-1;1879:68:51;;;;;:::i;:::-;;;;;;;;;;;;;;;;8333:477;;;;;;;;;;-1:-1:-1;8333:477:51;;;;;:::i;:::-;;:::i;9709:177::-;;;;;;;;;;-1:-1:-1;9709:177:51;;;;;:::i;:::-;;:::i;9247:456::-;;;;;;;;;;-1:-1:-1;9247:456:51;;;;;:::i;:::-;;:::i;1805:68::-;;;;;;;;;;-1:-1:-1;1805:68:51;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;6969:113;;;;;;;;;;-1:-1:-1;6969:113:51;;;;;:::i;:::-;;:::i;7439:612::-;2462:21;;;;2440:10;:44;2432:106;;;;-1:-1:-1;;;2432:106:51;;7116:2:58;2432:106:51;;;7098:21:58;7155:2;7135:18;;;7128:30;7194:34;7174:18;;;7167:62;7265:19;7245:18;;;7238:47;7302:19;;2432:106:51;;;;;;;;;7566:24:::1;::::0;::::1;7546:17;7566:24:::0;;;:13:::1;:24;::::0;;;;;;;:44;;;;;;;;;7628:13;7620:43:::1;;;::::0;-1:-1:-1;;;7620:43:51;;7534:2:58;7620:43:51::1;::::0;::::1;7516:21:58::0;7573:2;7553:18;;;7546:30;7612:19;7592:18;;;7585:47;7649:18;;7620:43:51::1;7332:341:58::0;7620:43:51::1;7675:9;7689;:14;;7712:9;7689:38;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;7674:53;;;7745:4;7737:37;;;::::0;-1:-1:-1;;;7737:37:51;;8090:2:58;7737:37:51::1;::::0;::::1;8072:21:58::0;8129:2;8109:18;;;8102:30;8168:22;8148:18;;;8141:50;8208:18;;7737:37:51::1;7888:344:58::0;7737:37:51::1;7843:40;::::0;;;:20:::1;:40;::::0;;;;;;;;:73;;;::::1;7886:30;7843:73;::::0;;7932:54;;8411:25:58;;;8452:18;;;8445:34;;;7932:54:51::1;::::0;::::1;::::0;::::1;::::0;8384:18:58;7932:54:51::1;;;;;;;-1:-1:-1::0;;7996:24:51::1;::::0;;::::1;8043:1;7996:24:::0;;;:13:::1;:24;::::0;;;;;;;:44;;;;;;;;;:48;7439:612::o;7088:345::-;7236:11;;;;7214:10;:34;7206:86;;;;-1:-1:-1;;;7206:86:51;;8692:2:58;7206:86:51;;;8674:21:58;8731:2;8711:18;;;8704:30;8770:34;8750:18;;;8743:62;8841:9;8821:18;;;8814:37;8868:19;;7206:86:51;8490:403:58;7206:86:51;7323:6;7310:9;:19;7302:53;;;;-1:-1:-1;;;7302:53:51;;9100:2:58;7302:53:51;;;9082:21:58;9139:2;9119:18;;;9112:30;9178:23;9158:18;;;9151:51;9219:18;;7302:53:51;8898:345:58;7302:53:51;7365:28;;;;;;;:13;:28;;;;;7420:6;;7394:21;7402:12;;7394:21;:::i;:::-;7365:51;;;;;;;;;;;;:61;;;;;;;:::i;:::-;;;;-1:-1:-1;;;;;;7088:345:51:o;4220:1545::-;4328:10;4314:25;;;;:13;:25;;;;;;;;4306:63;;;;-1:-1:-1;;;4306:63:51;;10089:2:58;4306:63:51;;;10071:21:58;10128:2;10108:18;;;10101:30;10167:27;10147:18;;;10140:55;10212:18;;4306:63:51;9887:349:58;4306:63:51;4403:10;4380:20;4460;;;;4403:10;4460:20;:::i;:::-;4429:51;-1:-1:-1;4537:25:51;;;4581:29;;;;4614:12;4581:45;4573:109;;;;-1:-1:-1;;;4573:109:51;;10834:2:58;4573:109:51;;;10816:21:58;10873:2;10853:18;;;10846:30;10912:34;10892:18;;;10885:62;10983:21;10963:18;;;10956:49;11022:19;;4573:109:51;10632:415:58;4573:109:51;4760:14;4777:58;4810:5;4817:17;4777:32;:58::i;:::-;4760:75;-1:-1:-1;4906:10:51;;;;;;;;:::i;:::-;4853:63;;:49;4869:6;4877:24;;;;:10;:24;:::i;:::-;4853:15;:49::i;:::-;:63;;;4845:98;;;;-1:-1:-1;;;4845:98:51;;11839:2:58;4845:98:51;;;11821:21:58;11878:2;11858:18;;;11851:30;11917:24;11897:18;;;11890:52;11959:18;;4845:98:51;11637:346:58;4845:98:51;5059:8;;;;;;;;:::i;:::-;4974:93;;:81;4998:24;;;;:10;:24;:::i;:::-;4990:33;;;:::i;:::-;5025:29;;;;:10;:29;:::i;4974:81::-;:93;;;4953:167;;;;-1:-1:-1;;;4953:167:51;;12190:2:58;4953:167:51;;;12172:21:58;12229:2;12209:18;;;12202:30;12268:29;12248:18;;;12241:57;12315:18;;4953:167:51;11988:351:58;4953:167:51;5136:21;;;;;;;;:::i;:::-;5131:425;;5269:1;5241:18;;;;:9;:18;:::i;:::-;:25;;:29;5233:59;;;;-1:-1:-1;;;5233:59:51;;12896:2:58;5233:59:51;;;12878:21:58;12935:2;12915:18;;;12908:30;12974:19;12954:18;;;12947:47;13011:18;;5233:59:51;12694:341:58;5233:59:51;5307:12;5332;;;;:9;:12;:::i;:::-;5324:26;;5359:15;;;;5377:18;;;;5359:9;5377:18;:::i;:::-;5324:72;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;5306:90;;;5159:248;5131:425;;;5472:12;5497;;;;:9;:12;:::i;:::-;5489:26;;5524:9;:15;;;5489:56;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;5131:425:51;5566:11;;;;:18;5585:5;5592:25;;;;:10;:25;:::i;:::-;5619:4;5625:29;;;;:10;:29;:::i;:::-;5566:89;;;;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;5729:29;5666:20;:60;5695:10;:29;;;;;;;;:::i;:::-;5687:38;;;:::i;:::-;5666:60;;;;;;;;;;;-1:-1:-1;5666:60:51;:92;;;;;;;;;;;;;;:::i;:::-;;;;;;4296:1469;;;;4220:1545;:::o;8816:425::-;8904:7;8981:10;9015:25;;;9058:20;;;;8981:10;9058:20;:::i;:::-;9096:25;;;;:10;:25;:::i;:::-;9139:24;;;;:10;:24;:::i;:::-;9181:29;;;;:10;:29;:::i;:::-;8953:271;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;8930:304;;;;;;8923:311;;8816:425;;;:::o;6376:587::-;6521:10;6507:25;;;;:13;:25;;;;;;;;6499:63;;;;-1:-1:-1;;;6499:63:51;;10089:2:58;6499:63:51;;;10071:21:58;10128:2;10108:18;;;10101:30;10167:27;10147:18;;;10140:55;10212:18;;6499:63:51;9887:349:58;6499:63:51;6573:14;6590:19;6603:5;6590:12;:19::i;:::-;6573:36;-1:-1:-1;6669:10:51;;;;;;;;:::i;:::-;6627:52;;:38;6643:6;6651:13;;6627:15;:38::i;:::-;:52;;;6619:82;;;;-1:-1:-1;;;6619:82:51;;17310:2:58;6619:82:51;;;17292:21:58;17349:2;17329:18;;;17322:30;17388:19;17368:18;;;17361:47;17425:18;;6619:82:51;17108:341:58;6619:82:51;6712:25;6722:14;;6712:9;:25::i;:::-;-1:-1:-1;6747:11:51;;;:67;;;;;:11;;;;;:18;;:67;;6766:5;;6773:13;;;;6795:18;;;;6747:67;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;6876:30;6824:20;:49;6853:18;;6845:27;;;;;:::i;:::-;6824:49;;;;;;;;;;;-1:-1:-1;6824:49:51;:82;;;;;;;;;;;;;;:::i;:::-;;;;;-1:-1:-1;6921:35:51;;6943:12;;;;160:25:58;;6931:10:51;;6921:35;;148:2:58;133:18;6921:35:51;;;;;;;6489:474;6376:587;;;;;:::o;3732:180::-;3858:24;;;3832:7;3858:24;;;:13;:24;;;;;3832:7;3883:21;3891:12;;3883:21;:::i;:::-;3858:47;;;;;;;;;;;;3851:54;;3732:180;;;;;:::o;10140:237::-;10241:7;10306:16;;10324:44;10350:17;10324:25;:44::i;:::-;10277:92;;17724:66:58;10277:92:51;;;17712:79:58;17807:11;;;17800:27;;;;17843:12;;;17836:28;17880:12;;10277:92:51;17454:444:58;8333:477:51;8391:7;8410:16;8429:9;8410:28;;8448:15;8477:303;8494:8;8484:7;:18;8477:303;;;8618:8;8605:9;8584:18;8594:8;8584:7;:18;:::i;:::-;:30;;;;:::i;:::-;8583:43;8646:5;8579:157;8712:9;8701:20;;:8;:20;:::i;:::-;8690:31;;;;:::i;:::-;;;8760:9;8749:20;;8477:303;;;8796:7;8333:477;-1:-1:-1;;;8333:477:51:o;9709:177::-;9774:7;9839:16;;9857:20;9871:5;9857:13;:20::i;9247:456::-;9441:7;9464:17;9484:19;9497:5;9484:12;:19::i;:::-;9464:39;;9513:29;9545:43;9570:17;9545:24;:43::i;:::-;9644:16;;9615:80;;18334:66:58;9615:80:51;;;18322:79:58;18417:11;;;18410:27;;;;18453:12;;;18446:28;;;18490:12;;;18483:28;;;9513:75:51;;-1:-1:-1;18527:12:58;;9615:80:51;;;;;;;;;;;;9605:91;;;;;;9598:98;;;;9247:456;;;;;:::o;6969:113::-;2323:5;;;;2309:10;:19;2301:65;;;;-1:-1:-1;;;2301:65:51;;18752:2:58;2301:65:51;;;18734:21:58;18791:2;18771:18;;;18764:30;18830:34;18810:18;;;18803:62;18901:3;18881:18;;;18874:31;18922:19;;2301:65:51;18550:397:58;2301:65:51;7044:24:::1;;;::::0;;;:13:::1;:24;::::0;;;;:31;;;::::1;7071:4;7044:31;::::0;;6969:113::o;11061:155::-;11151:7;11177:32;11191:5;11198:10;;11177:32;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;11177:13:51;;-1:-1:-1;;;11177:32:51:i;:::-;11170:39;11061:155;-1:-1:-1;;;;11061:155:51:o;10383:477::-;1026:206;;19570:20:58;1026:206:51;;;19558:33:58;19621:34;19607:12;;;19600:56;19686:32;19672:12;;;19665:54;19749:21;19735:12;;;19728:43;19801:3;19787:12;;;19780:25;10487:7:51;;19821:13:58;;1026:206:51;;;;;;;;;;;;;1007:231;;1026:206;1007:231;;;;10536:307;;;20104:25:58;10609:55:51;;20145:18:58;;;20138:34;10682::51;;:42;10800:29;20188:18:58;;;20181:34;;;;10742:40:51;;;;20231:18:58;;;20224:34;10800:29:51;;;20274:19:58;;;20267:35;20076:19;;10536:307:51;19845:463:58;9892:242:51;9960:7;651:92;10037:14;;10053:10;;;;;;;;:::i;:::-;10065:8;;;;;;;;:::i;:::-;10009:108;;;;;;20628:25:58;;;;20669:18;;20662:34;;;;20715:42;20793:15;;;10075:12:51;20773:18:58;;;20766:43;;;;20845:15;;10089:14:51;20825:18:58;;;20818:43;;;;10075:12:51;;;;10105:11;20877:19:58;;;20870:35;;;;10089:14:51;;;;20921:19:58;;;20914:35;10105:11:51;;;20965:19:58;;;20958:35;20600:19;;10009:108:51;20313:686:58;3702:255:45;3780:7;3800:17;3819:18;3839:16;3859:27;3870:4;3876:9;3859:10;:27::i;:::-;3799:87;;;;;;3896:28;3908:5;3915:8;3896:11;:28::i;:::-;-1:-1:-1;3941:9:45;;3702:255;-1:-1:-1;;;;3702:255:45:o;2129:766::-;2210:7;2219:12;2233:7;2256:9;:16;2276:2;2256:22;2252:637;;2592:4;2577:20;;2571:27;2641:4;2626:20;;2620:27;2698:4;2683:20;;2677:27;2294:9;2669:36;2739:25;2750:4;2669:36;2571:27;2620;2739:10;:25::i;:::-;2732:32;;;;;;;;;;;2252:637;-1:-1:-1;;2860:16:45;;2811:1;;-1:-1:-1;2815:35:45;;2252:637;2129:766;;;;;:::o;7196:532::-;7291:20;7282:5;:29;;;;;;;;:::i;:::-;;7278:444;;7196:532;;:::o;7278:444::-;7387:29;7378:5;:38;;;;;;;;:::i;:::-;;7374:348;;7439:23;;;;;;;;;;;;;;7374:348;7492:35;7483:5;:44;;;;;;;;:::i;:::-;;7479:243;;7550:46;;;;;;;;160:25:58;;;133:18;;7550:46:45;14:177:58;7479:243:45;7626:30;7617:5;:39;;;;;;;;:::i;:::-;;7613:109;;7679:32;;;;;;;;160:25:58;;;133:18;;7679:32:45;14:177:58;7613:109:45;7196:532;;:::o;5140:1530::-;5266:7;;;6199:66;6186:79;;6182:164;;;-1:-1:-1;6297:1:45;;-1:-1:-1;6301:30:45;;-1:-1:-1;6333:1:45;6281:54;;6182:164;6457:24;;;6440:14;6457:24;;;;;;;;;21231:25:58;;;21304:4;21292:17;;21272:18;;;21265:45;;;;21326:18;;;21319:34;;;21369:18;;;21362:34;;;6457:24:45;;21203:19:58;;6457:24:45;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;;6457:24:45;;;;;;-1:-1:-1;;6495:20:45;;;6491:113;;-1:-1:-1;6547:1:45;;-1:-1:-1;6551:29:45;;-1:-1:-1;6547:1:45;;-1:-1:-1;6531:62:45;;6491:113;6622:6;-1:-1:-1;6630:20:45;;-1:-1:-1;6630:20:45;;-1:-1:-1;5140:1530:45;;;;;;;;;:::o;458:196:58:-;526:20;;586:42;575:54;;565:65;;555:93;;644:1;641;634:12;555:93;458:196;;;:::o;659:254::-;727:6;735;788:2;776:9;767:7;763:23;759:32;756:52;;;804:1;801;794:12;756:52;827:29;846:9;827:29;:::i;:::-;817:39;903:2;888:18;;;;875:32;;-1:-1:-1;;;659:254:58:o;918:347::-;969:8;979:6;1033:3;1026:4;1018:6;1014:17;1010:27;1000:55;;1051:1;1048;1041:12;1000:55;-1:-1:-1;1074:20:58;;1117:18;1106:30;;1103:50;;;1149:1;1146;1139:12;1103:50;1186:4;1178:6;1174:17;1162:29;;1238:3;1231:4;1222:6;1214;1210:19;1206:30;1203:39;1200:59;;;1255:1;1252;1245:12;1200:59;918:347;;;;;:::o;1270:551::-;1358:6;1366;1374;1382;1435:2;1423:9;1414:7;1410:23;1406:32;1403:52;;;1451:1;1448;1441:12;1403:52;1487:9;1474:23;1464:33;;1516:38;1550:2;1539:9;1535:18;1516:38;:::i;:::-;1506:48;;1605:2;1594:9;1590:18;1577:32;1632:18;1624:6;1621:30;1618:50;;;1664:1;1661;1654:12;1618:50;1703:58;1753:7;1744:6;1733:9;1729:22;1703:58;:::i;:::-;1270:551;;;;-1:-1:-1;1780:8:58;-1:-1:-1;;;;1270:551:58:o;1826:395::-;1920:6;1973:2;1961:9;1952:7;1948:23;1944:32;1941:52;;;1989:1;1986;1979:12;1941:52;2029:9;2016:23;2062:18;2054:6;2051:30;2048:50;;;2094:1;2091;2084:12;2048:50;2117:22;;2173:3;2155:16;;;2151:26;2148:46;;;2190:1;2187;2180:12;2226:180;2285:6;2338:2;2326:9;2317:7;2313:23;2309:32;2306:52;;;2354:1;2351;2344:12;2306:52;-1:-1:-1;2377:23:58;;2226:180;-1:-1:-1;2226:180:58:o;2411:184::-;2463:77;2460:1;2453:88;2560:4;2557:1;2550:15;2584:4;2581:1;2574:15;2600:411;2758:2;2743:18;;2791:1;2780:13;;2770:201;;2827:77;2824:1;2817:88;2928:4;2925:1;2918:15;2956:4;2953:1;2946:15;2770:201;2980:25;;;2600:411;:::o;3016:186::-;3075:6;3128:2;3116:9;3107:7;3103:23;3099:32;3096:52;;;3144:1;3141;3134:12;3096:52;3167:29;3186:9;3167:29;:::i;3495:154::-;3553:5;3598:3;3589:6;3584:3;3580:16;3576:26;3573:46;;;3615:1;3612;3605:12;3573:46;-1:-1:-1;3637:6:58;3495:154;-1:-1:-1;3495:154:58:o;3654:843::-;3779:6;3787;3795;3803;3811;3864:3;3852:9;3843:7;3839:23;3835:33;3832:53;;;3881:1;3878;3871:12;3832:53;3904:52;3948:7;3937:9;3904:52;:::i;:::-;3894:62;;4007:3;3996:9;3992:19;3979:33;4031:18;4072:2;4064:6;4061:14;4058:34;;;4088:1;4085;4078:12;4058:34;4127:58;4177:7;4168:6;4157:9;4153:22;4127:58;:::i;:::-;4204:8;;-1:-1:-1;4101:84:58;-1:-1:-1;4292:3:58;4277:19;;4264:33;;-1:-1:-1;4309:16:58;;;4306:36;;;4338:1;4335;4328:12;4306:36;;4377:60;4429:7;4418:8;4407:9;4403:24;4377:60;:::i;:::-;3654:843;;;;-1:-1:-1;3654:843:58;;-1:-1:-1;4456:8:58;;4351:86;3654:843;-1:-1:-1;;;3654:843:58:o;4762:483::-;4841:6;4849;4857;4910:2;4898:9;4889:7;4885:23;4881:32;4878:52;;;4926:1;4923;4916:12;4878:52;4949:29;4968:9;4949:29;:::i;:::-;4939:39;;5029:2;5018:9;5014:18;5001:32;5056:18;5048:6;5045:30;5042:50;;;5088:1;5085;5078:12;5042:50;5127:58;5177:7;5168:6;5157:9;5153:22;5127:58;:::i;:::-;4762:483;;5204:8;;-1:-1:-1;5101:84:58;;-1:-1:-1;;;;4762:483:58:o;5663:166::-;5733:5;5778:3;5769:6;5764:3;5760:16;5756:26;5753:46;;;5795:1;5792;5785:12;5834:260;5931:6;5984:3;5972:9;5963:7;5959:23;5955:33;5952:53;;;6001:1;5998;5991:12;5952:53;6024:64;6080:7;6069:9;6024:64;:::i;6284:236::-;6369:6;6422:3;6410:9;6401:7;6397:23;6393:33;6390:53;;;6439:1;6436;6429:12;6390:53;6462:52;6506:7;6495:9;6462:52;:::i;6525:384::-;6657:6;6665;6718:3;6706:9;6697:7;6693:23;6689:33;6686:53;;;6735:1;6732;6725:12;6686:53;6758:52;6802:7;6791:9;6758:52;:::i;:::-;6748:62;;6829:74;6895:7;6889:3;6878:9;6874:19;6829:74;:::i;:::-;6819:84;;6525:384;;;;;:::o;9248:315::-;9368:19;;9407:2;9399:11;;9396:161;;;9479:66;9468:2;9464:12;;;9461:1;9457:20;9453:93;9442:105;9248:315;;;;:::o;9568:184::-;9620:77;9617:1;9610:88;9717:4;9714:1;9707:15;9741:4;9738:1;9731:15;9757:125;9822:9;;;9843:10;;;9840:36;;;9856:18;;:::i;10241:386::-;10337:4;10395:11;10382:25;10485:66;10474:8;10458:14;10454:29;10450:102;10430:18;10426:127;10416:155;;10567:1;10564;10557:12;10416:155;10588:33;;;;;10241:386;-1:-1:-1;;10241:386:58:o;11052:580::-;11129:4;11135:6;11195:11;11182:25;11285:66;11274:8;11258:14;11254:29;11250:102;11230:18;11226:127;11216:155;;11367:1;11364;11357:12;11216:155;11394:33;;11446:20;;;-1:-1:-1;11489:18:58;11478:30;;11475:50;;;11521:1;11518;11511:12;11475:50;11554:4;11542:17;;-1:-1:-1;11585:14:58;11581:27;;;11571:38;;11568:58;;;11622:1;11619;11612:12;12344:160;12409:20;;12465:13;;12458:21;12448:32;;12438:60;;12494:1;12491;12484:12;12509:180;12565:6;12618:2;12606:9;12597:7;12593:23;12589:32;12586:52;;;12634:1;12631;12624:12;12586:52;12657:26;12673:9;12657:26;:::i;13040:271::-;13223:6;13215;13210:3;13197:33;13179:3;13249:16;;13274:13;;;13249:16;13040:271;-1:-1:-1;13040:271:58:o;13316:553::-;13409:5;13396:19;13391:3;13384:32;13445:36;13475:4;13468:5;13464:16;13445:36;:::i;:::-;13500:42;13592:2;13578:12;13574:21;13567:4;13562:3;13558:14;13551:45;13670:2;13632:36;13662:4;13655:5;13651:16;13632:36;:::i;:::-;13628:45;13621:4;13616:3;13612:14;13605:69;;;13730:4;13723:5;13719:16;13706:30;13699:4;13694:3;13690:14;13683:54;13793:4;13786:5;13782:16;13769:30;13762:4;13757:3;13753:14;13746:54;13856:4;13849:5;13845:16;13832:30;13825:4;13820:3;13816:14;13809:54;13316:553;;:::o;13874:325::-;13962:6;13957:3;13950:19;14014:6;14007:5;14000:4;13995:3;13991:14;13978:43;;14066:1;14059:4;14050:6;14045:3;14041:16;14037:27;14030:38;13932:3;14188:4;14118:66;14113:2;14105:6;14101:15;14097:88;14092:3;14088:98;14084:109;14077:116;;13874:325;;;;:::o;14204:684::-;14480:4;14509:3;14521:51;14562:9;14554:6;14521:51;:::i;:::-;14609:2;14603:3;14592:9;14588:19;14581:31;14635:61;14692:2;14681:9;14677:18;14669:6;14661;14635:61;:::i;:::-;14621:75;;14747:6;14740:14;14733:22;14727:3;14716:9;14712:19;14705:51;14805:9;14797:6;14793:22;14787:3;14776:9;14772:19;14765:51;14833:49;14875:6;14867;14859;14833:49;:::i;:::-;14825:57;14204:684;-1:-1:-1;;;;;;;;;14204:684:58:o;14893:2210::-;15391:4;15420:3;15432:51;15473:9;15465:6;15432:51;:::i;:::-;15533:6;15520:20;15514:3;15503:9;15499:19;15492:49;15603:4;15595:6;15591:17;15578:31;15572:3;15561:9;15557:19;15550:60;15672:2;15664:6;15660:15;15647:29;15641:3;15630:9;15626:19;15619:58;15739:4;15731:6;15727:17;15714:31;15708:3;15697:9;15693:19;15686:60;15783:2;15777:3;15766:9;15762:19;15755:31;15854:42;15826:26;15845:6;15826:26;:::i;:::-;15822:75;15817:2;15806:9;15802:18;15795:103;;15960:4;15952:6;15948:17;15935:31;15929:3;15918:9;15914:19;15907:60;16027:2;16019:6;16015:15;16002:29;16107:66;16098:6;16082:14;16078:27;16074:100;16054:18;16050:125;16040:153;;16189:1;16186;16179:12;16040:153;16215:31;;16323:4;16312:16;;;16269:19;16351:18;16340:30;;16337:50;;;16383:1;16380;16373:12;16337:50;16432:6;16416:14;16412:27;16403:7;16399:41;16396:61;;;16453:1;16450;16443:12;16396:61;16494:4;16488:3;16477:9;16473:19;16466:33;16522:63;16580:3;16569:9;16565:19;16557:6;16548:7;16522:63;:::i;:::-;16508:77;;;16614:34;16642:4;16634:6;16630:17;16614:34;:::i;:::-;3277:13;3270:21;16702:3;16687:19;;3258:34;16744:22;;;16738:3;16723:19;;16716:51;16790:49;16748:6;16824;16816;16790:49;:::i;:::-;16776:63;;16888:9;16880:6;16876:22;16870:3;16859:9;16855:19;16848:51;16922:49;16964:6;16956;16948;16922:49;:::i;:::-;16908:63;;17020:9;17012:6;17008:22;17002:3;16991:9;16987:19;16980:51;17048:49;17090:6;17082;17074;17048:49;:::i;:::-;17040:57;14893:2210;-1:-1:-1;;;;;;;;;;;;14893:2210:58:o;17903:128::-;17970:9;;;17991:11;;;17988:37;;;18005:18;;:::i",
+        "linkReferences": {}
+    },
+    "methodIdentifiers": {
+        "DOMAIN_SEPARATOR()": "3644e515",
+        "collectTip(address,bytes32)": "4ab8980b",
+        "exhaust((uint256,address,address,uint256,uint256,uint256),bytes,bytes)": "6f5119e2",
+        "gasBurner(uint256)": "c58699db",
+        "getLubanEscrow()": "75df7d16",
+        "getPreconfConditionsHash(((uint256),(uint256,uint256),uint256))": "92cc094f",
+        "getPreconfRequestHash(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))": "65ddf81a",
+        "getPreconfRequestStatus(bytes32)": "529c76b5",
+        "getPreconferBalance(address,bytes)": "7aead2ca",
+        "getTipTxAndPreconfConditionsHash((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256))": "d28dc108",
+        "getTipTxHash((uint256,address,address,uint256,uint256,uint256))": "cf230297",
+        "handlePayment(uint256,address,bytes)": "4e8a0acb",
+        "lubanChallengeManager()": "3f7bd24e",
+        "lubanEscrow()": "a7fa5834",
+        "owner()": "8da5cb5b",
+        "preconfRequestStatus(bytes32)": "b84776b7",
+        "preconferList(address)": "55c8b153",
+        "preconferTips(address,bytes32)": "e8976bd4",
+        "registerPreconfer(address)": "e9a07435",
+        "settleRequest(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))": "4fbab362"
+    },
+    "rawMetadata": "{\"compiler\":{\"version\":\"0.8.25+commit.b61c2a91\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_owner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_axiomV2QueryAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"_querySchema\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"ECDSAInvalidSignature\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"length\",\"type\":\"uint256\"}],\"name\":\"ECDSAInvalidSignatureLength\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"name\":\"ECDSAInvalidSignatureS\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"preconfer\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Exhausted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"preconfer\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"preconferSignature\",\"type\":\"bytes32\"}],\"name\":\"TipCollected\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"DOMAIN_SEPARATOR\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"preconfer\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"preconferSignature\",\"type\":\"bytes32\"}],\"name\":\"collectTip\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"prePay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"afterPay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.TipTx\",\"name\":\"tipTx\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"userSignature\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"preconferSignature\",\"type\":\"bytes\"}],\"name\":\"exhaust\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"gasBurner\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLubanEscrow\",\"outputs\":[{\"internalType\":\"contract LubanEscrow\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startingBlockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.InclusionMeta\",\"name\":\"inclusionMetaData\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"txCount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.OrderingMeta\",\"name\":\"orderingMetaData\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.PreconfConditions\",\"name\":\"preconfConditions\",\"type\":\"tuple\"}],\"name\":\"getPreconfConditionsHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"prePay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"afterPay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.TipTx\",\"name\":\"tipTx\",\"type\":\"tuple\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startingBlockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.InclusionMeta\",\"name\":\"inclusionMetaData\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"txCount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.OrderingMeta\",\"name\":\"orderingMetaData\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.PreconfConditions\",\"name\":\"prefConditions\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"callData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"ethTransfer\",\"type\":\"bool\"}],\"internalType\":\"struct ILubanCore.PreconfTx\",\"name\":\"preconfTx\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"tipTxSignature\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"initSignature\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"preconferSignature\",\"type\":\"bytes\"}],\"internalType\":\"struct ILubanCore.PreconfRequest\",\"name\":\"preconfReq\",\"type\":\"tuple\"}],\"name\":\"getPreconfRequestHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"preconferSignature\",\"type\":\"bytes32\"}],\"name\":\"getPreconfRequestStatus\",\"outputs\":[{\"internalType\":\"enum ILubanCore.PreconfRequestStatus\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"preconfer\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"preconferSig\",\"type\":\"bytes\"}],\"name\":\"getPreconferBalance\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"prePay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"afterPay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.TipTx\",\"name\":\"tipTx\",\"type\":\"tuple\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startingBlockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.InclusionMeta\",\"name\":\"inclusionMetaData\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"txCount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.OrderingMeta\",\"name\":\"orderingMetaData\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.PreconfConditions\",\"name\":\"preconfConditions\",\"type\":\"tuple\"}],\"name\":\"getTipTxAndPreconfConditionsHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"prePay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"afterPay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.TipTx\",\"name\":\"tipTx\",\"type\":\"tuple\"}],\"name\":\"getTipTxHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"preconferAddr\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"preconferSig\",\"type\":\"bytes\"}],\"name\":\"handlePayment\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lubanChallengeManager\",\"outputs\":[{\"internalType\":\"contract LubanChallengeManager\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lubanEscrow\",\"outputs\":[{\"internalType\":\"contract LubanEscrow\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"preconfRequestStatus\",\"outputs\":[{\"internalType\":\"enum ILubanCore.PreconfRequestStatus\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"preconferList\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"preconferTips\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"preconfer\",\"type\":\"address\"}],\"name\":\"registerPreconfer\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"prePay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"afterPay\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.TipTx\",\"name\":\"tipTx\",\"type\":\"tuple\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"startingBlockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.InclusionMeta\",\"name\":\"inclusionMetaData\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"txCount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.OrderingMeta\",\"name\":\"orderingMetaData\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"internalType\":\"struct ILubanCore.PreconfConditions\",\"name\":\"prefConditions\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"callData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"ethTransfer\",\"type\":\"bool\"}],\"internalType\":\"struct ILubanCore.PreconfTx\",\"name\":\"preconfTx\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"tipTxSignature\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"initSignature\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"preconferSignature\",\"type\":\"bytes\"}],\"internalType\":\"struct ILubanCore.PreconfRequest\",\"name\":\"preconfReq\",\"type\":\"tuple\"}],\"name\":\"settleRequest\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}],\"devdoc\":{\"errors\":{\"ECDSAInvalidSignature()\":[{\"details\":\"The signature derives the `address(0)`.\"}],\"ECDSAInvalidSignatureLength(uint256)\":[{\"details\":\"The signature has an invalid length.\"}],\"ECDSAInvalidSignatureS(bytes32)\":[{\"details\":\"The signature has an S value that is in the upper half order.\"}]},\"kind\":\"dev\",\"methods\":{\"exhaust((uint256,address,address,uint256,uint256,uint256),bytes,bytes)\":{\"details\":\"This function is used to exhaust the gas to the point of      `gasLimit` defined in `TipTx` iteratively, and transfer the `prePayment` to the preconfer       This mechanism is designed to prevent user \\\"griefing\\\" the preconfer       by allowing the preconfer to withdraw the `prePayment` if       the user either withholds the `PreconfTx`       or submit a `PreconfTx` that exceeds the `gasLimit`\",\"params\":{\"tipTx\":\"The TipTx struct\",\"userSignature\":\"The signature of the TipTx\"}},\"settleRequest(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))\":{\"details\":\"called by the preconfer to settle the request\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"exhaust((uint256,address,address,uint256,uint256,uint256),bytes,bytes)\":{\"notice\":\"only the preconfer could invoke this function\"},\"settleRequest(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))\":{\"notice\":\"Main bulk of the logic for validating and settling request\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/LubanCore.sol\":\"LubanCore\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":10000},\"remappings\":[\":@axiom-crypto/axiom-std/=lib/axiom-std/src/\",\":@axiom-crypto/v2-periphery/=lib/axiom-v2-periphery/src/\",\":@eigenlayer-contracts/=lib/eigenlayer-contracts/src/\",\":@eigenlayer-middleware/=lib/eigenlayer-middleware/\",\":@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/\",\":@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/\",\":@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/\",\":@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/\",\":@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":axiom-std/=lib/axiom-std/src/\",\":axiom-v2-periphery/=lib/axiom-v2-periphery/src/\",\":ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/\",\":eigenlayer-contracts/=lib/eigenlayer-contracts/\",\":eigenlayer-middleware/=lib/eigenlayer-middleware/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":open-zeppelin/=lib/openzeppelin-contracts/contracts/\",\":openzeppelin-contracts-upgradeable-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/\",\":openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/\",\":openzeppelin-contracts-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/\"]},\"sources\":{\"lib/axiom-v2-periphery/src/client/AxiomV2Client.sol\":{\"keccak256\":\"0xe0d38ea52513a27f955e0426af6047e5d17ceb56a5be38c016d0d8374773d807\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cfd476ffe00b253d46150fbe6c877a1b855187af5782addd64506943c11bad07\",\"dweb:/ipfs/QmSv2z73vXiqrHfPatWeAvPqQJJpkTg5762Ztj3BsD1YpL\"]},\"lib/axiom-v2-periphery/src/interfaces/client/IAxiomV2Client.sol\":{\"keccak256\":\"0x09f2388811a30b5487d163351949604846234abd81378f082afad9cae6b737bf\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e925f12ef3c511d98c5799d0d857ce2c873e806399050b0a59d3eb2dc75686a7\",\"dweb:/ipfs/QmNwyg7Wx9vdMv8A5GZSPouLP4RKnmGHSCPo2Vgj2GaHBw\"]},\"lib/axiom-v2-periphery/src/interfaces/query/IAxiomV2HeaderVerifier.sol\":{\"keccak256\":\"0xcedb98fb3175bf896c739acf8982634f73a126f87dc58a73be315bcaaa8263a7\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://38b10aef6a740042b3ad449315412b8a5281bef321194505a77230ad19a2d1b7\",\"dweb:/ipfs/QmRcFv5jMaL3RkYdEUEsKJbLWLoL2QXgcKF9VsS5S5VQ2c\"]},\"lib/axiom-v2-periphery/src/interfaces/query/IAxiomV2Query.sol\":{\"keccak256\":\"0x0afb7dfaba4af965ca049e48e63824d60aa200208a7f6d1917d7b4ecfb233241\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6d93f1a4e2b26246d17c44b872217f6eeae47972f607fd27f0d6192ffef537e6\",\"dweb:/ipfs/QmdNmkkPBk99cbLNsbdrWkoAcFUJAFN7PdQ6p2s53Xyi8Z\"]},\"lib/forge-std/src/console.sol\":{\"keccak256\":\"0x91d5413c2434ca58fd278b6e1e79fd98d10c83931cc2596a6038eee4daeb34ba\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://91ccea707361e48b9b7a161fe81f496b9932bc471e9c4e4e1e9c283f2453cc70\",\"dweb:/ipfs/QmcB66sZhQ6Kz7MUHcLE78YXRUZxoZnnxZjN6yATsbB2ec\"]},\"lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol\":{\"keccak256\":\"0x85a45f3f10014a0f8be41157a32b6a5f905753ea64a4b64e29fc12b7deeecf39\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c3c74009ce36136b36c77c23935b8e4a7b4f253be2da2be4fb4a916b1ce43743\",\"dweb:/ipfs/QmcH36v3iN7SJJuF73AunLR2LtNxhVJ1wm63ph4dPZ4pcL\"]},\"lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol\":{\"keccak256\":\"0xf980daa263b661ab8ddee7d4fd833c7da7e7995e2c359ff1f17e67e4112f2236\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7448ab095d6940130bcf76ba47a2eab14148c83119523b93dd89f6d84edd6c02\",\"dweb:/ipfs/QmawrZ4voKQjH3oomXT3Kuheb3Mnmo2VvVpxg8Ne5UJUrd\"]},\"lib/openzeppelin-contracts/contracts/utils/Strings.sol\":{\"keccak256\":\"0x55f102ea785d8399c0e58d1108e2d289506dde18abc6db1b7f68c1f9f9bc5792\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://6e52e0a7765c943ef14e5bcf11e46e6139fa044be564881378349236bf2e3453\",\"dweb:/ipfs/QmZEeeXoFPW47amyP35gfzomF9DixqqTEPwzBakv6cZw6i\"]},\"lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol\":{\"keccak256\":\"0xeed0a08b0b091f528356cbc7245891a4c748682d4f6a18055e8e6ca77d12a6cf\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://ba80ba06c8e6be852847e4c5f4492cef801feb6558ae09ed705ff2e04ea8b13c\",\"dweb:/ipfs/QmXRJDv3xHLVQCVXg1ZvR35QS9sij5y9NDWYzMfUfAdTHF\"]},\"lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol\":{\"keccak256\":\"0xba333517a3add42cd35fe877656fc3dfcc9de53baa4f3aabbd6d12a92e4ea435\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2ceacff44c0fdc81e48e0e0b1db87a2076d3c1fb497341de077bf1da9f6b406c\",\"dweb:/ipfs/QmRUo1muMRAewxrKQ7TkXUtknyRoR57AyEkoPpiuZQ8FzX\"]},\"lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol\":{\"keccak256\":\"0x6b11eb41a228cca35d4b662b4df69fcd75192851365102690f57b2ac01e83fe6\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://ab006a2983ed350d2af21ddcdd835dcae3b8340086cc4d088460da5abd041f69\",\"dweb:/ipfs/QmbEacDhkJZiGrgzLjB4pNtE8Z1uudjDw1DvcDUTVQFsLG\"]},\"lib/openzeppelin-contracts/contracts/utils/math/Math.sol\":{\"keccak256\":\"0x005ec64c6313f0555d59e278f9a7a5ab2db5bdc72a027f255a37c327af1ec02d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4ece9f0b9c8daca08c76b6b5405a6446b6f73b3a15fab7ff56e296cbd4a2c875\",\"dweb:/ipfs/QmQyRpyPRL5SQuAgj6SHmbir3foX65FJjbVTTQrA2EFg6L\"]},\"lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol\":{\"keccak256\":\"0x5f7e4076e175393767754387c962926577f1660dd9b810187b9002407656be72\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7d533a1c97cd43a57cd9c465f7ee8dd0e39ae93a8fb8ff8e5303a356b081cdcc\",\"dweb:/ipfs/QmVBEei6aTnvYNZp2CHYVNKyZS4q1KkjANfY39WVXZXVoT\"]},\"src/LubanChallengeManager.sol\":{\"keccak256\":\"0x607d27c7be7e78f717643613ff196cf7bd0fb48a4959b3d15b9c8a2121e1a233\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://f7e5e72aa276dc6ee22079793574114c87a98b0ce2676a62efec67d2ab4b511c\",\"dweb:/ipfs/QmemVDcZ3oehKsw2wz4ijKmyB8Lp6XgpKucLYF3CKuoEeU\"]},\"src/LubanCore.sol\":{\"keccak256\":\"0xa5b1d1035e696ffe5430c61145c2a1583e9641e2ab0be9cc49c82d20c1e54c5b\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d99316997f75e51fbcf8f25bcf32e469d0d6a1d08cbdf6ffa8582a4a2d775e25\",\"dweb:/ipfs/QmcCBhoiEbir9D1JtpUmveRUPigGLJo57jKzvFupng3c7V\"]},\"src/LubanEscrow.sol\":{\"keccak256\":\"0xe3a18795c7d5fc3d814312e219f0fce0e9eb8d2999ff35b6af587c829330cd41\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://863af9e8f2ae1b699001ef68657baf519a4249542649b3251d09ae68744843a3\",\"dweb:/ipfs/QmXkUtLXV6ddXzMZWckG94Pad7FJtw5Wo1pxwqXrtj7s1V\"]},\"src/interfaces/ILubanChallengeManager.sol\":{\"keccak256\":\"0xb3282252b48ecdde6c6a16af24aaeb57d5b78ae991c7fcf1efc102a882860281\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://447476307c5b0dc1d2cc775e70aaf6df28d393703c0c9ea12b26cb8def99ff91\",\"dweb:/ipfs/QmbvwfWis7QR7fov4wCeYn6YEHxfGiWBioy9n4WuHRZkYs\"]},\"src/interfaces/ILubanCore.sol\":{\"keccak256\":\"0x4e28e69f3dcf08dc858580b027d9015dff48ddaa8030ca976cc2334a347ce0b2\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8e86bb02fa8f7e6971b10b220936fe294d5978cf963e9710bf8adfb15bc679fc\",\"dweb:/ipfs/QmT56EThtj1eDG2g5RQwTJA7wFXDgXbVNfsvqTaxZvM1PJ\"]}},\"version\":1}",
+    "metadata": {
+        "compiler": {
+            "version": "0.8.25+commit.b61c2a91"
+        },
+        "language": "Solidity",
+        "output": {
+            "abi": [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_owner",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "_axiomV2QueryAddress",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bytes32",
+                            "name": "_querySchema",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "inputs": [],
+                    "type": "error",
+                    "name": "ECDSAInvalidSignature"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "length",
+                            "type": "uint256"
+                        }
+                    ],
+                    "type": "error",
+                    "name": "ECDSAInvalidSignatureLength"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "s",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "type": "error",
+                    "name": "ECDSAInvalidSignatureS"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "preconfer",
+                            "type": "address",
+                            "indexed": true
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "amount",
+                            "type": "uint256",
+                            "indexed": false
+                        }
+                    ],
+                    "type": "event",
+                    "name": "Exhausted",
+                    "anonymous": false
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "preconfer",
+                            "type": "address",
+                            "indexed": true
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "amount",
+                            "type": "uint256",
+                            "indexed": false
+                        },
+                        {
+                            "internalType": "bytes32",
+                            "name": "preconferSignature",
+                            "type": "bytes32",
+                            "indexed": false
+                        }
+                    ],
+                    "type": "event",
+                    "name": "TipCollected",
+                    "anonymous": false
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "DOMAIN_SEPARATOR",
+                    "outputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "preconfer",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bytes32",
+                            "name": "preconferSignature",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function",
+                    "name": "collectTip"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.TipTx",
+                            "name": "tipTx",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "uint256",
+                                    "name": "gasLimit",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "from",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "to",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "prePay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "afterPay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "nonce",
+                                    "type": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "internalType": "bytes",
+                            "name": "userSignature",
+                            "type": "bytes"
+                        },
+                        {
+                            "internalType": "bytes",
+                            "name": "preconferSignature",
+                            "type": "bytes"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function",
+                    "name": "exhaust"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "gasLimit",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "gasBurner",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getLubanEscrow",
+                    "outputs": [
+                        {
+                            "internalType": "contract LubanEscrow",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.PreconfConditions",
+                            "name": "preconfConditions",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "struct ILubanCore.InclusionMeta",
+                                    "name": "inclusionMetaData",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "startingBlockNumber",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.OrderingMeta",
+                                    "name": "orderingMetaData",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "txCount",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "index",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "blockNumber",
+                                    "type": "uint256"
+                                }
+                            ]
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getPreconfConditionsHash",
+                    "outputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.PreconfRequest",
+                            "name": "preconfReq",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "struct ILubanCore.TipTx",
+                                    "name": "tipTx",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "gasLimit",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "address",
+                                            "name": "from",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "address",
+                                            "name": "to",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "prePay",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "afterPay",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "nonce",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.PreconfConditions",
+                                    "name": "prefConditions",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "struct ILubanCore.InclusionMeta",
+                                            "name": "inclusionMetaData",
+                                            "type": "tuple",
+                                            "components": [
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "startingBlockNumber",
+                                                    "type": "uint256"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "internalType": "struct ILubanCore.OrderingMeta",
+                                            "name": "orderingMetaData",
+                                            "type": "tuple",
+                                            "components": [
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "txCount",
+                                                    "type": "uint256"
+                                                },
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "index",
+                                                    "type": "uint256"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "blockNumber",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.PreconfTx",
+                                    "name": "preconfTx",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "address",
+                                            "name": "to",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "value",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "bytes",
+                                            "name": "callData",
+                                            "type": "bytes"
+                                        },
+                                        {
+                                            "internalType": "bool",
+                                            "name": "ethTransfer",
+                                            "type": "bool"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "tipTxSignature",
+                                    "type": "bytes"
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "initSignature",
+                                    "type": "bytes"
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "preconferSignature",
+                                    "type": "bytes"
+                                }
+                            ]
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getPreconfRequestHash",
+                    "outputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "preconferSignature",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getPreconfRequestStatus",
+                    "outputs": [
+                        {
+                            "internalType": "enum ILubanCore.PreconfRequestStatus",
+                            "name": "",
+                            "type": "uint8"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "preconfer",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bytes",
+                            "name": "preconferSig",
+                            "type": "bytes"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getPreconferBalance",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.TipTx",
+                            "name": "tipTx",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "uint256",
+                                    "name": "gasLimit",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "from",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "to",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "prePay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "afterPay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "nonce",
+                                    "type": "uint256"
+                                }
+                            ]
+                        },
+                        {
+                            "internalType": "struct ILubanCore.PreconfConditions",
+                            "name": "preconfConditions",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "struct ILubanCore.InclusionMeta",
+                                    "name": "inclusionMetaData",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "startingBlockNumber",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.OrderingMeta",
+                                    "name": "orderingMetaData",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "txCount",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "index",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "blockNumber",
+                                    "type": "uint256"
+                                }
+                            ]
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getTipTxAndPreconfConditionsHash",
+                    "outputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.TipTx",
+                            "name": "tipTx",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "uint256",
+                                    "name": "gasLimit",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "from",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "to",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "prePay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "afterPay",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "nonce",
+                                    "type": "uint256"
+                                }
+                            ]
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "getTipTxHash",
+                    "outputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "amount",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "preconferAddr",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bytes",
+                            "name": "preconferSig",
+                            "type": "bytes"
+                        }
+                    ],
+                    "stateMutability": "payable",
+                    "type": "function",
+                    "name": "handlePayment"
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "lubanChallengeManager",
+                    "outputs": [
+                        {
+                            "internalType": "contract LubanChallengeManager",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "lubanEscrow",
+                    "outputs": [
+                        {
+                            "internalType": "contract LubanEscrow",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "owner",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "preconfRequestStatus",
+                    "outputs": [
+                        {
+                            "internalType": "enum ILubanCore.PreconfRequestStatus",
+                            "name": "",
+                            "type": "uint8"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "preconferList",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bytes32",
+                            "name": "",
+                            "type": "bytes32"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                    "name": "preconferTips",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "preconfer",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function",
+                    "name": "registerPreconfer"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "struct ILubanCore.PreconfRequest",
+                            "name": "preconfReq",
+                            "type": "tuple",
+                            "components": [
+                                {
+                                    "internalType": "struct ILubanCore.TipTx",
+                                    "name": "tipTx",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "gasLimit",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "address",
+                                            "name": "from",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "address",
+                                            "name": "to",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "prePay",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "afterPay",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "nonce",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.PreconfConditions",
+                                    "name": "prefConditions",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "struct ILubanCore.InclusionMeta",
+                                            "name": "inclusionMetaData",
+                                            "type": "tuple",
+                                            "components": [
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "startingBlockNumber",
+                                                    "type": "uint256"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "internalType": "struct ILubanCore.OrderingMeta",
+                                            "name": "orderingMetaData",
+                                            "type": "tuple",
+                                            "components": [
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "txCount",
+                                                    "type": "uint256"
+                                                },
+                                                {
+                                                    "internalType": "uint256",
+                                                    "name": "index",
+                                                    "type": "uint256"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "blockNumber",
+                                            "type": "uint256"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "struct ILubanCore.PreconfTx",
+                                    "name": "preconfTx",
+                                    "type": "tuple",
+                                    "components": [
+                                        {
+                                            "internalType": "address",
+                                            "name": "to",
+                                            "type": "address"
+                                        },
+                                        {
+                                            "internalType": "uint256",
+                                            "name": "value",
+                                            "type": "uint256"
+                                        },
+                                        {
+                                            "internalType": "bytes",
+                                            "name": "callData",
+                                            "type": "bytes"
+                                        },
+                                        {
+                                            "internalType": "bool",
+                                            "name": "ethTransfer",
+                                            "type": "bool"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "tipTxSignature",
+                                    "type": "bytes"
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "initSignature",
+                                    "type": "bytes"
+                                },
+                                {
+                                    "internalType": "bytes",
+                                    "name": "preconferSignature",
+                                    "type": "bytes"
+                                }
+                            ]
+                        }
+                    ],
+                    "stateMutability": "payable",
+                    "type": "function",
+                    "name": "settleRequest"
+                },
+                {
+                    "inputs": [],
+                    "stateMutability": "payable",
+                    "type": "receive"
+                }
+            ],
+            "devdoc": {
+                "kind": "dev",
+                "methods": {
+                    "exhaust((uint256,address,address,uint256,uint256,uint256),bytes,bytes)": {
+                        "details": "This function is used to exhaust the gas to the point of      `gasLimit` defined in `TipTx` iteratively, and transfer the `prePayment` to the preconfer       This mechanism is designed to prevent user \"griefing\" the preconfer       by allowing the preconfer to withdraw the `prePayment` if       the user either withholds the `PreconfTx`       or submit a `PreconfTx` that exceeds the `gasLimit`",
+                        "params": {
+                            "tipTx": "The TipTx struct",
+                            "userSignature": "The signature of the TipTx"
+                        }
+                    },
+                    "settleRequest(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))": {
+                        "details": "called by the preconfer to settle the request"
+                    }
+                },
+                "version": 1
+            },
+            "userdoc": {
+                "kind": "user",
+                "methods": {
+                    "exhaust((uint256,address,address,uint256,uint256,uint256),bytes,bytes)": {
+                        "notice": "only the preconfer could invoke this function"
+                    },
+                    "settleRequest(((uint256,address,address,uint256,uint256,uint256),((uint256),(uint256,uint256),uint256),(address,uint256,bytes,bool),bytes,bytes,bytes))": {
+                        "notice": "Main bulk of the logic for validating and settling request"
+                    }
+                },
+                "version": 1
+            }
+        },
+        "settings": {
+            "remappings": [
+                "@axiom-crypto/axiom-std/=lib/axiom-std/src/",
+                "@axiom-crypto/v2-periphery/=lib/axiom-v2-periphery/src/",
+                "@eigenlayer-contracts/=lib/eigenlayer-contracts/src/",
+                "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
+                "@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+                "@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/",
+                "@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
+                "@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/",
+                "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+                "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+                "axiom-std/=lib/axiom-std/src/",
+                "axiom-v2-periphery/=lib/axiom-v2-periphery/src/",
+                "ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/",
+                "eigenlayer-contracts/=lib/eigenlayer-contracts/",
+                "eigenlayer-middleware/=lib/eigenlayer-middleware/",
+                "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+                "forge-std/=lib/forge-std/src/",
+                "open-zeppelin/=lib/openzeppelin-contracts/contracts/",
+                "openzeppelin-contracts-upgradeable-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+                "openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+                "openzeppelin-contracts-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
+                "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+                "openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/"
+            ],
+            "optimizer": {
+                "enabled": true,
+                "runs": 10000
+            },
+            "metadata": {
+                "bytecodeHash": "none"
+            },
+            "compilationTarget": {
+                "src/LubanCore.sol": "LubanCore"
+            },
+            "evmVersion": "paris",
+            "libraries": {}
+        },
+        "sources": {
+            "lib/axiom-v2-periphery/src/client/AxiomV2Client.sol": {
+                "keccak256": "0xe0d38ea52513a27f955e0426af6047e5d17ceb56a5be38c016d0d8374773d807",
+                "urls": [
+                    "bzz-raw://cfd476ffe00b253d46150fbe6c877a1b855187af5782addd64506943c11bad07",
+                    "dweb:/ipfs/QmSv2z73vXiqrHfPatWeAvPqQJJpkTg5762Ztj3BsD1YpL"
+                ],
+                "license": "MIT"
+            },
+            "lib/axiom-v2-periphery/src/interfaces/client/IAxiomV2Client.sol": {
+                "keccak256": "0x09f2388811a30b5487d163351949604846234abd81378f082afad9cae6b737bf",
+                "urls": [
+                    "bzz-raw://e925f12ef3c511d98c5799d0d857ce2c873e806399050b0a59d3eb2dc75686a7",
+                    "dweb:/ipfs/QmNwyg7Wx9vdMv8A5GZSPouLP4RKnmGHSCPo2Vgj2GaHBw"
+                ],
+                "license": "MIT"
+            },
+            "lib/axiom-v2-periphery/src/interfaces/query/IAxiomV2HeaderVerifier.sol": {
+                "keccak256": "0xcedb98fb3175bf896c739acf8982634f73a126f87dc58a73be315bcaaa8263a7",
+                "urls": [
+                    "bzz-raw://38b10aef6a740042b3ad449315412b8a5281bef321194505a77230ad19a2d1b7",
+                    "dweb:/ipfs/QmRcFv5jMaL3RkYdEUEsKJbLWLoL2QXgcKF9VsS5S5VQ2c"
+                ],
+                "license": "MIT"
+            },
+            "lib/axiom-v2-periphery/src/interfaces/query/IAxiomV2Query.sol": {
+                "keccak256": "0x0afb7dfaba4af965ca049e48e63824d60aa200208a7f6d1917d7b4ecfb233241",
+                "urls": [
+                    "bzz-raw://6d93f1a4e2b26246d17c44b872217f6eeae47972f607fd27f0d6192ffef537e6",
+                    "dweb:/ipfs/QmdNmkkPBk99cbLNsbdrWkoAcFUJAFN7PdQ6p2s53Xyi8Z"
+                ],
+                "license": "MIT"
+            },
+            "lib/forge-std/src/console.sol": {
+                "keccak256": "0x91d5413c2434ca58fd278b6e1e79fd98d10c83931cc2596a6038eee4daeb34ba",
+                "urls": [
+                    "bzz-raw://91ccea707361e48b9b7a161fe81f496b9932bc471e9c4e4e1e9c283f2453cc70",
+                    "dweb:/ipfs/QmcB66sZhQ6Kz7MUHcLE78YXRUZxoZnnxZjN6yATsbB2ec"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol": {
+                "keccak256": "0x85a45f3f10014a0f8be41157a32b6a5f905753ea64a4b64e29fc12b7deeecf39",
+                "urls": [
+                    "bzz-raw://c3c74009ce36136b36c77c23935b8e4a7b4f253be2da2be4fb4a916b1ce43743",
+                    "dweb:/ipfs/QmcH36v3iN7SJJuF73AunLR2LtNxhVJ1wm63ph4dPZ4pcL"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol": {
+                "keccak256": "0xf980daa263b661ab8ddee7d4fd833c7da7e7995e2c359ff1f17e67e4112f2236",
+                "urls": [
+                    "bzz-raw://7448ab095d6940130bcf76ba47a2eab14148c83119523b93dd89f6d84edd6c02",
+                    "dweb:/ipfs/QmawrZ4voKQjH3oomXT3Kuheb3Mnmo2VvVpxg8Ne5UJUrd"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/Strings.sol": {
+                "keccak256": "0x55f102ea785d8399c0e58d1108e2d289506dde18abc6db1b7f68c1f9f9bc5792",
+                "urls": [
+                    "bzz-raw://6e52e0a7765c943ef14e5bcf11e46e6139fa044be564881378349236bf2e3453",
+                    "dweb:/ipfs/QmZEeeXoFPW47amyP35gfzomF9DixqqTEPwzBakv6cZw6i"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol": {
+                "keccak256": "0xeed0a08b0b091f528356cbc7245891a4c748682d4f6a18055e8e6ca77d12a6cf",
+                "urls": [
+                    "bzz-raw://ba80ba06c8e6be852847e4c5f4492cef801feb6558ae09ed705ff2e04ea8b13c",
+                    "dweb:/ipfs/QmXRJDv3xHLVQCVXg1ZvR35QS9sij5y9NDWYzMfUfAdTHF"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol": {
+                "keccak256": "0xba333517a3add42cd35fe877656fc3dfcc9de53baa4f3aabbd6d12a92e4ea435",
+                "urls": [
+                    "bzz-raw://2ceacff44c0fdc81e48e0e0b1db87a2076d3c1fb497341de077bf1da9f6b406c",
+                    "dweb:/ipfs/QmRUo1muMRAewxrKQ7TkXUtknyRoR57AyEkoPpiuZQ8FzX"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol": {
+                "keccak256": "0x6b11eb41a228cca35d4b662b4df69fcd75192851365102690f57b2ac01e83fe6",
+                "urls": [
+                    "bzz-raw://ab006a2983ed350d2af21ddcdd835dcae3b8340086cc4d088460da5abd041f69",
+                    "dweb:/ipfs/QmbEacDhkJZiGrgzLjB4pNtE8Z1uudjDw1DvcDUTVQFsLG"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/math/Math.sol": {
+                "keccak256": "0x005ec64c6313f0555d59e278f9a7a5ab2db5bdc72a027f255a37c327af1ec02d",
+                "urls": [
+                    "bzz-raw://4ece9f0b9c8daca08c76b6b5405a6446b6f73b3a15fab7ff56e296cbd4a2c875",
+                    "dweb:/ipfs/QmQyRpyPRL5SQuAgj6SHmbir3foX65FJjbVTTQrA2EFg6L"
+                ],
+                "license": "MIT"
+            },
+            "lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol": {
+                "keccak256": "0x5f7e4076e175393767754387c962926577f1660dd9b810187b9002407656be72",
+                "urls": [
+                    "bzz-raw://7d533a1c97cd43a57cd9c465f7ee8dd0e39ae93a8fb8ff8e5303a356b081cdcc",
+                    "dweb:/ipfs/QmVBEei6aTnvYNZp2CHYVNKyZS4q1KkjANfY39WVXZXVoT"
+                ],
+                "license": "MIT"
+            },
+            "src/LubanChallengeManager.sol": {
+                "keccak256": "0x607d27c7be7e78f717643613ff196cf7bd0fb48a4959b3d15b9c8a2121e1a233",
+                "urls": [
+                    "bzz-raw://f7e5e72aa276dc6ee22079793574114c87a98b0ce2676a62efec67d2ab4b511c",
+                    "dweb:/ipfs/QmemVDcZ3oehKsw2wz4ijKmyB8Lp6XgpKucLYF3CKuoEeU"
+                ],
+                "license": "MIT"
+            },
+            "src/LubanCore.sol": {
+                "keccak256": "0xa5b1d1035e696ffe5430c61145c2a1583e9641e2ab0be9cc49c82d20c1e54c5b",
+                "urls": [
+                    "bzz-raw://d99316997f75e51fbcf8f25bcf32e469d0d6a1d08cbdf6ffa8582a4a2d775e25",
+                    "dweb:/ipfs/QmcCBhoiEbir9D1JtpUmveRUPigGLJo57jKzvFupng3c7V"
+                ],
+                "license": "MIT"
+            },
+            "src/LubanEscrow.sol": {
+                "keccak256": "0xe3a18795c7d5fc3d814312e219f0fce0e9eb8d2999ff35b6af587c829330cd41",
+                "urls": [
+                    "bzz-raw://863af9e8f2ae1b699001ef68657baf519a4249542649b3251d09ae68744843a3",
+                    "dweb:/ipfs/QmXkUtLXV6ddXzMZWckG94Pad7FJtw5Wo1pxwqXrtj7s1V"
+                ],
+                "license": "MIT"
+            },
+            "src/interfaces/ILubanChallengeManager.sol": {
+                "keccak256": "0xb3282252b48ecdde6c6a16af24aaeb57d5b78ae991c7fcf1efc102a882860281",
+                "urls": [
+                    "bzz-raw://447476307c5b0dc1d2cc775e70aaf6df28d393703c0c9ea12b26cb8def99ff91",
+                    "dweb:/ipfs/QmbvwfWis7QR7fov4wCeYn6YEHxfGiWBioy9n4WuHRZkYs"
+                ],
+                "license": "MIT"
+            },
+            "src/interfaces/ILubanCore.sol": {
+                "keccak256": "0x4e28e69f3dcf08dc858580b027d9015dff48ddaa8030ca976cc2334a347ce0b2",
+                "urls": [
+                    "bzz-raw://8e86bb02fa8f7e6971b10b220936fe294d5978cf963e9710bf8adfb15bc679fc",
+                    "dweb:/ipfs/QmT56EThtj1eDG2g5RQwTJA7wFXDgXbVNfsvqTaxZvM1PJ"
+                ],
+                "license": "MIT"
+            }
+        },
+        "version": 1
+    },
+    "id": 51
+}

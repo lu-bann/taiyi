@@ -1,3 +1,4 @@
+use alloy_contract::Error as AlloyContractError;
 use jsonrpsee::types::ErrorObjectOwned;
 use luban_primitives::PreconfHash;
 use thiserror::Error;
@@ -14,6 +15,8 @@ pub enum RpcError {
     PreconfTxNotValid(String),
     #[error("unknown error {0:?}")]
     UnknownError(String),
+    #[error("contract error: {0:?}")]
+    ContractError(#[from] AlloyContractError),
 }
 
 impl From<RpcError> for ErrorObjectOwned {
@@ -32,6 +35,9 @@ impl From<RpcError> for ErrorObjectOwned {
                 ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
             }
             RpcError::UnknownError(_) => {
+                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
+            }
+            RpcError::ContractError(_) => {
                 ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
             }
         }

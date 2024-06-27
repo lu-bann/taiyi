@@ -17,9 +17,18 @@ pub struct PreconferCommand {
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
 
+    #[clap(long = "beacon_rpc_url")]
+    pub beacon_rpc_url: String,
+
     /// luban escrow contract address
     #[clap(long = "luban_escrow_contract_addr")]
     pub luban_escrow_contract_addr: String,
+
+    #[clap(long = "luban_core_contract_addr")]
+    pub luban_core_contract_addr: String,
+
+    #[clap(long = "luban_proposer_registry_contract_addr")]
+    pub luban_proposer_registry_contract_addr: String,
 
     #[clap(long)]
     pub luban_service_url: Option<String>,
@@ -34,11 +43,17 @@ impl PreconferCommand {
         let addr = self.addr;
         let port = self.port;
         let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
+        let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
+        let luban_proposer_registry_contract_addr: Address =
+            self.luban_proposer_registry_contract_addr.parse()?;
         start_rpc_server(
             addr,
             port,
             luban_escrow_contract_addr,
+            luban_core_contract_addr,
+            luban_proposer_registry_contract_addr,
             self.rpc_url.clone(),
+            self.beacon_rpc_url.clone(),
             self.luban_service_url.clone(),
             self.commit_boost_url.clone(),
         )

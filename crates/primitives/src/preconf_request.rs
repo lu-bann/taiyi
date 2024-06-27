@@ -18,10 +18,10 @@ type Transaction = Vec<u8>;
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
-    preconf_conditions: PreconfCondition,
+    pub preconf_conditions: PreconfCondition,
     pub init_signature: BlsSignature,
     tip_tx_signature: Bytes,
-    preconfer_signature: Bytes,
+    pub preconfer_signature: Bytes,
     pub preconf_tx: Option<Transaction>,
 }
 
@@ -49,12 +49,12 @@ impl PreconfRequest {
     Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
 )]
 pub struct TipTransaction {
-    gas_limit: U256,
+    pub gas_limit: U256,
     pub from: Address,
-    to: Address,
+    pub to: Address,
     pub pre_pay: U256,
     pub after_pay: U256,
-    nonce: U256,
+    pub nonce: U256,
 }
 
 impl TipTransaction {
@@ -113,7 +113,7 @@ impl TipTransaction {
 pub struct PreconfCondition {
     inclusion_meta_data: InclusionMetaData,
     ordering_meta_data: OrderingMetaData,
-    block_number: u64,
+    pub block_number: u64,
 }
 
 impl PreconfCondition {
