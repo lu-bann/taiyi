@@ -22,7 +22,7 @@ pub struct PreconferCommand {
     pub luban_escrow_contract_addr: String,
 
     #[clap(long)]
-    pub luban_service_url: String,
+    pub luban_service_url: Option<String>,
 
     /// commit boost url
     #[clap(long)]

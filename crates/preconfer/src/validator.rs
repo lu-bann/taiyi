@@ -6,7 +6,7 @@ use alloy_transport::Transport;
 use luban_primitives::PreconfRequest;
 use LubanEscrow::LubanEscrowInstance;
 
-use crate::base_fee_fetcher::{BaseFeeFetcher, LubanFeeFetcher};
+use crate::base_fee_fetcher::BaseFeeFetcher;
 
 sol! {
     #[sol(rpc)]
@@ -18,23 +18,19 @@ sol! {
     }
 }
 #[derive(Debug)]
-pub struct Validator<T, P> {
+pub struct Validator<T, P, F> {
     luban_escrow_contract: LubanEscrowInstance<T, P>,
-    base_fee_fetcher: LubanFeeFetcher,
+    base_fee_fetcher: F,
 }
 
-impl<T, P> Validator<T, P>
+impl<T, P, F> Validator<T, P, F>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
+    F: BaseFeeFetcher,
 {
-    pub fn new(
-        provider: P,
-        luban_escrow_contract_addr: Address,
-        luban_service_url: String,
-    ) -> Self {
+    pub fn new(provider: P, luban_escrow_contract_addr: Address, base_fee_fetcher: F) -> Self {
         let luban_escrow_contract = LubanEscrow::new(luban_escrow_contract_addr, provider);
-        let base_fee_fetcher = LubanFeeFetcher::new(luban_service_url);
         Self {
             luban_escrow_contract,
             base_fee_fetcher,
