@@ -60,7 +60,7 @@ where
         let predict_base_fee = self.base_fee_fetcher.get_optimal_base_gas_fee().await?;
         let is_base_fee_correct = preconf_request
             .transaction()?
-            .map_or(true, |tx| predict_base_fee as u128 <= get_tx_base_fee(&tx));
+            .map_or(true, |tx| predict_base_fee <= get_tx_base_fee(&tx));
 
         Ok(
             balance._0 >= preconf_request.tip_tx.pre_pay + preconf_request.tip_tx.after_pay
