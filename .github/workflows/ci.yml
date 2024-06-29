@@ -51,23 +51,23 @@ jobs:
       - name: Initialize submodules
         run: |
           git submodule update --init --recursive
-      - name: Change directory to contracts
-        working-directory: contracts
-        run: echo "Changed directory to contracts"
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
       - name: Run Forge build
+        working-directory: contracts
         run: |
           forge --version
           forge build --sizes
         id: build
       - name: Run Forge tests
+        working-directory: contracts
         run: |
           forge test -vvv
         id: test
       - name: Check code formatting
+        working-directory: contracts
         run: |
           forge fmt --check
         id: fmt-check
