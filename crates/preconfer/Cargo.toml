@@ -8,19 +8,29 @@ alloy-consensus = { workspace = true }
 alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-core = { workspace = true }
 alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-rlp = { version = "0.3.4", features = ["derive"] }
 alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-rpc-types-beacon = { workspace = true }
 alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-sol-types = { version = "0.7.4" }
+alloy-sol-types = { version = "0.7.6", features = ["json"] }
 alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
+beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus" }
 eyre = { workspace = true }
+futures = "0.3.30"
 jsonrpsee = { workspace = true }
 luban-primitives = { workspace = true }
+mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }
 reqwest = "0.12.4"
+reth = { git = "https://github.com/paradigmxyz/reth" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"] }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth" }
 serde = { workspace = true }
 serde_json ={ workspace = true }
 thiserror = { workspace = true }
@@ -29,5 +39,8 @@ tracing = { workspace = true }
 
 cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "83f62f6e0174c65a65fd35a17e30c12cd923c0b8" }
 cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "83f62f6e0174c65a65fd35a17e30c12cd923c0b8" }
+
+[dev-dependencies]
+mockito = "1.4.0"
 
 [lib]

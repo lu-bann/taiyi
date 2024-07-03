@@ -7,7 +7,7 @@ interface ILubanCore {
     //////////////////////////////////////////////////////*/
 
     /// @dev Tip transaction a user sends to the preconfer
-    /// gasLimit - the gas limit of the transactions
+    /// gasLimit - the gas limit of the preconf transaction
     /// from - the address of the user
     /// to - the address of the preconfer
     /// prePay - is the payment a preconfer could receive after calling the exhaust function

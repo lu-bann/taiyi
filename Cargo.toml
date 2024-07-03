@@ -15,7 +15,7 @@ luban-primitives = { path = "crates/primitives" }
 luban-integration-tests = { path = "tests" }
 
 jsonrpsee = { version = "0.22.4", features = ["server", "http-client", "ws-client", "macros"] }
-alloy-core = { version = "0.7.2", features = ["serde", "rlp", "sol-types"] }
+alloy-core = { version = "0.7.6", features = ["serde", "rlp", "sol-types"] }
 alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 alloy-rpc-types-beacon = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
 eyre = { version = "0.6" }
