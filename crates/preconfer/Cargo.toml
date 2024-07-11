@@ -37,8 +37,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "83f62f6e0174c65a65fd35a17e30c12cd923c0b8" }
-cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "83f62f6e0174c65a65fd35a17e30c12cd923c0b8" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
+# cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
 
 [dev-dependencies]
 mockito = "1.4.0"
