@@ -1,7 +1,10 @@
 use alloy_core::primitives::U256;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use cb_common::pbs::{COMMIT_BOOST_API, PUBKEYS_PATH, SIGN_REQUEST_PATH};
-use cb_crypto::types::SignRequest;
+use cb_common::commit::{
+    client::GetPubkeysResponse,
+    constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
+    request::SignRequest,
+};
 use jsonrpsee::tracing::debug;
 use luban_primitives::PreconfRequest;
 use tracing::{error, info};
@@ -25,7 +28,7 @@ impl CommitBoostClient {
     }
 
     pub async fn get_pubkeys(&self) -> eyre::Result<Vec<BlsPublicKey>> {
-        let url = format!("{}{COMMIT_BOOST_API}{PUBKEYS_PATH}", self.url);
+        let url = format!("{}{GET_PUBKEYS_PATH}", self.url);
 
         info!(url, "Loading signatures from commit_boost");
 
@@ -46,9 +49,9 @@ impl CommitBoostClient {
             return Err(eyre::eyre!("failed to get public keys"));
         }
 
-        let pubkeys: Vec<BlsPublicKey> =
+        let pubkeys: GetPubkeysResponse =
             serde_json::from_slice(&response_bytes).expect("failed deser");
-        Ok(pubkeys)
+        Ok(pubkeys.consensus)
     }
 
     pub async fn sign_constraint(
@@ -57,9 +60,9 @@ impl CommitBoostClient {
         pubkey: BlsPublicKey,
     ) -> eyre::Result<BlsSignature> {
         let root = preconf_request.hash(self.chain_id);
-        let request = SignRequest::builder(ID, pubkey).with_root(root.into());
+        let request = SignRequest::new(ID, pubkey, false, root.into());
 
-        let url = format!("{}{COMMIT_BOOST_API}{SIGN_REQUEST_PATH}", self.url);
+        let url = format!("{}{REQUEST_SIGNATURE_PATH}", self.url);
 
         debug!(url, ?request, "Requesting signature from commit_boost");
 
