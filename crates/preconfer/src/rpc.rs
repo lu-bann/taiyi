@@ -86,8 +86,10 @@ where
         preconfer: Preconfer<T, P, F>,
         commit_boost_url: String,
         cl_receiver: mpsc::Receiver<Vec<ProposerDuty>>,
+        cb_id: String,
+        cb_jwt: String,
     ) -> Self {
-        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id);
+        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id, cb_id, cb_jwt);
         let pubkeys = commit_boost_client
             .get_pubkeys()
             .await
@@ -269,6 +271,8 @@ pub async fn start_rpc_server(
     beacon_rpc_url: String,
     luban_service_url: Option<String>,
     commit_boost_url: String,
+    cb_id: String,
+    cb_jwt: String,
 ) -> eyre::Result<()> {
     let (cl_sender, cl_receiver) = mpsc::channel(100);
     let provider = ProviderBuilder::new()
@@ -307,6 +311,8 @@ pub async fn start_rpc_server(
                 validator,
                 commit_boost_url,
                 cl_receiver,
+                cb_id,
+                cb_jwt,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -325,6 +331,8 @@ pub async fn start_rpc_server(
                 validator,
                 commit_boost_url,
                 cl_receiver,
+                cb_id,
+                cb_jwt,
             )
             .await;
             let handle = server.start(rpc.into_rpc());

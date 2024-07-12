@@ -9,21 +9,23 @@ use jsonrpsee::tracing::debug;
 use luban_primitives::PreconfRequest;
 use tracing::{error, info};
 
-const ID: &str = "luban";
-
 #[derive(Debug)]
 pub struct CommitBoostClient {
     url: String,
     chain_id: U256,
     client: reqwest::Client,
+    cb_id: String,
+    cb_jwt: String,
 }
 
 impl CommitBoostClient {
-    pub fn new(url: String, chain_id: U256) -> Self {
+    pub fn new(url: String, chain_id: U256, cb_id: String, cb_jwt: String) -> Self {
         Self {
             url,
             chain_id,
             client: reqwest::Client::new(),
+            cb_id,
+            cb_jwt,
         }
     }
 
@@ -51,6 +53,7 @@ impl CommitBoostClient {
 
         let pubkeys: GetPubkeysResponse =
             serde_json::from_slice(&response_bytes).expect("failed deser");
+        info!("Loaded public keys from commit-boost, {pubkeys:?}");
         Ok(pubkeys.consensus)
     }
 
@@ -60,7 +63,7 @@ impl CommitBoostClient {
         pubkey: BlsPublicKey,
     ) -> eyre::Result<BlsSignature> {
         let root = preconf_request.hash(self.chain_id);
-        let request = SignRequest::new(ID, pubkey, false, root.into());
+        let request = SignRequest::new(self.cb_id.clone(), pubkey, false, root.into());
 
         let url = format!("{}{REQUEST_SIGNATURE_PATH}", self.url);
 
@@ -68,6 +71,7 @@ impl CommitBoostClient {
 
         let response = reqwest::Client::new()
             .post(url)
+            .header("Authorization", format!("Bearer {}", self.cb_jwt))
             .json(&request)
             .send()
             .await?;
@@ -82,5 +86,50 @@ impl CommitBoostClient {
         }
 
         Ok(serde_json::from_slice(&response_bytes)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_rpc_types_beacon::BlsSignature;
+    use cb_common::commit::{
+        client::GetPubkeysResponse,
+        constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
+        request::SignRequest,
+    };
+    use tree_hash::TreeHash;
+    use tree_hash_derive::TreeHash;
+
+    #[tokio::test]
+    async fn request() -> eyre::Result<()> {
+        #[derive(TreeHash)]
+        struct B {
+            a: u64,
+        }
+
+        let b = B { a: 15 };
+        let root = b.tree_hash_root();
+        let pubkey = "0xb03c860f6525f15ed264663fd79b7fcb92115bd763b4f07f36ff0de44fddcabd3f282d6b6d987f751031efa695509c0b".parse().unwrap();
+        let request = SignRequest::new("luban", pubkey, false, root.into());
+
+        let url = format!("http://127.0.0.1:8000{REQUEST_SIGNATURE_PATH}");
+
+        let response = reqwest::Client::new()
+            .post(url)
+            .header(
+                "Authorization",
+                "Bearer 8d1b71df48ff1971e714156b2aafcac8fc5ea02c6770adc3954557d978ba3439",
+            )
+            .json(&request)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let response_bytes = response.bytes().await?;
+        println!("{:?}", status);
+        println!("{:?}", response_bytes);
+        let sig: BlsSignature = serde_json::from_slice(&response_bytes)?;
+        println!("{:?}", sig);
+        Ok(())
     }
 }
