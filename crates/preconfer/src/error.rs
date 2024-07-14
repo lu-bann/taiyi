@@ -1,4 +1,4 @@
-use alloy_contract::Error as AlloyContractError;
+use alloy::contract::Error as AlloyContractError;
 use jsonrpsee::types::ErrorObjectOwned;
 use luban_primitives::PreconfHash;
 use thiserror::Error;

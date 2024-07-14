@@ -1,5 +1,5 @@
-use alloy_core::primitives::U256;
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy::core::primitives::U256;
+use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
 use cb_common::commit::{
     client::GetPubkeysResponse,
     constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
@@ -91,7 +91,7 @@ impl CommitBoostClient {
 
 #[cfg(test)]
 mod tests {
-    use alloy_rpc_types_beacon::BlsSignature;
+    use alloy::rpc::types::beacon::BlsSignature;
     use cb_common::commit::{
         client::GetPubkeysResponse,
         constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},

@@ -17,6 +17,8 @@ pub struct Cli {
 pub enum Commands {
     #[command(name = "preconfer")]
     Preconfer(PreconferCommand),
+    // #[command(name = "luban-stake")]
+    // LubanStake(LubanStake),
 }
 
 pub fn run() -> eyre::Result<()> {

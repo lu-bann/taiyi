@@ -4,13 +4,14 @@ use crate::lookahead_fetcher;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
-use alloy_consensus::TxEnvelope;
-use alloy_core::primitives::{Address, U256};
-use alloy_provider::ProviderBuilder;
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_rlp::Encodable;
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_transport::Transport;
+use alloy::consensus::TxEnvelope;
+use alloy::core::primitives::{Address, U256};
+use alloy::network::Ethereum;
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::rlp::Encodable;
+use alloy::rpc::types::beacon::BlsPublicKey;
+use alloy::rpc::types::beacon::BlsSignature;
+use alloy::transports::Transport;
 use beacon_api_client::ProposerDuty;
 use eyre::Result;
 use jsonrpsee::core::async_trait;
@@ -249,12 +250,13 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    let lookahead_fetcher = lookahead_fetcher::LookaheadFetcher::new(
+    let mut lookahead_fetcher = lookahead_fetcher::LookaheadFetcher::new(
         provider,
         beacon_url,
         cl_sender,
         luban_proposer_registry_contract_addr,
     );
+    lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
 
     Ok(())
