@@ -6,11 +6,11 @@ edition = { workspace = true }
 [dependencies]
 alloy = { workspace = true }
 clap = { version = "4.5.4", features = ["derive"] }
+eth2_keystore = { git = "https://github.com/sigp/lighthouse.git", rev = "9e12c21" }
+eth2_wallet = { git = "https://github.com/sigp/lighthouse.git", rev = "9e12c21" }
 eyre = { workspace = true }
-luban-preconfer = { workspace = true }
-tokio = { workspace = true }
 hex = "0.4.3"
-tracing = { workspace = true }
+luban-preconfer = { workspace = true }
 tiny-bip39 = "1"
-eth2_wallet = { git = "https://github.com/sigp/lighthouse.git", rev= "9e12c21" }
-eth2_keystore = { git = "https://github.com/sigp/lighthouse.git", rev= "9e12c21" }
+tokio = { workspace = true }
+tracing = { workspace = true }

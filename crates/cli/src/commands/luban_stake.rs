@@ -1,5 +1,5 @@
 use alloy::{
-    network::{Ethereum, EthereumWallet, NetworkWallet},
+    network::EthereumWallet,
     primitives::{Address, Bytes, U256},
     providers::{Provider, ProviderBuilder},
     rpc::types::TransactionRequest,
@@ -96,7 +96,7 @@ impl LubanStakeCommand {
             let seed = Seed::new(&mnenonic, "");
             let (wallet, _) = recover_validator_secret_from_mnemonic(
                 seed.as_bytes(),
-                index as u32,
+                index,
                 eth2_wallet::KeyType::Voting,
             )
             .expect("recover validator secret failed");
