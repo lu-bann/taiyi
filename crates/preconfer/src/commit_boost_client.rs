@@ -100,6 +100,7 @@ mod tests {
     use tree_hash::TreeHash;
     use tree_hash_derive::TreeHash;
 
+    #[ignore = "local infra "]
     #[tokio::test]
     async fn request() -> eyre::Result<()> {
         #[derive(TreeHash)]
