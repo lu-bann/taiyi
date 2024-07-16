@@ -1,12 +1,13 @@
-use alloy_consensus::TxEnvelope;
-use alloy_core::primitives::{keccak256, Address, Bytes, B256, U256};
-use alloy_core::rlp::{RlpDecodable, RlpEncodable};
-use alloy_rlp::Decodable;
-use alloy_rpc_types_beacon::BlsSignature;
-
 use super::preconf_hash::domain_separator;
 use crate::PreconfHash;
-use alloy_sol_types::SolValue;
+use alloy::{
+    consensus::TxEnvelope,
+    primitives::{keccak256, Address, Bytes, B256, U256},
+    rpc::types::beacon::BlsSignature,
+    sol_types::SolValue,
+};
+use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
+
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 
@@ -35,7 +36,7 @@ impl PreconfRequest {
         PreconfHash(keccak256(buffer))
     }
 
-    pub fn transaction(&self) -> Result<Option<TxEnvelope>, alloy_rlp::Error> {
+    pub fn transaction(&self) -> Result<Option<TxEnvelope>, alloy::rlp::Error> {
         if let Some(preconf_tx) = &self.preconf_tx {
             let mut tx_decoded = preconf_tx.as_slice();
             TxEnvelope::decode(&mut tx_decoded).map(Some)
@@ -183,7 +184,7 @@ pub struct OrderingMetaData {
 
 #[cfg(test)]
 mod tests {
-    use alloy_core::primitives::{Address, U256};
+    use alloy::core::primitives::{Address, U256};
 
     use super::{PreconfCondition, TipTransaction};
 

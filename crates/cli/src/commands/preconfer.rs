@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use alloy_core::primitives::Address;
+use alloy::core::primitives::Address;
 use clap::Parser;
 use luban_preconfer::rpc::start_rpc_server;
 #[derive(Debug, Parser)]
@@ -36,6 +36,12 @@ pub struct PreconferCommand {
     /// commit boost url
     #[clap(long)]
     pub commit_boost_url: String,
+
+    #[clap(long)]
+    pub commit_boost_id: String,
+
+    #[clap(long)]
+    pub commit_boost_jwt: String,
 }
 
 impl PreconferCommand {
@@ -56,6 +62,8 @@ impl PreconferCommand {
             self.beacon_rpc_url.clone(),
             self.luban_service_url.clone(),
             self.commit_boost_url.clone(),
+            self.commit_boost_id.clone(),
+            self.commit_boost_jwt.clone(),
         )
         .await?;
         Ok(())

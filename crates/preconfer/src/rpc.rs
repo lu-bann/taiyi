@@ -4,13 +4,14 @@ use crate::lookahead_fetcher;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
-use alloy_consensus::TxEnvelope;
-use alloy_core::primitives::{Address, U256};
-use alloy_provider::ProviderBuilder;
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_rlp::Encodable;
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_transport::Transport;
+use alloy::consensus::TxEnvelope;
+use alloy::core::primitives::{Address, U256};
+use alloy::network::Ethereum;
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::rlp::Encodable;
+use alloy::rpc::types::beacon::BlsPublicKey;
+use alloy::rpc::types::beacon::BlsSignature;
+use alloy::transports::Transport;
 use beacon_api_client::ProposerDuty;
 use eyre::Result;
 use jsonrpsee::core::async_trait;
@@ -86,8 +87,10 @@ where
         preconfer: Preconfer<T, P, F>,
         commit_boost_url: String,
         cl_receiver: mpsc::Receiver<Vec<ProposerDuty>>,
+        cb_id: String,
+        cb_jwt: String,
     ) -> Self {
-        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id);
+        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id, cb_id, cb_jwt);
         let pubkeys = commit_boost_client
             .get_pubkeys()
             .await
@@ -247,12 +250,13 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    let lookahead_fetcher = lookahead_fetcher::LookaheadFetcher::new(
+    let mut lookahead_fetcher = lookahead_fetcher::LookaheadFetcher::new(
         provider,
         beacon_url,
         cl_sender,
         luban_proposer_registry_contract_addr,
     );
+    lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
 
     Ok(())
@@ -269,6 +273,8 @@ pub async fn start_rpc_server(
     beacon_rpc_url: String,
     luban_service_url: Option<String>,
     commit_boost_url: String,
+    cb_id: String,
+    cb_jwt: String,
 ) -> eyre::Result<()> {
     let (cl_sender, cl_receiver) = mpsc::channel(100);
     let provider = ProviderBuilder::new()
@@ -307,6 +313,8 @@ pub async fn start_rpc_server(
                 validator,
                 commit_boost_url,
                 cl_receiver,
+                cb_id,
+                cb_jwt,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -325,6 +333,8 @@ pub async fn start_rpc_server(
                 validator,
                 commit_boost_url,
                 cl_receiver,
+                cb_id,
+                cb_jwt,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
