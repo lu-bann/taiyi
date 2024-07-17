@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::ops::Deref;
 
 use alloy::rpc::types::beacon::events::HeadEvent;
 use alloy::{
@@ -8,14 +8,15 @@ use alloy::{
     sol,
     transports::Transport,
 };
-use beacon_api_client::{mainnet::Client, BlockId, ProposerDuty};
+use beacon_api_client::{mainnet::Client, BlockId};
 use futures::TryStreamExt;
+use luban_primitives::ProposerInfo;
 use mev_share_sse::EventClient;
-use parking_lot::RwLock;
 use reqwest::Url;
-use tokio::sync::mpsc::Sender;
 use tracing::{debug, info};
 use LubanProposerRegistry::LubanProposerRegistryInstance;
+
+use crate::network_state::NetworkState;
 
 const SLOT_PER_EPOCH: u64 = 32;
 
@@ -36,11 +37,8 @@ sol! {
 
 pub struct LookaheadFetcher<T, P> {
     client: Client,
-    _sender: Sender<Vec<ProposerDuty>>,
-    _luban_proposer_registry_contract: LubanProposerRegistryInstance<T, P>,
-    current_epoch: u64,
-    current_slot: u64,
-    proposers: Arc<RwLock<Vec<ProposerDuty>>>,
+    luban_proposer_registry_contract: LubanProposerRegistryInstance<T, P>,
+    network_state: NetworkState,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -51,19 +49,16 @@ where
     pub fn new(
         provider: P,
         beacon_url: String,
-        sender: Sender<Vec<ProposerDuty>>,
         luban_proposer_registry_contract_addr: Address,
+        network_state: NetworkState,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
-            _sender: sender,
-            _luban_proposer_registry_contract: LubanProposerRegistryInstance::new(
+            luban_proposer_registry_contract: LubanProposerRegistryInstance::new(
                 luban_proposer_registry_contract_addr,
                 provider,
             ),
-            current_epoch: 0,
-            current_slot: 0,
-            proposers: Default::default(),
+            network_state,
         }
     }
 
@@ -72,37 +67,30 @@ where
         let slot = head.message().slot();
         let epoch = slot / 32;
         self.update_proposer_duties(epoch).await?;
-        self.current_slot = slot;
-        self.current_epoch = epoch;
+        self.network_state.update_slot(slot);
+        self.network_state.update_epoch(epoch);
         Ok(())
     }
 
     async fn update_proposer_duties(&mut self, epoch: u64) -> eyre::Result<()> {
         let (_, duties) = self.client.get_proposer_duties(epoch).await?;
-        let mut proposer_duties: Vec<ProposerDuty> = Vec::with_capacity(SLOT_PER_EPOCH as usize);
+        let mut proposer_duties: Vec<ProposerInfo> = Vec::with_capacity(SLOT_PER_EPOCH as usize);
 
         for duty in duties.into_iter() {
-            if duty.slot > self.current_slot {
+            if duty.slot > self.network_state.get_current_slot() {
                 let pubkey = duty.public_key.clone();
                 let proposer_status = self
-                    ._luban_proposer_registry_contract
+                    .luban_proposer_registry_contract
                     .getProposerStatus(Bytes::from(pubkey.deref().to_vec()))
                     .call()
                     .await?;
                 if let ProposerStatus::OptIn = proposer_status._0 {
-                    proposer_duties.push(ProposerDuty {
-                        public_key: duty.public_key.clone(),
-                        validator_index: duty.validator_index,
-                        slot: duty.slot,
-                    });
+                    proposer_duties.push(duty.into());
                 }
             }
         }
         info!("Get the proposer duties: {:?}", proposer_duties);
-        {
-            let mut proposers = self.proposers.write();
-            *proposers = proposer_duties;
-        }
+        self.network_state.update_proposer_duties(proposer_duties);
 
         Ok(())
     }
@@ -118,21 +106,22 @@ where
             debug!("Received event: {:?}", event);
             let slot = event.slot;
             let epoch = slot / SLOT_PER_EPOCH;
+            let current_epoch = self.network_state.get_current_epoch();
             info!(
                 "Received event: current: {}, epoch: {}, epoch_transition: {}",
-                self.current_epoch, epoch, event.epoch_transition
+                current_epoch, epoch, event.epoch_transition
             );
             assert!(
-                (epoch != self.current_epoch) == event.epoch_transition,
+                (epoch != current_epoch) == event.epoch_transition,
                 "Invalid epoch"
             );
-            if epoch != self.current_epoch {
-                info!("Epoch changed from {} to {}", self.current_epoch, epoch);
+            if epoch != current_epoch {
+                info!("Epoch changed from {} to {}", current_epoch, epoch);
                 self.update_proposer_duties(epoch).await?;
-                self.current_epoch = epoch;
+                self.network_state.update_epoch(epoch);
             }
-            self.current_slot = slot;
-            info!("Current slot: {}", self.current_slot);
+            self.network_state.update_slot(slot);
+            info!("Current slot: {}", slot);
         }
 
         Ok(())

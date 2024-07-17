@@ -1,6 +1,7 @@
 use crate::commit_boost_client::CommitBoostClient;
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
+use crate::network_state::NetworkState;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
@@ -12,7 +13,6 @@ use alloy::rlp::Encodable;
 use alloy::rpc::types::beacon::BlsPublicKey;
 use alloy::rpc::types::beacon::BlsSignature;
 use alloy::transports::Transport;
-use beacon_api_client::ProposerDuty;
 use eyre::Result;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
@@ -21,8 +21,6 @@ use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
 use tracing::info;
 
 impl From<TipTransaction> for TipTx {
@@ -75,8 +73,7 @@ pub struct LubanRpcImpl<T, P, F> {
     preconfer: Preconfer<T, P, F>,
     commit_boost_client: CommitBoostClient,
     pubkeys: Vec<BlsPublicKey>,
-    // TODO: add event listener to listen on the receivers
-    pub cl_receiver: mpsc::Receiver<Vec<ProposerDuty>>,
+    network_state: NetworkState,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -89,7 +86,7 @@ where
         chain_id: U256,
         preconfer: Preconfer<T, P, F>,
         commit_boost_url: String,
-        cl_receiver: mpsc::Receiver<Vec<ProposerDuty>>,
+        network_state: NetworkState,
         cb_id: String,
         cb_jwt: String,
     ) -> Self {
@@ -104,7 +101,7 @@ where
             preconfer,
             commit_boost_client,
             pubkeys,
-            cl_receiver,
+            network_state,
         }
     }
     async fn sign_init_signature(
@@ -151,7 +148,6 @@ where
             .map_err(RpcError::UnknownError)?;
 
         let _block_number = preconf_request.preconf_conditions.block_number;
-        // TODO: Once the cl_receiver receives new ProposerDuty from the channel, check if the block_number is in the lookahead window
         preconf_request.init_signature = preconfer_signature;
         match self
             .preconfer
@@ -249,9 +245,9 @@ where
 
 async fn run_cl_process<T, P>(
     provider: P,
-    cl_sender: Sender<Vec<ProposerDuty>>,
     beacon_url: String,
     luban_proposer_registry_contract_addr: Address,
+    network_state: NetworkState,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -260,8 +256,8 @@ where
     let mut lookahead_fetcher = lookahead_fetcher::LookaheadFetcher::new(
         provider,
         beacon_url,
-        cl_sender,
         luban_proposer_registry_contract_addr,
+        network_state,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
@@ -283,18 +279,19 @@ pub async fn start_rpc_server(
     cb_id: String,
     cb_jwt: String,
 ) -> eyre::Result<()> {
-    let (cl_sender, cl_receiver) = mpsc::channel(100);
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
         .on_builtin(&rpc_url)
         .await?;
     let provider_cl = provider.clone();
+    let network_state = NetworkState::new(0, 0, Vec::new());
+    let network_state_cl = network_state.clone();
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
             provider_cl,
-            cl_sender,
             beacon_rpc_url,
             luban_proposer_registry_contract_addr,
+            network_state_cl,
         )
         .await
         {
@@ -319,7 +316,7 @@ pub async fn start_rpc_server(
                 U256::from(chain_id),
                 validator,
                 commit_boost_url,
-                cl_receiver,
+                network_state,
                 cb_id,
                 cb_jwt,
             )
@@ -339,7 +336,7 @@ pub async fn start_rpc_server(
                 U256::from(chain_id),
                 validator,
                 commit_boost_url,
-                cl_receiver,
+                network_state,
                 cb_id,
                 cb_jwt,
             )
