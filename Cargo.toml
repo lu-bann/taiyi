@@ -14,7 +14,7 @@ luban-cli = { path = "crates/cli" }
 luban-primitives = { path = "crates/primitives" }
 luban-integration-tests = { path = "tests" }
 
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819"}
+ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 jsonrpsee = { version = "0.22.4", features = ["server", "http-client", "ws-client", "macros"] }
 alloy = { version = "0.1", features = ["full", "rpc-types-beacon", "rlp", "signer-mnemonic", "sol-types"] }
 eyre = { version = "0.6" }
@@ -29,5 +29,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 blst = "0.3.12"
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus" }
 
-[patch.crates-io]
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819"}

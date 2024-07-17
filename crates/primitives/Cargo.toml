@@ -6,7 +6,6 @@ edition = { workspace = true }
 [dependencies]
 alloy = { workspace = true }
 alloy-rlp = { version = "0.3.4", features = ["derive"] }
-ethereum-consensus = { workspace = true }
 beacon-api-client = { workspace = true }
 ethereum_ssz = "0.5.4"
 ethereum_ssz_derive = "0.5.4"
