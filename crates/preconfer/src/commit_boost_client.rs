@@ -92,11 +92,7 @@ impl CommitBoostClient {
 #[cfg(test)]
 mod tests {
     use alloy::rpc::types::beacon::BlsSignature;
-    use cb_common::commit::{
-        client::GetPubkeysResponse,
-        constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
-        request::SignRequest,
-    };
+    use cb_common::commit::{constants::REQUEST_SIGNATURE_PATH, request::SignRequest};
     use tree_hash::TreeHash;
     use tree_hash_derive::TreeHash;
 
