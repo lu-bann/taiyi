@@ -18,8 +18,8 @@ use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::server::Server;
 use luban_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse,
-    PreconfStatus, PreconfStatusResponse, TipTransaction,
+    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
+    PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
@@ -64,6 +64,9 @@ pub trait LubanRpc {
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError>;
+
+    #[method(name = "availableSlot")]
+    async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError>;
 }
 
 pub struct LubanRpcImpl<T, P, F> {
@@ -237,6 +240,10 @@ where
                 return Err(RpcError::PreconfRequestNotFound(preconf_tx_hash));
             }
         }
+    }
+
+    async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError> {
+        todo!()
     }
 }
 
