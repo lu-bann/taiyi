@@ -23,18 +23,23 @@ pub struct LubanStakeCommand {
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
 
+    /// validator phrase
     #[clap(long = "validator_phrase")]
     pub validator_phrase: String,
 
+    /// luban proposer registry contract address
     #[clap(long = "luban_proposer_registry_contract_addr")]
     pub luban_proposer_registry_contract_addr: String,
 
+    /// funded key to send ether to validator
     #[clap(long = "funded_private_key")]
     pub funded_private_key: String,
 
+    /// generate validator key from min_index to max_index
     #[clap(long = "min_index")]
     pub min_index: u32,
 
+    /// generate validator key from min_index to max_index
     #[clap(long = "max_index")]
     pub max_index: u32,
 }
