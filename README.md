@@ -1,26 +1,30 @@
-# taiyi
+# Taiyi(太一) - an Ethereum L1 Preconfirmation Protocol
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a34f1523-517e-4bbe-90e8-4516f61cdab7" alt="image_resized">
+</p>
 
+## Setup
 
-## How to work
+### Requirements
 
-Taiyi needs to work with signer_module from [commit-boost](https://github.com/Commit-Boost/commit-boost-client). So 
-you need to compile commit-boost. Before you start, you need to have a cl and el for the network.
+* Compiled [commit-boost](https://github.com/Commit-Boost/commit-boost-client) for `signer_module` integration 
+* Consensus layer (CL) client
+* Execution layer (EL) client
 
-## Signer module
+### Running Commit-Boost 
 
-Because the commit-boost is changing so fast with a lot of updates, we recommend you use e6ad292ee43063c16e397e58a9a152482306d16f version of 
-the commit-boost for make sure things work correctly.
+*Note: Due to the frequent updates of Commit-Boost, we currently pin the Commit-Boost version to e6ad292ee43063c16e397e58a9a152482306d16f for compatibility reasons.*
 
-```
+```bash
 git clone https://github.com/Commit-Boost/commit-boost-client.git
 cd commit-boost-client
 cargo build --workspace
 cp target/debug/signer-module /usr/local/bin/
 ```
 
-Then you can start signer-module with command below
+Start signer-module:
 
-```
+```bash
 SIGNER_SERVER=8000  \
     CB_CONFIG=./debug/config.example.toml \
     CB_JWTS="{\"luban\":\"8d1b71df48ff1971e714156b2aafcac8fc5ea02c6770adc3954557d978ba3439\"}" \
@@ -30,10 +34,8 @@ SIGNER_SERVER=8000  \
 ```
 
 
-## Taiyi
-
-Once you have your signer-module , cl and el ready, you can start the preconfer with command below.
-
+## Usage
+Once you have your signer-module , cl and el ready, to start running the preconfer: 
 ```
 cargo run -- preconfer --rpc_url EL_RPC_URL \
     --beacon_rpc_url CL_RPC_URL \
