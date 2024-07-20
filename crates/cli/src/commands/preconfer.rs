@@ -13,10 +13,11 @@ pub struct PreconferCommand {
     #[clap(long = "port", default_value_t = 5656)]
     pub port: u16,
 
-    /// rpc url
+    /// execution client rpc url
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
 
+    /// consensus client rpc url
     #[clap(long = "beacon_rpc_url")]
     pub beacon_rpc_url: String,
 
@@ -24,12 +25,15 @@ pub struct PreconferCommand {
     #[clap(long = "luban_escrow_contract_addr")]
     pub luban_escrow_contract_addr: String,
 
+    /// luban core contract address
     #[clap(long = "luban_core_contract_addr")]
     pub luban_core_contract_addr: String,
 
+    /// luban proposer registry contract address
     #[clap(long = "luban_proposer_registry_contract_addr")]
     pub luban_proposer_registry_contract_addr: String,
 
+    /// luban service url. Internal usage for luban base fee predict module
     #[clap(long)]
     pub luban_service_url: Option<String>,
 
@@ -37,9 +41,11 @@ pub struct PreconferCommand {
     #[clap(long)]
     pub commit_boost_url: String,
 
+    /// commit boost id for jwt token
     #[clap(long)]
     pub commit_boost_id: String,
 
+    /// commit boost jwt token
     #[clap(long)]
     pub commit_boost_jwt: String,
 }
