@@ -4,20 +4,8 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-consensus = { workspace = true }
-alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-core = { workspace = true }
-alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-rlp = { version = "0.3.4", features = ["derive"] }
-alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-rpc-types-beacon = { workspace = true }
-alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-sol-types = { version = "0.7.6", features = ["json"] }
-alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "975b849ab11a1bbc7285f46dcb0b99b7df7e438b" }
-beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus" }
+alloy = { workspace = true }
+beacon-api-client = { workspace = true }
 cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
 eyre = { workspace = true }
 futures = "0.3.30"

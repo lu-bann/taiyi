@@ -1,4 +1,4 @@
-use alloy_rpc_types_beacon::BlsSignature;
+use alloy::rpc::types::beacon::BlsSignature;
 use serde::{Deserialize, Serialize};
 
 use crate::PreconfHash;

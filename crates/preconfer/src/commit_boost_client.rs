@@ -1,5 +1,5 @@
-use alloy_core::primitives::U256;
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy::core::primitives::U256;
+use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
 use cb_common::commit::{
     client::GetPubkeysResponse,
     constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
@@ -91,15 +91,12 @@ impl CommitBoostClient {
 
 #[cfg(test)]
 mod tests {
-    use alloy_rpc_types_beacon::BlsSignature;
-    use cb_common::commit::{
-        client::GetPubkeysResponse,
-        constants::{GET_PUBKEYS_PATH, REQUEST_SIGNATURE_PATH},
-        request::SignRequest,
-    };
+    use alloy::rpc::types::beacon::BlsSignature;
+    use cb_common::commit::{constants::REQUEST_SIGNATURE_PATH, request::SignRequest};
     use tree_hash::TreeHash;
     use tree_hash_derive::TreeHash;
 
+    #[ignore = "local infra "]
     #[tokio::test]
     async fn request() -> eyre::Result<()> {
         #[derive(TreeHash)]

@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use alloy_core::primitives::Address;
+use alloy::core::primitives::Address;
 use clap::Parser;
 use luban_preconfer::rpc::start_rpc_server;
 #[derive(Debug, Parser)]

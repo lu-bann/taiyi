@@ -1,7 +1,5 @@
-use alloy_core::primitives::{Address, U256};
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_sol_types::sol;
-use alloy_transport::Transport;
+use alloy::primitives::{Address, U256};
+use alloy::{network::Ethereum, providers::Provider, sol, transports::Transport};
 use luban_primitives::PreconfRequest;
 use LubanCore::LubanCoreInstance;
 use LubanEscrow::LubanEscrowInstance;

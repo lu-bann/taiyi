@@ -1,8 +1,12 @@
 use std::marker::PhantomData;
 
-use alloy_eips::{BlockId, BlockNumberOrTag};
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_transport::Transport;
+use alloy::rpc::types::BlockTransactionsKind;
+use alloy::{
+    eips::{BlockId, BlockNumberOrTag},
+    network::Ethereum,
+    providers::Provider,
+    transports::Transport,
+};
 
 pub trait PreconfPricer {
     fn get_optimal_base_gas_fee(
@@ -80,7 +84,10 @@ where
     async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128> {
         let block = self
             .provider
-            .get_block(BlockId::Number(BlockNumberOrTag::Latest), false)
+            .get_block(
+                BlockId::Number(BlockNumberOrTag::Latest),
+                BlockTransactionsKind::Hashes,
+            )
             .await?;
         block
             .and_then(|block| {
