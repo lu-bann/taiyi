@@ -1,0 +1,7 @@
+[package]
+name = "orderpool"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+luban-primitives = { workspace = true }
