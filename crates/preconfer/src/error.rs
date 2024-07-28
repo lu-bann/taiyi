@@ -17,6 +17,8 @@ pub enum RpcError {
     UnknownError(String),
     #[error("contract error: {0:?}")]
     ContractError(#[from] AlloyContractError),
+    #[error("submit preconf request to relay error")]
+    SubmitPreconfError(String),
 }
 
 impl From<RpcError> for ErrorObjectOwned {
@@ -38,6 +40,9 @@ impl From<RpcError> for ErrorObjectOwned {
                 ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
             }
             RpcError::ContractError(_) => {
+                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
+            }
+            RpcError::SubmitPreconfError(_) => {
                 ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
             }
         }

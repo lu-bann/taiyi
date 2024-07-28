@@ -21,6 +21,7 @@ use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
+use reqwest::Url;
 use tracing::info;
 
 impl From<TipTransaction> for TipTx {
@@ -74,6 +75,7 @@ pub struct LubanRpcImpl<T, P, F> {
     commit_boost_client: CommitBoostClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
+    relay_url: Url,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -89,12 +91,14 @@ where
         network_state: NetworkState,
         cb_id: String,
         cb_jwt: String,
+        relay_url: String,
     ) -> Self {
         let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id, cb_id, cb_jwt);
         let pubkeys = commit_boost_client
             .get_pubkeys()
             .await
             .expect("pubkeys should be received.");
+        let relay_url = Url::parse(&relay_url).expect("relay url should be valid");
         Self {
             chain_id,
             preconf_requests: PreconfRequestMap::default(),
@@ -102,6 +106,7 @@ where
             commit_boost_client,
             pubkeys,
             network_state,
+            relay_url,
         }
     }
     async fn sign_init_signature(
@@ -163,8 +168,20 @@ where
             }
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
-        self.preconf_requests.set(preconf_hash, preconf_request);
 
+        let submit_handle = reqwest::Client::new()
+            .post(
+                self.relay_url
+                    .join("/relay/v1/preconf/preconf_request")
+                    .expect("url work"),
+            )
+            .json(&preconf_request)
+            .send();
+
+        self.preconf_requests.set(preconf_hash, preconf_request);
+        submit_handle
+            .await
+            .map_err(|e| RpcError::SubmitPreconfError(e.to_string()))?;
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
 
@@ -282,6 +299,7 @@ pub async fn start_rpc_server(
     commit_boost_url: String,
     cb_id: String,
     cb_jwt: String,
+    relay_url: String,
 ) -> eyre::Result<()> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -323,6 +341,7 @@ pub async fn start_rpc_server(
                 network_state,
                 cb_id,
                 cb_jwt,
+                relay_url,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -343,6 +362,7 @@ pub async fn start_rpc_server(
                 network_state,
                 cb_id,
                 cb_jwt,
+                relay_url,
             )
             .await;
             let handle = server.start(rpc.into_rpc());

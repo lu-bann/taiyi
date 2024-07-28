@@ -48,6 +48,10 @@ pub struct PreconferCommand {
     /// commit boost jwt token
     #[clap(long)]
     pub commit_boost_jwt: String,
+
+    /// relay url
+    #[clap(long)]
+    pub relay_url: String,
 }
 
 impl PreconferCommand {
@@ -70,6 +74,7 @@ impl PreconferCommand {
             self.commit_boost_url.clone(),
             self.commit_boost_id.clone(),
             self.commit_boost_jwt.clone(),
+            self.relay_url.clone(),
         )
         .await?;
         Ok(())

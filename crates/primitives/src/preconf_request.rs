@@ -115,6 +115,7 @@ pub struct PreconfCondition {
     inclusion_meta_data: InclusionMetaData,
     ordering_meta_data: OrderingMetaData,
     pub block_number: u64,
+    pub slot: u64,
 }
 
 impl PreconfCondition {
@@ -123,11 +124,13 @@ impl PreconfCondition {
         inclusion_meta_data: InclusionMetaData,
         ordering_meta_data: OrderingMetaData,
         block_number: u64,
+        slot: u64,
     ) -> Self {
         Self {
             inclusion_meta_data,
             ordering_meta_data,
             block_number,
+            slot,
         }
     }
 
@@ -215,6 +218,7 @@ mod tests {
                 transaction_count: U256::from(0),
                 index: U256::from(0),
             },
+            0,
             0,
         );
         let h = condition.preconf_condition_hash(U256::from(1337));
