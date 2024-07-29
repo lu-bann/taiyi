@@ -23,7 +23,7 @@ use luban_primitives::{
 };
 use tracing::info;
 
-use luban_pool::preconfpool::PreconfPool;
+use luban_pool::preconf_pool::PreconfPool;
 
 impl From<TipTransaction> for TipTx {
     fn from(tx: TipTransaction) -> Self {
