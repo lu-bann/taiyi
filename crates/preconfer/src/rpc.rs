@@ -23,6 +23,8 @@ use luban_primitives::{
 };
 use tracing::info;
 
+use luban_pool::preconfpool::PreconfPool;
+
 impl From<TipTransaction> for TipTx {
     fn from(tx: TipTransaction) -> Self {
         TipTx {
@@ -74,6 +76,7 @@ pub struct LubanRpcImpl<T, P, F> {
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
+    preconf_pool: PreconfPool,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -96,6 +99,7 @@ where
             signer_client,
             pubkeys,
             network_state,
+            preconf_pool: PreconfPool::default(),
         }
     }
     async fn sign_init_signature(
@@ -111,6 +115,7 @@ where
             .map_err(|e| e.to_string())
     }
 }
+
 fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
     match tx {
         TxEnvelope::Legacy(t) => t.tx().gas_limit,
@@ -133,7 +138,7 @@ where
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let preconf_hash = preconf_request.hash(self.chain_id);
-        if self.preconf_requests.exist(&preconf_hash) {
+        if self.preconf_pool.exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
         let preconfer_signature = self
@@ -141,7 +146,7 @@ where
             .await
             .map_err(RpcError::UnknownError)?;
 
-        let _block_number = preconf_request.preconf_conditions.block_number;
+        let block_number = preconf_request.preconf_conditions.block_number;
         preconf_request.init_signature = preconfer_signature;
         match self
             .preconfer
@@ -157,7 +162,9 @@ where
             }
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
-        self.preconf_requests.set(preconf_hash, preconf_request);
+
+        // TODO: check the preconf request is valid
+        self.preconf_pool.add_preconf_request(preconf_request.clone(), block_number);
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -184,7 +191,7 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        match self.preconf_requests.get(&preconf_tx_hash) {
+        match self.preconf_pool.get(&preconf_tx_hash) {
             Some(mut preconf_request) => {
                 if preconf_request.preconf_tx.is_some() {
                     return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));

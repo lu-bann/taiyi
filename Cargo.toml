@@ -5,14 +5,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin", "crates/cli", "crates/orderpool", "crates/preconfer", "crates/primitives", "tests"]
+members = ["bin", "crates/cli", "crates/pool", "crates/preconfer", "crates/primitives", "tests"]
 resolver = "2"
 
 [workspace.dependencies]
 luban-preconfer = { path = "crates/preconfer" }
 luban-cli = { path = "crates/cli" }
 luban-primitives = { path = "crates/primitives" }
-luban-orderpool = { path = "crates/orderpool"}
+luban-pool = { path = "crates/pool"}
 luban-integration-tests = { path = "tests" }
 
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }

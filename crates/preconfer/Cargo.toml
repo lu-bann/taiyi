@@ -11,6 +11,7 @@ eyre = { workspace = true }
 futures = "0.3.30"
 jsonrpsee = { workspace = true }
 luban-primitives = { workspace = true }
+luban-pool = { workspace = true }
 mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }
 reqwest = "0.12.4"
