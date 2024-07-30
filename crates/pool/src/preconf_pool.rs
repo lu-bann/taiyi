@@ -57,4 +57,11 @@ impl PreconfPool {
             .unwrap()
             .sort_by(|a, b| b.tip().cmp(&a.tip()));
     }
+
+    /// Should be called when last block is updated
+    pub fn head_updated(&mut self, new_block_number: u64) {
+        // remove by target block
+        self.reqs_by_bn
+            .retain(|block_number, _| *block_number > new_block_number);
+    }
 }
