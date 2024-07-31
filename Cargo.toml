@@ -5,7 +5,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "tests"]
+members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "examples", "tests"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -13,10 +13,11 @@ luban-preconfer = { path = "crates/preconfer" }
 luban-cli = { path = "crates/cli" }
 luban-primitives = { path = "crates/primitives" }
 luban-integration-tests = { path = "tests" }
+luban-examples = { path = "examples" }
 
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 jsonrpsee = { version = "0.22.4", features = ["server", "http-client", "ws-client", "macros"] }
-alloy = { version = "0.1", features = ["full", "rpc-types-beacon", "rlp", "signer-mnemonic", "sol-types"] }
+alloy = { version = "0.1", features = ["full", "rpc-types-beacon", "rlp", "signer-mnemonic", "sol-types", "ssz"] }
 eyre = { version = "0.6" }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0"

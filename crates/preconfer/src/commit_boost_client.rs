@@ -53,7 +53,10 @@ impl CommitBoostClient {
 
         let pubkeys: GetPubkeysResponse =
             serde_json::from_slice(&response_bytes).expect("failed deser");
-        info!("Loaded public keys from commit-boost, {pubkeys:?}");
+        info!(
+            "Loaded public keys from commit-boost, {}, {pubkeys:?}",
+            pubkeys.consensus.len()
+        );
         Ok(pubkeys.consensus)
     }
 

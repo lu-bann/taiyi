@@ -21,7 +21,7 @@ pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
     pub preconf_conditions: PreconfCondition,
     pub init_signature: BlsSignature,
-    tip_tx_signature: Bytes,
+    pub tip_tx_signature: Bytes,
     pub preconfer_signature: Bytes,
     pub preconf_tx: Option<Transaction>,
 }
@@ -112,8 +112,8 @@ impl TipTransaction {
     Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
 )]
 pub struct PreconfCondition {
-    inclusion_meta_data: InclusionMetaData,
-    ordering_meta_data: OrderingMetaData,
+    pub inclusion_meta_data: InclusionMetaData,
+    pub ordering_meta_data: OrderingMetaData,
     pub block_number: u64,
     pub slot: u64,
 }
@@ -174,15 +174,15 @@ impl PreconfCondition {
     Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
 )]
 pub struct InclusionMetaData {
-    starting_block_number: U256,
+    pub starting_block_number: U256,
 }
 
 #[derive(
     Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, Encode, Decode,
 )]
 pub struct OrderingMetaData {
-    transaction_count: U256,
-    index: U256,
+    pub transaction_count: U256,
+    pub index: u64,
 }
 
 #[cfg(test)]
@@ -216,7 +216,7 @@ mod tests {
             },
             super::OrderingMetaData {
                 transaction_count: U256::from(0),
-                index: U256::from(0),
+                index: 0,
             },
             0,
             0,
