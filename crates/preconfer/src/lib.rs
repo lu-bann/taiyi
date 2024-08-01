@@ -3,7 +3,6 @@ mod chain_info_exex;
 mod error;
 mod lookahead_fetcher;
 mod network_state;
-mod preconf_request_map;
 mod preconfer;
 mod pricer;
 pub mod rpc;

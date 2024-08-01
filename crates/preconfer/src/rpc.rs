@@ -3,7 +3,6 @@ use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
 use crate::orderpool::orderpool::OrderPool;
 use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
-use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
 use crate::signer_client::SignerClient;
@@ -72,7 +71,6 @@ pub trait LubanRpc {
 
 pub struct LubanRpcImpl<T, P, F> {
     chain_id: U256,
-    preconf_requests: PreconfRequestMap,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
@@ -96,7 +94,6 @@ where
     ) -> Self {
         Self {
             chain_id,
-            preconf_requests: PreconfRequestMap::default(),
             preconfer,
             signer_client,
             pubkeys,
@@ -119,8 +116,6 @@ where
             .map_err(|e| e.to_string())
     }
 }
-
-
 
 #[async_trait]
 impl<T, P, F> LubanRpcServer for LubanRpcImpl<T, P, F>
@@ -172,7 +167,7 @@ where
         cancel_preconf_request: CancelPreconfRequest,
     ) -> Result<CancelPreconfResponse, RpcError> {
         if self
-            .preconf_requests
+            .preconf_pool
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -198,13 +193,12 @@ where
                 let mut tx = Vec::new();
                 preconf_tx.encode(&mut tx);
                 preconf_request.preconf_tx = Some(tx);
-                // TODO remove the preconf_request from the pool and move to priortised orderpool
-                self.preconf_requests
+
+                self.preconf_pool
                     .set(preconf_tx_hash, preconf_request.clone());
 
-                // Call exhuast if
-                // - validate_tx fails
-                if validate_tx_request(preconf_tx.clone()).is_err() {
+                // Call exhuast if validate_tx_request fails
+                if validate_tx_request(&preconf_tx, &preconf_request).is_err() {
                     self.preconfer
                         .luban_core_contract
                         .exhaust(
@@ -216,6 +210,7 @@ where
                         .await?;
                 } else {
                     self.priortised_orderpool.insert(preconf_request);
+                    self.preconf_pool.delete(&preconf_tx_hash);
                 }
             }
             None => {
@@ -226,11 +221,12 @@ where
         Ok(())
     }
 
+    // TODO: change this
     async fn check_preconf_request_status(
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_requests.get(&preconf_tx_hash) {
+        match self.preconf_pool.get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
