@@ -1,7 +1,7 @@
 use lru::LruCache;
 use luban_primitives::{PreconfHash, PreconfRequest};
 use parking_lot::RwLock;
-use std::{num::NonZeroUsize, sync::Arc};
+use std::{collections::HashMap, num::NonZeroUsize, sync::Arc};
 
 /// OrderPool is a temporary pool that holds the preconf requests
 ///
@@ -10,7 +10,7 @@ use std::{num::NonZeroUsize, sync::Arc};
 ///  -
 #[derive(Debug)]
 pub struct OrderPool {
-    known_orders: Arc<RwLock<LruCache<PreconfHash, PreconfRequest>>>,
+    known_orders: Arc<RwLock<HashMap<PreconfHash, PreconfRequest>>>,
 }
 
 impl Default for OrderPool {
@@ -22,7 +22,7 @@ impl Default for OrderPool {
 impl OrderPool {
     pub fn new() -> Self {
         Self {
-            known_orders: LruCache::new(NonZeroUsize::new(10_000).unwrap()),
+            known_orders: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

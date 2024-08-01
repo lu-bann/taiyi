@@ -2,10 +2,12 @@ use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
 use crate::orderpool::orderpool::OrderPool;
+use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
 use crate::signer_client::SignerClient;
+use crate::validation::validate_tx_request;
 use alloy::consensus::TxEnvelope;
 use alloy::core::primitives::{Address, U256};
 use alloy::network::Ethereum;
@@ -76,6 +78,7 @@ pub struct LubanRpcImpl<T, P, F> {
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
     preconf_pool: OrderPool,
+    priortised_orderpool: PrioritizedOrderPool,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -99,8 +102,10 @@ where
             pubkeys,
             network_state,
             preconf_pool: OrderPool::default(),
+            priortised_orderpool: PrioritizedOrderPool::default(),
         }
     }
+
     async fn sign_init_signature(
         &self,
         preconf_request: &PreconfRequest,
@@ -115,15 +120,7 @@ where
     }
 }
 
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
-    match tx {
-        TxEnvelope::Legacy(t) => t.tx().gas_limit,
-        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
-        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
-        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
-        _ => panic!("not implemted"),
-    }
-}
+
 
 #[async_trait]
 impl<T, P, F> LubanRpcServer for LubanRpcImpl<T, P, F>
@@ -131,9 +128,9 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone + Provider + 'static,
     F: PreconfPricer + Sync + Send + 'static,
-{   
+{
     /// Send a preconf request to the preconfer
-    /// 
+    ///
     /// Stores the preconf request in the Orderpool until the preconf tx is received
     async fn send_preconf_request(
         &self,
@@ -207,9 +204,7 @@ where
 
                 // Call exhuast if
                 // - validate_tx fails
-                // TODO: move gasLimit check to validate_tx
-                let gas_limit = get_tx_gas_limit(&preconf_tx);
-                if U256::from(gas_limit) > preconf_request.tip_tx.gas_limit {
+                if validate_tx_request(preconf_tx.clone()).is_err() {
                     self.preconfer
                         .luban_core_contract
                         .exhaust(
@@ -219,6 +214,8 @@ where
                         )
                         .call()
                         .await?;
+                } else {
+                    self.priortised_orderpool.insert(preconf_request);
                 }
             }
             None => {

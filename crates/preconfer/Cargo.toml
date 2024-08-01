@@ -30,6 +30,7 @@ tree_hash_derive = "0.5"
 # cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
 
 lru = { workspace = true }
+priority-queue = { workspace = true }
 
 
 [dev-dependencies]
