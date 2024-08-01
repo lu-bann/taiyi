@@ -13,6 +13,7 @@ use futures::TryStreamExt;
 use luban_primitives::ProposerInfo;
 use mev_share_sse::EventClient;
 use reqwest::Url;
+use reth::rpc::types::beacon::BlsPublicKey;
 use tracing::{debug, info};
 use LubanProposerRegistry::LubanProposerRegistryInstance;
 
@@ -39,6 +40,7 @@ pub struct LookaheadFetcher<T, P> {
     client: Client,
     luban_proposer_registry_contract: LubanProposerRegistryInstance<T, P>,
     network_state: NetworkState,
+    pubkeys: Vec<BlsPublicKey>,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -51,6 +53,7 @@ where
         beacon_url: String,
         luban_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
+        pubkeys: Vec<BlsPublicKey>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
@@ -59,6 +62,7 @@ where
                 provider,
             ),
             network_state,
+            pubkeys,
         }
     }
 
@@ -73,8 +77,25 @@ where
     }
 
     async fn update_proposer_duties(&mut self, epoch: u64) -> eyre::Result<()> {
+        let mut all_duties = Vec::with_capacity(64);
+
         let (_, duties) = self.client.get_proposer_duties(epoch).await?;
-        let mut proposer_duties: Vec<ProposerInfo> = Vec::with_capacity(SLOT_PER_EPOCH as usize);
+        all_duties.extend(duties);
+
+        let (_, duties) = self.client.get_proposer_duties(epoch + 1).await?;
+        all_duties.extend(duties);
+
+        let duties = all_duties
+            .into_iter()
+            .filter(|duty| {
+                self.pubkeys.iter().any(|pubkey| {
+                    let pub_ref: &[u8] = pubkey.as_ref();
+                    let p_ref: &[u8] = duty.public_key.deref();
+                    pub_ref == p_ref
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut proposer_duties: Vec<ProposerInfo> = Vec::new();
 
         for duty in duties.into_iter() {
             if duty.slot > self.network_state.get_current_slot() {
