@@ -1,8 +1,0 @@
-[package]
-name = "luban-pool"
-version = { workspace = true }
-edition = { workspace = true }
-
-[dependencies]
-luban-primitives = { workspace = true }
-parking_lot = { workspace = true }

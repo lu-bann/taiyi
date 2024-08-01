@@ -1,6 +1,7 @@
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
+use crate::orderpool::orderpool::OrderPool;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
@@ -22,8 +23,6 @@ use luban_primitives::{
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
 use tracing::info;
-
-use luban_pool::preconf_pool::PreconfPool;
 
 impl From<TipTransaction> for TipTx {
     fn from(tx: TipTransaction) -> Self {
@@ -76,7 +75,7 @@ pub struct LubanRpcImpl<T, P, F> {
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
-    preconf_pool: PreconfPool,
+    preconf_pool: OrderPool,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -99,7 +98,7 @@ where
             signer_client,
             pubkeys,
             network_state,
-            preconf_pool: PreconfPool::default(),
+            preconf_pool: OrderPool::default(),
         }
     }
     async fn sign_init_signature(
@@ -132,7 +131,10 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone + Provider + 'static,
     F: PreconfPricer + Sync + Send + 'static,
-{
+{   
+    /// Send a preconf request to the preconfer
+    /// 
+    /// Stores the preconf request in the Orderpool until the preconf tx is received
     async fn send_preconf_request(
         &self,
         mut preconf_request: PreconfRequest,
@@ -146,7 +148,7 @@ where
             .await
             .map_err(RpcError::UnknownError)?;
 
-        let block_number = preconf_request.preconf_conditions.block_number;
+        let _block_number = preconf_request.preconf_conditions.block_number;
         preconf_request.init_signature = preconfer_signature;
         match self
             .preconfer
@@ -163,8 +165,7 @@ where
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
 
-        // TODO: check the preconf request is valid
-        self.preconf_pool.add_preconf_request(preconf_request.clone(), block_number);
+        self.preconf_pool.set(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -193,16 +194,20 @@ where
     ) -> Result<(), RpcError> {
         match self.preconf_pool.get(&preconf_tx_hash) {
             Some(mut preconf_request) => {
+                // TODO: Validate the tx
                 if preconf_request.preconf_tx.is_some() {
                     return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));
                 }
                 let mut tx = Vec::new();
                 preconf_tx.encode(&mut tx);
                 preconf_request.preconf_tx = Some(tx);
+                // TODO remove the preconf_request from the pool and move to priortised orderpool
                 self.preconf_requests
                     .set(preconf_tx_hash, preconf_request.clone());
 
-                // if the tx sent from the user is larger than the gasLimit in the tip_tx, then call the exhaust() function
+                // Call exhuast if
+                // - validate_tx fails
+                // TODO: move gasLimit check to validate_tx
                 let gas_limit = get_tx_gas_limit(&preconf_tx);
                 if U256::from(gas_limit) > preconf_request.tip_tx.gas_limit {
                     self.preconfer

@@ -5,14 +5,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin", "crates/cli", "crates/pool", "crates/preconfer", "crates/primitives", "tests"]
+members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "tests"]
 resolver = "2"
 
 [workspace.dependencies]
 luban-preconfer = { path = "crates/preconfer" }
 luban-cli = { path = "crates/cli" }
 luban-primitives = { path = "crates/primitives" }
-luban-pool = { path = "crates/pool"}
 luban-integration-tests = { path = "tests" }
 
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus.git", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
@@ -29,4 +28,5 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 blst = "0.3.12"
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus" }
+lru = "0.12.3"
 
