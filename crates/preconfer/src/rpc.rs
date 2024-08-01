@@ -85,16 +85,10 @@ where
     pub async fn new(
         chain_id: U256,
         preconfer: Preconfer<T, P, F>,
-        commit_boost_url: String,
         network_state: NetworkState,
-        cb_id: String,
-        cb_jwt: String,
+        pubkeys: Vec<BlsPublicKey>,
+        commit_boost_client: CommitBoostClient,
     ) -> Self {
-        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id, cb_id, cb_jwt);
-        let pubkeys = commit_boost_client
-            .get_pubkeys()
-            .await
-            .expect("pubkeys should be received.");
         Self {
             chain_id,
             preconf_requests: PreconfRequestMap::default(),
@@ -252,6 +246,7 @@ async fn run_cl_process<T, P>(
     beacon_url: String,
     luban_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
+    pubkeys: Vec<BlsPublicKey>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -262,6 +257,7 @@ where
         beacon_url,
         luban_proposer_registry_contract_addr,
         network_state,
+        pubkeys,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
@@ -287,15 +283,27 @@ pub async fn start_rpc_server(
         .with_recommended_fillers()
         .on_builtin(&rpc_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
+
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
+
+    let commit_boost_client =
+        CommitBoostClient::new(commit_boost_url, U256::from(chain_id), cb_id, cb_jwt);
+    let pubkeys = commit_boost_client
+        .get_pubkeys()
+        .await
+        .expect("pubkeys should be received.");
+    let pubkeys_dup = pubkeys.clone();
+
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
             provider_cl,
             beacon_rpc_url,
             luban_proposer_registry_contract_addr,
             network_state_cl,
+            pubkeys_dup,
         )
         .await
         {
@@ -305,7 +313,6 @@ pub async fn start_rpc_server(
 
     let server = Server::builder().build((addr, port)).await?;
 
-    let chain_id = provider.get_chain_id().await?;
     info!("preconfer is on chain_id: {:?}", chain_id);
     match luban_service_url {
         Some(url) => {
@@ -319,10 +326,9 @@ pub async fn start_rpc_server(
             let rpc = LubanRpcImpl::new(
                 U256::from(chain_id),
                 validator,
-                commit_boost_url,
                 network_state,
-                cb_id,
-                cb_jwt,
+                pubkeys,
+                commit_boost_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -339,10 +345,9 @@ pub async fn start_rpc_server(
             let rpc = LubanRpcImpl::new(
                 U256::from(chain_id),
                 validator,
-                commit_boost_url,
                 network_state,
-                cb_id,
-                cb_jwt,
+                pubkeys,
+                commit_boost_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
