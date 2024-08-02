@@ -13,6 +13,8 @@ jsonrpsee = { workspace = true }
 luban-primitives = { workspace = true }
 mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }
+# cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
+priority-queue = { workspace = true }
 reqwest = "0.12.4"
 reth = { git = "https://github.com/paradigmxyz/reth" }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth" }
@@ -27,11 +29,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.5"
 tree_hash_derive = "0.5"
-# cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
-
-lru = { workspace = true }
-priority-queue = { workspace = true }
-
 
 [dev-dependencies]
 mockito = "1.4.0"
