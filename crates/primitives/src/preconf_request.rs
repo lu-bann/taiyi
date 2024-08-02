@@ -116,7 +116,6 @@ impl TipTransaction {
     Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
 )]
 pub struct PreconfCondition {
-    inclusion_meta_data: InclusionMetaData,
     ordering_meta_data: OrderingMetaData,
     pub block_number: u64,
 }
@@ -124,12 +123,10 @@ pub struct PreconfCondition {
 impl PreconfCondition {
     #[allow(dead_code)]
     pub fn new(
-        inclusion_meta_data: InclusionMetaData,
         ordering_meta_data: OrderingMetaData,
         block_number: u64,
     ) -> Self {
         Self {
-            inclusion_meta_data,
             ordering_meta_data,
             block_number,
         }
@@ -145,18 +142,6 @@ impl PreconfCondition {
     fn _preconf_condition_hash(&self) -> B256 {
         let mut data = Vec::new();
         data.extend_from_slice(Self::typehash().tokenize().as_ref());
-        data.extend_from_slice(
-            self.inclusion_meta_data
-                .starting_block_number
-                .tokenize()
-                .as_ref(),
-        );
-        data.extend_from_slice(
-            self.ordering_meta_data
-                .transaction_count
-                .tokenize()
-                .as_ref(),
-        );
         data.extend_from_slice(self.ordering_meta_data.index.tokenize().as_ref());
         data.extend_from_slice(self.block_number.tokenize().as_ref());
         keccak256(data)
@@ -172,17 +157,9 @@ impl PreconfCondition {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
-)]
-pub struct InclusionMetaData {
-    starting_block_number: U256,
-}
-
-#[derive(
     Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, Encode, Decode,
 )]
 pub struct OrderingMetaData {
-    transaction_count: U256,
     index: U256,
 }
 
@@ -212,11 +189,7 @@ mod tests {
     #[test]
     fn test_preconf_condition_hash() {
         let condition = PreconfCondition::new(
-            super::InclusionMetaData {
-                starting_block_number: U256::from(0),
-            },
             super::OrderingMetaData {
-                transaction_count: U256::from(0),
                 index: U256::from(0),
             },
             0,
