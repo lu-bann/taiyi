@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use alloy::consensus::TxEnvelope;
 use luban_primitives::PreconfRequest;
 use parking_lot::RwLock;
 use priority_queue::PriorityQueue;
 use reth::primitives::{Address, B256};
+use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
