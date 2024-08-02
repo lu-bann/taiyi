@@ -1,10 +1,10 @@
-use crate::commit_boost_client::CommitBoostClient;
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
 use crate::preconf_request_map::PreconfRequestMap;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
+use crate::signer_client::SignerClient;
 use alloy::consensus::TxEnvelope;
 use alloy::core::primitives::{Address, U256};
 use alloy::network::Ethereum;
@@ -71,7 +71,7 @@ pub struct LubanRpcImpl<T, P, F> {
     chain_id: U256,
     preconf_requests: PreconfRequestMap,
     preconfer: Preconfer<T, P, F>,
-    commit_boost_client: CommitBoostClient,
+    signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
 }
@@ -87,13 +87,13 @@ where
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         pubkeys: Vec<BlsPublicKey>,
-        commit_boost_client: CommitBoostClient,
+        signer_client: SignerClient,
     ) -> Self {
         Self {
             chain_id,
             preconf_requests: PreconfRequestMap::default(),
             preconfer,
-            commit_boost_client,
+            signer_client,
             pubkeys,
             network_state,
         }
@@ -102,7 +102,7 @@ where
         &self,
         preconf_request: &PreconfRequest,
     ) -> Result<BlsSignature, String> {
-        self.commit_boost_client
+        self.signer_client
             .sign_constraint(
                 preconf_request,
                 *self.pubkeys.first().expect("tempory solution"),
@@ -289,9 +289,8 @@ pub async fn start_rpc_server(
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
 
-    let commit_boost_client =
-        CommitBoostClient::new(commit_boost_url, U256::from(chain_id), cb_id, cb_jwt);
-    let pubkeys = commit_boost_client
+    let signer_client = SignerClient::new(commit_boost_url, U256::from(chain_id), cb_id, cb_jwt);
+    let pubkeys = signer_client
         .get_pubkeys()
         .await
         .expect("pubkeys should be received.");
@@ -328,7 +327,7 @@ pub async fn start_rpc_server(
                 validator,
                 network_state,
                 pubkeys,
-                commit_boost_client,
+                signer_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -347,7 +346,7 @@ pub async fn start_rpc_server(
                 validator,
                 network_state,
                 pubkeys,
-                commit_boost_client,
+                signer_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());

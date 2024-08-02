@@ -6,7 +6,7 @@ edition = { workspace = true }
 [dependencies]
 alloy = { workspace = true }
 beacon-api-client = { workspace = true }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "2fa4b82dd27d39e251b6bd26fd9f07d18586bf4d" }
 eyre = { workspace = true }
 futures = "0.3.30"
 jsonrpsee = { workspace = true }
