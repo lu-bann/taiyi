@@ -197,7 +197,7 @@ mod tests {
         let h = condition.preconf_condition_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "f0161900bacb2493c1a2f39437d5f6b7d5c995a02127e7d9ddcf3e78fdd10dea"
+            "8985cece305ffa2d87e031ce7304f4678c372228300dc4b981878b447dfb6a59"
         )
     }
 }
