@@ -66,7 +66,7 @@ pub enum ValidationError {
 
 // TDOD: validate all fields
 pub fn validate_tx_request(tx: &TxEnvelope, req: &PreconfRequest) -> Result<(), ValidationError> {
-    let gas_limit = get_tx_gas_limit(&tx);
+    let gas_limit = get_tx_gas_limit(tx);
     if U256::from(gas_limit) > req.tip_tx.gas_limit {
         return Err(ValidationError::GasLimitTooHigh);
     }
