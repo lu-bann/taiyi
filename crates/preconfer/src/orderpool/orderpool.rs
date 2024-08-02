@@ -1,7 +1,6 @@
-use lru::LruCache;
 use luban_primitives::{PreconfHash, PreconfRequest};
 use parking_lot::RwLock;
-use std::{collections::HashMap, num::NonZeroUsize, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 /// OrderPool is a temporary pool that holds the preconf requests
 ///

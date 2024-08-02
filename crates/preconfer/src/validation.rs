@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use alloy::consensus::TxEnvelope;
 use luban_primitives::PreconfRequest;
 use reth::primitives::U256;

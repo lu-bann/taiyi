@@ -1,5 +1,6 @@
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
+#![allow(dead_code)]
 
+use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use alloy::consensus::TxEnvelope;
 use luban_primitives::PreconfRequest;
 use parking_lot::RwLock;

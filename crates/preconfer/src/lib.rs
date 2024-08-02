@@ -7,7 +7,5 @@ mod orderpool;
 mod preconfer;
 mod pricer;
 pub mod rpc;
-mod orderpool;
 mod signer_client;
-
 mod validation;
