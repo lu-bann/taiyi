@@ -4,13 +4,13 @@ use alloy::consensus::TxEnvelope;
 use luban_primitives::PreconfRequest;
 use parking_lot::RwLock;
 use priority_queue::PriorityQueue;
-use reth::primitives::{Address, B256};
+use reth::primitives::{Address, B256, U256};
 use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
     pub order_id: OrderId,
-    pub priority: u128,
+    pub priority: U256,
 }
 
 pub type OrderId = B256;
@@ -31,11 +31,11 @@ impl Ord for OrderPriority {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct AccountNonce {
-    pub nonce: u64,
+    pub nonce: U256,
     pub account: Address,
 }
 impl AccountNonce {
-    pub fn with_nonce(self, nonce: u64) -> Self {
+    pub fn with_nonce(self, nonce: U256) -> Self {
         AccountNonce {
             account: self.account,
             nonce,
@@ -87,13 +87,60 @@ impl PrioritizedOrderPool {
             .retain(|block_number, _| *block_number > new_block_number);
     }
 
-    pub fn insert(&self, order: PreconfRequest) {
-        let bn = order.preconf_conditions.block_number;
+    pub fn insert_order(&mut self, order: PreconfRequest) {
+        let order_id = B256::default();
+        let target_block = order.preconf_conditions.block_number;
+        if let Some(orders) = self.orders_by_target_block.read().get(&target_block) {
+            if orders.contains(&order) {
+                return;
+            }
+        }
+
+        let onchain_nonce = U256::from(
+            self.onchain_nonces
+                .get(&order.tip_tx.from)
+                .cloned()
+                .unwrap_or_default(),
+        );
+        let account_nonce = order.nonce();
+
+        // order can't be included
+        if onchain_nonce > account_nonce {
+            return;
+        }
+
+        let mut pending_nonce = None;
+        if onchain_nonce < account_nonce {
+            pending_nonce = Some(AccountNonce {
+                account: order.tip_tx.from,
+                nonce: onchain_nonce,
+            });
+        }
+
+        if let Some(nonce) = &pending_nonce {
+            // let pending = self.pending_orders.entry(nonce.clone()).or_default();
+            // if !pending.contains(&order_id) {
+            //     pending.push(order_id);
+            // }
+        } else {
+            self.main_queue.push(
+                order_id,
+                OrderPriority {
+                    priority: order.tip(),
+                    order_id: order_id,
+                },
+            );
+            self.main_queue_nonces
+                .entry(order.tip_tx.from)
+                .or_default()
+                .push(order_id);
+        }
+
         self.orders_by_target_block
             .write()
-            .entry(bn)
+            .entry(target_block)
             .or_default()
-            .push(order);
+            .push(order.clone());
     }
 
     pub fn pop_order(&mut self) -> Option<TxEnvelope> {

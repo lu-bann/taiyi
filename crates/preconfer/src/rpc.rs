@@ -209,7 +209,7 @@ where
                         .call()
                         .await?;
                 } else {
-                    self.priortised_orderpool.insert(preconf_request);
+                    self.priortised_orderpool.insert_order(preconf_request);
                     self.preconf_pool.delete(&preconf_tx_hash);
                 }
             }
