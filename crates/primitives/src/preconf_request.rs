@@ -44,6 +44,10 @@ impl PreconfRequest {
             Ok(None)
         }
     }
+
+    pub fn tip(&self) -> U256 {
+        self.tip_tx.after_pay + self.tip_tx.pre_pay
+    }
 }
 
 #[derive(

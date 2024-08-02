@@ -28,4 +28,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 blst = "0.3.12"
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus" }
+lru = "0.12.3"
+priority-queue = "2.0.3"
+
 
