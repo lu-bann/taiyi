@@ -200,7 +200,9 @@ where
                     .set(preconf_tx_hash, preconf_request.clone());
 
                 // Call exhuast if validate_tx_request fails
-                if validate_tx_request(&preconf_tx, &preconf_request).is_err() {
+                if validate_tx_request(&preconf_tx, &preconf_request, &self.priortised_orderpool)
+                    .is_err()
+                {
                     self.preconfer
                         .luban_core_contract
                         .exhaust(

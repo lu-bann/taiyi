@@ -5,6 +5,8 @@ use luban_primitives::PreconfRequest;
 use reth::primitives::U256;
 use thiserror::Error;
 
+use crate::orderpool::priortised_orderpool::{self, PrioritizedOrderPool};
+
 /// Possible commitment validation errors.
 #[derive(Debug, Error)]
 pub enum ValidationError {
@@ -19,10 +21,10 @@ pub enum ValidationError {
     MaxBaseFeeCalcOverflow,
     /// The transaction nonce is too low.
     #[error("Transaction nonce too low. Expected {0}, got {1}")]
-    NonceTooLow(u64, u64),
+    NonceTooLow(U256, U256),
     /// The transaction nonce is too high.
     #[error("Transaction nonce too high")]
-    NonceTooHigh(u64, u64),
+    NonceTooHigh(U256, U256),
     /// The sender account is a smart contract and has code.
     #[error("Account has code")]
     AccountHasCode,
@@ -65,10 +67,34 @@ pub enum ValidationError {
 }
 
 // TDOD: validate all fields
-pub fn validate_tx_request(tx: &TxEnvelope, req: &PreconfRequest) -> Result<(), ValidationError> {
+pub fn validate_tx_request(
+    tx: &TxEnvelope,
+    order: &PreconfRequest,
+    priortised_orderpool: &PrioritizedOrderPool,
+) -> Result<(), ValidationError> {
     let gas_limit = get_tx_gas_limit(tx);
     if U256::from(gas_limit) > req.tip_tx.gas_limit {
         return Err(ValidationError::GasLimitTooHigh);
+    }
+
+    // check nonce
+    let nonce = order.tip_tx.nonce;
+    let onchain_nonce = U256::from(
+        priortised_orderpool
+            .onchain_nonces
+            .get(&order.tip_tx.from)
+            .cloned()
+            .unwrap_or_default(),
+    );
+    let account_nonce = order.nonce();
+
+    // order can't be included
+    if onchain_nonce > account_nonce {
+        return Err(ValidationError::NonceTooLow(onchain_nonce, account_nonce));
+    }
+
+    if onchain_nonce < account_nonce {
+        return Err(ValidationError::NonceTooHigh(onchain_nonce, account_nonce));
     }
     Ok(())
 }

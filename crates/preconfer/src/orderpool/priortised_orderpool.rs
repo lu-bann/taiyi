@@ -58,7 +58,7 @@ pub struct PrioritizedOrderPool {
 
     /// Up to date "onchain" nonces for the current block we are building.
     /// Special care must be taken to keep this in sync.
-    onchain_nonces: HashMap<Address, u64>,
+    pub onchain_nonces: HashMap<Address, u64>,
 
     /// Orders waiting for an account to reach a particular nonce.
     pending_orders: HashMap<AccountNonce, Vec<OrderId>>,
@@ -96,45 +96,17 @@ impl PrioritizedOrderPool {
             }
         }
 
-        let onchain_nonce = U256::from(
-            self.onchain_nonces
-                .get(&order.tip_tx.from)
-                .cloned()
-                .unwrap_or_default(),
+        self.main_queue.push(
+            order_id,
+            OrderPriority {
+                priority: order.tip(),
+                order_id: order_id,
+            },
         );
-        let account_nonce = order.nonce();
-
-        // order can't be included
-        if onchain_nonce > account_nonce {
-            return;
-        }
-
-        let mut pending_nonce = None;
-        if onchain_nonce < account_nonce {
-            pending_nonce = Some(AccountNonce {
-                account: order.tip_tx.from,
-                nonce: onchain_nonce,
-            });
-        }
-
-        if let Some(nonce) = &pending_nonce {
-            // let pending = self.pending_orders.entry(nonce.clone()).or_default();
-            // if !pending.contains(&order_id) {
-            //     pending.push(order_id);
-            // }
-        } else {
-            self.main_queue.push(
-                order_id,
-                OrderPriority {
-                    priority: order.tip(),
-                    order_id: order_id,
-                },
-            );
-            self.main_queue_nonces
-                .entry(order.tip_tx.from)
-                .or_default()
-                .push(order_id);
-        }
+        self.main_queue_nonces
+            .entry(order.tip_tx.from)
+            .or_default()
+            .push(order_id);
 
         self.orders_by_target_block
             .write()
