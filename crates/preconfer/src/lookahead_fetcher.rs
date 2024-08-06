@@ -148,3 +148,27 @@ where
         Ok(())
     }
 }
+
+pub async fn run_cl_process<T, P>(
+    provider: P,
+    beacon_url: String,
+    luban_proposer_registry_contract_addr: Address,
+    network_state: NetworkState,
+    pubkeys: Vec<BlsPublicKey>,
+) -> eyre::Result<()>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone,
+{
+    let mut lookahead_fetcher = LookaheadFetcher::new(
+        provider,
+        beacon_url,
+        luban_proposer_registry_contract_addr,
+        network_state,
+        pubkeys,
+    );
+    lookahead_fetcher.initialze().await?;
+    lookahead_fetcher.run().await?;
+
+    Ok(())
+}

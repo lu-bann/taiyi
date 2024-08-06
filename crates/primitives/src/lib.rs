@@ -4,6 +4,7 @@ mod check_preconf_response;
 mod preconf_hash;
 mod preconf_request;
 mod preconf_response;
+mod preconf_tx_request;
 mod proposer_info;
 
 pub use available_slot::AvailableSlotResponse;
@@ -13,4 +14,5 @@ pub use preconf_hash::PreconfHash;
 #[allow(unused_imports)]
 pub use preconf_request::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
 pub use preconf_response::PreconfResponse;
+pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;
