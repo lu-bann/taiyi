@@ -56,7 +56,7 @@ pub trait LubanRpc {
 
     #[method(name = "sendPreconfTxRequest")]
     async fn send_preconf_tx_request(
-        &self,
+        &mut self,
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError>;
@@ -182,7 +182,7 @@ where
     }
 
     async fn send_preconf_tx_request(
-        &self,
+        &mut self,
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {

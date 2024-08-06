@@ -67,6 +67,7 @@ pub enum ValidationError {
 }
 
 // TDOD: validate all fields
+// After validating the tx req, update the state in insert_order function
 pub fn validate_tx_request(
     tx: &TxEnvelope,
     order: &PreconfRequest,
