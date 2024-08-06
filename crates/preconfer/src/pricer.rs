@@ -31,7 +31,7 @@ pub trait PreconfPricer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LubanFeePricer {
     url: String,
 }
@@ -53,7 +53,7 @@ impl PreconfPricer for LubanFeePricer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ExecutionClientFeePricer<T, P>
 where
     T: Transport + Clone,

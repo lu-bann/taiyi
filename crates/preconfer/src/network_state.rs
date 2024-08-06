@@ -3,7 +3,7 @@ use std::sync::Arc;
 use luban_primitives::ProposerInfo;
 use parking_lot::RwLock;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NetworkState {
     current_epoch: Arc<RwLock<u64>>,
     current_slot: Arc<RwLock<u64>>,
