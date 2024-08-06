@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use eyre::Context;
 use reth::providers::{BlockHashReader, ChainSpecProvider, ProviderFactory};
 use reth_chainspec::ChainSpec;
@@ -8,17 +11,18 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-// pub fn reth_db_provider() -> Arc<Mutex<ProviderFactory<Database>>> {
-//     let db_path = Path::new("/Users/chirag-bgh/Library/Application Support/reth/holesky/db");
-//     let db = Arc::new(open_db_read_only(db_path, Default::default()).unwrap());
-//     let chain_spec = chain_spec();
+pub fn reth_db_provider() -> ProviderFactory<DatabaseEnv> {
+    let path = std::env::var("RETH_DB_PATH").expect("RETH_DB_PATH must be set");
+    let db_path = Path::new(&path);
+    let db = open_db_read_only(db_path, Default::default()).unwrap();
+    let chain_spec = Arc::new(ChainSpec::default());
 
-//     let factory = ProviderFactory::new(
-//         db.clone(),
-//         chain_spec.clone(),
-//         StaticFileProvider::read_only(db_path.join("static_files")).unwrap(),
-//     );
-// }
+    ProviderFactory::new(
+        db,
+        chain_spec.clone(),
+        StaticFileProvider::read_only(db_path.join("static_files")).unwrap(),
+    )
+}
 
 #[derive(Debug, Clone)]
 pub struct ProviderFactoryReopener<DB> {
@@ -74,6 +78,6 @@ pub fn create_provider_factory(
 
 fn open_reth_db(reth_db_path: &Path) -> eyre::Result<Arc<DatabaseEnv>> {
     Ok(Arc::new(
-        reth_db::open_db_read_only(reth_db_path, Default::default()).context("DB open error")?,
+        open_db_read_only(reth_db_path, Default::default()).context("DB open error")?,
     ))
 }

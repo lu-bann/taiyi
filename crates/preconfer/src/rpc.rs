@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
@@ -25,6 +23,7 @@ use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
+use parking_lot::RwLock;
 use tracing::info;
 
 impl From<TipTransaction> for TipTx {
@@ -56,7 +55,7 @@ pub trait LubanRpc {
 
     #[method(name = "sendPreconfTxRequest")]
     async fn send_preconf_tx_request(
-        &mut self,
+        &self,
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError>;
@@ -78,7 +77,7 @@ pub struct LubanRpcImpl<T, P, F> {
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
     preconf_pool: OrderPool,
-    priortised_orderpool: PrioritizedOrderPool,
+    priortised_orderpool: RwLock<PrioritizedOrderPool>,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -101,7 +100,7 @@ where
             pubkeys,
             network_state,
             preconf_pool: OrderPool::default(),
-            priortised_orderpool: PrioritizedOrderPool::default(),
+            priortised_orderpool: RwLock::new(PrioritizedOrderPool::default()),
         }
     }
 
@@ -182,7 +181,7 @@ where
     }
 
     async fn send_preconf_tx_request(
-        &mut self,
+        &self,
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
@@ -199,9 +198,22 @@ where
                 self.preconf_pool
                     .set(preconf_tx_hash, preconf_request.clone());
 
+                // update onchain nonces for the sender account
+                let sender = preconf_tx.recover_signer().unwrap();
+                let parent_block = preconf_request.preconf_conditions.block_number - 1;
+                let onchain_nonce =
+                    crate::orderpool::update_onchain_nonces::get_nonce(sender, parent_block).await;
+                self.priortised_orderpool
+                    .write()
+                    .update_onchain_nonces(sender, onchain_nonce.unwrap());
+
                 // Call exhuast if validate_tx_request fails
-                if validate_tx_request(&preconf_tx, &preconf_request, &self.priortised_orderpool)
-                    .is_err()
+                if validate_tx_request(
+                    &preconf_tx,
+                    &preconf_request,
+                    &self.priortised_orderpool.write(),
+                )
+                .is_err()
                 {
                     self.preconfer
                         .luban_core_contract
@@ -213,7 +225,9 @@ where
                         .call()
                         .await?;
                 } else {
-                    self.priortised_orderpool.insert_order(preconf_request);
+                    self.priortised_orderpool
+                        .write()
+                        .insert_order(preconf_request);
                     self.preconf_pool.delete(&preconf_tx_hash);
                 }
             }

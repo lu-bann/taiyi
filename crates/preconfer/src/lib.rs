@@ -6,7 +6,7 @@ mod network_state;
 mod orderpool;
 mod preconfer;
 mod pricer;
+mod reth_db_utils;
 pub mod rpc;
 mod signer_client;
 mod validation;
-mod reth_db_utils;

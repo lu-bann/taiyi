@@ -128,7 +128,7 @@ impl PrioritizedOrderPool {
             .unwrap_or_default()
     }
 
-    pub fn update_onchain_nonces(&mut self, onchain_nonces: HashMap<Address, u64>) {
-        self.onchain_nonces = onchain_nonces;
+    pub fn update_onchain_nonces(&mut self, account: Address, nonce: u64) {
+        self.onchain_nonces.insert(account, nonce);
     }
 }

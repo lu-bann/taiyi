@@ -1,10 +1,9 @@
 use ahash::HashMap;
+use reth::primitives::Address;
 use reth::providers::{ProviderFactory, StateProviderBox};
 use reth_db::database::Database;
 use reth_errors::ProviderResult;
 use std::sync::{Arc, Mutex};
-
-use reth::primitives::{Address, B256};
 
 /// Struct to get nonces for Addresses, caching the results.
 /// NonceCache contains the data (but doesn't allow you to query it) and NonceCacheRef is a reference that allows you to query it.
@@ -18,11 +17,11 @@ pub struct NonceCache<DB> {
     // We have to use Arc<Mutex here because Rc are not Send (so can't be used in futures)
     // and borrows don't work when nonce cache is a field in a struct.
     cache: Arc<Mutex<HashMap<Address, u64>>>,
-    block: B256,
+    block: u64,
 }
 
 impl<DB: Database> NonceCache<DB> {
-    pub fn new(provider_factory: ProviderFactory<DB>, block: B256) -> Self {
+    pub fn new(provider_factory: ProviderFactory<DB>, block: u64) -> Self {
         Self {
             provider_factory,
             cache: Arc::new(Mutex::new(HashMap::default())),
@@ -31,7 +30,7 @@ impl<DB: Database> NonceCache<DB> {
     }
 
     pub fn get_ref(&self) -> ProviderResult<NonceCacheRef> {
-        let state = self.provider_factory.history_by_block_hash(self.block)?;
+        let state = self.provider_factory.history_by_block_number(self.block)?;
         Ok(NonceCacheRef {
             state,
             cache: Arc::clone(&self.cache),

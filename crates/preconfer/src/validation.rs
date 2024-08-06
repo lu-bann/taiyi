@@ -5,7 +5,7 @@ use luban_primitives::PreconfRequest;
 use reth::primitives::U256;
 use thiserror::Error;
 
-use crate::orderpool::priortised_orderpool::{self, PrioritizedOrderPool};
+use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
 
 /// Possible commitment validation errors.
 #[derive(Debug, Error)]
@@ -79,7 +79,6 @@ pub fn validate_tx_request(
     }
 
     // check nonce
-    let nonce = order.tip_tx.nonce;
     let onchain_nonce = U256::from(
         priortised_orderpool
             .onchain_nonces
