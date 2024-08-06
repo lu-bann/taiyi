@@ -74,7 +74,7 @@ pub fn validate_tx_request(
     priortised_orderpool: &PrioritizedOrderPool,
 ) -> Result<(), ValidationError> {
     let gas_limit = get_tx_gas_limit(tx);
-    if U256::from(gas_limit) > req.tip_tx.gas_limit {
+    if U256::from(gas_limit) > order.tip_tx.gas_limit {
         return Err(ValidationError::GasLimitTooHigh);
     }
 
