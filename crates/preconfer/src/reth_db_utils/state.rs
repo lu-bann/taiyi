@@ -1,26 +1,26 @@
+#![allow(dead_code)]
 use ahash::HashMap;
-use reth::primitives::Address;
+use reth::primitives::{Address, U256};
 use reth::providers::{ProviderFactory, StateProviderBox};
 use reth_db::database::Database;
 use reth_errors::ProviderResult;
 use std::sync::{Arc, Mutex};
 
-/// Struct to get nonces for Addresses, caching the results.
-/// NonceCache contains the data (but doesn't allow you to query it) and NonceCacheRef is a reference that allows you to query it.
-/// Usage:
-/// - Create a NonceCache
-/// - For every context where the nonce is needed call NonceCache::get_ref and call NonceCacheRef::nonce all the times you need.
-///   Neither NonceCache or NonceCacheRef are clonable, the clone of shared info happens on get_ref where we clone the internal cache.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AccountState {
+    pub nonce: u64,
+    pub balance: U256,
+    pub has_code: bool,
+}
+
 #[derive(Debug)]
-pub struct NonceCache<DB> {
+pub struct StateCache<DB> {
     provider_factory: ProviderFactory<DB>,
-    // We have to use Arc<Mutex here because Rc are not Send (so can't be used in futures)
-    // and borrows don't work when nonce cache is a field in a struct.
-    cache: Arc<Mutex<HashMap<Address, u64>>>,
+    cache: Arc<Mutex<HashMap<Address, AccountState>>>,
     block: u64,
 }
 
-impl<DB: Database> NonceCache<DB> {
+impl<DB: Database> StateCache<DB> {
     pub fn new(provider_factory: ProviderFactory<DB>, block: u64) -> Self {
         Self {
             provider_factory,
@@ -29,28 +29,47 @@ impl<DB: Database> NonceCache<DB> {
         }
     }
 
-    pub fn get_ref(&self) -> ProviderResult<NonceCacheRef> {
+    pub fn get_ref(&self) -> ProviderResult<StateCacheRef> {
         let state = self.provider_factory.history_by_block_number(self.block)?;
-        Ok(NonceCacheRef {
+        Ok(StateCacheRef {
             state,
             cache: Arc::clone(&self.cache),
         })
     }
 }
 
-pub struct NonceCacheRef {
+pub struct StateCacheRef {
     state: StateProviderBox,
-    cache: Arc<Mutex<HashMap<Address, u64>>>,
+    cache: Arc<Mutex<HashMap<Address, AccountState>>>,
 }
 
-impl NonceCacheRef {
-    pub fn nonce(&self, address: Address) -> ProviderResult<u64> {
+impl StateCacheRef {
+    pub fn state(&self, address: Address) -> ProviderResult<AccountState> {
         let mut cache = self.cache.lock().unwrap();
-        if let Some(nonce) = cache.get(&address) {
-            return Ok(*nonce);
+        if let Some(state) = cache.get(&address) {
+            return Ok(*state);
         }
         let nonce = self.state.account_nonce(address)?.unwrap_or_default();
-        cache.insert(address, nonce);
-        Ok(nonce)
+        let balance = self.state.account_balance(address)?.unwrap_or_default();
+        let has_code = if self.state.account_code(address)?.is_some() {
+            true
+        } else {
+            false
+        };
+        let state = AccountState {
+            nonce,
+            balance,
+            has_code,
+        };
+        cache.insert(address, state);
+        Ok(state)
     }
+}
+
+pub async fn state(account: Address, parent_block: u64) -> eyre::Result<AccountState> {
+    let provider_factory = crate::reth_db_utils::db_provider::reth_db_provider();
+    let state_cache = StateCache::new(provider_factory, parent_block);
+    let state_db_ref = state_cache.get_ref()?;
+    let state = state_db_ref.state(account)?;
+    Ok(state)
 }

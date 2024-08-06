@@ -198,22 +198,14 @@ where
                 self.preconf_pool
                     .set(preconf_tx_hash, preconf_request.clone());
 
-                // update onchain nonces for the sender account
-                let sender = preconf_tx.recover_signer().unwrap();
-                let parent_block = preconf_request.preconf_conditions.block_number - 1;
-                let onchain_nonce =
-                    crate::orderpool::update_onchain_nonces::get_nonce(sender, parent_block).await;
-                self.priortised_orderpool
-                    .write()
-                    .update_onchain_nonces(sender, onchain_nonce.unwrap());
-
                 // Call exhuast if validate_tx_request fails
                 if validate_tx_request(
                     &self.chain_id,
                     &preconf_tx,
                     &preconf_request,
-                    &self.priortised_orderpool.write(),
+                    &mut self.priortised_orderpool.write(),
                 )
+                .await
                 .is_err()
                 {
                     self.preconfer
@@ -228,7 +220,7 @@ where
                 } else {
                     self.priortised_orderpool
                         .write()
-                        .insert_order(preconf_request);
+                        .insert_order(preconf_tx_hash, preconf_request);
                     self.preconf_pool.delete(&preconf_tx_hash);
                 }
             }

@@ -5,7 +5,7 @@ use luban_primitives::PreconfRequest;
 use reth::primitives::U256;
 use thiserror::Error;
 
-use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
+use crate::{orderpool::priortised_orderpool::PrioritizedOrderPool, reth_db_utils::state::state};
 
 pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
@@ -23,10 +23,10 @@ pub enum ValidationError {
     MaxBaseFeeCalcOverflow,
     /// The transaction nonce is too low.
     #[error("Transaction nonce too low. Expected {0}, got {1}")]
-    NonceTooLow(U256, U256),
+    NonceTooLow(u64, u64),
     /// The transaction nonce is too high.
     #[error("Transaction nonce too high")]
-    NonceTooHigh(U256, U256),
+    NonceTooHigh(u64, u64),
     /// The sender account is a smart contract and has code.
     #[error("Account has code")]
     AccountHasCode,
@@ -70,12 +70,13 @@ pub enum ValidationError {
 
 // TDOD: validate all fields
 // After validating the tx req, update the state in insert_order function
-pub fn validate_tx_request(
+pub async fn validate_tx_request(
     chain_id: &U256,
     tx: &TxEnvelope,
     order: &PreconfRequest,
-    priortised_orderpool: &PrioritizedOrderPool,
+    priortised_orderpool: &mut PrioritizedOrderPool,
 ) -> Result<(), ValidationError> {
+    let sender = order.tip_tx.from;
     // Vaiidate the chain id
     if tx.chain_id().unwrap() != chain_id.to::<u64>() {
         return Err(ValidationError::ChainIdMismatch);
@@ -101,23 +102,43 @@ pub fn validate_tx_request(
         return Err(ValidationError::GasLimitTooHigh);
     }
 
-    // check nonce
-    let onchain_nonce = U256::from(
-        priortised_orderpool
-            .onchain_nonces
-            .get(&order.tip_tx.from)
-            .cloned()
-            .unwrap_or_default(),
-    );
-    let account_nonce = order.nonce();
+    let (prev_balance, prev_nonce) = priortised_orderpool
+        .intermediate_state
+        .get(&sender)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut account_state = match priortised_orderpool.canonical_state.get(&sender).cloned() {
+        Some(state) => state,
+        None => {
+            let state = state(sender, order.preconf_conditions.block_number - 1)
+                .await
+                .unwrap();
+            priortised_orderpool
+                .canonical_state
+                .insert(sender, state.clone());
+            state
+        }
+    };
+    // apply the nonce and balance diff
+    account_state.nonce += prev_nonce;
+    account_state.balance -= prev_balance;
+
+    let nonce = order.nonce();
 
     // order can't be included
-    if onchain_nonce > account_nonce {
-        return Err(ValidationError::NonceTooLow(onchain_nonce, account_nonce));
+    if account_state.nonce > nonce.to() {
+        return Err(ValidationError::NonceTooLow(
+            account_state.nonce,
+            nonce.to(),
+        ));
     }
 
-    if onchain_nonce < account_nonce {
-        return Err(ValidationError::NonceTooHigh(onchain_nonce, account_nonce));
+    if account_state.nonce < nonce.to() {
+        return Err(ValidationError::NonceTooHigh(
+            account_state.nonce,
+            nonce.to(),
+        ));
     }
     Ok(())
 }
