@@ -209,6 +209,7 @@ where
 
                 // Call exhuast if validate_tx_request fails
                 if validate_tx_request(
+                    &self.chain_id,
                     &preconf_tx,
                     &preconf_request,
                     &self.priortised_orderpool.write(),

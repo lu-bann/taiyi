@@ -7,6 +7,7 @@ use priority_queue::PriorityQueue;
 use reth::primitives::{Address, B256, U256};
 use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
     pub order_id: OrderId,
@@ -60,6 +61,9 @@ pub struct PrioritizedOrderPool {
     /// Special care must be taken to keep this in sync.
     pub onchain_nonces: HashMap<Address, u64>,
 
+    /// Intermediate state for each account. This is used to keep track of the state of the account when there are multiple requests from the same account.
+    pub intermediate_state: HashMap<Address, (U256, u64)>,
+
     /// Orders waiting for an account to reach a particular nonce.
     pending_orders: HashMap<AccountNonce, Vec<OrderId>>,
     /// Id -> order for all orders we manage. Carefully maintained by remove/insert
@@ -73,6 +77,7 @@ impl Default for PrioritizedOrderPool {
             main_queue_nonces: HashMap::default(),
             onchain_nonces: HashMap::default(),
             pending_orders: HashMap::default(),
+            intermediate_state: HashMap::default(),
             orders_by_target_block: Arc::new(RwLock::new(HashMap::default())),
         }
     }
@@ -130,5 +135,9 @@ impl PrioritizedOrderPool {
 
     pub fn update_onchain_nonces(&mut self, account: Address, nonce: u64) {
         self.onchain_nonces.insert(account, nonce);
+    }
+
+    pub fn transaction_size(&self) -> usize {
+        self.main_queue.len()
     }
 }

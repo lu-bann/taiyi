@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
-use alloy::consensus::TxEnvelope;
+use alloy::consensus::{Transaction, TxEnvelope};
 use luban_primitives::PreconfRequest;
 use reth::primitives::U256;
 use thiserror::Error;
 
 use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
+
+pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 /// Possible commitment validation errors.
 #[derive(Debug, Error)]
@@ -69,10 +71,31 @@ pub enum ValidationError {
 // TDOD: validate all fields
 // After validating the tx req, update the state in insert_order function
 pub fn validate_tx_request(
+    chain_id: &U256,
     tx: &TxEnvelope,
     order: &PreconfRequest,
     priortised_orderpool: &PrioritizedOrderPool,
 ) -> Result<(), ValidationError> {
+    // Vaiidate the chain id
+    if tx.chain_id().unwrap() != chain_id.to::<u64>() {
+        return Err(ValidationError::ChainIdMismatch);
+    }
+
+    // Check for max commitment reached for the slot
+    if priortised_orderpool.transaction_size() > MAX_COMMITMENTS_PER_SLOT {
+        return Err(ValidationError::MaxCommitmentsReachedForSlot(
+            order.preconf_conditions.block_number,
+            MAX_COMMITMENTS_PER_SLOT,
+        ));
+    }
+
+    // TODO
+    // Check for max committed gas reached for the slot
+    // Check if the transaction size exceeds the maximum
+    // Check if the transaction is a contract creation and the init code size exceeds the maximum
+    // Check if the gas limit is higher than the maximum block gas limit
+    // Check EIP-4844-specific limits
+
     let gas_limit = get_tx_gas_limit(tx);
     if U256::from(gas_limit) > order.tip_tx.gas_limit {
         return Err(ValidationError::GasLimitTooHigh);
