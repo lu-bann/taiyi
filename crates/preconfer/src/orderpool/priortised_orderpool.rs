@@ -86,6 +86,7 @@ impl PrioritizedOrderPool {
         self.intermediate_state
             .entry(order.tip_tx.from)
             .and_modify(|(balance, nonce)| {
+                // TODO balance should account for total transaction cost including gas costs
                 *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
                 *nonce += 1;
             });

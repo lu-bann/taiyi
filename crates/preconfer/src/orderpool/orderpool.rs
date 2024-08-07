@@ -7,7 +7,7 @@ use std::collections::HashMap;
 /// It is responsible for
 ///  - adding/removing preconf requests to the pool
 ///  
-/// Preconf should be stored here until target_block is reached. Once target_block is reached, we validate and move the preconf to the PrioritizedOrderPool
+/// Preconf should be stored here until target_block is reached. Once target_block is reached, we validate and move all the preconf reqs for the target_block to the PrioritizedOrderPool
 #[derive(Debug)]
 pub struct OrderPool {
     known_orders: HashMap<PreconfHash, PreconfRequest>,
