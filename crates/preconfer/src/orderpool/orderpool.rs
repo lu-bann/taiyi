@@ -6,7 +6,8 @@ use std::{collections::HashMap, sync::Arc};
 ///
 /// It is responsible for
 ///  - adding/removing preconf requests to the pool
-///  -
+///  
+/// Preconf should be stored here until target_block is reached. Once target_block is reached, we validate and move the preconf to the PrioritizedOrderPool
 #[derive(Debug)]
 pub struct OrderPool {
     known_orders: Arc<RwLock<HashMap<PreconfHash, PreconfRequest>>>,

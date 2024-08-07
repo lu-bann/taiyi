@@ -44,9 +44,8 @@ impl AccountNonce {
 }
 
 /// Orders are validated after the user sends the full transaction.
-/// Valid orders are stored in the order store.
-///
-/// TDOD: Doc
+/// 
+/// Only contains orders for which target_block is next slot
 #[derive(Debug, Clone)]
 pub struct PrioritizedOrderPool {
     main_queue: PriorityQueue<OrderId, OrderPriority>,
