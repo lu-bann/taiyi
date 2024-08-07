@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
@@ -76,8 +78,8 @@ pub struct LubanRpcImpl<T, P, F> {
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
-    preconf_pool: OrderPool,
-    priortised_orderpool: RwLock<PrioritizedOrderPool>,
+    preconf_pool: Arc<RwLock<OrderPool>>,
+    priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -99,8 +101,8 @@ where
             signer_client,
             pubkeys,
             network_state,
-            preconf_pool: OrderPool::default(),
-            priortised_orderpool: RwLock::new(PrioritizedOrderPool::default()),
+            preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
+            priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
         }
     }
 
@@ -133,7 +135,7 @@ where
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let preconf_hash = preconf_request.hash(self.chain_id);
-        if self.preconf_pool.exist(&preconf_hash) {
+        if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
         let preconfer_signature = self
@@ -158,7 +160,9 @@ where
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
 
-        self.preconf_pool.set(preconf_hash, preconf_request.clone());
+        self.preconf_pool
+            .write()
+            .set(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -169,6 +173,7 @@ where
     ) -> Result<CancelPreconfResponse, RpcError> {
         if self
             .preconf_pool
+            .write()
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -185,7 +190,7 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        match self.preconf_pool.get(&preconf_tx_hash) {
+        match self.preconf_pool.read().get(&preconf_tx_hash) {
             Some(mut preconf_request) => {
                 // TODO: Validate the tx
                 if preconf_request.preconf_tx.is_some() {
@@ -196,6 +201,7 @@ where
                 preconf_request.preconf_tx = Some(tx);
 
                 self.preconf_pool
+                    .write()
                     .set(preconf_tx_hash, preconf_request.clone());
 
                 // Call exhuast if validate_tx_request fails
@@ -221,7 +227,7 @@ where
                     self.priortised_orderpool
                         .write()
                         .insert_order(preconf_tx_hash, preconf_request);
-                    self.preconf_pool.delete(&preconf_tx_hash);
+                    self.preconf_pool.write().delete(&preconf_tx_hash);
                 }
             }
             None => {
@@ -237,7 +243,7 @@ where
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_pool.get(&preconf_tx_hash) {
+        match self.preconf_pool.read().get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
