@@ -44,7 +44,7 @@ impl AccountNonce {
 }
 
 /// Orders are validated after the user sends the full transaction.
-/// 
+///
 /// Only contains orders for which target_block is next slot
 #[derive(Debug, Clone)]
 pub struct PrioritizedOrderPool {
@@ -67,7 +67,6 @@ impl Default for PrioritizedOrderPool {
 }
 
 impl PrioritizedOrderPool {
-
     pub fn insert_order(&mut self, order_id: PreconfHash, order: PreconfRequest) {
         if self.orders.contains_key(&order_id) {
             return;
