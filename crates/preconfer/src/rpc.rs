@@ -1,10 +1,12 @@
-use crate::commit_boost_client::CommitBoostClient;
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
-use crate::preconf_request_map::PreconfRequestMap;
+use crate::orderpool::orderpool::OrderPool;
+use crate::orderpool::priortised_orderpool::PrioritizedOrderPool;
 use crate::preconfer::{Preconfer, TipTx};
 use crate::pricer::{ExecutionClientFeePricer, LubanFeePricer, PreconfPricer};
+use crate::signer_client::SignerClient;
+use crate::validation::validate_tx_request;
 use alloy::consensus::TxEnvelope;
 use alloy::core::primitives::{Address, U256};
 use alloy::network::Ethereum;
@@ -69,11 +71,12 @@ pub trait LubanRpc {
 
 pub struct LubanRpcImpl<T, P, F> {
     chain_id: U256,
-    preconf_requests: PreconfRequestMap,
     preconfer: Preconfer<T, P, F>,
-    commit_boost_client: CommitBoostClient,
+    signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
+    preconf_pool: OrderPool,
+    priortised_orderpool: PrioritizedOrderPool,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -85,45 +88,32 @@ where
     pub async fn new(
         chain_id: U256,
         preconfer: Preconfer<T, P, F>,
-        commit_boost_url: String,
         network_state: NetworkState,
-        cb_id: String,
-        cb_jwt: String,
+        pubkeys: Vec<BlsPublicKey>,
+        signer_client: SignerClient,
     ) -> Self {
-        let commit_boost_client = CommitBoostClient::new(commit_boost_url, chain_id, cb_id, cb_jwt);
-        let pubkeys = commit_boost_client
-            .get_pubkeys()
-            .await
-            .expect("pubkeys should be received.");
         Self {
             chain_id,
-            preconf_requests: PreconfRequestMap::default(),
             preconfer,
-            commit_boost_client,
+            signer_client,
             pubkeys,
             network_state,
+            preconf_pool: OrderPool::default(),
+            priortised_orderpool: PrioritizedOrderPool::default(),
         }
     }
+
     async fn sign_init_signature(
         &self,
         preconf_request: &PreconfRequest,
     ) -> Result<BlsSignature, String> {
-        self.commit_boost_client
+        self.signer_client
             .sign_constraint(
                 preconf_request,
                 *self.pubkeys.first().expect("tempory solution"),
             )
             .await
             .map_err(|e| e.to_string())
-    }
-}
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
-    match tx {
-        TxEnvelope::Legacy(t) => t.tx().gas_limit,
-        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
-        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
-        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
-        _ => panic!("not implemted"),
     }
 }
 
@@ -134,12 +124,15 @@ where
     P: Provider<T, Ethereum> + Clone + Provider + 'static,
     F: PreconfPricer + Sync + Send + 'static,
 {
+    /// Send a preconf request to the preconfer
+    ///
+    /// Stores the preconf request in the Orderpool until the preconf tx is received
     async fn send_preconf_request(
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let preconf_hash = preconf_request.hash(self.chain_id);
-        if self.preconf_requests.exist(&preconf_hash) {
+        if self.preconf_pool.exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
         let preconfer_signature = self
@@ -163,7 +156,8 @@ where
             }
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
-        self.preconf_requests.set(preconf_hash, preconf_request);
+
+        self.preconf_pool.set(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -173,7 +167,7 @@ where
         cancel_preconf_request: CancelPreconfRequest,
     ) -> Result<CancelPreconfResponse, RpcError> {
         if self
-            .preconf_requests
+            .preconf_pool
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -190,20 +184,21 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        match self.preconf_requests.get(&preconf_tx_hash) {
+        match self.preconf_pool.get(&preconf_tx_hash) {
             Some(mut preconf_request) => {
+                // TODO: Validate the tx
                 if preconf_request.preconf_tx.is_some() {
                     return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));
                 }
                 let mut tx = Vec::new();
                 preconf_tx.encode(&mut tx);
                 preconf_request.preconf_tx = Some(tx);
-                self.preconf_requests
+
+                self.preconf_pool
                     .set(preconf_tx_hash, preconf_request.clone());
 
-                // if the tx sent from the user is larger than the gasLimit in the tip_tx, then call the exhaust() function
-                let gas_limit = get_tx_gas_limit(&preconf_tx);
-                if U256::from(gas_limit) > preconf_request.tip_tx.gas_limit {
+                // Call exhuast if validate_tx_request fails
+                if validate_tx_request(&preconf_tx, &preconf_request).is_err() {
                     self.preconfer
                         .luban_core_contract
                         .exhaust(
@@ -213,6 +208,9 @@ where
                         )
                         .call()
                         .await?;
+                } else {
+                    self.priortised_orderpool.insert(preconf_request);
+                    self.preconf_pool.delete(&preconf_tx_hash);
                 }
             }
             None => {
@@ -223,11 +221,12 @@ where
         Ok(())
     }
 
+    // TODO: change this
     async fn check_preconf_request_status(
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_requests.get(&preconf_tx_hash) {
+        match self.preconf_pool.get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
@@ -252,6 +251,7 @@ async fn run_cl_process<T, P>(
     beacon_url: String,
     luban_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
+    pubkeys: Vec<BlsPublicKey>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -262,6 +262,7 @@ where
         beacon_url,
         luban_proposer_registry_contract_addr,
         network_state,
+        pubkeys,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
@@ -287,15 +288,26 @@ pub async fn start_rpc_server(
         .with_recommended_fillers()
         .on_builtin(&rpc_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
+
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
+
+    let signer_client = SignerClient::new(commit_boost_url, U256::from(chain_id), cb_id, cb_jwt);
+    let pubkeys = signer_client
+        .get_pubkeys()
+        .await
+        .expect("pubkeys should be received.");
+    let pubkeys_dup = pubkeys.clone();
+
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
             provider_cl,
             beacon_rpc_url,
             luban_proposer_registry_contract_addr,
             network_state_cl,
+            pubkeys_dup,
         )
         .await
         {
@@ -305,7 +317,6 @@ pub async fn start_rpc_server(
 
     let server = Server::builder().build((addr, port)).await?;
 
-    let chain_id = provider.get_chain_id().await?;
     info!("preconfer is on chain_id: {:?}", chain_id);
     match luban_service_url {
         Some(url) => {
@@ -319,10 +330,9 @@ pub async fn start_rpc_server(
             let rpc = LubanRpcImpl::new(
                 U256::from(chain_id),
                 validator,
-                commit_boost_url,
                 network_state,
-                cb_id,
-                cb_jwt,
+                pubkeys,
+                signer_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
@@ -339,10 +349,9 @@ pub async fn start_rpc_server(
             let rpc = LubanRpcImpl::new(
                 U256::from(chain_id),
                 validator,
-                commit_boost_url,
                 network_state,
-                cb_id,
-                cb_jwt,
+                pubkeys,
+                signer_client,
             )
             .await;
             let handle = server.start(rpc.into_rpc());
