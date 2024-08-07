@@ -14,13 +14,13 @@ use std::{
 pub fn reth_db_provider() -> ProviderFactory<DatabaseEnv> {
     let path = std::env::var("RETH_DB_PATH").expect("RETH_DB_PATH must be set");
     let db_path = Path::new(&path);
-    let db = open_db_read_only(db_path, Default::default()).unwrap();
+    let db = open_db_read_only(db_path, Default::default()).expect("DB open error");
     let chain_spec = Arc::new(ChainSpec::default());
 
     ProviderFactory::new(
         db,
         chain_spec.clone(),
-        StaticFileProvider::read_only(db_path.join("static_files")).unwrap(),
+        StaticFileProvider::read_only(db_path.join("static_files")).expect("Static file error"),
     )
 }
 
@@ -36,7 +36,7 @@ impl<DB: Database + Clone> ProviderFactoryReopener<DB> {
         let provider_factory = ProviderFactory::new(
             db,
             chain_spec.clone(),
-            StaticFileProvider::read_only(static_files_path.as_path()).unwrap(),
+            StaticFileProvider::read_only(static_files_path.as_path()).expect("Static file error"),
         );
 
         Self {

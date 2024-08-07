@@ -33,7 +33,7 @@ impl OrderPool {
     }
 
     pub fn exist(&self, key: &PreconfHash) -> bool {
-        self.known_orders.get(key).is_some()
+        self.known_orders.contains_key(key)
     }
 
     pub fn set(&mut self, key: PreconfHash, value: PreconfRequest) {

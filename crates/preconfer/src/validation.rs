@@ -78,7 +78,7 @@ pub async fn validate_tx_request(
 ) -> Result<(), ValidationError> {
     let sender = order.tip_tx.from;
     // Vaiidate the chain id
-    if tx.chain_id().unwrap() != chain_id.to::<u64>() {
+    if tx.chain_id().expect("no chain id") != chain_id.to::<u64>() {
         return Err(ValidationError::ChainIdMismatch);
     }
 
@@ -113,10 +113,8 @@ pub async fn validate_tx_request(
         None => {
             let state = state(sender, order.preconf_conditions.block_number - 1)
                 .await
-                .unwrap();
-            priortised_orderpool
-                .canonical_state
-                .insert(sender, state.clone());
+                .unwrap_or_default();
+            priortised_orderpool.canonical_state.insert(sender, state);
             state
         }
     };

@@ -76,7 +76,7 @@ impl PrioritizedOrderPool {
             order_id,
             OrderPriority {
                 priority: order.tip(),
-                order_id: order_id,
+                order_id,
             },
         );
 

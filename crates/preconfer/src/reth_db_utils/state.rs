@@ -45,17 +45,13 @@ pub struct StateCacheRef {
 
 impl StateCacheRef {
     pub fn state(&self, address: Address) -> ProviderResult<AccountState> {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().expect("lock cache");
         if let Some(state) = cache.get(&address) {
             return Ok(*state);
         }
         let nonce = self.state.account_nonce(address)?.unwrap_or_default();
         let balance = self.state.account_balance(address)?.unwrap_or_default();
-        let has_code = if self.state.account_code(address)?.is_some() {
-            true
-        } else {
-            false
-        };
+        let has_code = self.state.account_code(address)?.is_some();
         let state = AccountState {
             nonce,
             balance,
