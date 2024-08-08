@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 
+use std::sync::Arc;
+
 use alloy::consensus::{Transaction, TxEnvelope};
 use luban_primitives::PreconfRequest;
 use reth::primitives::U256;
+use reth_chainspec::ChainSpec;
 use thiserror::Error;
 
-use crate::{orderpool::priortised_orderpool::PrioritizedOrderPool, reth_db_utils::state::state};
+use crate::{orderpool::priortised_orderpool::PrioritizedOrderPool, reth_utils::state::state};
 
 pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
@@ -71,14 +74,14 @@ pub enum ValidationError {
 // TDOD: validate all fields
 // After validating the tx req, update the state in insert_order function
 pub async fn validate_tx_request(
-    chain_id: &U256,
+    chain_spec: &Arc<ChainSpec>,
     tx: &TxEnvelope,
     order: &PreconfRequest,
     priortised_orderpool: &mut PrioritizedOrderPool,
 ) -> Result<(), ValidationError> {
     let sender = order.tip_tx.from;
     // Vaiidate the chain id
-    if tx.chain_id().expect("no chain id") != chain_id.to::<u64>() {
+    if tx.chain_id().expect("no chain id") != chain_spec.chain().id() {
         return Err(ValidationError::ChainIdMismatch);
     }
 
@@ -111,9 +114,13 @@ pub async fn validate_tx_request(
     let mut account_state = match priortised_orderpool.canonical_state.get(&sender).cloned() {
         Some(state) => state,
         None => {
-            let state = state(sender, order.preconf_conditions.block_number - 1)
-                .await
-                .unwrap_or_default();
+            let state = state(
+                sender,
+                order.preconf_conditions.block_number - 1,
+                chain_spec.clone(),
+            )
+            .await
+            .unwrap_or_default();
             priortised_orderpool.canonical_state.insert(sender, state);
             state
         }

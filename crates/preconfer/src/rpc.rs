@@ -1,6 +1,7 @@
 #![allow(clippy::await_holding_lock)]
 use std::sync::Arc;
 
+use crate::chainspec_builder::chainspec_builder;
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
@@ -27,6 +28,7 @@ use luban_primitives::{
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
 use parking_lot::RwLock;
+use reth_chainspec::ChainSpec;
 use tracing::info;
 
 impl From<TipTransaction> for TipTx {
@@ -74,7 +76,7 @@ pub trait LubanRpc {
 }
 
 pub struct LubanRpcImpl<T, P, F> {
-    chain_id: U256,
+    chain_spec: Arc<ChainSpec>,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
@@ -90,14 +92,14 @@ where
     F: PreconfPricer,
 {
     pub async fn new(
-        chain_id: U256,
+        chain_spec: Arc<ChainSpec>,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         pubkeys: Vec<BlsPublicKey>,
         signer_client: SignerClient,
     ) -> Self {
         Self {
-            chain_id,
+            chain_spec,
             preconfer,
             signer_client,
             pubkeys,
@@ -135,7 +137,7 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = preconf_request.hash(self.chain_id);
+        let preconf_hash = preconf_request.hash(U256::from(self.chain_spec.chain().id()));
         if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
@@ -207,7 +209,7 @@ where
 
                 // Call exhuast if validate_tx_request fails
                 if validate_tx_request(
-                    &self.chain_id,
+                    &self.chain_spec,
                     &preconf_tx,
                     &preconf_request,
                     &mut self.priortised_orderpool.write(),
@@ -308,6 +310,8 @@ pub async fn start_rpc_server(
         .await?;
     let chain_id = provider.get_chain_id().await?;
 
+    let chain_spec = Arc::new(chainspec_builder(chain_id));
+
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
@@ -345,14 +349,9 @@ pub async fn start_rpc_server(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let rpc = LubanRpcImpl::new(
-                U256::from(chain_id),
-                validator,
-                network_state,
-                pubkeys,
-                signer_client,
-            )
-            .await;
+            let rpc =
+                LubanRpcImpl::new(chain_spec, validator, network_state, pubkeys, signer_client)
+                    .await;
             let handle = server.start(rpc.into_rpc());
             handle.stopped().await;
         }
@@ -364,14 +363,9 @@ pub async fn start_rpc_server(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let rpc = LubanRpcImpl::new(
-                U256::from(chain_id),
-                validator,
-                network_state,
-                pubkeys,
-                signer_client,
-            )
-            .await;
+            let rpc =
+                LubanRpcImpl::new(chain_spec, validator, network_state, pubkeys, signer_client)
+                    .await;
             let handle = server.start(rpc.into_rpc());
             handle.stopped().await;
         }

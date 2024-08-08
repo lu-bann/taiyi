@@ -2,6 +2,7 @@
 use ahash::HashMap;
 use reth::primitives::{Address, U256};
 use reth::providers::{ProviderFactory, StateProviderBox};
+use reth_chainspec::ChainSpec;
 use reth_db::database::Database;
 use reth_errors::ProviderResult;
 use std::sync::{Arc, Mutex};
@@ -62,8 +63,12 @@ impl StateCacheRef {
     }
 }
 
-pub async fn state(account: Address, parent_block: u64) -> eyre::Result<AccountState> {
-    let provider_factory = crate::reth_db_utils::db_provider::reth_db_provider();
+pub async fn state(
+    account: Address,
+    parent_block: u64,
+    chain_spec: Arc<ChainSpec>,
+) -> eyre::Result<AccountState> {
+    let provider_factory = crate::reth_utils::db_provider::reth_db_provider(chain_spec);
     let state_cache = StateCache::new(provider_factory, parent_block);
     let state_db_ref = state_cache.get_ref()?;
     let state = state_db_ref.state(account)?;

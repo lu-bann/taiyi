@@ -2,7 +2,10 @@
 #![allow(dead_code)]
 
 use eyre::Context;
-use reth::providers::{BlockHashReader, ChainSpecProvider, ProviderFactory};
+use reth::{
+    providers::{BlockHashReader, ChainSpecProvider, ProviderFactory},
+    revm::db,
+};
 use reth_chainspec::ChainSpec;
 use reth_db::{database::Database, open_db_read_only, DatabaseEnv};
 use reth_provider::{providers::StaticFileProvider, StaticFileProviderFactory};
@@ -11,11 +14,16 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub fn reth_db_provider() -> ProviderFactory<DatabaseEnv> {
-    let path = std::env::var("RETH_DB_PATH").expect("RETH_DB_PATH must be set");
-    let db_path = Path::new(&path);
+pub fn reth_db_provider(chain_spec: Arc<ChainSpec>) -> ProviderFactory<DatabaseEnv> {
+    let reth_db = match chain_spec.chain.id() {
+        1 => std::env::var("MAINNET_DB_PATH").expect("MAINNET_DB_PATH must be set"),
+        17000 => std::env::var("HOLESKY_DB_PATH").expect("HOLESKY_DB_PATH must be set"),
+        7014190335 => std::env::var("HELDER_DB_PATH").expect("HELDER_DB_PATH must be set"),
+        _ => panic!("Unknown chain id"),
+    };
+    let db_path = Path::new(&reth_db);
+
     let db = open_db_read_only(db_path, Default::default()).expect("DB open error");
-    let chain_spec = Arc::new(ChainSpec::default());
 
     ProviderFactory::new(
         db,

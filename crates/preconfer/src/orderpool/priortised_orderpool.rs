@@ -5,7 +5,7 @@ use priority_queue::PriorityQueue;
 use reth::primitives::{Address, U256};
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::reth_db_utils::state::AccountState;
+use crate::reth_utils::state::AccountState;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
