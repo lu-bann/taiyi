@@ -1,23 +1,13 @@
 use reth::primitives::Genesis;
-use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder, HOLESKY};
-use std::{fs::File, io::BufReader};
+use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder, HOLESKY, MAINNET};
+use std::{fs::File, io::BufReader, sync::Arc};
 
-pub fn chainspec_builder(chain_id: u64) -> ChainSpec {
+pub fn chainspec_builder(chain_id: u64) -> Arc<ChainSpec> {
     match chain_id {
         // mainnet
-        1 => ChainSpecBuilder::mainnet().build(),
+        1 => MAINNET.clone(),
         // Holesky
-        17000 => ChainSpec {
-            chain: HOLESKY.chain,
-            genesis: HOLESKY.genesis.clone(),
-            hardforks: HOLESKY.hardforks.clone(),
-            genesis_hash: Some(HOLESKY.genesis_hash()),
-            paris_block_and_final_difficulty: HOLESKY.paris_block_and_final_difficulty,
-            deposit_contract: HOLESKY.deposit_contract.clone(),
-            base_fee_params: HOLESKY.base_fee_params.clone(),
-            prune_delete_limit: HOLESKY.prune_delete_limit,
-            max_gas_limit: HOLESKY.max_gas_limit,
-        },
+        17000 => HOLESKY.clone(),
         // Helder
         7014190335 => {
             // Parse helder genesis specs
@@ -30,7 +20,7 @@ pub fn chainspec_builder(chain_id: u64) -> ChainSpec {
                 .chain(Chain::from(chain_id))
                 .genesis(genesis)
                 .cancun_activated();
-            chain_spec_builder.build()
+            chain_spec_builder.build().into()
         }
         _ => panic!("Unknown chain id"),
     }

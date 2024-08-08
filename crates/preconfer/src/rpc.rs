@@ -310,7 +310,7 @@ pub async fn start_rpc_server(
         .await?;
     let chain_id = provider.get_chain_id().await?;
 
-    let chain_spec = Arc::new(chainspec_builder(chain_id));
+    let chain_spec = chainspec_builder(chain_id);
 
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
