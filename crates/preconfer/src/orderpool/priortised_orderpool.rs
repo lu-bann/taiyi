@@ -1,19 +1,19 @@
 #![allow(dead_code)]
 
-use alloy::consensus::TxEnvelope;
-use luban_primitives::PreconfRequest;
-use parking_lot::RwLock;
+use luban_primitives::{PreconfHash, PreconfRequest};
 use priority_queue::PriorityQueue;
-use reth::primitives::{Address, B256};
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
+use reth::primitives::{Address, U256};
+use std::{cmp::Ordering, collections::HashMap};
+
+use crate::reth_utils::state::AccountState;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
     pub order_id: OrderId,
-    pub priority: u128,
+    pub priority: U256,
 }
 
-pub type OrderId = B256;
+pub type OrderId = PreconfHash;
 
 impl PartialOrd for OrderPriority {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -31,11 +31,11 @@ impl Ord for OrderPriority {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct AccountNonce {
-    pub nonce: u64,
+    pub nonce: U256,
     pub account: Address,
 }
 impl AccountNonce {
-    pub fn with_nonce(self, nonce: u64) -> Self {
+    pub fn with_nonce(self, nonce: U256) -> Self {
         AccountNonce {
             account: self.account,
             nonce,
@@ -44,68 +44,59 @@ impl AccountNonce {
 }
 
 /// Orders are validated after the user sends the full transaction.
-/// Valid orders are stored in the order store.
 ///
-/// TDOD: Doc
+/// Only contains orders for which target_block is next slot
 #[derive(Debug, Clone)]
 pub struct PrioritizedOrderPool {
-    /// Ready (all nonce matching (or not matched but optional)) to execute orders sorted
     main_queue: PriorityQueue<OrderId, OrderPriority>,
-    /// For each account we store all the orders from main_queue which contain a tx from this account.
-    /// Since the orders belong to main_queue these are orders ready to execute.
-    /// As soon as we execute an order from main_queue all orders for all the accounts the order used (order.nonces()) could get invalidated (if tx is not optional).
-    main_queue_nonces: HashMap<Address, Vec<OrderId>>,
-
-    /// Up to date "onchain" nonces for the current block we are building.
-    /// Special care must be taken to keep this in sync.
-    onchain_nonces: HashMap<Address, u64>,
-
-    /// Orders waiting for an account to reach a particular nonce.
-    pending_orders: HashMap<AccountNonce, Vec<OrderId>>,
+    pub canonical_state: HashMap<Address, AccountState>,
+    pub intermediate_state: HashMap<Address, (U256, u64)>,
     /// Id -> order for all orders we manage. Carefully maintained by remove/insert
-    orders_by_target_block: Arc<RwLock<HashMap<u64, Vec<PreconfRequest>>>>,
+    orders: HashMap<OrderId, PreconfRequest>,
 }
 
 impl Default for PrioritizedOrderPool {
     fn default() -> Self {
         Self {
             main_queue: PriorityQueue::new(),
-            main_queue_nonces: HashMap::default(),
-            onchain_nonces: HashMap::default(),
-            pending_orders: HashMap::default(),
-            orders_by_target_block: Arc::new(RwLock::new(HashMap::default())),
+            canonical_state: HashMap::default(),
+            intermediate_state: HashMap::default(),
+            orders: HashMap::default(),
         }
     }
 }
 
 impl PrioritizedOrderPool {
-    /// Should be called when last block is updated
-    pub fn head_updated(&mut self, new_block_number: u64) {
-        // remove by target block
-        self.orders_by_target_block
-            .write()
-            .retain(|block_number, _| *block_number > new_block_number);
+    pub fn insert_order(&mut self, order_id: PreconfHash, order: PreconfRequest) {
+        if self.orders.contains_key(&order_id) {
+            return;
+        }
+
+        self.main_queue.push(
+            order_id,
+            OrderPriority {
+                priority: order.tip(),
+                order_id,
+            },
+        );
+
+        self.orders.insert(order_id, order.clone());
+
+        self.intermediate_state
+            .entry(order.tip_tx.from)
+            .and_modify(|(balance, nonce)| {
+                // TODO balance should account for total transaction cost including gas costs
+                *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
+                *nonce += 1;
+            });
     }
 
-    pub fn insert(&self, order: PreconfRequest) {
-        let bn = order.preconf_conditions.block_number;
-        self.orders_by_target_block
-            .write()
-            .entry(bn)
-            .or_default()
-            .push(order);
+    pub fn pop_order(&mut self) -> Option<PreconfRequest> {
+        let (id, _) = self.main_queue.pop()?;
+        self.orders.remove(&id)
     }
 
-    pub fn pop_order(&mut self) -> Option<TxEnvelope> {
-        unimplemented!()
-    }
-
-    // TODO: change this to return best constraints ready to be included in the block
-    pub fn best_constraints_by_target_block(&self, target_block: u64) -> Vec<PreconfRequest> {
-        self.orders_by_target_block
-            .read()
-            .get(&target_block)
-            .cloned()
-            .unwrap_or_default()
+    pub fn transaction_size(&self) -> usize {
+        self.main_queue.len()
     }
 }

@@ -14,7 +14,16 @@ use ssz_derive::{Decode, Encode};
 type Transaction = Vec<u8>;
 
 #[derive(
-    Debug, Serialize, Deserialize, Default, Clone, RlpDecodable, RlpEncodable, Encode, Decode,
+    Debug,
+    Serialize,
+    Deserialize,
+    Default,
+    Clone,
+    RlpDecodable,
+    RlpEncodable,
+    Encode,
+    Decode,
+    PartialEq,
 )]
 #[rlp(trailing)]
 pub struct PreconfRequest {
@@ -48,10 +57,23 @@ impl PreconfRequest {
     pub fn tip(&self) -> U256 {
         self.tip_tx.after_pay + self.tip_tx.pre_pay
     }
+
+    pub fn nonce(&self) -> U256 {
+        self.tip_tx.nonce
+    }
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    RlpEncodable,
+    RlpDecodable,
+    Default,
+    Encode,
+    Decode,
+    PartialEq,
 )]
 pub struct TipTransaction {
     pub gas_limit: U256,
@@ -113,7 +135,16 @@ impl TipTransaction {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    RlpEncodable,
+    RlpDecodable,
+    Default,
+    Encode,
+    Decode,
+    PartialEq,
 )]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
@@ -154,7 +185,16 @@ impl PreconfCondition {
 }
 
 #[derive(
-    Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, Encode, Decode,
+    Debug,
+    Clone,
+    RlpEncodable,
+    RlpDecodable,
+    Default,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    PartialEq,
 )]
 pub struct OrderingMetaData {
     index: U256,

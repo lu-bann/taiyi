@@ -1,3 +1,7 @@
+#![allow(clippy::await_holding_lock)]
+use std::sync::Arc;
+
+use crate::chainspec_builder::chainspec_builder;
 use crate::error::RpcError;
 use crate::lookahead_fetcher;
 use crate::network_state::NetworkState;
@@ -23,6 +27,8 @@ use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, TipTransaction,
 };
+use parking_lot::RwLock;
+use reth_chainspec::ChainSpec;
 use tracing::info;
 
 impl From<TipTransaction> for TipTx {
@@ -70,13 +76,13 @@ pub trait LubanRpc {
 }
 
 pub struct LubanRpcImpl<T, P, F> {
-    chain_id: U256,
+    chain_spec: Arc<ChainSpec>,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
-    preconf_pool: OrderPool,
-    priortised_orderpool: PrioritizedOrderPool,
+    preconf_pool: Arc<RwLock<OrderPool>>,
+    priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
 }
 
 impl<T, P, F> LubanRpcImpl<T, P, F>
@@ -86,20 +92,20 @@ where
     F: PreconfPricer,
 {
     pub async fn new(
-        chain_id: U256,
+        chain_spec: Arc<ChainSpec>,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         pubkeys: Vec<BlsPublicKey>,
         signer_client: SignerClient,
     ) -> Self {
         Self {
-            chain_id,
+            chain_spec,
             preconfer,
             signer_client,
             pubkeys,
             network_state,
-            preconf_pool: OrderPool::default(),
-            priortised_orderpool: PrioritizedOrderPool::default(),
+            preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
+            priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
         }
     }
 
@@ -131,8 +137,8 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = preconf_request.hash(self.chain_id);
-        if self.preconf_pool.exist(&preconf_hash) {
+        let preconf_hash = preconf_request.hash(U256::from(self.chain_spec.chain().id()));
+        if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
         let preconfer_signature = self
@@ -157,7 +163,9 @@ where
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
 
-        self.preconf_pool.set(preconf_hash, preconf_request.clone());
+        self.preconf_pool
+            .write()
+            .set(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -168,6 +176,7 @@ where
     ) -> Result<CancelPreconfResponse, RpcError> {
         if self
             .preconf_pool
+            .write()
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -184,7 +193,7 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        match self.preconf_pool.get(&preconf_tx_hash) {
+        match self.preconf_pool.read().get(&preconf_tx_hash) {
             Some(mut preconf_request) => {
                 // TODO: Validate the tx
                 if preconf_request.preconf_tx.is_some() {
@@ -195,10 +204,19 @@ where
                 preconf_request.preconf_tx = Some(tx);
 
                 self.preconf_pool
+                    .write()
                     .set(preconf_tx_hash, preconf_request.clone());
 
                 // Call exhuast if validate_tx_request fails
-                if validate_tx_request(&preconf_tx, &preconf_request).is_err() {
+                if validate_tx_request(
+                    &self.chain_spec,
+                    &preconf_tx,
+                    &preconf_request,
+                    &mut self.priortised_orderpool.write(),
+                )
+                .await
+                .is_err()
+                {
                     self.preconfer
                         .luban_core_contract
                         .exhaust(
@@ -209,8 +227,10 @@ where
                         .call()
                         .await?;
                 } else {
-                    self.priortised_orderpool.insert(preconf_request);
-                    self.preconf_pool.delete(&preconf_tx_hash);
+                    self.priortised_orderpool
+                        .write()
+                        .insert_order(preconf_tx_hash, preconf_request);
+                    self.preconf_pool.write().delete(&preconf_tx_hash);
                 }
             }
             None => {
@@ -226,7 +246,7 @@ where
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_pool.get(&preconf_tx_hash) {
+        match self.preconf_pool.read().get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
@@ -290,6 +310,8 @@ pub async fn start_rpc_server(
         .await?;
     let chain_id = provider.get_chain_id().await?;
 
+    let chain_spec = chainspec_builder(chain_id);
+
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
@@ -327,14 +349,9 @@ pub async fn start_rpc_server(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let rpc = LubanRpcImpl::new(
-                U256::from(chain_id),
-                validator,
-                network_state,
-                pubkeys,
-                signer_client,
-            )
-            .await;
+            let rpc =
+                LubanRpcImpl::new(chain_spec, validator, network_state, pubkeys, signer_client)
+                    .await;
             let handle = server.start(rpc.into_rpc());
             handle.stopped().await;
         }
@@ -346,14 +363,9 @@ pub async fn start_rpc_server(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let rpc = LubanRpcImpl::new(
-                U256::from(chain_id),
-                validator,
-                network_state,
-                pubkeys,
-                signer_client,
-            )
-            .await;
+            let rpc =
+                LubanRpcImpl::new(chain_spec, validator, network_state, pubkeys, signer_client)
+                    .await;
             let handle = server.start(rpc.into_rpc());
             handle.stopped().await;
         }
