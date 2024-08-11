@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use alloy::core::primitives::Address;
 use clap::Parser;
+use ethereum_consensus::networks::Network;
 use luban_preconfer::rpc::start_rpc_server;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
@@ -16,6 +17,10 @@ pub struct PreconferCommand {
     /// execution client rpc url
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
+
+    /// network
+    #[clap(long = "network")]
+    pub network: String,
 
     /// consensus client rpc url
     #[clap(long = "beacon_rpc_url")]
@@ -54,6 +59,7 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let addr = self.addr;
         let port = self.port;
+        let network = Network::from(self.network.clone());
         let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
         let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
         let luban_proposer_registry_contract_addr: Address =
@@ -61,6 +67,7 @@ impl PreconferCommand {
         start_rpc_server(
             addr,
             port,
+            network,
             luban_escrow_contract_addr,
             luban_core_contract_addr,
             luban_proposer_registry_contract_addr,
