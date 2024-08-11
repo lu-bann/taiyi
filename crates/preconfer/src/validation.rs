@@ -1,16 +1,6 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
-
-use alloy::consensus::{Transaction, TxEnvelope};
-use luban_primitives::PreconfRequest;
-use reth::primitives::U256;
-use reth_chainspec::ChainSpec;
 use thiserror::Error;
-
-use crate::{orderpool::priortised_orderpool::PrioritizedOrderPool, reth_utils::state::state};
-
-pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 /// Possible commitment validation errors.
 #[derive(Debug, Error)]
@@ -69,91 +59,4 @@ pub enum ValidationError {
     /// NOTE: this should not be exposed to the user.
     #[error("Internal error: {0}")]
     Internal(String),
-}
-
-// TDOD: validate all fields
-// After validating the tx req, update the state in insert_order function
-pub async fn validate_tx_request(
-    chain_spec: &Arc<ChainSpec>,
-    tx: &TxEnvelope,
-    order: &PreconfRequest,
-    priortised_orderpool: &mut PrioritizedOrderPool,
-) -> Result<(), ValidationError> {
-    let sender = order.tip_tx.from;
-    // Vaiidate the chain id
-    if tx.chain_id().expect("no chain id") != chain_spec.chain().id() {
-        return Err(ValidationError::ChainIdMismatch);
-    }
-
-    // Check for max commitment reached for the slot
-    if priortised_orderpool.transaction_size() > MAX_COMMITMENTS_PER_SLOT {
-        return Err(ValidationError::MaxCommitmentsReachedForSlot(
-            order.preconf_conditions.block_number,
-            MAX_COMMITMENTS_PER_SLOT,
-        ));
-    }
-
-    // TODO
-    // Check for max committed gas reached for the slot
-    // Check if the transaction size exceeds the maximum
-    // Check if the transaction is a contract creation and the init code size exceeds the maximum
-    // Check if the gas limit is higher than the maximum block gas limit
-    // Check EIP-4844-specific limits
-
-    let gas_limit = get_tx_gas_limit(tx);
-    if U256::from(gas_limit) > order.tip_tx.gas_limit {
-        return Err(ValidationError::GasLimitTooHigh);
-    }
-
-    let (prev_balance, prev_nonce) = priortised_orderpool
-        .intermediate_state
-        .get(&sender)
-        .cloned()
-        .unwrap_or_default();
-
-    let mut account_state = match priortised_orderpool.canonical_state.get(&sender).cloned() {
-        Some(state) => state,
-        None => {
-            let state = state(
-                sender,
-                order.preconf_conditions.block_number - 1,
-                chain_spec.clone(),
-            )
-            .await
-            .unwrap_or_default();
-            priortised_orderpool.canonical_state.insert(sender, state);
-            state
-        }
-    };
-    // apply the nonce and balance diff
-    account_state.nonce += prev_nonce;
-    account_state.balance -= prev_balance;
-
-    let nonce = order.nonce();
-
-    // order can't be included
-    if account_state.nonce > nonce.to() {
-        return Err(ValidationError::NonceTooLow(
-            account_state.nonce,
-            nonce.to(),
-        ));
-    }
-
-    if account_state.nonce < nonce.to() {
-        return Err(ValidationError::NonceTooHigh(
-            account_state.nonce,
-            nonce.to(),
-        ));
-    }
-    Ok(())
-}
-
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
-    match tx {
-        TxEnvelope::Legacy(t) => t.tx().gas_limit,
-        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
-        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
-        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
-        _ => panic!("not implemted"),
-    }
 }
