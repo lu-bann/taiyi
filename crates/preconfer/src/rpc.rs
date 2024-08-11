@@ -19,6 +19,7 @@ use alloy::rlp::Encodable;
 use alloy::rpc::types::beacon::BlsPublicKey;
 use alloy::rpc::types::beacon::BlsSignature;
 use alloy::transports::Transport;
+use ethereum_consensus::networks::Network;
 use eyre::Result;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
@@ -294,6 +295,7 @@ where
 pub async fn start_rpc_server(
     addr: std::net::IpAddr,
     port: u16,
+    network: Network,
     luban_escrow_contract_addr: Address,
     luban_core_contract_addr: Address,
     luban_proposer_registry_contract_addr: Address,
@@ -309,9 +311,7 @@ pub async fn start_rpc_server(
         .on_builtin(&rpc_url)
         .await?;
     let chain_id = provider.get_chain_id().await?;
-
-    let chain_spec = chainspec_builder(chain_id);
-
+    let chain_spec = chainspec_builder(network);
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();

@@ -8,6 +8,7 @@ alloy = { workspace = true }
 clap = { version = "4.5.4", features = ["derive"] }
 eth2_keystore = { git = "https://github.com/sigp/lighthouse.git", rev = "9e12c21" }
 eth2_wallet = { git = "https://github.com/sigp/lighthouse.git", rev = "9e12c21" }
+ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 hex = "0.4.3"
 luban-preconfer = { workspace = true }
