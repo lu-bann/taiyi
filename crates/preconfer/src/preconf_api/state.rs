@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy::{
-    consensus::TxEnvelope,
+    consensus::{Transaction, TxEnvelope},
     network::Ethereum,
     providers::Provider,
     rlp::Encodable,
@@ -23,9 +23,12 @@ use crate::{
     orderpool::{orderpool::OrderPool, priortised_orderpool::PrioritizedOrderPool},
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
+    reth_utils::state::{state, AccountState},
     signer_client::SignerClient,
-    validation::validate_tx_request,
+    validation::ValidationError,
 };
+
+pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
@@ -145,7 +148,11 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        match self.preconf_pool.read().get(&preconf_tx_hash) {
+        let preconf_request: Option<PreconfRequest>;
+        {
+            preconf_request = self.preconf_pool.read().get(&preconf_tx_hash);
+        }
+        match preconf_request {
             Some(mut preconf_request) => {
                 // TODO: Validate the tx
                 if preconf_request.preconf_tx.is_some() {
@@ -160,14 +167,10 @@ where
                     .set(preconf_tx_hash, preconf_request.clone());
 
                 // Call exhuast if validate_tx_request fails
-                if validate_tx_request(
-                    &self.chain_spec,
-                    &preconf_tx,
-                    &preconf_request,
-                    &mut self.priortised_orderpool.write(),
-                )
-                .await
-                .is_err()
+                if self
+                    .validate_tx_request(&self.chain_spec, &preconf_tx, &preconf_request)
+                    .await
+                    .is_err()
                 {
                     self.preconfer
                         .luban_core_contract
@@ -219,5 +222,113 @@ where
             current_epoch: self.network_state.get_current_epoch(),
             available_slots: self.network_state.get_proposer_duties(),
         })
+    }
+
+    // TDOD: validate all fields
+    // After validating the tx req, update the state in insert_order function
+    async fn validate_tx_request(
+        &self,
+        chain_spec: &Arc<ChainSpec>,
+        tx: &TxEnvelope,
+        order: &PreconfRequest,
+    ) -> Result<(), ValidationError> {
+        let sender = order.tip_tx.from;
+        // Vaiidate the chain id
+        if tx.chain_id().expect("no chain id") != chain_spec.chain().id() {
+            return Err(ValidationError::ChainIdMismatch);
+        }
+
+        let transaction_size: usize;
+        {
+            transaction_size = self.priortised_orderpool.read().transaction_size();
+        }
+        // Check for max commitment reached for the slot
+        if transaction_size > MAX_COMMITMENTS_PER_SLOT {
+            return Err(ValidationError::MaxCommitmentsReachedForSlot(
+                order.preconf_conditions.block_number,
+                MAX_COMMITMENTS_PER_SLOT,
+            ));
+        }
+
+        // TODO
+        // Check for max committed gas reached for the slot
+        // Check if the transaction size exceeds the maximum
+        // Check if the transaction is a contract creation and the init code size exceeds the maximum
+        // Check if the gas limit is higher than the maximum block gas limit
+        // Check EIP-4844-specific limits
+
+        let gas_limit = get_tx_gas_limit(tx);
+        if U256::from(gas_limit) > order.tip_tx.gas_limit {
+            return Err(ValidationError::GasLimitTooHigh);
+        }
+
+        let (prev_balance, prev_nonce) = self
+            .priortised_orderpool
+            .read()
+            .intermediate_state
+            .get(&sender)
+            .cloned()
+            .unwrap_or_default();
+
+        let account_state_opt: Option<AccountState>;
+        {
+            account_state_opt = self
+                .priortised_orderpool
+                .read()
+                .canonical_state
+                .get(&sender)
+                .copied();
+        }
+
+        let mut account_state = match account_state_opt {
+            Some(state) => state,
+            None => {
+                let state = state(
+                    sender,
+                    order.preconf_conditions.block_number - 1,
+                    chain_spec.clone(),
+                )
+                .await
+                .unwrap_or_default();
+                {
+                    self.priortised_orderpool
+                        .write()
+                        .canonical_state
+                        .insert(sender, state);
+                }
+                state
+            }
+        };
+        // apply the nonce and balance diff
+        account_state.nonce += prev_nonce;
+        account_state.balance -= prev_balance;
+
+        let nonce = order.nonce();
+
+        // order can't be included
+        if account_state.nonce > nonce.to() {
+            return Err(ValidationError::NonceTooLow(
+                account_state.nonce,
+                nonce.to(),
+            ));
+        }
+
+        if account_state.nonce < nonce.to() {
+            return Err(ValidationError::NonceTooHigh(
+                account_state.nonce,
+                nonce.to(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
+    match tx {
+        TxEnvelope::Legacy(t) => t.tx().gas_limit,
+        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
+        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
+        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
+        _ => panic!("not implemted"),
     }
 }
