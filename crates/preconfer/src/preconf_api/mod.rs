@@ -95,9 +95,15 @@ pub async fn spawn_service(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let state =
-                PreconfState::new(chain_spec, validator, network_state, pubkeys, signer_client)
-                    .await;
+            let state = PreconfState::new(
+                chain_spec,
+                rpc_url,
+                validator,
+                network_state,
+                pubkeys,
+                signer_client,
+            )
+            .await;
             let pb_state = PbsState::new(pbs_config).with_data(state);
 
             PbsService::init_metrics()?;
@@ -111,9 +117,15 @@ pub async fn spawn_service(
                 luban_core_contract_addr,
                 base_fee_fetcher,
             );
-            let state =
-                PreconfState::new(chain_spec, validator, network_state, pubkeys, signer_client)
-                    .await;
+            let state = PreconfState::new(
+                chain_spec,
+                rpc_url,
+                validator,
+                network_state,
+                pubkeys,
+                signer_client,
+            )
+            .await;
             let state = PbsState::new(pbs_config).with_data(state);
 
             PbsService::init_metrics()?;
