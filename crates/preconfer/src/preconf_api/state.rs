@@ -23,7 +23,7 @@ use crate::{
     orderpool::{orderpool::OrderPool, priortised_orderpool::PrioritizedOrderPool},
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
-    reth_utils::state::{state, AccountState},
+    rpc_state::{get_account_state, AccountState},
     signer_client::SignerClient,
     validation::ValidationError,
 };
@@ -33,6 +33,7 @@ pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
     chain_spec: Arc<ChainSpec>,
+    rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
     pubkeys: Vec<BlsPublicKey>,
@@ -57,6 +58,7 @@ where
 {
     pub async fn new(
         chain_spec: Arc<ChainSpec>,
+        rpc_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         pubkeys: Vec<BlsPublicKey>,
@@ -64,6 +66,7 @@ where
     ) -> Self {
         Self {
             chain_spec,
+            rpc_url,
             preconfer,
             signer_client,
             pubkeys,
@@ -168,7 +171,7 @@ where
 
                 // Call exhuast if validate_tx_request fails
                 if self
-                    .validate_tx_request(&self.chain_spec, &preconf_tx, &preconf_request)
+                    .validate_tx_request(&preconf_tx, &preconf_request)
                     .await
                     .is_err()
                 {
@@ -228,13 +231,12 @@ where
     // After validating the tx req, update the state in insert_order function
     async fn validate_tx_request(
         &self,
-        chain_spec: &Arc<ChainSpec>,
         tx: &TxEnvelope,
         order: &PreconfRequest,
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if tx.chain_id().expect("no chain id") != chain_spec.chain().id() {
+        if tx.chain_id().expect("no chain id") != self.chain_spec.chain().id() {
             return Err(ValidationError::ChainIdMismatch);
         }
 
@@ -283,13 +285,11 @@ where
         let mut account_state = match account_state_opt {
             Some(state) => state,
             None => {
-                let state = state(
-                    sender,
-                    order.preconf_conditions.block_number - 1,
-                    chain_spec.clone(),
-                )
-                .await
-                .unwrap_or_default();
+                let state = get_account_state(self.rpc_url.clone(), sender)
+                    .await
+                    .map_err(|e| {
+                        ValidationError::Internal(format!("Failed to get account state: {e:?}"))
+                    })?;
                 {
                     self.priortised_orderpool
                         .write()

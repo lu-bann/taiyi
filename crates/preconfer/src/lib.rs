@@ -9,6 +9,7 @@ mod preconf_api;
 mod preconfer;
 mod pricer;
 mod reth_utils;
+mod rpc_state;
 mod signer_client;
 mod validation;
 
