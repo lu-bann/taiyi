@@ -70,7 +70,8 @@ pub async fn spawn_service(
         .get_pubkeys()
         .await
         .expect("pubkeys should be received.");
-    let pubkeys_dup = pubkeys.clone();
+    let pubkeys_dup = pubkeys.consensus.clone();
+
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
             provider_cl,
@@ -84,6 +85,20 @@ pub async fn spawn_service(
             eprintln!("Error in cl process: {e:?}");
         }
     });
+
+    let proxy_key = if pubkeys.proxy.is_empty() {
+        let pubkey = pubkeys
+            .consensus
+            .first()
+            .expect("pubkey should be received.");
+        let proxy_delegation = signer_client
+            .cb_signer_client()
+            .generate_proxy_key(*pubkey)
+            .await?;
+        proxy_delegation.message.proxy
+    } else {
+        *pubkeys.proxy.first().expect("pubkey should be received.")
+    };
 
     info!("preconfer is on chain_id: {:?}", chain_id);
     match luban_service_url {
@@ -100,7 +115,7 @@ pub async fn spawn_service(
                 rpc_url,
                 validator,
                 network_state,
-                pubkeys,
+                proxy_key,
                 signer_client,
             )
             .await;
@@ -122,7 +137,7 @@ pub async fn spawn_service(
                 rpc_url,
                 validator,
                 network_state,
-                pubkeys,
+                proxy_key,
                 signer_client,
             )
             .await;

@@ -36,7 +36,7 @@ pub struct PreconfState<T, P, F> {
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
-    pubkeys: Vec<BlsPublicKey>,
+    proxy_key: BlsPublicKey,
     network_state: NetworkState,
     preconf_pool: Arc<RwLock<OrderPool>>,
     priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
@@ -61,7 +61,7 @@ where
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
-        pubkeys: Vec<BlsPublicKey>,
+        proxy_key: BlsPublicKey,
         signer_client: SignerClient,
     ) -> Self {
         Self {
@@ -69,7 +69,7 @@ where
             rpc_url,
             preconfer,
             signer_client,
-            pubkeys,
+            proxy_key,
             network_state,
             preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
             priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
@@ -81,10 +81,7 @@ where
         preconf_request: &PreconfRequest,
     ) -> Result<BlsSignature, String> {
         self.signer_client
-            .sign_constraint(
-                preconf_request,
-                *self.pubkeys.first().expect("tempory solution"),
-            )
+            .sign_constraint(preconf_request, self.proxy_key)
             .await
             .map_err(|e| e.to_string())
     }
