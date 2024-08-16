@@ -3,7 +3,9 @@ use alloy::{
     rpc::types::beacon::{BlsPublicKey, BlsSignature},
 };
 use cb_common::commit::{
-    client::SignerClient as CBSignerClient, error::SignerClientError, request::SignRequest,
+    client::{GetPubkeysResponse, SignerClient as CBSignerClient},
+    error::SignerClientError,
+    request::SignRequest,
 };
 use luban_primitives::PreconfRequest;
 
@@ -28,8 +30,12 @@ impl SignerClient {
         }
     }
 
-    pub async fn get_pubkeys(&self) -> Result<Vec<BlsPublicKey>, SignerClientError> {
-        Ok(self.cb_signer_client.get_pubkeys().await?.consensus)
+    pub async fn get_pubkeys(&self) -> Result<GetPubkeysResponse, SignerClientError> {
+        self.cb_signer_client.get_pubkeys().await
+    }
+
+    pub fn cb_signer_client(&self) -> &CBSignerClient {
+        &self.cb_signer_client
     }
 
     pub async fn sign_constraint(

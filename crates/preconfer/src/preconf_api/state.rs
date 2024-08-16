@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use alloy::{
     consensus::{Transaction, TxEnvelope},
@@ -33,10 +33,10 @@ pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
     chain_spec: Arc<ChainSpec>,
+    proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
-    pubkeys: Vec<BlsPublicKey>,
     network_state: NetworkState,
     preconf_pool: Arc<RwLock<OrderPool>>,
     priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
@@ -58,36 +58,46 @@ where
 {
     pub async fn new(
         chain_spec: Arc<ChainSpec>,
+        proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
-        pubkeys: Vec<BlsPublicKey>,
         signer_client: SignerClient,
     ) -> Self {
         Self {
             chain_spec,
+            proxy_key_map,
             rpc_url,
             preconfer,
             signer_client,
-            pubkeys,
             network_state,
             preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
             priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
         }
     }
 
+    fn key_for_slot(&self, slot: u64) -> BlsPublicKey {
+        self.network_state
+            .propser_duty_for_slot(slot)
+            .expect("Proposer duty should exist")
+            .pubkey
+    }
+
     pub async fn sign_init_signature(
         &self,
         preconf_request: &PreconfRequest,
     ) -> Result<BlsSignature, String> {
+        let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot);
+        let proxy_key = self
+            .proxy_key_map
+            .get(&consensus_key)
+            .expect("proxy key should exist");
         self.signer_client
-            .sign_constraint(
-                preconf_request,
-                *self.pubkeys.first().expect("tempory solution"),
-            )
+            .sign_constraint(preconf_request, *proxy_key)
             .await
             .map_err(|e| e.to_string())
     }
+
     /// Send a preconf request to the preconfer
     ///
     /// Stores the preconf request in the Orderpool until the preconf tx is received

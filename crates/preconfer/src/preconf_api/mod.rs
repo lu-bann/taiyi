@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use alloy::providers::{Provider, ProviderBuilder};
 use api::PreconfBuilderApi;
@@ -70,7 +70,8 @@ pub async fn spawn_service(
         .get_pubkeys()
         .await
         .expect("pubkeys should be received.");
-    let pubkeys_dup = pubkeys.clone();
+    let pubkeys_dup = pubkeys.consensus.clone();
+
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
             provider_cl,
@@ -85,6 +86,18 @@ pub async fn spawn_service(
         }
     });
 
+    // pubkeys.proxy should be empty since no proxy keys is generated on intialization
+    let mut proxy_key_map = HashMap::new();
+    if pubkeys.proxy.is_empty() {
+        for pubkey in pubkeys.consensus {
+            let proxy_delegation = signer_client
+                .cb_signer_client()
+                .generate_proxy_key(pubkey)
+                .await?;
+            proxy_key_map.insert(pubkey, proxy_delegation.message.proxy);
+        }
+    };
+
     info!("preconfer is on chain_id: {:?}", chain_id);
     match luban_service_url {
         Some(url) => {
@@ -97,10 +110,10 @@ pub async fn spawn_service(
             );
             let state = PreconfState::new(
                 chain_spec,
+                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,
-                pubkeys,
                 signer_client,
             )
             .await;
@@ -119,10 +132,10 @@ pub async fn spawn_service(
             );
             let state = PreconfState::new(
                 chain_spec,
+                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,
-                pubkeys,
                 signer_client,
             )
             .await;
