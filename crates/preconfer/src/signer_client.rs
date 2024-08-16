@@ -38,7 +38,9 @@ impl SignerClient {
         pubkey: BlsPublicKey,
     ) -> Result<BlsSignature, SignerClientError> {
         let root = preconf_request.hash(self.chain_id);
-        let request = SignRequest::new(pubkey, false, root.into());
+        let proxy_delegation = self.cb_signer_client.generate_proxy_key(pubkey).await?;
+        let proxy_pubkey = proxy_delegation.message.proxy;
+        let request = SignRequest::new(proxy_pubkey, false, root.into());
         self.cb_signer_client.request_signature(&request).await
     }
 }
