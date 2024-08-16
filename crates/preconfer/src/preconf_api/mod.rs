@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use alloy::providers::{Provider, ProviderBuilder};
 use api::PreconfBuilderApi;
@@ -86,18 +86,16 @@ pub async fn spawn_service(
         }
     });
 
-    let proxy_key = if pubkeys.proxy.is_empty() {
-        let pubkey = pubkeys
-            .consensus
-            .first()
-            .expect("pubkey should be received.");
-        let proxy_delegation = signer_client
-            .cb_signer_client()
-            .generate_proxy_key(*pubkey)
-            .await?;
-        proxy_delegation.message.proxy
-    } else {
-        *pubkeys.proxy.first().expect("pubkey should be received.")
+    // pubkeys.proxy should be empty since no proxy keys is generated on intialization
+    let mut proxy_key_map = HashMap::new();
+    if pubkeys.proxy.is_empty() {
+        for pubkey in pubkeys.consensus {
+            let proxy_delegation = signer_client
+                .cb_signer_client()
+                .generate_proxy_key(pubkey)
+                .await?;
+            proxy_key_map.insert(pubkey, proxy_delegation.message.proxy);
+        }
     };
 
     info!("preconfer is on chain_id: {:?}", chain_id);
@@ -112,10 +110,10 @@ pub async fn spawn_service(
             );
             let state = PreconfState::new(
                 chain_spec,
+                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,
-                proxy_key,
                 signer_client,
             )
             .await;
@@ -134,10 +132,10 @@ pub async fn spawn_service(
             );
             let state = PreconfState::new(
                 chain_spec,
+                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,
-                proxy_key,
                 signer_client,
             )
             .await;

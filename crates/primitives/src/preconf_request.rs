@@ -148,15 +148,19 @@ impl TipTransaction {
 )]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
+    // TODO: remove this.
     pub block_number: u64,
+    /// The consensus slot number at which the transaction should be included.
+    pub slot: u64,
 }
 
 impl PreconfCondition {
     #[allow(dead_code)]
-    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64) -> Self {
+    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64, slot: u64) -> Self {
         Self {
             ordering_meta_data,
             block_number,
+            slot,
         }
     }
 
@@ -229,6 +233,7 @@ mod tests {
             super::OrderingMetaData {
                 index: U256::from(0),
             },
+            0,
             0,
         );
         let h = condition.preconf_condition_hash(U256::from(1337));
