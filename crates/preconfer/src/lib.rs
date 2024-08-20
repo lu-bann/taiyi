@@ -1,6 +1,7 @@
 #[allow(dead_code, unused_variables)]
 mod chain_info_exex;
 mod chainspec_builder;
+mod constraint_client;
 mod error;
 mod lookahead_fetcher;
 mod network_state;

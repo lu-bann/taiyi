@@ -7,9 +7,9 @@ edition = { workspace = true }
 alloy = { workspace = true }
 alloy-rlp = { version = "0.3.4", features = ["derive"] }
 beacon-api-client = { workspace = true }
-ethereum_ssz = "0.5.4"
-ethereum_ssz_derive = "0.5.4"
+ethereum-consensus = { workspace = true }
 serde = { workspace = true }
 serde_json ={ workspace = true }
+ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "84ef2b71aa004f6767420badb42c902ad56b8b72" }
 
 [lib]

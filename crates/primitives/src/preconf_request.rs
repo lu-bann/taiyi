@@ -9,28 +9,16 @@ use alloy::{
 use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
 
 use serde::{Deserialize, Serialize};
-use ssz_derive::{Decode, Encode};
 
 type Transaction = Vec<u8>;
 
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Default,
-    Clone,
-    RlpDecodable,
-    RlpEncodable,
-    Encode,
-    Decode,
-    PartialEq,
-)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, RlpDecodable, RlpEncodable, PartialEq)]
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
     pub preconf_conditions: PreconfCondition,
     pub init_signature: BlsSignature,
-    tip_tx_signature: Bytes,
+    pub tip_tx_signature: Bytes,
     pub preconfer_signature: Bytes,
     pub preconf_tx: Option<Transaction>,
 }
@@ -63,18 +51,7 @@ impl PreconfRequest {
     }
 }
 
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    RlpEncodable,
-    RlpDecodable,
-    Default,
-    Encode,
-    Decode,
-    PartialEq,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct TipTransaction {
     pub gas_limit: U256,
     pub from: Address,
@@ -134,18 +111,7 @@ impl TipTransaction {
     }
 }
 
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    RlpEncodable,
-    RlpDecodable,
-    Default,
-    Encode,
-    Decode,
-    PartialEq,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
     // TODO: remove this.
@@ -188,18 +154,7 @@ impl PreconfCondition {
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    RlpEncodable,
-    RlpDecodable,
-    Default,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
-    PartialEq,
-)]
+#[derive(Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, PartialEq)]
 pub struct OrderingMetaData {
     index: U256,
 }
