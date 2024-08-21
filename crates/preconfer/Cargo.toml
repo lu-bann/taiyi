@@ -13,7 +13,6 @@ cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "e4
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = "0.3.30"
-jsonrpsee = { workspace = true }
 luban-primitives = { workspace = true }
 mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }

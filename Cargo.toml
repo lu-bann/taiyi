@@ -18,7 +18,6 @@ axum = { version = "0.7.5", features = ["macros"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-jsonrpsee = { version = "0.22.4", features = ["server", "http-client", "ws-client", "macros"] }
 alloy = { version = "0.2", features = ["full", "rpc-types-beacon", "rlp", "signer-mnemonic", "sol-types"] }
 eyre = { version = "0.6" }
 serde = { version = "1.0.200", features = ["derive"] }

@@ -3,7 +3,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use jsonrpsee::types::ErrorObjectOwned;
 use luban_primitives::PreconfHash;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -43,30 +42,5 @@ impl IntoResponse for RpcError {
             }),
         )
             .into_response()
-    }
-}
-
-impl From<RpcError> for ErrorObjectOwned {
-    fn from(err: RpcError) -> Self {
-        match err {
-            RpcError::PreconfRequestNotFound(_) => {
-                ErrorObjectOwned::owned(404, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfRequestAlreadyExist(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfTxAlreadySet(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfTxNotValid(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::UnknownError(_) => {
-                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::ContractError(_) => {
-                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
-            }
-        }
     }
 }
