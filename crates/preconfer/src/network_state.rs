@@ -3,7 +3,7 @@ use std::sync::Arc;
 use luban_primitives::ProposerInfo;
 use parking_lot::RwLock;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NetworkState {
     current_epoch: Arc<RwLock<u64>>,
     current_slot: Arc<RwLock<u64>>,
@@ -41,5 +41,13 @@ impl NetworkState {
 
     pub fn update_proposer_duties(&self, proposers: Vec<ProposerInfo>) {
         *self.proposers.write() = proposers;
+    }
+
+    pub fn propser_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
+        self.proposers
+            .read()
+            .iter()
+            .find(|duty| duty.slot == slot)
+            .cloned()
     }
 }

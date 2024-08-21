@@ -2,7 +2,8 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use alloy::core::primitives::Address;
 use clap::Parser;
-use luban_preconfer::rpc::start_rpc_server;
+use ethereum_consensus::networks::Network;
+use luban_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
@@ -16,6 +17,10 @@ pub struct PreconferCommand {
     /// execution client rpc url
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
+
+    /// network
+    #[clap(long = "network")]
+    pub network: String,
 
     /// consensus client rpc url
     #[clap(long = "beacon_rpc_url")]
@@ -48,19 +53,20 @@ pub struct PreconferCommand {
     /// commit boost jwt token
     #[clap(long)]
     pub commit_boost_jwt: String,
+
+    #[clap(long)]
+    pub commit_boost_config_path: String,
 }
 
 impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
-        let addr = self.addr;
-        let port = self.port;
+        let network = Network::from(self.network.clone());
         let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
         let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
         let luban_proposer_registry_contract_addr: Address =
             self.luban_proposer_registry_contract_addr.parse()?;
-        start_rpc_server(
-            addr,
-            port,
+        spawn_service(
+            network,
             luban_escrow_contract_addr,
             luban_core_contract_addr,
             luban_proposer_registry_contract_addr,
@@ -70,8 +76,10 @@ impl PreconferCommand {
             self.commit_boost_url.clone(),
             self.commit_boost_id.clone(),
             self.commit_boost_jwt.clone(),
+            self.commit_boost_config_path.clone(),
         )
         .await?;
+
         Ok(())
     }
 }

@@ -4,24 +4,29 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+ahash = { workspace = true }
 alloy = { workspace = true }
+axum = { workspace = true }
 beacon-api-client = { workspace = true }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "2fa4b82dd27d39e251b6bd26fd9f07d18586bf4d" }
+cb-common = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "e4b53818dd8731d7567717dd11ecdcab02aa40c0" }
+cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "e4b53818dd8731d7567717dd11ecdcab02aa40c0" }
+ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = "0.3.30"
-jsonrpsee = { workspace = true }
 luban-primitives = { workspace = true }
 mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }
 # cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
 priority-queue = { workspace = true }
 reqwest = "0.12.4"
-reth = { git = "https://github.com/paradigmxyz/reth" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"] }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"], rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
 serde = { workspace = true }
 serde_json ={ workspace = true }
 thiserror = { workspace = true }

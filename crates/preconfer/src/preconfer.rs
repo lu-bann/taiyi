@@ -32,7 +32,7 @@ sol! {
         function exhaust(TipTx calldata tipTx, bytes calldata userSignature, bytes calldata preconferSignature) external;
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Preconfer<T, P, F> {
     luban_escrow_contract: LubanEscrowInstance<T, P>,
     pub luban_core_contract: LubanCoreInstance<T, P>,

@@ -1,6 +1,11 @@
 use alloy::contract::Error as AlloyContractError;
-use jsonrpsee::types::ErrorObjectOwned;
+use axum::{
+    response::{IntoResponse, Response},
+    Json,
+};
 use luban_primitives::PreconfHash;
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,27 +24,23 @@ pub enum RpcError {
     ContractError(#[from] AlloyContractError),
 }
 
-impl From<RpcError> for ErrorObjectOwned {
-    fn from(err: RpcError) -> Self {
-        match err {
-            RpcError::PreconfRequestNotFound(_) => {
-                ErrorObjectOwned::owned(404, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfRequestAlreadyExist(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfTxAlreadySet(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::PreconfTxNotValid(_) => {
-                ErrorObjectOwned::owned(400, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::UnknownError(_) => {
-                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
-            }
-            RpcError::ContractError(_) => {
-                ErrorObjectOwned::owned(500, format!("{err:?}"), None::<bool>)
-            }
-        }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorMessage {
+    code: u16,
+    message: String,
+}
+
+impl IntoResponse for RpcError {
+    fn into_response(self) -> Response {
+        let message = self.to_string();
+        let code = StatusCode::BAD_REQUEST;
+        (
+            code,
+            Json(ErrorMessage {
+                code: code.as_u16(),
+                message,
+            }),
+        )
+            .into_response()
     }
 }

@@ -9,19 +9,16 @@ use alloy::{
 use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
 
 use serde::{Deserialize, Serialize};
-use ssz_derive::{Decode, Encode};
 
 type Transaction = Vec<u8>;
 
-#[derive(
-    Debug, Serialize, Deserialize, Default, Clone, RlpDecodable, RlpEncodable, Encode, Decode,
-)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, RlpDecodable, RlpEncodable, PartialEq)]
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
     pub preconf_conditions: PreconfCondition,
     pub init_signature: BlsSignature,
-    tip_tx_signature: Bytes,
+    pub tip_tx_signature: Bytes,
     pub preconfer_signature: Bytes,
     pub preconf_tx: Option<Transaction>,
 }
@@ -48,11 +45,13 @@ impl PreconfRequest {
     pub fn tip(&self) -> U256 {
         self.tip_tx.after_pay + self.tip_tx.pre_pay
     }
+
+    pub fn nonce(&self) -> U256 {
+        self.tip_tx.nonce
+    }
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct TipTransaction {
     pub gas_limit: U256,
     pub from: Address,
@@ -112,20 +111,22 @@ impl TipTransaction {
     }
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, Encode, Decode,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
+    // TODO: remove this.
     pub block_number: u64,
+    /// The consensus slot number at which the transaction should be included.
+    pub slot: u64,
 }
 
 impl PreconfCondition {
     #[allow(dead_code)]
-    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64) -> Self {
+    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64, slot: u64) -> Self {
         Self {
             ordering_meta_data,
             block_number,
+            slot,
         }
     }
 
@@ -153,9 +154,7 @@ impl PreconfCondition {
     }
 }
 
-#[derive(
-    Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, Encode, Decode,
-)]
+#[derive(Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, PartialEq)]
 pub struct OrderingMetaData {
     index: U256,
 }
@@ -189,6 +188,7 @@ mod tests {
             super::OrderingMetaData {
                 index: U256::from(0),
             },
+            0,
             0,
         );
         let h = condition.preconf_condition_hash(U256::from(1337));

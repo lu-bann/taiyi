@@ -1,8 +1,5 @@
 #![allow(dead_code)]
 
-use alloy::consensus::TxEnvelope;
-use luban_primitives::PreconfRequest;
-use reth::primitives::U256;
 use thiserror::Error;
 
 /// Possible commitment validation errors.
@@ -62,23 +59,4 @@ pub enum ValidationError {
     /// NOTE: this should not be exposed to the user.
     #[error("Internal error: {0}")]
     Internal(String),
-}
-
-// TDOD: validate all fields
-pub fn validate_tx_request(tx: &TxEnvelope, req: &PreconfRequest) -> Result<(), ValidationError> {
-    let gas_limit = get_tx_gas_limit(tx);
-    if U256::from(gas_limit) > req.tip_tx.gas_limit {
-        return Err(ValidationError::GasLimitTooHigh);
-    }
-    Ok(())
-}
-
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
-    match tx {
-        TxEnvelope::Legacy(t) => t.tx().gas_limit,
-        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
-        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
-        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
-        _ => panic!("not implemted"),
-    }
 }
