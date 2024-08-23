@@ -1,4 +1,4 @@
-use alloy::consensus::TxEnvelope;
+use alloy_consensus::TxEnvelope;
 use serde::{Deserialize, Serialize};
 
 use crate::PreconfHash;

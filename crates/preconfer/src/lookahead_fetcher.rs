@@ -1,19 +1,17 @@
 use std::ops::Deref;
 
-use alloy::rpc::types::beacon::events::HeadEvent;
-use alloy::{
-    core::primitives::{Address, Bytes},
-    network::Ethereum,
-    providers::Provider,
-    sol,
-    transports::Transport,
-};
+use alloy_network::Ethereum;
+use alloy_primitives::{Address, Bytes};
+use alloy_provider::Provider;
+use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey};
+use alloy_sol_types::sol;
+use alloy_transport::Transport;
+
 use beacon_api_client::{mainnet::Client, BlockId};
 use futures::TryStreamExt;
 use luban_primitives::ProposerInfo;
 use mev_share_sse::EventClient;
 use reqwest::Url;
-use reth::rpc::types::beacon::BlsPublicKey;
 use tracing::{debug, info};
 use LubanProposerRegistry::LubanProposerRegistryInstance;
 

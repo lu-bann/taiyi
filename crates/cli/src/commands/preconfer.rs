@@ -1,8 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use alloy::core::primitives::Address;
+use alloy_primitives::Address;
 use clap::Parser;
-use ethereum_consensus::networks::Network;
 use luban_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
@@ -60,13 +59,11 @@ pub struct PreconferCommand {
 
 impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
-        let network = Network::from(self.network.clone());
         let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
         let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
         let luban_proposer_registry_contract_addr: Address =
             self.luban_proposer_registry_contract_addr.parse()?;
         spawn_service(
-            network,
             luban_escrow_contract_addr,
             luban_core_contract_addr,
             luban_proposer_registry_contract_addr,

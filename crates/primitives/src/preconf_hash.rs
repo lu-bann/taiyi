@@ -1,6 +1,6 @@
-use alloy::core::primitives::{keccak256, wrap_fixed_bytes, B256, U256};
-use alloy::rlp::bytes;
-use alloy::sol_types::SolValue;
+use alloy_primitives::{keccak256, wrap_fixed_bytes, B256, U256};
+use alloy_rlp::bytes;
+use alloy_sol_types::SolValue;
 
 wrap_fixed_bytes!(
     extra_derives: [],
@@ -27,7 +27,7 @@ pub fn domain_separator(chain_id: U256) -> B256 {
 
 #[cfg(test)]
 mod tests {
-    use alloy::core::primitives::U256;
+    use alloy_primitives::U256;
 
     use crate::preconf_hash::domain_separator;
 

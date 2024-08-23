@@ -1,4 +1,4 @@
-use alloy::rpc::types::beacon::BlsPublicKey;
+use alloy_rpc_types_beacon::BlsPublicKey;
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction,
     crypto::{PublicKey, Signature},

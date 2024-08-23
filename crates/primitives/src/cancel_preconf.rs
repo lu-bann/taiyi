@@ -1,4 +1,4 @@
-use alloy::core::primitives::Bytes;
+use alloy_primitives::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::PreconfHash;

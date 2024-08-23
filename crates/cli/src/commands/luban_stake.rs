@@ -1,14 +1,10 @@
-use alloy::{
-    network::EthereumWallet,
-    primitives::{Address, Bytes, U256},
-    providers::{Provider, ProviderBuilder},
-    rpc::types::TransactionRequest,
-    signers::{
-        k256::ecdsa::SigningKey,
-        local::{coins_bip39::English, LocalSigner, MnemonicBuilder},
-    },
-    sol,
-};
+use alloy_network::EthereumWallet;
+use alloy_primitives::{Address, Bytes, U256};
+use alloy_provider::{Provider, ProviderBuilder};
+use alloy_rpc_types::TransactionRequest;
+use alloy_signer::k256::ecdsa::SigningKey;
+use alloy_signer_local::{coins_bip39::English, LocalSigner, MnemonicBuilder};
+use alloy_sol_types::sol;
 use bip39::{Mnemonic, Seed};
 
 use clap::Parser;

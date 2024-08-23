@@ -4,8 +4,11 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy = { workspace = true }
-alloy-rlp = { version = "0.3.4", features = ["derive"] }
+alloy-consensus = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-rlp = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-sol-types = { workspace = true }
 beacon-api-client = { workspace = true }
 ethereum-consensus = { workspace = true }
 serde = { workspace = true }

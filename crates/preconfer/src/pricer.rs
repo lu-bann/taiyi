@@ -1,12 +1,9 @@
+use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types::BlockTransactionsKind;
+use alloy_transport::Transport;
 use std::marker::PhantomData;
-
-use alloy::rpc::types::BlockTransactionsKind;
-use alloy::{
-    eips::{BlockId, BlockNumberOrTag},
-    network::Ethereum,
-    providers::Provider,
-    transports::Transport,
-};
 
 pub trait PreconfPricer {
     fn get_optimal_base_gas_fee(
