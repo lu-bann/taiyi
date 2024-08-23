@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
 use alloy_primitives::{Address, U256};
-use luban_primitives::{PreconfHash, PreconfRequest};
+use ethereum_consensus::ssz::prelude::List;
+use luban_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfRequest};
 use priority_queue::PriorityQueue;
 use std::{cmp::Ordering, collections::HashMap};
 
@@ -53,6 +54,8 @@ pub struct PrioritizedOrderPool {
     pub intermediate_state: HashMap<Address, (U256, u64)>,
     /// Id -> order for all orders we manage. Carefully maintained by remove/insert
     orders: HashMap<OrderId, PreconfRequest>,
+    // current slot
+    pub slot: Option<u64>,
 }
 
 impl Default for PrioritizedOrderPool {
@@ -62,6 +65,7 @@ impl Default for PrioritizedOrderPool {
             canonical_state: HashMap::default(),
             intermediate_state: HashMap::default(),
             orders: HashMap::default(),
+            slot: None,
         }
     }
 }
@@ -70,6 +74,10 @@ impl PrioritizedOrderPool {
     pub fn insert_order(&mut self, order_id: PreconfHash, order: PreconfRequest) {
         if self.orders.contains_key(&order_id) {
             return;
+        }
+
+        if self.slot.is_none() {
+            self.slot = Some(order.preconf_conditions.slot);
         }
 
         self.main_queue.push(
@@ -96,7 +104,23 @@ impl PrioritizedOrderPool {
         self.orders.remove(&id)
     }
 
-    pub fn transaction_size(&self) -> usize {
+    pub fn constraints(&mut self) -> ConstraintsMessage {
+        let mut preconfs = Vec::new();
+        while !self.main_queue.is_empty() {
+            let preconf = self.pop_order().expect("order");
+            let constraint = vec![Constraint::from(preconf)];
+            let constraint_list = List::try_from(constraint).expect("constraint list");
+            preconfs.push(constraint_list);
+        }
+
+        let slot = self.slot.expect("slot");
+        self.slot = Some(slot + 1);
+        let constraints = List::try_from(preconfs).expect("constraints");
+
+        ConstraintsMessage { slot, constraints }
+    }
+
+    pub fn pool_size(&self) -> usize {
         self.main_queue.len()
     }
 }

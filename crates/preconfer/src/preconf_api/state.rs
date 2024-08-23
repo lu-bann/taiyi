@@ -6,6 +6,7 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_transport::Transport;
 use cb_pbs::BuilderApiState;
+use ethereum_consensus::crypto::Signature;
 use ethereum_consensus::{
     builder::compute_builder_domain,
     deneb::{compute_signing_root, Context},
@@ -57,8 +58,8 @@ impl<
 impl<T, P, F> PreconfState<T, P, F>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    F: PreconfPricer + Sync,
+    P: Provider<T, Ethereum> + Clone + 'static,
+    F: PreconfPricer + Send + Sync + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
@@ -92,21 +93,50 @@ where
             .pubkey
     }
 
-    pub async fn sign_constraint(
-        &self,
-        constraint: &ConstraintsMessage,
-    ) -> Result<BlsSignature, String> {
+    pub fn constraints(&self) -> ConstraintsMessage {
+        self.priortised_orderpool.write().constraints()
+    }
+
+    async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, String> {
         let domain = compute_builder_domain(&self.context).map_err(|e| e.to_string())?;
-        let signing_root = compute_signing_root(constraint, domain).map_err(|e| e.to_string())?;
-        let consensus_key = self.key_for_slot(constraint.slot);
+        let constraints_message = self.constraints();
+        let signing_root =
+            compute_signing_root(&constraints_message, domain).map_err(|e| e.to_string())?;
+        let consensus_key = self.key_for_slot(constraints_message.slot);
         let proxy_key = self
             .proxy_key_map
             .get(&consensus_key)
             .expect("proxy key should exist");
-        self.signer_client
-            .request_signature(*proxy_key, signing_root.into())
+        let signature = self
+            .signer_client
+            .sign_message(signing_root.into(), *proxy_key)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        let signature = Signature::try_from(signature.as_ref()).map_err(|e| e.to_string())?;
+        Ok(SignedConstraintsMessage::new(
+            constraints_message,
+            signature,
+        ))
+    }
+
+    pub async fn spawn_constraint_submitter(self) {
+        let constraint_client = self.constraint_client.clone();
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7));
+        tokio::spawn(async move {
+            loop {
+                interval.tick().await;
+                let signed_constraints_message = self
+                    .signed_constraints_message()
+                    .await
+                    .expect("signed constraints");
+                if let Err(e) = constraint_client
+                    .send_set_constraints(signed_constraints_message)
+                    .await
+                {
+                    eprintln!("Error in sending constraints: {e:?}");
+                }
+            }
+        });
     }
 
     pub async fn sign_init_signature(
@@ -161,22 +191,6 @@ where
             .write()
             .set(preconf_hash, preconf_request.clone());
 
-        // FIXME use a constraint submitter instead of send it right away
-        let constraint: ConstraintsMessage = vec![preconf_request].try_into().expect("constraints");
-        let signature = self
-            .sign_constraint(&constraint)
-            .await
-            .map_err(RpcError::UnknownError)?;
-        let sig_bytes: &[u8] = signature.as_ref();
-        let signed_constraints = SignedConstraintsMessage {
-            message: constraint,
-            signature: sig_bytes.try_into().expect("signature"),
-        };
-        self.constraint_client
-            .send_set_constraints(signed_constraints)
-            .await
-            .map_err(|e| RpcError::UnknownError(format!("send set constraints error {e:?}")))?;
-
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
 
@@ -203,56 +217,58 @@ where
         preconf_tx_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
-        let preconf_request: Option<PreconfRequest>;
-        {
-            preconf_request = self.preconf_pool.read().get(&preconf_tx_hash);
+        let mut preconf_request = self
+            .preconf_pool
+            .read()
+            .get(&preconf_tx_hash)
+            .ok_or(RpcError::PreconfRequestNotFound(preconf_tx_hash))?;
+
+        // User is expected to send the tx calldata in the same slot specified in the preconf request.
+        let target_slot = preconf_request.preconf_conditions.slot;
+        if target_slot != self.priortised_orderpool.read().slot.expect("slot") {
+            return Err(RpcError::PreconfTxNotValid(
+                "preconf tx not valid".to_string(),
+            ));
         }
-        match preconf_request {
-            Some(mut preconf_request) => {
-                // TODO: Validate the tx
-                if preconf_request.preconf_tx.is_some() {
-                    return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));
-                }
-                let mut tx = Vec::new();
-                preconf_tx.encode(&mut tx);
-                preconf_request.preconf_tx = Some(tx);
 
-                self.preconf_pool
-                    .write()
-                    .set(preconf_tx_hash, preconf_request.clone());
+        if preconf_request.preconf_tx.is_some() {
+            return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));
+        }
+        let mut tx = Vec::new();
+        preconf_tx.encode(&mut tx);
+        preconf_request.preconf_tx = Some(tx);
 
-                // Call exhuast if validate_tx_request fails
-                if self
-                    .validate_tx_request(&preconf_tx, &preconf_request)
-                    .await
-                    .is_err()
-                {
-                    self.preconfer
-                        .luban_core_contract
-                        .exhaust(
-                            TipTx {
-                                gasLimit: preconf_request.tip_tx.gas_limit,
-                                from: preconf_request.tip_tx.from,
-                                to: preconf_request.tip_tx.to,
-                                prePay: preconf_request.tip_tx.pre_pay,
-                                afterPay: preconf_request.tip_tx.after_pay,
-                                nonce: preconf_request.tip_tx.nonce,
-                            },
-                            preconf_request.init_signature.into(),
-                            preconf_request.preconfer_signature,
-                        )
-                        .call()
-                        .await?;
-                } else {
-                    self.priortised_orderpool
-                        .write()
-                        .insert_order(preconf_tx_hash, preconf_request);
-                    self.preconf_pool.write().delete(&preconf_tx_hash);
-                }
-            }
-            None => {
-                return Err(RpcError::PreconfRequestNotFound(preconf_tx_hash));
-            }
+        self.preconf_pool
+            .write()
+            .set(preconf_tx_hash, preconf_request.clone());
+
+        // Call exhuast if validate_tx_request fails
+        if self
+            .validate_tx_request(&preconf_tx, &preconf_request)
+            .await
+            .is_err()
+        {
+            self.preconfer
+                .luban_core_contract
+                .exhaust(
+                    TipTx {
+                        gasLimit: preconf_request.tip_tx.gas_limit,
+                        from: preconf_request.tip_tx.from,
+                        to: preconf_request.tip_tx.to,
+                        prePay: preconf_request.tip_tx.pre_pay,
+                        afterPay: preconf_request.tip_tx.after_pay,
+                        nonce: preconf_request.tip_tx.nonce,
+                    },
+                    preconf_request.init_signature.into(),
+                    preconf_request.preconfer_signature,
+                )
+                .call()
+                .await?;
+        } else {
+            self.priortised_orderpool
+                .write()
+                .insert_order(preconf_tx_hash, preconf_request);
+            self.preconf_pool.write().delete(&preconf_tx_hash);
         }
 
         Ok(())
@@ -292,12 +308,12 @@ where
             return Err(ValidationError::ChainIdMismatch);
         }
 
-        let transaction_size: usize;
+        let pool_size: usize;
         {
-            transaction_size = self.priortised_orderpool.read().transaction_size();
+            pool_size = self.priortised_orderpool.read().pool_size();
         }
         // Check for max commitment reached for the slot
-        if transaction_size > MAX_COMMITMENTS_PER_SLOT {
+        if pool_size > MAX_COMMITMENTS_PER_SLOT {
             return Err(ValidationError::MaxCommitmentsReachedForSlot(
                 order.preconf_conditions.block_number,
                 MAX_COMMITMENTS_PER_SLOT,
