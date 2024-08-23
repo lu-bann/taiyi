@@ -23,7 +23,10 @@ use crate::{
     constraint_client::ConstraintClient,
     error::RpcError,
     network_state::NetworkState,
-    orderpool::{orderpool::OrderPool, priortised_orderpool::PrioritizedOrderPool},
+    orderpool::{
+        orderpool::{OrderPool, MAX_GAS_PER_SLOT},
+        priortised_orderpool::PrioritizedOrderPool,
+    },
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
@@ -31,7 +34,7 @@ use crate::{
     validation::ValidationError,
 };
 
-pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
+pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
@@ -139,6 +142,10 @@ where
         });
     }
 
+    pub async fn _spawn_orderpool_cleaner(self) {
+        unimplemented!()
+    }
+
     pub async fn sign_init_signature(
         &self,
         preconf_request: &PreconfRequest,
@@ -165,12 +172,42 @@ where
         if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
+
+        // Check if we can accomodate the preconf request
+        if self
+            .preconf_pool
+            .read()
+            .is_full(preconf_request.preconf_conditions.slot)
+        {
+            return Err(RpcError::MaxCommitmentsReachedForSlot(
+                preconf_request.preconf_conditions.slot,
+                MAX_COMMITMENTS_PER_SLOT,
+            ));
+        }
+
+        // Check if pool gas limit is reached
+        if self
+            .preconf_pool
+            .read()
+            .commited_gas(preconf_request.preconf_conditions.slot)
+            + preconf_request.tip_tx.gas_limit.to::<u64>()
+            > MAX_GAS_PER_SLOT
+        {
+            return Err(RpcError::MaxGasLimitReachedForSlot(
+                preconf_request.preconf_conditions.slot,
+                MAX_GAS_PER_SLOT,
+            ));
+        }
+
+        // TODO
+        // Check if the gas limit is higher than the maximum block gas limit
+        // Check EIP-4844-specific limits. IMP_NOTE: if some checks fails then we call exhaust
+
         let preconfer_signature = self
             .sign_init_signature(&preconf_request)
             .await
             .map_err(RpcError::UnknownError)?;
 
-        let _block_number = preconf_request.preconf_conditions.block_number;
         preconf_request.init_signature = preconfer_signature;
         match self
             .preconfer
@@ -287,6 +324,7 @@ where
             None => Err(RpcError::PreconfRequestNotFound(preconf_tx_hash)),
         }
     }
+
     pub async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError> {
         Ok(AvailableSlotResponse {
             current_slot: self.network_state.get_current_slot(),
@@ -297,6 +335,7 @@ where
 
     // TDOD: validate all fields
     // After validating the tx req, update the state in insert_order function
+    // NOTE: If validation fails, call exhaust
     async fn validate_tx_request(
         &self,
         tx: &TxEnvelope,
@@ -308,24 +347,17 @@ where
             return Err(ValidationError::ChainIdMismatch);
         }
 
-        let pool_size: usize;
-        {
-            pool_size = self.priortised_orderpool.read().pool_size();
-        }
-        // Check for max commitment reached for the slot
-        if pool_size > MAX_COMMITMENTS_PER_SLOT {
-            return Err(ValidationError::MaxCommitmentsReachedForSlot(
-                order.preconf_conditions.block_number,
-                MAX_COMMITMENTS_PER_SLOT,
-            ));
-        }
-
-        // TODO
-        // Check for max committed gas reached for the slot
         // Check if the transaction size exceeds the maximum
+        // if tx.inner_length() > MAX_TRANSACTION_SIZE {
+        //     return Err(ValidationError::TransactionSizeTooHigh);
+        // }
         // Check if the transaction is a contract creation and the init code size exceeds the maximum
-        // Check if the gas limit is higher than the maximum block gas limit
-        // Check EIP-4844-specific limits
+        // if tx.is_create() {
+        //     let code_size = tx.code_size().expect("no code size");
+        //     if code_size > MAX_CODE_SIZE {
+        //         return Err(ValidationError::CodeSizeTooLarge);
+        //     }
+        // }
 
         let gas_limit = get_tx_gas_limit(tx);
         if U256::from(gas_limit) > order.tip_tx.gas_limit {
@@ -387,6 +419,31 @@ where
                 nonce.to(),
             ));
         }
+
+        // Check EIP-4844-specific limits
+        // if let Some(transaction) = tx.as_eip4844() {
+        //     if self.priortised_orderpool.read().blob_count() >= MAX_BLOBS_PER_BLOCK {
+        //         return Err(ValidationError::Eip4844Limit);
+        //     }
+
+        //     let PooledTransactionsElement::BlobTransaction(ref blob_transaction) = tx.deref()
+        //     else {
+        //         unreachable!("EIP-4844 transaction should be a blob transaction")
+        //     };
+
+        //     // Calculate max possible increase in blob basefee
+        //     let max_blob_basefee = calculate_max_basefee(self.blob_basefee, slot_diff)
+        //         .ok_or(ValidationError::MaxBaseFeeCalcOverflow)?;
+
+        //     debug!(%max_blob_basefee, blob_basefee = blob_transaction.transaction.max_fee_per_blob_gas, "Validating blob basefee");
+        //     if blob_transaction.transaction.max_fee_per_blob_gas < max_blob_basefee {
+        //         return Err(ValidationError::BlobBaseFeeTooLow(max_blob_basefee));
+        //     }
+
+        //     // Validate blob against KZG settings
+        //     transaction.validate_blob(&blob_transaction.sidecar, self.kzg_settings.get())?;
+        // }
+
         Ok(())
     }
 }

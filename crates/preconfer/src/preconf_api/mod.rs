@@ -22,7 +22,7 @@ use crate::{
 };
 
 mod api;
-mod state;
+pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
@@ -48,7 +48,7 @@ pub async fn spawn_service(
     let pbs_config = PbsModuleConfig {
         chain: cb_config.chain,
         pbs_config: Arc::new(cb_config.pbs.pbs_config),
-        relays: relay_clients,
+        relays: relay_clients.clone(),
         signer_client: None,
         event_publiher: maybe_publiher,
     };
