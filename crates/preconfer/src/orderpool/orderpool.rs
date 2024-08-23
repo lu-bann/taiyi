@@ -48,7 +48,7 @@ impl OrderPool {
         self.known_orders.remove(key)
     }
 
-    pub fn _head_updated(&mut self, new_slot: u64) {
+    pub fn head_updated(&mut self, new_slot: u64) {
         self.known_orders
             .retain(|_, order| order.preconf_conditions.slot >= new_slot);
         self.orders_by_target_slot
