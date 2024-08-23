@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use alloy_primitives::{Address, U256};
 use ethereum_consensus::ssz::prelude::List;
 use luban_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfRequest};
@@ -34,14 +32,6 @@ impl Ord for OrderPriority {
 pub struct AccountNonce {
     pub nonce: U256,
     pub account: Address,
-}
-impl AccountNonce {
-    pub fn with_nonce(self, nonce: U256) -> Self {
-        AccountNonce {
-            account: self.account,
-            nonce,
-        }
-    }
 }
 
 /// Orders are validated after the user sends the full transaction.
@@ -118,9 +108,5 @@ impl PrioritizedOrderPool {
         let constraints = List::try_from(preconfs).expect("constraints");
 
         ConstraintsMessage { slot, constraints }
-    }
-
-    pub fn pool_size(&self) -> usize {
-        self.main_queue.len()
     }
 }

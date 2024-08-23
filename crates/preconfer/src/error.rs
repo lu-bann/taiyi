@@ -22,6 +22,10 @@ pub enum RpcError {
     UnknownError(String),
     #[error("contract error: {0:?}")]
     ContractError(#[from] AlloyContractError),
+    #[error("Max commitments reached for slot {0}: {1}")]
+    MaxCommitmentsReachedForSlot(u64, usize),
+    #[error("Max gas limit reached for slot {0}: {1}")]
+    MaxGasLimitReachedForSlot(u64, u64),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
