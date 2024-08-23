@@ -3,7 +3,8 @@ use std::collections::HashMap;
 
 use crate::preconf_api::state::MAX_COMMITMENTS_PER_SLOT;
 
-pub const MAX_GAS_PER_SLOT: u64 = 10_000_000;
+// Currently set to Helder block gas limit
+pub const MAX_GAS_PER_SLOT: u64 = 25_000_000;
 
 /// OrderPool is a temporary pool that holds the preconf requests
 ///
