@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use alloy::rpc::types::beacon::BlsPublicKey;
+use alloy_rpc_types_beacon::BlsPublicKey;
 use beacon_api_client::ProposerDuty;
 use serde::{Deserialize, Serialize};
 

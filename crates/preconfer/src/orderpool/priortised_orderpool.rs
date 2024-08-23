@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use alloy_primitives::{Address, U256};
 use luban_primitives::{PreconfHash, PreconfRequest};
 use priority_queue::PriorityQueue;
-use reth::primitives::{Address, U256};
 use std::{cmp::Ordering, collections::HashMap};
 
 use crate::rpc_state::AccountState;

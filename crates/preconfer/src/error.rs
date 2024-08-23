@@ -1,4 +1,4 @@
-use alloy::contract::Error as AlloyContractError;
+use alloy_contract::Error as AlloyContractError;
 use axum::{
     response::{IntoResponse, Response},
     Json,

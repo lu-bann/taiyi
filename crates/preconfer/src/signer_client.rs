@@ -1,7 +1,5 @@
-use alloy::{
-    primitives::U256,
-    rpc::types::beacon::{BlsPublicKey, BlsSignature},
-};
+use alloy_primitives::U256;
+use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use cb_common::commit::{
     client::{GetPubkeysResponse, SignerClient as CBSignerClient},
     error::SignerClientError,

@@ -1,19 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::providers::{Provider, ProviderBuilder};
+use alloy_primitives::{Address, U256};
+use alloy_provider::{Provider, ProviderBuilder};
 use api::PreconfBuilderApi;
 use cb_common::{
     config::{load_from_file, CommitBoostConfig, PbsModuleConfig},
     pbs::{BuilderEventPublisher, RelayClient},
 };
 use cb_pbs::{PbsService, PbsState};
-use ethereum_consensus::networks::Network;
-use reth::primitives::{Address, U256};
 use state::PreconfState;
 use tracing::info;
 
 use crate::{
-    chainspec_builder::chainspec_builder,
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     preconfer::Preconfer,
@@ -26,7 +24,6 @@ mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    network: Network,
     luban_escrow_contract_addr: Address,
     luban_core_contract_addr: Address,
     luban_proposer_registry_contract_addr: Address,
@@ -58,9 +55,6 @@ pub async fn spawn_service(
         .on_builtin(&rpc_url)
         .await?;
     let chain_id = provider.get_chain_id().await?;
-
-    let chain_spec = chainspec_builder(network);
-
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
@@ -109,7 +103,7 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_spec,
+                chain_id,
                 proxy_key_map,
                 rpc_url,
                 validator,
@@ -131,7 +125,7 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_spec,
+                chain_id,
                 proxy_key_map,
                 rpc_url,
                 validator,

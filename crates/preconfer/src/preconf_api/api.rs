@@ -1,4 +1,6 @@
-use alloy::{network::Ethereum, providers::Provider, transports::Transport};
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
@@ -13,9 +15,8 @@ use luban_primitives::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+use crate::preconf_api::PreconfState;
 use crate::{error::RpcError, pricer::PreconfPricer};
-
-use super::state::PreconfState;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {

@@ -1,21 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
-
-use alloy::{
-    consensus::{Transaction, TxEnvelope},
-    network::Ethereum,
-    providers::Provider,
-    rlp::Encodable,
-    rpc::types::beacon::{BlsPublicKey, BlsSignature},
-    transports::Transport,
-};
+use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_network::Ethereum;
+use alloy_primitives::U256;
+use alloy_provider::Provider;
+use alloy_rlp::Encodable;
+use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy_transport::Transport;
 use cb_pbs::BuilderApiState;
 use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
 };
 use parking_lot::RwLock;
-use reth::primitives::U256;
-use reth_chainspec::ChainSpec;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     error::RpcError,
@@ -32,7 +28,7 @@ pub(crate) const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    chain_spec: Arc<ChainSpec>,
+    chainid: u64,
     proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
@@ -57,7 +53,7 @@ where
     F: PreconfPricer + Sync,
 {
     pub async fn new(
-        chain_spec: Arc<ChainSpec>,
+        chainid: u64,
         proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
@@ -65,7 +61,7 @@ where
         signer_client: SignerClient,
     ) -> Self {
         Self {
-            chain_spec,
+            chainid,
             proxy_key_map,
             rpc_url,
             preconfer,
@@ -105,7 +101,7 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = preconf_request.hash(U256::from(self.chain_spec.chain().id()));
+        let preconf_hash = preconf_request.hash(U256::from(self.chainid));
         if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
@@ -246,7 +242,7 @@ where
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if tx.chain_id().expect("no chain id") != self.chain_spec.chain().id() {
+        if tx.chain_id().expect("no chain id") != self.chainid {
             return Err(ValidationError::ChainIdMismatch);
         }
 

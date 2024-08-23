@@ -1,9 +1,0 @@
-[package]
-name = "luban-storage"
-version = { workspace = true }
-edition = { workspace = true }
-
-[dependencies]
-sea-orm = { version = "1.0.0-rc.4", features = [ "sqlx-all", "runtime-async-std-native-tls" ] }
-
-[lib]

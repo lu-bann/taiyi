@@ -1,5 +1,5 @@
-use alloy::providers::{Provider, ProviderBuilder};
-use reth::primitives::{Address, B256, U256};
+use alloy_primitives::{Address, B256, U256};
+use alloy_provider::{Provider, ProviderBuilder};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AccountState {
