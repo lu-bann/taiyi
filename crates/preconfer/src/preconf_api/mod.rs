@@ -128,11 +128,10 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
-
-            state.clone().spawn_constraint_submitter().await;
             state.spawn_orderpool_cleaner(slot_stream).await;
+            state.clone().spawn_constraint_submitter().await;
 
+            let pbs_state = PbsState::new(pbs_config).with_data(state);
             PbsService::init_metrics()?;
             PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
         }
@@ -155,9 +154,10 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
+            state.spawn_orderpool_cleaner(slot_stream).await;
+            state.clone().spawn_constraint_submitter().await;
 
-            state.spawn_constraint_submitter().await;
+            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
 
             PbsService::init_metrics()?;
             PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
