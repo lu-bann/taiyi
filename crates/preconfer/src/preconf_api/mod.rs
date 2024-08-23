@@ -8,7 +8,9 @@ use cb_common::{
     pbs::{BuilderEventPublisher, RelayClient},
 };
 use cb_pbs::{PbsService, PbsState};
-use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
+use ethereum_consensus::{
+    clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH,
+};
 use state::PreconfState;
 use tracing::info;
 
@@ -93,7 +95,13 @@ pub async fn spawn_service(
         }
     });
 
-    let slot_stream = clock::from_system_time(1718967600, 12, SLOTS_PER_EPOCH).into_stream();
+    let genesis_time = match context.genesis_time() {
+        Ok(genesis_time) => genesis_time,
+        Err(_) => context.min_genesis_time + context.genesis_delay,
+    };
+    let slot_stream =
+        clock::from_system_time(genesis_time, context.seconds_per_slot, SLOTS_PER_EPOCH)
+            .into_stream();
 
     // pubkeys.proxy should be empty since no proxy keys is generated on intialization
     let mut proxy_key_map = HashMap::new();
