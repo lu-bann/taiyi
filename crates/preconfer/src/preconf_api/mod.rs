@@ -8,9 +8,7 @@ use cb_common::{
     pbs::{BuilderEventPublisher, RelayClient},
 };
 use cb_pbs::{PbsService, PbsState};
-use ethereum_consensus::{
-    clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH,
-};
+use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
 use state::PreconfState;
 use tracing::info;
 
