@@ -13,6 +13,6 @@ beacon-api-client = { workspace = true }
 ethereum-consensus = { workspace = true }
 serde = { workspace = true }
 serde_json ={ workspace = true }
-ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "84ef2b71aa004f6767420badb42c902ad56b8b72" }
+ssz_rs = { workspace = true }
 
 [lib]
