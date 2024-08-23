@@ -126,10 +126,12 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let pb_state = PbsState::new(pbs_config).with_data(state);
+            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
+
+            state.spawn_constraint_submitter().await;
 
             PbsService::init_metrics()?;
-            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pb_state).await?;
+            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
         }
         None => {
             let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
@@ -150,10 +152,12 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let state = PbsState::new(pbs_config).with_data(state);
+            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
+
+            state.spawn_constraint_submitter().await;
 
             PbsService::init_metrics()?;
-            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(state).await?;
+            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
         }
     };
 

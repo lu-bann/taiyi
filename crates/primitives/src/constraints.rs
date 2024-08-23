@@ -10,6 +10,15 @@ pub struct Constraint {
     tx: Transaction,
 }
 
+impl From<PreconfRequest> for Constraint {
+    fn from(preconf_request: PreconfRequest) -> Self {
+        let tx_data = preconf_request.preconf_tx.expect("No preconf tx");
+        let tx_ref = tx_data.as_ref();
+        let tx = Transaction::try_from(tx_ref).expect("tx");
+        Self { tx }
+    }
+}
+
 #[derive(
     Debug, Default, Clone, serde::Serialize, serde::Deserialize, SimpleSerialize, PartialEq,
 )]
@@ -18,7 +27,16 @@ pub struct ConstraintsMessage {
     pub constraints: List<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>, MAX_TRANSACTIONS_PER_BLOCK>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, SimpleSerialize, serde::Deserialize)]
+impl ConstraintsMessage {
+    pub fn new(
+        slot: u64,
+        constraints: List<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>, MAX_TRANSACTIONS_PER_BLOCK>,
+    ) -> Self {
+        Self { slot, constraints }
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, SimpleSerialize, serde::Deserialize)]
 pub struct SignedConstraintsMessage {
     pub message: ConstraintsMessage,
     /// Signature over `message`. Must be signed by the key relating to: `message.public_key`.

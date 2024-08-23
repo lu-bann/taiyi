@@ -42,12 +42,12 @@ impl SignerClient {
         self.cb_signer_client.request_signature(&request).await
     }
 
-    pub async fn request_signature(
+    pub async fn sign_message(
         &self,
+        message: [u8; 32],
         pubkey: BlsPublicKey,
-        root: [u8; 32],
     ) -> Result<BlsSignature, SignerClientError> {
-        let request = SignRequest::new(pubkey, false, root);
+        let request = SignRequest::new(pubkey, true, message);
         self.cb_signer_client.request_signature(&request).await
     }
 }
