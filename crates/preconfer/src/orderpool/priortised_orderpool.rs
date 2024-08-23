@@ -104,9 +104,12 @@ impl PrioritizedOrderPool {
         }
 
         let slot = self.slot.expect("slot");
-        self.slot = Some(slot + 1);
         let constraints = List::try_from(preconfs).expect("constraints");
 
         ConstraintsMessage { slot, constraints }
+    }
+
+    pub fn update_slot(&mut self, slot: u64) {
+        self.slot = Some(slot);
     }
 }

@@ -6,11 +6,13 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_transport::Transport;
 use cb_pbs::BuilderApiState;
+use ethereum_consensus::clock::{SlotStream, SystemTimeProvider};
 use ethereum_consensus::crypto::Signature;
 use ethereum_consensus::{
     builder::compute_builder_domain,
     deneb::{compute_signing_root, Context},
 };
+use futures::StreamExt;
 use luban_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
     PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
@@ -142,8 +144,13 @@ where
         });
     }
 
-    pub async fn _spawn_orderpool_cleaner(self) {
-        unimplemented!()
+    pub async fn spawn_orderpool_cleaner(&self, mut slot_stream: SlotStream<SystemTimeProvider>) {
+        loop {
+            if let Some(slot) = slot_stream.next().await {
+                self.priortised_orderpool.write().update_slot(slot);
+                self.preconf_pool.write().head_updated(slot);
+            }
+        }
     }
 
     pub async fn sign_init_signature(
