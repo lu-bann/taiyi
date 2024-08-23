@@ -6,14 +6,20 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_transport::Transport;
 use cb_pbs::BuilderApiState;
+use ethereum_consensus::{
+    builder::compute_builder_domain,
+    deneb::{compute_signing_root, Context},
+};
 use luban_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
-    PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
+    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
+    PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
+    SignedConstraintsMessage,
 };
 use parking_lot::RwLock;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
+    constraint_client::ConstraintClient,
     error::RpcError,
     network_state::NetworkState,
     orderpool::{orderpool::OrderPool, priortised_orderpool::PrioritizedOrderPool},
@@ -33,9 +39,11 @@ pub struct PreconfState<T, P, F> {
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
+    constraint_client: ConstraintClient,
     network_state: NetworkState,
     preconf_pool: Arc<RwLock<OrderPool>>,
     priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
+    context: Context,
 }
 
 impl<
@@ -52,6 +60,7 @@ where
     P: Provider<T, Ethereum> + Clone,
     F: PreconfPricer + Sync,
 {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         chainid: u64,
         proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
@@ -59,6 +68,8 @@ where
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         signer_client: SignerClient,
+        constraint_client: ConstraintClient,
+        context: Context,
     ) -> Self {
         Self {
             chainid,
@@ -66,9 +77,11 @@ where
             rpc_url,
             preconfer,
             signer_client,
+            constraint_client,
             network_state,
             preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
             priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
+            context,
         }
     }
 
@@ -77,6 +90,23 @@ where
             .propser_duty_for_slot(slot)
             .expect("Proposer duty should exist")
             .pubkey
+    }
+
+    pub async fn sign_constraint(
+        &self,
+        constraint: &ConstraintsMessage,
+    ) -> Result<BlsSignature, String> {
+        let domain = compute_builder_domain(&self.context).map_err(|e| e.to_string())?;
+        let signing_root = compute_signing_root(constraint, domain).map_err(|e| e.to_string())?;
+        let consensus_key = self.key_for_slot(constraint.slot);
+        let proxy_key = self
+            .proxy_key_map
+            .get(&consensus_key)
+            .expect("proxy key should exist");
+        self.signer_client
+            .request_signature(*proxy_key, signing_root.into())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     pub async fn sign_init_signature(
@@ -89,7 +119,7 @@ where
             .get(&consensus_key)
             .expect("proxy key should exist");
         self.signer_client
-            .sign_constraint(preconf_request, *proxy_key)
+            .sign_preconf_request(preconf_request, *proxy_key)
             .await
             .map_err(|e| e.to_string())
     }
@@ -130,6 +160,22 @@ where
         self.preconf_pool
             .write()
             .set(preconf_hash, preconf_request.clone());
+
+        // FIXME use a constraint submitter instead of send it right away
+        let constraint: ConstraintsMessage = vec![preconf_request].try_into().expect("constraints");
+        let signature = self
+            .sign_constraint(&constraint)
+            .await
+            .map_err(RpcError::UnknownError)?;
+        let sig_bytes: &[u8] = signature.as_ref();
+        let signed_constraints = SignedConstraintsMessage {
+            message: constraint,
+            signature: sig_bytes.try_into().expect("signature"),
+        };
+        self.constraint_client
+            .send_set_constraints(signed_constraints)
+            .await
+            .map_err(|e| RpcError::UnknownError(format!("send set constraints error {e:?}")))?;
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }

@@ -8,10 +8,12 @@ use cb_common::{
     pbs::{BuilderEventPublisher, RelayClient},
 };
 use cb_pbs::{PbsService, PbsState};
+use ethereum_consensus::deneb::Context;
 use state::PreconfState;
 use tracing::info;
 
 use crate::{
+    constraint_client::ConstraintClient,
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     preconfer::Preconfer,
@@ -30,14 +32,15 @@ pub async fn spawn_service(
     rpc_url: String,
     beacon_rpc_url: String,
     luban_service_url: Option<String>,
-    commit_boost_url: String,
-    cb_id: String,
-    cb_jwt: String,
+    signer_mod_url: String,
+    signer_mod_jwt: String,
     commit_boost_config_path: String,
+    context: Context,
 ) -> eyre::Result<()> {
     let cb_config: CommitBoostConfig = load_from_file(&commit_boost_config_path)?;
     let relay_clients = cb_config
         .relays
+        .clone()
         .into_iter()
         .map(RelayClient::new)
         .collect::<eyre::Result<Vec<_>>>()?;
@@ -59,7 +62,17 @@ pub async fn spawn_service(
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
 
-    let signer_client = SignerClient::new(commit_boost_url, U256::from(chain_id), cb_id, cb_jwt);
+    let signer_client = SignerClient::new(signer_mod_url, U256::from(chain_id), signer_mod_jwt);
+
+    let constraint_client = ConstraintClient::new(
+        cb_config
+            .relays
+            .first()
+            .cloned()
+            .expect("at least one relay")
+            .entry
+            .url,
+    )?;
     let pubkeys = signer_client
         .get_pubkeys()
         .await
@@ -109,6 +122,8 @@ pub async fn spawn_service(
                 validator,
                 network_state,
                 signer_client,
+                constraint_client,
+                context,
             )
             .await;
             let pb_state = PbsState::new(pbs_config).with_data(state);
@@ -131,6 +146,8 @@ pub async fn spawn_service(
                 validator,
                 network_state,
                 signer_client,
+                constraint_client,
+                context,
             )
             .await;
             let state = PbsState::new(pbs_config).with_data(state);
