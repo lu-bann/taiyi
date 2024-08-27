@@ -176,13 +176,10 @@ where
             .map_err(|e| e.to_string())
     }
 
-    /// Send a preconf request to the preconfer
-    ///
-    /// Stores the preconf request in the Orderpool until the preconf tx is received
-    pub async fn send_preconf_request(
+    pub fn prevalidate_req(
         &self,
-        mut preconf_request: PreconfRequest,
-    ) -> Result<PreconfResponse, RpcError> {
+        preconf_request: &PreconfRequest,
+    ) -> Result<PreconfHash, RpcError> {
         let preconf_hash = preconf_request.hash(U256::from(self.chainid));
         if self.preconf_pool.read().exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
@@ -218,6 +215,17 @@ where
         // Check if the gas limit is higher than the maximum block gas limit
         // Check EIP-4844-specific limits. IMP_NOTE: if some checks fails then we call exhaust
 
+        Ok(preconf_hash)
+    }
+
+    /// Send a preconf request to the preconfer
+    ///
+    /// Stores the preconf request in the Orderpool until the preconf tx is received
+    pub async fn send_preconf_request(
+        &self,
+        mut preconf_request: PreconfRequest,
+    ) -> Result<PreconfResponse, RpcError> {
+        let preconf_hash = self.prevalidate_req(&preconf_request)?;
         let preconfer_signature = self
             .sign_init_signature(&preconf_request)
             .await
