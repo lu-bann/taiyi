@@ -37,22 +37,22 @@ where
         Some(
             Router::new()
                 .route(
-                    "commitments/v1/preconf_request",
+                    "/commitments/v1/preconf_request",
                     post(handle_preconf_request),
                 )
                 .route(
-                    "commitments/v1/preconf_request",
+                    "/commitments/v1/preconf_request",
                     delete(delete_preconf_request),
                 )
                 .route(
-                    "commitments/v1/preconf_request/tx",
+                    "/commitments/v1/preconf_request/tx",
                     post(handle_preconf_request_tx),
                 )
                 .route(
-                    "commitments/v1/preconf_request/:preconf_hash",
+                    "/commitments/v1/preconf_request/:preconf_hash",
                     get(get_preconf_request),
                 )
-                .route("commitments/v1/slots", get(get_slots)),
+                .route("/commitments/v1/slots", get(get_slots)),
         )
     }
 }
