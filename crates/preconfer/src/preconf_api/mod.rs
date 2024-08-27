@@ -71,7 +71,8 @@ pub async fn spawn_service(
             .cloned()
             .expect("at least one relay")
             .entry
-            .url,
+            .url
+            .to_string(),
     )?;
     let pubkeys = signer_client
         .get_pubkeys()
