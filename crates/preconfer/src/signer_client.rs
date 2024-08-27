@@ -11,7 +11,7 @@ use luban_primitives::PreconfRequest;
 pub struct SignerClient {
     cb_signer_client: CBSignerClient,
     _url: String,
-    chain_id: U256,
+    pub chain_id: U256,
 }
 
 impl SignerClient {

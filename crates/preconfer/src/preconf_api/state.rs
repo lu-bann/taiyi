@@ -39,7 +39,6 @@ pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    chainid: u64,
     proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
@@ -65,7 +64,6 @@ where
     F: PreconfPricer + Send + Sync + 'static,
 {
     pub async fn new(
-        chainid: u64,
         proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
@@ -75,7 +73,6 @@ where
         context: Context,
     ) -> Self {
         Self {
-            chainid,
             proxy_key_map,
             rpc_url,
             preconfer,
@@ -177,7 +174,7 @@ where
         &self,
         preconf_request: &PreconfRequest,
     ) -> Result<PreconfHash, RpcError> {
-        let preconf_hash = preconf_request.hash(U256::from(self.chainid));
+        let preconf_hash = preconf_request.hash(self.signer_client.chain_id);
         if self.preconf_pool.read().orderpool.exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
@@ -377,7 +374,7 @@ where
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if tx.chain_id().expect("no chain id") != self.chainid {
+        if tx.chain_id().expect("no chain id") != self.signer_client.chain_id.to::<u64>() {
             return Err(ValidationError::ChainIdMismatch);
         }
 

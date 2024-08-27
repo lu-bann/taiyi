@@ -125,7 +125,6 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_id,
                 proxy_key_map,
                 rpc_url,
                 validator,
@@ -151,7 +150,6 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_id,
                 proxy_key_map,
                 rpc_url,
                 validator,
