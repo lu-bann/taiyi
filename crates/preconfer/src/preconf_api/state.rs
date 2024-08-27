@@ -20,6 +20,7 @@ use luban_primitives::{
 };
 use parking_lot::RwLock;
 use std::{collections::HashMap, sync::Arc};
+use tokio::task::JoinHandle;
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -124,7 +125,7 @@ where
         ))
     }
 
-    pub async fn spawn_constraint_submitter(self) {
+    pub fn spawn_constraint_submitter(self) -> JoinHandle<()> {
         let constraint_client = self.constraint_client.clone();
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7));
         tokio::spawn(async move {
@@ -141,16 +142,23 @@ where
                     eprintln!("Error in sending constraints: {e:?}");
                 }
             }
-        });
+        })
     }
 
-    pub async fn spawn_orderpool_cleaner(&self, mut slot_stream: SlotStream<SystemTimeProvider>) {
-        loop {
-            if let Some(slot) = slot_stream.next().await {
-                self.priortised_orderpool.write().update_slot(slot);
-                self.preconf_pool.write().head_updated(slot);
+    pub fn spawn_orderpool_cleaner(
+        &self,
+        mut slot_stream: SlotStream<SystemTimeProvider>,
+    ) -> JoinHandle<()> {
+        let priortised_orderpool = self.priortised_orderpool.clone();
+        let preconf_pool = self.preconf_pool.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Some(slot) = slot_stream.next().await {
+                    priortised_orderpool.write().update_slot(slot);
+                    preconf_pool.write().head_updated(slot);
+                }
             }
-        }
+        })
     }
 
     pub async fn sign_init_signature(
