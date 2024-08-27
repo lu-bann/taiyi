@@ -27,7 +27,6 @@ use crate::{
     constraint_client::ConstraintClient,
     error::RpcError,
     network_state::NetworkState,
-    preconf_pool::orderpool::MAX_GAS_PER_SLOT,
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
@@ -146,8 +145,7 @@ where
         tokio::spawn(async move {
             loop {
                 if let Some(slot) = slot_stream.next().await {
-                    preconf_pool.write().prioritized_orderpool.update_slot(slot);
-                    preconf_pool.write().orderpool.head_updated(slot);
+                    preconf_pool.write().slot_updated(slot);
                 }
             }
         })
@@ -169,50 +167,6 @@ where
             .map_err(|e| e.to_string())
     }
 
-    pub fn prevalidate_req(
-        &self,
-        preconf_request: &PreconfRequest,
-    ) -> Result<PreconfHash, RpcError> {
-        let preconf_hash = preconf_request.hash(self.signer_client.chain_id);
-        if self.preconf_pool.read().orderpool.exist(&preconf_hash) {
-            return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
-        }
-
-        // Check if we can accomodate the preconf request
-        if self
-            .preconf_pool
-            .read()
-            .orderpool
-            .is_full(preconf_request.preconf_conditions.slot)
-        {
-            return Err(RpcError::MaxCommitmentsReachedForSlot(
-                preconf_request.preconf_conditions.slot,
-                MAX_COMMITMENTS_PER_SLOT,
-            ));
-        }
-
-        // Check if pool gas limit is reached
-        if self
-            .preconf_pool
-            .read()
-            .orderpool
-            .commited_gas(preconf_request.preconf_conditions.slot)
-            + preconf_request.tip_tx.gas_limit.to::<u64>()
-            > MAX_GAS_PER_SLOT
-        {
-            return Err(RpcError::MaxGasLimitReachedForSlot(
-                preconf_request.preconf_conditions.slot,
-                MAX_GAS_PER_SLOT,
-            ));
-        }
-
-        // TODO
-        // Check if the gas limit is higher than the maximum block gas limit
-        // Check EIP-4844-specific limits. IMP_NOTE: if some checks fails then we call exhaust
-
-        Ok(preconf_hash)
-    }
-
     /// Send a preconf request to the preconfer
     ///
     /// Stores the preconf request in the Orderpool until the preconf tx is received
@@ -220,7 +174,10 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = self.prevalidate_req(&preconf_request)?;
+        let preconf_hash = self
+            .preconf_pool
+            .read()
+            .prevalidate_req(self.signer_client.chain_id.to(), &preconf_request)?;
         let preconfer_signature = self
             .sign_init_signature(&preconf_request)
             .await
@@ -245,7 +202,7 @@ where
         self.preconf_pool
             .write()
             .orderpool
-            .set(preconf_hash, preconf_request.clone());
+            .insert(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -306,7 +263,7 @@ where
         self.preconf_pool
             .write()
             .orderpool
-            .set(preconf_tx_hash, preconf_request.clone());
+            .insert(preconf_tx_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
         if self

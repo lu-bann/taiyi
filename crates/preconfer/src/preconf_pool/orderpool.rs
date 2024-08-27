@@ -40,8 +40,12 @@ impl OrderPool {
         self.known_orders.contains_key(key)
     }
 
-    pub fn set(&mut self, key: PreconfHash, value: PreconfRequest) {
-        self.known_orders.insert(key, value);
+    pub fn insert(&mut self, key: PreconfHash, value: PreconfRequest) {
+        self.known_orders.insert(key, value.clone());
+        self.orders_by_target_slot
+            .entry(value.preconf_conditions.slot)
+            .or_default()
+            .push(key);
     }
 
     pub fn delete(&mut self, key: &PreconfHash) -> Option<PreconfRequest> {

@@ -12,6 +12,7 @@ alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rlp = { workspace = true }
+alloy-rpc-client = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
 alloy-sol-types = { workspace = true }
@@ -40,6 +41,7 @@ tree_hash = "0.5"
 tree_hash_derive = "0.5"
 
 [dev-dependencies]
+alloy-node-bindings = { workspace = true }
 mockito = "1.4.0"
 
 [lib]
