@@ -22,14 +22,12 @@ use parking_lot::RwLock;
 use std::{collections::HashMap, sync::Arc};
 use tokio::task::JoinHandle;
 
+use crate::preconf_pool::PreconfPool;
 use crate::{
     constraint_client::ConstraintClient,
     error::RpcError,
     network_state::NetworkState,
-    orderpool::{
-        orderpool::{OrderPool, MAX_GAS_PER_SLOT},
-        priortised_orderpool::PrioritizedOrderPool,
-    },
+    preconf_pool::orderpool::MAX_GAS_PER_SLOT,
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
@@ -48,8 +46,7 @@ pub struct PreconfState<T, P, F> {
     signer_client: SignerClient,
     constraint_client: ConstraintClient,
     network_state: NetworkState,
-    preconf_pool: Arc<RwLock<OrderPool>>,
-    priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
+    preconf_pool: Arc<RwLock<PreconfPool>>,
     context: Context,
 }
 
@@ -67,7 +64,6 @@ where
     P: Provider<T, Ethereum> + Clone + 'static,
     F: PreconfPricer + Send + Sync + 'static,
 {
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         chainid: u64,
         proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
@@ -86,8 +82,7 @@ where
             signer_client,
             constraint_client,
             network_state,
-            preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
-            priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
+            preconf_pool: Arc::new(RwLock::new(PreconfPool::new())),
             context,
         }
     }
@@ -100,7 +95,10 @@ where
     }
 
     pub fn constraints(&self) -> ConstraintsMessage {
-        self.priortised_orderpool.write().constraints()
+        self.preconf_pool
+            .write()
+            .prioritized_orderpool
+            .constraints()
     }
 
     async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, String> {
@@ -149,13 +147,12 @@ where
         &self,
         mut slot_stream: SlotStream<SystemTimeProvider>,
     ) -> JoinHandle<()> {
-        let priortised_orderpool = self.priortised_orderpool.clone();
         let preconf_pool = self.preconf_pool.clone();
         tokio::spawn(async move {
             loop {
                 if let Some(slot) = slot_stream.next().await {
-                    priortised_orderpool.write().update_slot(slot);
-                    preconf_pool.write().head_updated(slot);
+                    preconf_pool.write().prioritized_orderpool.update_slot(slot);
+                    preconf_pool.write().orderpool.head_updated(slot);
                 }
             }
         })
@@ -181,7 +178,7 @@ where
         preconf_request: &PreconfRequest,
     ) -> Result<PreconfHash, RpcError> {
         let preconf_hash = preconf_request.hash(U256::from(self.chainid));
-        if self.preconf_pool.read().exist(&preconf_hash) {
+        if self.preconf_pool.read().orderpool.exist(&preconf_hash) {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
 
@@ -189,6 +186,7 @@ where
         if self
             .preconf_pool
             .read()
+            .orderpool
             .is_full(preconf_request.preconf_conditions.slot)
         {
             return Err(RpcError::MaxCommitmentsReachedForSlot(
@@ -201,6 +199,7 @@ where
         if self
             .preconf_pool
             .read()
+            .orderpool
             .commited_gas(preconf_request.preconf_conditions.slot)
             + preconf_request.tip_tx.gas_limit.to::<u64>()
             > MAX_GAS_PER_SLOT
@@ -249,6 +248,7 @@ where
 
         self.preconf_pool
             .write()
+            .orderpool
             .set(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
@@ -261,6 +261,7 @@ where
         if self
             .preconf_pool
             .write()
+            .orderpool
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -280,12 +281,20 @@ where
         let mut preconf_request = self
             .preconf_pool
             .read()
+            .orderpool
             .get(&preconf_tx_hash)
             .ok_or(RpcError::PreconfRequestNotFound(preconf_tx_hash))?;
 
         // User is expected to send the tx calldata in the same slot specified in the preconf request.
         let target_slot = preconf_request.preconf_conditions.slot;
-        if target_slot != self.priortised_orderpool.read().slot.expect("slot") {
+        if target_slot
+            != self
+                .preconf_pool
+                .read()
+                .prioritized_orderpool
+                .slot
+                .expect("slot")
+        {
             return Err(RpcError::PreconfTxNotValid(
                 "preconf tx not valid".to_string(),
             ));
@@ -300,6 +309,7 @@ where
 
         self.preconf_pool
             .write()
+            .orderpool
             .set(preconf_tx_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
@@ -325,10 +335,11 @@ where
                 .call()
                 .await?;
         } else {
-            self.priortised_orderpool
+            self.preconf_pool
                 .write()
+                .prioritized_orderpool
                 .insert_order(preconf_tx_hash, preconf_request);
-            self.preconf_pool.write().delete(&preconf_tx_hash);
+            self.preconf_pool.write().orderpool.delete(&preconf_tx_hash);
         }
 
         Ok(())
@@ -339,7 +350,7 @@ where
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_pool.read().get(&preconf_tx_hash) {
+        match self.preconf_pool.read().orderpool.get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
@@ -388,8 +399,9 @@ where
         }
 
         let (prev_balance, prev_nonce) = self
-            .priortised_orderpool
+            .preconf_pool
             .read()
+            .prioritized_orderpool
             .intermediate_state
             .get(&sender)
             .cloned()
@@ -398,8 +410,9 @@ where
         let account_state_opt: Option<AccountState>;
         {
             account_state_opt = self
-                .priortised_orderpool
+                .preconf_pool
                 .read()
+                .prioritized_orderpool
                 .canonical_state
                 .get(&sender)
                 .copied();
@@ -414,8 +427,9 @@ where
                         ValidationError::Internal(format!("Failed to get account state: {e:?}"))
                     })?;
                 {
-                    self.priortised_orderpool
+                    self.preconf_pool
                         .write()
+                        .prioritized_orderpool
                         .canonical_state
                         .insert(sender, state);
                 }
