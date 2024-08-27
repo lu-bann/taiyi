@@ -37,6 +37,14 @@ impl PreconfPool {
             return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
         }
 
+        let current_slot = self.prioritized_orderpool.slot.expect("Slot is not set");
+        if preconf_request.preconf_conditions.slot <= current_slot {
+            return Err(RpcError::PreconfRequestSlotTooOld(
+                preconf_request.preconf_conditions.slot,
+                current_slot,
+            ));
+        }
+
         // Check if we can accomodate the preconf request
         if self
             .orderpool
@@ -96,8 +104,8 @@ mod tests {
             after_pay: U256::from(1),
             nonce: U256::from(1),
         };
-        let preconf_conditions = PreconfCondition::new(OrderingMetaData::default(), 2, 2);
-
+        let preconf_conditions =
+            PreconfCondition::new(OrderingMetaData::default(), slot.to::<u64>() + 2);
         let preconf_request = PreconfRequest {
             tip_tx,
             preconf_conditions,
@@ -112,7 +120,10 @@ mod tests {
         preconf_pool
             .orderpool
             .insert(preconf_request.hash(U256::from(1)), preconf_request.clone());
+        assert!(preconf_pool.prevalidate_req(1, &preconf_request).is_err());
 
+        // Add a preconf request with slot less than current slot
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         assert!(preconf_pool.prevalidate_req(1, &preconf_request).is_err());
     }
 }
