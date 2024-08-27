@@ -134,8 +134,8 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            state.spawn_orderpool_cleaner(slot_stream).await;
-            state.clone().spawn_constraint_submitter().await;
+            let _orderpool_cleaner_handle = state.spawn_orderpool_cleaner(slot_stream);
+            let _constraint_submitter_handle = state.clone().spawn_constraint_submitter();
 
             let pbs_state = PbsState::new(pbs_config).with_data(state);
             PbsService::init_metrics()?;
@@ -160,8 +160,8 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            state.spawn_orderpool_cleaner(slot_stream).await;
-            state.clone().spawn_constraint_submitter().await;
+            let _orderpool_cleaner_handle = state.spawn_orderpool_cleaner(slot_stream);
+            let _constraint_submitter_handle = state.clone().spawn_constraint_submitter();
 
             let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
 
