@@ -19,7 +19,7 @@ use luban_primitives::{
     SignedConstraintsMessage,
 };
 use parking_lot::RwLock;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 use crate::preconf_pool::PreconfPool;
@@ -39,7 +39,6 @@ pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
@@ -64,7 +63,6 @@ where
     F: PreconfPricer + Send + Sync + 'static,
 {
     pub async fn new(
-        proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
@@ -73,7 +71,6 @@ where
         context: Context,
     ) -> Self {
         Self {
-            proxy_key_map,
             rpc_url,
             preconfer,
             signer_client,
@@ -105,6 +102,7 @@ where
             compute_signing_root(&constraints_message, domain).map_err(|e| e.to_string())?;
         let consensus_key = self.key_for_slot(constraints_message.slot);
         let proxy_key = self
+            .signer_client
             .proxy_key_map
             .get(&consensus_key)
             .expect("proxy key should exist");
@@ -161,6 +159,7 @@ where
     ) -> Result<BlsSignature, String> {
         let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot);
         let proxy_key = self
+            .signer_client
             .proxy_key_map
             .get(&consensus_key)
             .expect("proxy key should exist");
