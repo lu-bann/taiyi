@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Provider, ProviderBuilder};
@@ -62,7 +62,7 @@ pub async fn spawn_service(
     let network_state = NetworkState::new(0, 0, Vec::new());
     let network_state_cl = network_state.clone();
 
-    let signer_client = SignerClient::new(signer_mod_url, U256::from(chain_id), signer_mod_jwt);
+    let mut signer_client = SignerClient::new(signer_mod_url, U256::from(chain_id), signer_mod_jwt);
 
     let constraint_client = ConstraintClient::new(
         cb_config
@@ -103,14 +103,15 @@ pub async fn spawn_service(
             .into_stream();
 
     // pubkeys.proxy should be empty since no proxy keys is generated on intialization
-    let mut proxy_key_map = HashMap::new();
     if pubkeys.proxy.is_empty() {
         for pubkey in pubkeys.consensus {
             let proxy_delegation = signer_client
                 .cb_signer_client()
                 .generate_proxy_key(pubkey)
                 .await?;
-            proxy_key_map.insert(pubkey, proxy_delegation.message.proxy);
+            signer_client
+                .proxy_key_map
+                .insert(pubkey, proxy_delegation.message.proxy);
         }
     };
 
@@ -125,8 +126,6 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_id,
-                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,
@@ -151,8 +150,6 @@ pub async fn spawn_service(
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
-                chain_id,
-                proxy_key_map,
                 rpc_url,
                 validator,
                 network_state,

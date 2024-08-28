@@ -111,18 +111,15 @@ impl TipTransaction {
 #[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
-    // TODO: remove this.
-    pub block_number: u64,
     /// The consensus slot number at which the transaction should be included.
     pub slot: u64,
 }
 
 impl PreconfCondition {
     #[allow(dead_code)]
-    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64, slot: u64) -> Self {
+    pub fn new(ordering_meta_data: OrderingMetaData, slot: u64) -> Self {
         Self {
             ordering_meta_data,
-            block_number,
             slot,
         }
     }
@@ -138,7 +135,7 @@ impl PreconfCondition {
         let mut data = Vec::new();
         data.extend_from_slice(Self::typehash().tokenize().as_ref());
         data.extend_from_slice(self.ordering_meta_data.index.tokenize().as_ref());
-        data.extend_from_slice(self.block_number.tokenize().as_ref());
+        data.extend_from_slice(self.slot.tokenize().as_ref());
         keccak256(data)
     }
 
@@ -185,7 +182,6 @@ mod tests {
             super::OrderingMetaData {
                 index: U256::from(0),
             },
-            0,
             0,
         );
         let h = condition.preconf_condition_hash(U256::from(1337));

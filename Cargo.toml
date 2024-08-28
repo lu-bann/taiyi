@@ -33,6 +33,8 @@ alloy-eips = { version = "0.2.1", default-features = false }
 alloy-consensus = { version = "0.2.1", default-features = false }
 alloy-rlp = "0.3.4"
 alloy-sol-types = "0.7.2"
+alloy-node-bindings = { version = "0.2.1", default-features = false }
+alloy-rpc-client = { version = "0.2.1", default-features = false }
 
 eyre = { version = "0.6" }
 serde = { version = "1.0.200", features = ["derive"] }

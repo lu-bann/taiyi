@@ -84,8 +84,7 @@ where
             return Ok(false);
         }
 
-        // TODO: minus the current block. Get it from the exex process
-        let lookahead = preconf_request.preconf_conditions.block_number;
+        let lookahead = preconf_request.preconf_conditions.slot;
         let predict_base_fee = self.pricer.price_preconf(lookahead.into()).await?;
 
         Ok(

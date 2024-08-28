@@ -24,6 +24,8 @@ pub enum RpcError {
     ContractError(#[from] AlloyContractError),
     #[error("Max commitments reached for slot {0}: {1}")]
     MaxCommitmentsReachedForSlot(u64, usize),
+    #[error("Preconf request slot {0} is too old, current slot is {1}")]
+    PreconfRequestSlotTooOld(u64, u64),
     #[error("Max gas limit reached for slot {0}: {1}")]
     MaxGasLimitReachedForSlot(u64, u64),
 }

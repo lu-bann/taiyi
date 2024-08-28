@@ -6,12 +6,14 @@ use cb_common::commit::{
     request::SignRequest,
 };
 use luban_primitives::PreconfRequest;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct SignerClient {
     cb_signer_client: CBSignerClient,
     _url: String,
-    chain_id: U256,
+    pub chain_id: U256,
+    pub proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
 }
 
 impl SignerClient {
@@ -21,6 +23,7 @@ impl SignerClient {
                 .expect("commit boost signer module"),
             _url: url,
             chain_id,
+            proxy_key_map: HashMap::new(),
         }
     }
 

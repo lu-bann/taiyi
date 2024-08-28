@@ -19,17 +19,14 @@ use luban_primitives::{
     SignedConstraintsMessage,
 };
 use parking_lot::RwLock;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
+use crate::preconf_pool::PreconfPool;
 use crate::{
     constraint_client::ConstraintClient,
     error::RpcError,
     network_state::NetworkState,
-    orderpool::{
-        orderpool::{OrderPool, MAX_GAS_PER_SLOT},
-        priortised_orderpool::PrioritizedOrderPool,
-    },
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
@@ -41,15 +38,12 @@ pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    chainid: u64,
-    proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
     rpc_url: String,
     preconfer: Preconfer<T, P, F>,
     signer_client: SignerClient,
     constraint_client: ConstraintClient,
     network_state: NetworkState,
-    preconf_pool: Arc<RwLock<OrderPool>>,
-    priortised_orderpool: Arc<RwLock<PrioritizedOrderPool>>,
+    preconf_pool: Arc<RwLock<PreconfPool>>,
     context: Context,
 }
 
@@ -67,10 +61,7 @@ where
     P: Provider<T, Ethereum> + Clone + 'static,
     F: PreconfPricer + Send + Sync + 'static,
 {
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
-        chainid: u64,
-        proxy_key_map: HashMap<BlsPublicKey, BlsPublicKey>,
         rpc_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
@@ -79,15 +70,12 @@ where
         context: Context,
     ) -> Self {
         Self {
-            chainid,
-            proxy_key_map,
             rpc_url,
             preconfer,
             signer_client,
             constraint_client,
             network_state,
-            preconf_pool: Arc::new(RwLock::new(OrderPool::default())),
-            priortised_orderpool: Arc::new(RwLock::new(PrioritizedOrderPool::default())),
+            preconf_pool: Arc::new(RwLock::new(PreconfPool::new())),
             context,
         }
     }
@@ -100,7 +88,10 @@ where
     }
 
     pub fn constraints(&self) -> ConstraintsMessage {
-        self.priortised_orderpool.write().constraints()
+        self.preconf_pool
+            .write()
+            .prioritized_orderpool
+            .constraints()
     }
 
     async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, String> {
@@ -110,6 +101,7 @@ where
             compute_signing_root(&constraints_message, domain).map_err(|e| e.to_string())?;
         let consensus_key = self.key_for_slot(constraints_message.slot);
         let proxy_key = self
+            .signer_client
             .proxy_key_map
             .get(&consensus_key)
             .expect("proxy key should exist");
@@ -149,13 +141,11 @@ where
         &self,
         mut slot_stream: SlotStream<SystemTimeProvider>,
     ) -> JoinHandle<()> {
-        let priortised_orderpool = self.priortised_orderpool.clone();
         let preconf_pool = self.preconf_pool.clone();
         tokio::spawn(async move {
             loop {
                 if let Some(slot) = slot_stream.next().await {
-                    priortised_orderpool.write().update_slot(slot);
-                    preconf_pool.write().head_updated(slot);
+                    preconf_pool.write().slot_updated(slot);
                 }
             }
         })
@@ -167,6 +157,7 @@ where
     ) -> Result<BlsSignature, String> {
         let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot);
         let proxy_key = self
+            .signer_client
             .proxy_key_map
             .get(&consensus_key)
             .expect("proxy key should exist");
@@ -183,41 +174,10 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = preconf_request.hash(U256::from(self.chainid));
-        if self.preconf_pool.read().exist(&preconf_hash) {
-            return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
-        }
-
-        // Check if we can accomodate the preconf request
-        if self
+        let preconf_hash = self
             .preconf_pool
             .read()
-            .is_full(preconf_request.preconf_conditions.slot)
-        {
-            return Err(RpcError::MaxCommitmentsReachedForSlot(
-                preconf_request.preconf_conditions.slot,
-                MAX_COMMITMENTS_PER_SLOT,
-            ));
-        }
-
-        // Check if pool gas limit is reached
-        if self
-            .preconf_pool
-            .read()
-            .commited_gas(preconf_request.preconf_conditions.slot)
-            + preconf_request.tip_tx.gas_limit.to::<u64>()
-            > MAX_GAS_PER_SLOT
-        {
-            return Err(RpcError::MaxGasLimitReachedForSlot(
-                preconf_request.preconf_conditions.slot,
-                MAX_GAS_PER_SLOT,
-            ));
-        }
-
-        // TODO
-        // Check if the gas limit is higher than the maximum block gas limit
-        // Check EIP-4844-specific limits. IMP_NOTE: if some checks fails then we call exhaust
-
+            .prevalidate_req(self.signer_client.chain_id.to(), &preconf_request)?;
         let preconfer_signature = self
             .sign_init_signature(&preconf_request)
             .await
@@ -241,7 +201,8 @@ where
 
         self.preconf_pool
             .write()
-            .set(preconf_hash, preconf_request.clone());
+            .orderpool
+            .insert(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -253,6 +214,7 @@ where
         if self
             .preconf_pool
             .write()
+            .orderpool
             .delete(&cancel_preconf_request.preconf_hash)
             .is_some()
         {
@@ -272,12 +234,20 @@ where
         let mut preconf_request = self
             .preconf_pool
             .read()
+            .orderpool
             .get(&preconf_tx_hash)
             .ok_or(RpcError::PreconfRequestNotFound(preconf_tx_hash))?;
 
         // User is expected to send the tx calldata in the same slot specified in the preconf request.
         let target_slot = preconf_request.preconf_conditions.slot;
-        if target_slot != self.priortised_orderpool.read().slot.expect("slot") {
+        if target_slot
+            != self
+                .preconf_pool
+                .read()
+                .prioritized_orderpool
+                .slot
+                .expect("slot")
+        {
             return Err(RpcError::PreconfTxNotValid(
                 "preconf tx not valid".to_string(),
             ));
@@ -292,7 +262,8 @@ where
 
         self.preconf_pool
             .write()
-            .set(preconf_tx_hash, preconf_request.clone());
+            .orderpool
+            .insert(preconf_tx_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
         if self
@@ -317,10 +288,11 @@ where
                 .call()
                 .await?;
         } else {
-            self.priortised_orderpool
+            self.preconf_pool
                 .write()
+                .prioritized_orderpool
                 .insert_order(preconf_tx_hash, preconf_request);
-            self.preconf_pool.write().delete(&preconf_tx_hash);
+            self.preconf_pool.write().orderpool.delete(&preconf_tx_hash);
         }
 
         Ok(())
@@ -331,7 +303,7 @@ where
         &self,
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, RpcError> {
-        match self.preconf_pool.read().get(&preconf_tx_hash) {
+        match self.preconf_pool.read().orderpool.get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
@@ -358,7 +330,7 @@ where
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if tx.chain_id().expect("no chain id") != self.chainid {
+        if tx.chain_id().expect("no chain id") != self.signer_client.chain_id.to::<u64>() {
             return Err(ValidationError::ChainIdMismatch);
         }
 
@@ -380,8 +352,9 @@ where
         }
 
         let (prev_balance, prev_nonce) = self
-            .priortised_orderpool
+            .preconf_pool
             .read()
+            .prioritized_orderpool
             .intermediate_state
             .get(&sender)
             .cloned()
@@ -390,8 +363,9 @@ where
         let account_state_opt: Option<AccountState>;
         {
             account_state_opt = self
-                .priortised_orderpool
+                .preconf_pool
                 .read()
+                .prioritized_orderpool
                 .canonical_state
                 .get(&sender)
                 .copied();
@@ -406,8 +380,9 @@ where
                         ValidationError::Internal(format!("Failed to get account state: {e:?}"))
                     })?;
                 {
-                    self.priortised_orderpool
+                    self.preconf_pool
                         .write()
+                        .prioritized_orderpool
                         .canonical_state
                         .insert(sender, state);
                 }
