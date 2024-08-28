@@ -4,7 +4,7 @@ use luban_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfReque
 use priority_queue::PriorityQueue;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::rpc_state::AccountState;
+use crate::{error::OrderPoolError, rpc_state::AccountState};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
@@ -94,19 +94,21 @@ impl PrioritizedOrderPool {
         self.orders.remove(&id)
     }
 
-    pub fn constraints(&mut self) -> ConstraintsMessage {
+    pub fn constraints(&mut self) -> Result<ConstraintsMessage, OrderPoolError> {
         let mut preconfs = Vec::new();
         while !self.main_queue.is_empty() {
-            let preconf = self.pop_order().expect("order");
+            let preconf = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
             let constraint = vec![Constraint::from(preconf)];
             let constraint_list = List::try_from(constraint).expect("constraint list");
             preconfs.push(constraint_list);
         }
 
-        let slot = self.slot.expect("slot");
+        let slot = self
+            .slot
+            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
         let constraints = List::try_from(preconfs).expect("constraints");
 
-        ConstraintsMessage { slot, constraints }
+        Ok(ConstraintsMessage { slot, constraints })
     }
 
     pub fn update_slot(&mut self, slot: u64) {

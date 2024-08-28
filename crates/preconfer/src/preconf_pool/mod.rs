@@ -6,7 +6,7 @@ use luban_primitives::{PreconfHash, PreconfRequest};
 use orderpool::{OrderPool, MAX_GAS_PER_SLOT};
 use prioritized_orderpool::PrioritizedOrderPool;
 
-use crate::{error::RpcError, preconf_api::state::MAX_COMMITMENTS_PER_SLOT};
+use crate::{error::OrderPoolError, preconf_api::state::MAX_COMMITMENTS_PER_SLOT};
 
 #[derive(Debug, Clone)]
 pub struct PreconfPool {
@@ -31,15 +31,18 @@ impl PreconfPool {
         &self,
         chain_id: u64,
         preconf_request: &PreconfRequest,
-    ) -> Result<PreconfHash, RpcError> {
+    ) -> Result<PreconfHash, OrderPoolError> {
         let preconf_hash = preconf_request.hash(U256::from(chain_id));
         if self.orderpool.exist(&preconf_hash) {
-            return Err(RpcError::PreconfRequestAlreadyExist(preconf_hash));
+            return Err(OrderPoolError::PreconfRequestAlreadyExist(preconf_hash));
         }
 
-        let current_slot = self.prioritized_orderpool.slot.expect("Slot is not set");
+        let current_slot = self
+            .prioritized_orderpool
+            .slot
+            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
         if preconf_request.preconf_conditions.slot <= current_slot {
-            return Err(RpcError::PreconfRequestSlotTooOld(
+            return Err(OrderPoolError::PreconfRequestSlotTooOld(
                 preconf_request.preconf_conditions.slot,
                 current_slot,
             ));
@@ -50,7 +53,7 @@ impl PreconfPool {
             .orderpool
             .is_full(preconf_request.preconf_conditions.slot)
         {
-            return Err(RpcError::MaxCommitmentsReachedForSlot(
+            return Err(OrderPoolError::MaxCommitmentsReachedForSlot(
                 preconf_request.preconf_conditions.slot,
                 MAX_COMMITMENTS_PER_SLOT,
             ));
@@ -63,7 +66,7 @@ impl PreconfPool {
             + preconf_request.tip_tx.gas_limit.to::<u64>()
             > MAX_GAS_PER_SLOT
         {
-            return Err(RpcError::MaxGasLimitReachedForSlot(
+            return Err(OrderPoolError::MaxGasLimitReachedForSlot(
                 preconf_request.preconf_conditions.slot,
                 MAX_GAS_PER_SLOT,
             ));
