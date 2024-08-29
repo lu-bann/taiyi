@@ -25,13 +25,12 @@ use tokio::task::JoinHandle;
 use crate::preconf_pool::PreconfPool;
 use crate::{
     constraint_client::ConstraintClient,
-    error::RpcError,
+    error::{OrderPoolError, ProposerError, RpcError, ValidationError},
     network_state::NetworkState,
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
     signer_client::SignerClient,
-    validation::ValidationError,
 };
 
 pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
@@ -80,37 +79,42 @@ where
         }
     }
 
-    fn key_for_slot(&self, slot: u64) -> BlsPublicKey {
-        self.network_state
+    fn key_for_slot(&self, slot: u64) -> Result<BlsPublicKey, ProposerError> {
+        Ok(self
+            .network_state
             .propser_duty_for_slot(slot)
-            .expect("Proposer duty should exist")
-            .pubkey
+            .ok_or(ProposerError::ProposerDutyNotFound)?
+            .pubkey)
     }
 
-    pub fn constraints(&self) -> ConstraintsMessage {
+    pub fn constraints(&self) -> Result<ConstraintsMessage, OrderPoolError> {
         self.preconf_pool
             .write()
             .prioritized_orderpool
             .constraints()
     }
 
-    async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, String> {
-        let domain = compute_builder_domain(&self.context).map_err(|e| e.to_string())?;
-        let constraints_message = self.constraints();
-        let signing_root =
-            compute_signing_root(&constraints_message, domain).map_err(|e| e.to_string())?;
-        let consensus_key = self.key_for_slot(constraints_message.slot);
+    async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, RpcError> {
+        let domain = compute_builder_domain(&self.context)
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+        let constraints_message = self.constraints()?;
+        let signing_root = compute_signing_root(&constraints_message, domain)
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+
+        let consensus_key = self.key_for_slot(constraints_message.slot)?;
         let proxy_key = self
             .signer_client
             .proxy_key_map
             .get(&consensus_key)
-            .expect("proxy key should exist");
+            .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
+
         let signature = self
             .signer_client
             .sign_message(signing_root.into(), *proxy_key)
-            .await
-            .map_err(|e| e.to_string())?;
-        let signature = Signature::try_from(signature.as_ref()).map_err(|e| e.to_string())?;
+            .await?;
+        let signature = Signature::try_from(signature.as_ref())
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+
         Ok(SignedConstraintsMessage::new(
             constraints_message,
             signature,
@@ -154,17 +158,17 @@ where
     pub async fn sign_init_signature(
         &self,
         preconf_request: &PreconfRequest,
-    ) -> Result<BlsSignature, String> {
-        let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot);
+    ) -> Result<BlsSignature, RpcError> {
+        let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot)?;
         let proxy_key = self
             .signer_client
             .proxy_key_map
             .get(&consensus_key)
-            .expect("proxy key should exist");
-        self.signer_client
+            .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
+        Ok(self
+            .signer_client
             .sign_preconf_request(preconf_request, *proxy_key)
-            .await
-            .map_err(|e| e.to_string())
+            .await?)
     }
 
     /// Send a preconf request to the preconfer
@@ -178,10 +182,7 @@ where
             .preconf_pool
             .read()
             .prevalidate_req(self.signer_client.chain_id.to(), &preconf_request)?;
-        let preconfer_signature = self
-            .sign_init_signature(&preconf_request)
-            .await
-            .map_err(RpcError::UnknownError)?;
+        let preconfer_signature = self.sign_init_signature(&preconf_request).await?;
 
         preconf_request.init_signature = preconfer_signature;
         match self
@@ -191,7 +192,7 @@ where
         {
             Ok(res) => {
                 if !res {
-                    return Err(RpcError::PreconfTxNotValid(
+                    return Err(RpcError::UnknownError(
                         "preconf request not valid".to_string(),
                     ));
                 }
@@ -210,7 +211,7 @@ where
     pub async fn cancel_preconf_request(
         &self,
         cancel_preconf_request: CancelPreconfRequest,
-    ) -> Result<CancelPreconfResponse, RpcError> {
+    ) -> Result<CancelPreconfResponse, OrderPoolError> {
         if self
             .preconf_pool
             .write()
@@ -220,7 +221,7 @@ where
         {
             Ok(CancelPreconfResponse {})
         } else {
-            Err(RpcError::PreconfRequestNotFound(
+            Err(OrderPoolError::PreconfRequestNotFound(
                 cancel_preconf_request.preconf_hash,
             ))
         }
@@ -228,33 +229,30 @@ where
 
     pub async fn send_preconf_tx_request(
         &self,
-        preconf_tx_hash: PreconfHash,
+        preconf_req_hash: PreconfHash,
         preconf_tx: TxEnvelope,
     ) -> Result<(), RpcError> {
         let mut preconf_request = self
             .preconf_pool
             .read()
             .orderpool
-            .get(&preconf_tx_hash)
-            .ok_or(RpcError::PreconfRequestNotFound(preconf_tx_hash))?;
+            .get(&preconf_req_hash)
+            .ok_or(OrderPoolError::PreconfRequestNotFound(preconf_req_hash))?;
 
-        // User is expected to send the tx calldata in the same slot specified in the preconf request.
+        // User is expected to send the tx calldata in the slot specified in the preconf request.
         let target_slot = preconf_request.preconf_conditions.slot;
-        if target_slot
-            != self
-                .preconf_pool
-                .read()
-                .prioritized_orderpool
-                .slot
-                .expect("slot")
-        {
-            return Err(RpcError::PreconfTxNotValid(
-                "preconf tx not valid".to_string(),
-            ));
+        let current_slot = self
+            .preconf_pool
+            .read()
+            .prioritized_orderpool
+            .slot
+            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
+        if target_slot != current_slot {
+            return Err(RpcError::SlotMismatch(target_slot, current_slot));
         }
 
         if preconf_request.preconf_tx.is_some() {
-            return Err(RpcError::PreconfTxAlreadySet(preconf_tx_hash));
+            return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
         let mut tx = Vec::new();
         preconf_tx.encode(&mut tx);
@@ -263,7 +261,7 @@ where
         self.preconf_pool
             .write()
             .orderpool
-            .insert(preconf_tx_hash, preconf_request.clone());
+            .insert(preconf_req_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
         if self
@@ -291,8 +289,11 @@ where
             self.preconf_pool
                 .write()
                 .prioritized_orderpool
-                .insert_order(preconf_tx_hash, preconf_request);
-            self.preconf_pool.write().orderpool.delete(&preconf_tx_hash);
+                .insert_order(preconf_req_hash, preconf_request);
+            self.preconf_pool
+                .write()
+                .orderpool
+                .delete(&preconf_req_hash);
         }
 
         Ok(())
@@ -302,13 +303,13 @@ where
     pub async fn check_preconf_request_status(
         &self,
         preconf_tx_hash: PreconfHash,
-    ) -> Result<PreconfStatusResponse, RpcError> {
+    ) -> Result<PreconfStatusResponse, OrderPoolError> {
         match self.preconf_pool.read().orderpool.get(&preconf_tx_hash) {
             Some(preconf_request) => Ok(PreconfStatusResponse {
                 status: PreconfStatus::Accepted,
                 data: preconf_request,
             }),
-            None => Err(RpcError::PreconfRequestNotFound(preconf_tx_hash)),
+            None => Err(OrderPoolError::PreconfRequestNotFound(preconf_tx_hash)),
         }
     }
 
@@ -330,8 +331,10 @@ where
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if tx.chain_id().expect("no chain id") != self.signer_client.chain_id.to::<u64>() {
-            return Err(ValidationError::ChainIdMismatch);
+        if let Some(chainid) = tx.chain_id() {
+            if chainid != self.signer_client.chain_id.to::<u64>() {
+                return Err(ValidationError::ChainIdMismatch);
+            }
         }
 
         // Check if the transaction size exceeds the maximum

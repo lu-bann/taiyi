@@ -8,7 +8,7 @@ use luban_primitives::PreconfRequest;
 use LubanCore::LubanCoreInstance;
 use LubanEscrow::LubanEscrowInstance;
 
-use crate::pricer::PreconfPricer;
+use crate::{error::RpcError, pricer::PreconfPricer};
 
 sol! {
     #[sol(rpc)]
@@ -69,7 +69,7 @@ where
         &self,
         address: &Address,
         preconf_request: &PreconfRequest,
-    ) -> eyre::Result<bool> {
+    ) -> eyre::Result<bool, RpcError> {
         let balance = self
             .luban_escrow_contract
             .balanceOf(*address)
