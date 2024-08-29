@@ -34,6 +34,14 @@ impl ConstraintsMessage {
     ) -> Self {
         Self { slot, constraints }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.constraints.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.constraints.len()
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, SimpleSerialize, serde::Deserialize)]
