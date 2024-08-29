@@ -21,6 +21,7 @@ use luban_primitives::{
 use parking_lot::RwLock;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 use crate::preconf_pool::PreconfPool;
 use crate::{
@@ -94,10 +95,12 @@ where
             .constraints()
     }
 
-    async fn signed_constraints_message(&self) -> Result<SignedConstraintsMessage, RpcError> {
+    async fn signed_constraints_message(
+        &self,
+        constraints_message: ConstraintsMessage,
+    ) -> Result<SignedConstraintsMessage, RpcError> {
         let domain = compute_builder_domain(&self.context)
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-        let constraints_message = self.constraints()?;
         let signing_root = compute_signing_root(&constraints_message, domain)
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
 
@@ -121,23 +124,32 @@ where
         ))
     }
 
-    pub fn spawn_constraint_submitter(self) -> JoinHandle<()> {
+    #[allow(unreachable_code)]
+    pub fn spawn_constraint_submitter(self) -> JoinHandle<eyre::Result<()>> {
         let constraint_client = self.constraint_client.clone();
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7));
         tokio::spawn(async move {
             loop {
                 interval.tick().await;
-                let signed_constraints_message = self
-                    .signed_constraints_message()
-                    .await
-                    .expect("signed constraints");
-                if let Err(e) = constraint_client
-                    .send_set_constraints(signed_constraints_message)
-                    .await
-                {
-                    eprintln!("Error in sending constraints: {e:?}");
+                let constraint_message = self.constraints()?;
+                if constraint_message.is_empty() {
+                    continue;
+                } else {
+                    info!(
+                        "Sending {} constraints message with slot: {}",
+                        constraint_message.len(),
+                        constraint_message.slot
+                    );
+                    let signed_constraints_message = self
+                        .signed_constraints_message(constraint_message)
+                        .await
+                        .expect("signed constraints");
+                    constraint_client
+                        .send_set_constraints(signed_constraints_message)
+                        .await?
                 }
             }
+            Ok(())
         })
     }
 
