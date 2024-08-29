@@ -22,7 +22,7 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::preconf_pool::PreconfPool;
 use crate::{
@@ -164,9 +164,21 @@ where
                         .signed_constraints_message(constraint_message)
                         .await
                         .expect("signed constraints");
-                    constraint_client
-                        .send_set_constraints(signed_constraints_message)
-                        .await?
+                    let max_retries = 5;
+                    let mut i = 0;
+
+                    'submit: while let Err(e) = constraint_client
+                        .send_set_constraints(signed_constraints_message.clone())
+                        .await
+                    {
+                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                        i += 1;
+                        if i >= max_retries {
+                            error!("Max retries reached while submitting to MEV-Boost");
+                            break 'submit;
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
                 }
             }
             Ok(())
