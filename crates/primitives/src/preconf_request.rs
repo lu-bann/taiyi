@@ -150,7 +150,7 @@ impl PreconfCondition {
 
 #[derive(Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, PartialEq)]
 pub struct OrderingMetaData {
-    index: U256,
+    pub index: U256,
 }
 
 #[cfg(test)]
