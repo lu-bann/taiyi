@@ -35,6 +35,7 @@ serde = { workspace = true }
 serde_json ={ workspace = true }
 ssz_rs = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.5"

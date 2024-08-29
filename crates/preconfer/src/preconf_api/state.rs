@@ -20,8 +20,9 @@ use luban_primitives::{
 };
 use parking_lot::RwLock;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::preconf_pool::PreconfPool;
 use crate::{
@@ -35,6 +36,8 @@ use crate::{
 };
 
 pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
+pub const SET_CONSTRAINTS_CUTOFF_NS: i64 = 8_000_000_000;
+pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
@@ -127,10 +130,27 @@ where
     #[allow(unreachable_code)]
     pub fn spawn_constraint_submitter(self) -> JoinHandle<eyre::Result<()>> {
         let constraint_client = self.constraint_client.clone();
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7));
+        let genesis_time = match self.context.genesis_time() {
+            Ok(genesis_time) => genesis_time,
+            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
+        };
+
         tokio::spawn(async move {
             loop {
-                interval.tick().await;
+                let slot_start_timestamp = genesis_time
+                    + (self.network_state.get_current_slot() * self.context.seconds_per_slot);
+                let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
+                    + SET_CONSTRAINTS_CUTOFF_NS
+                    + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
+                let sleep_duration = submit_start_time
+                    - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
+                if sleep_duration.is_positive() {
+                    tokio::time::sleep(Duration::from_nanos(
+                        sleep_duration.try_into().expect("positive sleep duration"),
+                    ))
+                    .await;
+                }
+
                 let constraint_message = self.constraints()?;
                 if constraint_message.is_empty() {
                     continue;
@@ -144,9 +164,21 @@ where
                         .signed_constraints_message(constraint_message)
                         .await
                         .expect("signed constraints");
-                    constraint_client
-                        .send_set_constraints(signed_constraints_message)
-                        .await?
+                    let max_retries = 5;
+                    let mut i = 0;
+
+                    'submit: while let Err(e) = constraint_client
+                        .send_set_constraints(signed_constraints_message.clone())
+                        .await
+                    {
+                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                        i += 1;
+                        if i >= max_retries {
+                            error!("Max retries reached while submitting to MEV-Boost");
+                            break 'submit;
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
                 }
             }
             Ok(())

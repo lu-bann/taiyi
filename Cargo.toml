@@ -50,6 +50,7 @@ lru = "0.12.3"
 priority-queue = "2.0.3"
 ahash = "0.8.6"
 ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "84ef2b71aa004f6767420badb42c902ad56b8b72" }
+time = { version = "0.3.36", features = ["macros", "formatting", "parsing"] }
 
 
 
