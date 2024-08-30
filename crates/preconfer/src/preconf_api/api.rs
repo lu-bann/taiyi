@@ -1,4 +1,6 @@
-use alloy::{network::Ethereum, providers::Provider, transports::Transport};
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
@@ -13,9 +15,8 @@ use luban_primitives::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+use crate::preconf_api::PreconfState;
 use crate::{error::RpcError, pricer::PreconfPricer};
-
-use super::state::PreconfState;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -36,22 +37,22 @@ where
         Some(
             Router::new()
                 .route(
-                    "commitments/v1/preconf_request",
+                    "/commitments/v1/preconf_request",
                     post(handle_preconf_request),
                 )
                 .route(
-                    "commitments/v1/preconf_request",
+                    "/commitments/v1/preconf_request",
                     delete(delete_preconf_request),
                 )
                 .route(
-                    "commitments/v1/preconf_request/tx",
+                    "/commitments/v1/preconf_request/tx",
                     post(handle_preconf_request_tx),
                 )
                 .route(
-                    "commitments/v1/preconf_request/:preconf_hash",
+                    "/commitments/v1/preconf_request/:preconf_hash",
                     get(get_preconf_request),
                 )
-                .route("commitments/v1/slots", get(get_slots)),
+                .route("/commitments/v1/slots", get(get_slots)),
         )
     }
 }

@@ -1,22 +1,21 @@
+use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types::BlockTransactionsKind;
+use alloy_transport::Transport;
 use std::marker::PhantomData;
 
-use alloy::rpc::types::BlockTransactionsKind;
-use alloy::{
-    eips::{BlockId, BlockNumberOrTag},
-    network::Ethereum,
-    providers::Provider,
-    transports::Transport,
-};
+use crate::error::PricerError;
 
 pub trait PreconfPricer {
     fn get_optimal_base_gas_fee(
         &self,
-    ) -> impl std::future::Future<Output = eyre::Result<u128>> + Send;
+    ) -> impl std::future::Future<Output = eyre::Result<u128, PricerError>> + Send;
     /// Simply scale up the current base fee by 10% per block
     fn price_preconf(
         &self,
         block_lookahead: u128,
-    ) -> impl std::future::Future<Output = eyre::Result<u128>> + Send
+    ) -> impl std::future::Future<Output = eyre::Result<u128, PricerError>> + Send
     where
         Self: std::marker::Sync,
     {
@@ -43,12 +42,14 @@ impl LubanFeePricer {
 }
 
 impl PreconfPricer for LubanFeePricer {
-    async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128> {
+    async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128, PricerError> {
         let response = reqwest::get(self.url.clone()).await?;
         let body = response.bytes().await?;
 
         let body_str = String::from_utf8_lossy(&body);
-        let res = body_str.parse::<u128>()?;
+        let res = body_str
+            .parse::<u128>()
+            .map_err(|e| PricerError::ParseError(e.to_string()))?;
         Ok(res)
     }
 }
@@ -81,20 +82,17 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128> {
+    async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128, PricerError> {
         let block = self
             .provider
             .get_block(
                 BlockId::Number(BlockNumberOrTag::Latest),
                 BlockTransactionsKind::Hashes,
             )
-            .await?;
-        block
-            .and_then(|block| {
-                let base_fee = block.header.base_fee_per_gas?;
-                Some(base_fee)
-            })
-            .ok_or_else(|| eyre::eyre!("base fee not found"))
+            .await?
+            .ok_or(PricerError::Custom("block not found".to_string()))?;
+        let base_fee = block.header.base_fee_per_gas.expect("base fee not found");
+        Ok(base_fee)
     }
 }
 

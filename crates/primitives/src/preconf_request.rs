@@ -1,13 +1,10 @@
 use super::preconf_hash::domain_separator;
 use crate::PreconfHash;
-use alloy::{
-    consensus::TxEnvelope,
-    primitives::{keccak256, Address, Bytes, B256, U256},
-    rpc::types::beacon::BlsSignature,
-    sol_types::SolValue,
-};
+use alloy_consensus::TxEnvelope;
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
-
+use alloy_rpc_types_beacon::BlsSignature;
+use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
 type Transaction = Vec<u8>;
@@ -33,7 +30,7 @@ impl PreconfRequest {
         PreconfHash(keccak256(buffer))
     }
 
-    pub fn transaction(&self) -> Result<Option<TxEnvelope>, alloy::rlp::Error> {
+    pub fn transaction(&self) -> Result<Option<TxEnvelope>, alloy_rlp::Error> {
         if let Some(preconf_tx) = &self.preconf_tx {
             let mut tx_decoded = preconf_tx.as_slice();
             TxEnvelope::decode(&mut tx_decoded).map(Some)
@@ -114,18 +111,15 @@ impl TipTransaction {
 #[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
 pub struct PreconfCondition {
     ordering_meta_data: OrderingMetaData,
-    // TODO: remove this.
-    pub block_number: u64,
     /// The consensus slot number at which the transaction should be included.
     pub slot: u64,
 }
 
 impl PreconfCondition {
     #[allow(dead_code)]
-    pub fn new(ordering_meta_data: OrderingMetaData, block_number: u64, slot: u64) -> Self {
+    pub fn new(ordering_meta_data: OrderingMetaData, slot: u64) -> Self {
         Self {
             ordering_meta_data,
-            block_number,
             slot,
         }
     }
@@ -141,7 +135,7 @@ impl PreconfCondition {
         let mut data = Vec::new();
         data.extend_from_slice(Self::typehash().tokenize().as_ref());
         data.extend_from_slice(self.ordering_meta_data.index.tokenize().as_ref());
-        data.extend_from_slice(self.block_number.tokenize().as_ref());
+        data.extend_from_slice(self.slot.tokenize().as_ref());
         keccak256(data)
     }
 
@@ -156,12 +150,12 @@ impl PreconfCondition {
 
 #[derive(Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, PartialEq)]
 pub struct OrderingMetaData {
-    index: U256,
+    pub index: U256,
 }
 
 #[cfg(test)]
 mod tests {
-    use alloy::core::primitives::{Address, U256};
+    use alloy_primitives::{Address, U256};
 
     use super::{PreconfCondition, TipTransaction};
 
@@ -188,7 +182,6 @@ mod tests {
             super::OrderingMetaData {
                 index: U256::from(0),
             },
-            0,
             0,
         );
         let h = condition.preconf_condition_hash(U256::from(1337));

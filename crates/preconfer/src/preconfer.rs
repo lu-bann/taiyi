@@ -1,10 +1,14 @@
-use alloy::primitives::{Address, U256};
-use alloy::{network::Ethereum, providers::Provider, sol, transports::Transport};
+use alloy_network::Ethereum;
+use alloy_primitives::{Address, U256};
+use alloy_provider::Provider;
+use alloy_sol_types::sol;
+use alloy_transport::Transport;
+
 use luban_primitives::PreconfRequest;
 use LubanCore::LubanCoreInstance;
 use LubanEscrow::LubanEscrowInstance;
 
-use crate::pricer::PreconfPricer;
+use crate::{error::RpcError, pricer::PreconfPricer};
 
 sol! {
     #[sol(rpc)]
@@ -65,7 +69,7 @@ where
         &self,
         address: &Address,
         preconf_request: &PreconfRequest,
-    ) -> eyre::Result<bool> {
+    ) -> eyre::Result<bool, RpcError> {
         let balance = self
             .luban_escrow_contract
             .balanceOf(*address)
@@ -80,8 +84,7 @@ where
             return Ok(false);
         }
 
-        // TODO: minus the current block. Get it from the exex process
-        let lookahead = preconf_request.preconf_conditions.block_number;
+        let lookahead = preconf_request.preconf_conditions.slot;
         let predict_base_fee = self.pricer.price_preconf(lookahead.into()).await?;
 
         Ok(

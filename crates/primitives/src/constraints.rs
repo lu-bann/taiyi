@@ -1,11 +1,4 @@
-use alloy::rpc::types::beacon::BlsPublicKey;
-use ethereum_consensus::{
-    bellatrix::mainnet::Transaction,
-    crypto::{PublicKey, Signature},
-    deneb::{compute_domain, verify_signed_data, Domain, DomainType},
-    ssz::prelude::*,
-    state_transition::Context,
-};
+use ethereum_consensus::{bellatrix::mainnet::Transaction, crypto::Signature, ssz::prelude::*};
 use ssz_rs::{prelude::SimpleSerialize, List};
 
 use crate::PreconfRequest;
@@ -17,37 +10,50 @@ pub struct Constraint {
     tx: Transaction,
 }
 
+impl From<PreconfRequest> for Constraint {
+    fn from(preconf_request: PreconfRequest) -> Self {
+        let tx_data = preconf_request.preconf_tx.expect("No preconf tx");
+        let tx_ref = tx_data.as_ref();
+        let tx = Transaction::try_from(tx_ref).expect("tx");
+        Self { tx }
+    }
+}
+
 #[derive(
     Debug, Default, Clone, serde::Serialize, serde::Deserialize, SimpleSerialize, PartialEq,
 )]
 pub struct ConstraintsMessage {
-    slot: u64,
-    constraints: List<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>, MAX_TRANSACTIONS_PER_BLOCK>,
+    pub slot: u64,
+    pub constraints: List<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>, MAX_TRANSACTIONS_PER_BLOCK>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, SimpleSerialize, serde::Deserialize)]
+impl ConstraintsMessage {
+    pub fn new(
+        slot: u64,
+        constraints: List<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>, MAX_TRANSACTIONS_PER_BLOCK>,
+    ) -> Self {
+        Self { slot, constraints }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.constraints.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.constraints.len()
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, SimpleSerialize, serde::Deserialize)]
 pub struct SignedConstraintsMessage {
     pub message: ConstraintsMessage,
     /// Signature over `message`. Must be signed by the key relating to: `message.public_key`.
     pub signature: Signature,
 }
 
-pub fn compute_builder_domain(context: &Context) -> Result<Domain, String> {
-    let domain_type = DomainType::ApplicationBuilder;
-    compute_domain(domain_type, None, None, context).map_err(|e| e.to_string())
-}
-
 impl SignedConstraintsMessage {
     pub fn new(message: ConstraintsMessage, signature: Signature) -> Self {
         Self { message, signature }
-    }
-
-    pub fn verify(&self, public_key: &BlsPublicKey, context: &Context) -> Result<bool, String> {
-        let domain = compute_builder_domain(context)?;
-        let pubkey = PublicKey::try_from(public_key.as_ref()).map_err(|e| e.to_string())?;
-        verify_signed_data(&self.message, &self.signature, &pubkey, domain)
-            .map_err(|e| e.to_string())?;
-        Ok(true)
     }
 }
 

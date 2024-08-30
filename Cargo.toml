@@ -5,7 +5,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "tests"]
+members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "examples", "tests"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -18,7 +18,24 @@ axum = { version = "0.7.5", features = ["macros"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-alloy = { version = "0.2", features = ["full", "rpc-types-beacon", "rlp", "signer-mnemonic", "sol-types"] }
+
+# alloy 
+alloy-primitives = { version = "0.7.2", default-features = false }
+alloy-rpc-types-beacon = { version = "0.2.1", default-features = false }
+alloy-rpc-types = { version = "0.2.1", features = ["eth"], default-features = false }
+alloy-network = { version = "0.2.1", default-features = false }
+alloy-provider = { version = "0.2.1", features = ["reqwest"], default-features = false }
+alloy-signer = { version = "0.2.1", default-features = false }
+alloy-signer-local = { version = "0.2.1", features = ["mnemonic"] }
+alloy-transport = { version = "0.2.1" }
+alloy-contract = { version = "0.2.1" }
+alloy-eips = { version = "0.2.1", default-features = false }
+alloy-consensus = { version = "0.2.1", default-features = false }
+alloy-rlp = "0.3.4"
+alloy-sol-types = "0.7.2"
+alloy-node-bindings = { version = "0.2.1", default-features = false }
+alloy-rpc-client = { version = "0.2.1", default-features = false }
+
 eyre = { version = "0.6" }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0"
@@ -32,6 +49,8 @@ blst = "0.3.12"
 lru = "0.12.3"
 priority-queue = "2.0.3"
 ahash = "0.8.6"
+ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "84ef2b71aa004f6767420badb42c902ad56b8b72" }
+time = { version = "0.3.36", features = ["macros", "formatting", "parsing"] }
 
 
 

@@ -5,11 +5,23 @@ edition = { workspace = true }
 
 [dependencies]
 ahash = { workspace = true }
-alloy = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rlp = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
+
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
-cb-common = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "e4b53818dd8731d7567717dd11ecdcab02aa40c0" }
-cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "e4b53818dd8731d7567717dd11ecdcab02aa40c0" }
+cb-common = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "0c12f37ffbb59fbfeadb8e7009ba7d1d30d699b5" }
+cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "0c12f37ffbb59fbfeadb8e7009ba7d1d30d699b5" }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = "0.3.30"
@@ -19,23 +31,18 @@ parking_lot = { workspace = true }
 # cb-crypto = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5aca4e2f6e81c6e0132ef3bdfda47922b9bc43a3" }
 priority-queue = { workspace = true }
 reqwest = "0.12.4"
-reth = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"], rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "547ee14771157c7e8d7d0dd98062e4ae7a9adc8c" }
 serde = { workspace = true }
 serde_json ={ workspace = true }
+ssz_rs = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.5"
 tree_hash_derive = "0.5"
 
 [dev-dependencies]
+alloy-node-bindings = { workspace = true }
 mockito = "1.4.0"
 
 [lib]
