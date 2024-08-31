@@ -10,7 +10,7 @@ use cb_common::{
 use cb_pbs::{PbsService, PbsState};
 use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
 use state::PreconfState;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -134,12 +134,21 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let _orderpool_cleaner_handle = state.spawn_orderpool_cleaner(slot_stream);
-            let _constraint_submitter_handle = state.clone().spawn_constraint_submitter();
 
-            let pbs_state = PbsState::new(pbs_config).with_data(state);
+            let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
             PbsService::init_metrics()?;
-            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
+
+            tokio::select! {
+                _ = state.spawn_orderpool_cleaner(slot_stream) => {
+                    error!("Orderpool cleaner task exited.");
+                },
+                _ = state.spawn_constraint_submitter() => {
+                    error!("Constraint submitter task exited.");
+                },
+                e = PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state) => {
+                    error!("PbsService run encountered an error: {:?}", e);
+                },
+            }
         }
         None => {
             let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
@@ -158,13 +167,22 @@ pub async fn spawn_service(
                 context,
             )
             .await;
-            let _orderpool_cleaner_handle = state.spawn_orderpool_cleaner(slot_stream);
-            let _constraint_submitter_handle = state.clone().spawn_constraint_submitter();
 
             let pbs_state = PbsState::new(pbs_config).with_data(state.clone());
 
             PbsService::init_metrics()?;
-            PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state).await?;
+
+            tokio::select! {
+                res = state.spawn_orderpool_cleaner(slot_stream) => {
+                    error!("Orderpool cleaner task exited. {:?}", res);
+                },
+                res = state.spawn_constraint_submitter() => {
+                    error!("Constraint submitter task exited. {:?}", res);
+                },
+                res = PbsService::run::<PreconfState<_, _, _>, PreconfBuilderApi>(pbs_state) => {
+                    error!("PbsService run encountered an error: {:?}", res);
+                },
+            }
         }
     };
 
