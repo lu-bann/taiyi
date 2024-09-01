@@ -19,9 +19,9 @@ use luban_primitives::{
     SignedConstraintsMessage,
 };
 use parking_lot::RwLock;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::JoinHandle;
 use tracing::{error, info};
 
 use crate::preconf_pool::PreconfPool;
@@ -128,14 +128,14 @@ where
     }
 
     #[allow(unreachable_code)]
-    pub fn spawn_constraint_submitter(self) -> JoinHandle<eyre::Result<()>> {
+    pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
         let constraint_client = self.constraint_client.clone();
         let genesis_time = match self.context.genesis_time() {
             Ok(genesis_time) => genesis_time,
             Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
         };
 
-        tokio::spawn(async move {
+        async move {
             loop {
                 let slot_start_timestamp = genesis_time
                     + (self.network_state.get_current_slot() * self.context.seconds_per_slot);
@@ -182,21 +182,21 @@ where
                 }
             }
             Ok(())
-        })
+        }
     }
 
     pub fn spawn_orderpool_cleaner(
         &self,
         mut slot_stream: SlotStream<SystemTimeProvider>,
-    ) -> JoinHandle<()> {
+    ) -> impl Future<Output = ()> {
         let preconf_pool = self.preconf_pool.clone();
-        tokio::spawn(async move {
+        async move {
             loop {
                 if let Some(slot) = slot_stream.next().await {
                     preconf_pool.write().slot_updated(slot);
                 }
             }
-        })
+        }
     }
 
     pub async fn sign_init_signature(
