@@ -63,7 +63,7 @@ where
             pricer,
         }
     }
-
+    // TODO: take priority gas fee into account when calculating the cost
     /// validate whether the address have enough balance lockedon the escrow contract
     pub async fn verify_escrow_balance_and_calc_fee(
         &self,
@@ -86,11 +86,10 @@ where
 
         let lookahead = preconf_request.preconf_conditions.slot;
         let predict_base_fee = self.pricer.price_preconf(lookahead.into()).await?;
+        let preconf_request_tip = preconf_request.tip();
 
-        Ok(
-            balance._0 >= preconf_request.tip_tx.pre_pay + preconf_request.tip_tx.after_pay
-                && U256::from(predict_base_fee) * preconf_request.tip_tx.gas_limit
-                    <= preconf_request.tip_tx.pre_pay + preconf_request.tip_tx.after_pay,
-        )
+        Ok(balance._0 >= preconf_request_tip
+            && U256::from(predict_base_fee) * preconf_request.tip_tx.gas_limit
+                <= preconf_request_tip)
     }
 }
