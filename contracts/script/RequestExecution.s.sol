@@ -3,8 +3,8 @@ pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import { LubanEscrow } from "../src/LubanEscrow.sol";
+import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
 
 contract DeployTest is Test {
     LubanCore public lubanCore;
@@ -83,13 +83,20 @@ contract DeployTest is Test {
         (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
+        ILubanCore.PreconfTx memory preconfTx =
+            ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true });
+        bytes32 preconfTxHash = lubanCore.getPreconfTxHash(preconfTx);
+        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+
         ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
             tipTx: tipTx,
             prefConditions: preconfConditions,
             preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true }),
             tipTxSignature: tipTxUserSignature,
             initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconferSignature: preconferSignature,
+            preconfTxSignature: preconfTxSignature
         });
 
         // lubanEscrow.deposit{ value: 1 ether }();

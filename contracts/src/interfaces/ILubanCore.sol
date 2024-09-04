@@ -52,6 +52,7 @@ interface ILubanCore {
         bytes tipTxSignature;
         bytes initSignature;
         bytes preconferSignature;
+        bytes preconfTxSignature;
     }
 
     enum PreconfRequestStatus {
@@ -65,9 +66,17 @@ interface ILubanCore {
                           FUNCTIONS
     //////////////////////////////////////////////////////*/
 
-    function settleRequest(PreconfRequest calldata preconfReq) external payable;
+    function settleRequest(PreconfRequest calldata preconfReq) external payable returns (bytes32);
 
-    function exhaust(TipTx calldata tipTx, bytes calldata userSignature, bytes calldata preconferSignature) external;
+    function checkInclusion(address from, uint256 blockNumber, bytes32 txHash) external view returns (bool);
+
+    function exhaust(
+        TipTx calldata tipTx,
+        PreconfConditions calldata preconfConditions,
+        bytes calldata userSignature,
+        bytes calldata preconferSignature
+    )
+        external;
 
     function getTipTxHash(ILubanCore.TipTx calldata tipTx) external view returns (bytes32);
 

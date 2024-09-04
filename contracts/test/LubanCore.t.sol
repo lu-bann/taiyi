@@ -3,8 +3,8 @@ pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import { LubanEscrow } from "../src/LubanEscrow.sol";
+import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
 
 contract LubanCoreTest is Test {
     LubanCore public lubanCore;
@@ -56,6 +56,12 @@ contract LubanCoreTest is Test {
             nonce: 0
         });
 
+        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
+            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
+            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
+            blockNumber: 10
+        });
+
         bytes32 txHash = lubanCore.getTipTxHash(tipTx);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
         bytes memory userSignature = abi.encodePacked(r, s, v);
@@ -70,7 +76,7 @@ contract LubanCoreTest is Test {
         lubanEscrow.deposit{ value: 9 ether }();
 
         vm.prank(preconfer);
-        lubanCore.exhaust(tipTx, userSignature, preconferSignature);
+        lubanCore.exhaust(tipTx, preconfConditions, userSignature, preconferSignature);
 
         assertEq(address(lubanCore).balance, 1 ether);
         assertEq(
@@ -107,13 +113,20 @@ contract LubanCoreTest is Test {
         (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
+        ILubanCore.PreconfTx memory preconfTx =
+            ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true });
+        bytes32 preconfTxHash = lubanCore.getPreconfTxHash(preconfTx);
+        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+
         ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
             tipTx: tipTx,
             prefConditions: preconfConditions,
             preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 1 ether, callData: "", ethTransfer: true }),
             tipTxSignature: tipTxUserSignature,
             initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconferSignature: preconferSignature,
+            preconfTxSignature: preconfTxSignature
         });
 
         vm.prank(owner);

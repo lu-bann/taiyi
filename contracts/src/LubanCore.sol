@@ -48,6 +48,8 @@ contract LubanCore is ILubanCore {
     mapping(address => bool) public preconferList;
     mapping(address => mapping(bytes32 => uint256)) public preconferTips;
     mapping(bytes32 => PreconfRequestStatus) public preconfRequestStatus;
+    mapping(address => mapping(uint256 => mapping(bytes32 => bool))) public inclusionStatusMap;
+
 
     /*//////////////////////////////////////////////////////
                           EVENTS
@@ -55,6 +57,7 @@ contract LubanCore is ILubanCore {
 
     event Exhausted(address indexed preconfer, uint256 amount);
     event TipCollected(address indexed preconfer, uint256 amount, bytes32 preconferSignature);
+    event TransactionExecutionFailed(address to, uint256 value);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
@@ -87,8 +90,7 @@ contract LubanCore is ILubanCore {
         );
 
         lubanEscrow = new LubanEscrow(address(this));
-        lubanChallengeManager =
-            new LubanChallengeManager(_axiomV2QueryAddress, uint64(chainId), _querySchema, address(this));
+        lubanChallengeManager = new LubanChallengeManager(address(this));
     }
 
     /*//////////////////////////////////////////////////////
@@ -99,6 +101,10 @@ contract LubanCore is ILubanCore {
         return preconfRequestStatus[preconferSignature];
     }
 
+    function isPreconfer(address _address) public view returns (bool) {
+        return preconferList[_address];
+    }
+
     function getLubanEscrow() external view returns (LubanEscrow) {
         return lubanEscrow;
     }
@@ -107,41 +113,67 @@ contract LubanCore is ILubanCore {
         return preconferTips[preconfer][bytes32(preconferSig)];
     }
 
+    function checkInclusion(address preconfer, uint256 blockNumber, bytes32 txHash) external view returns (bool) {
+        return inclusionStatusMap[preconfer][blockNumber][txHash];
+    }
+
     /*//////////////////////////////////////////////////////
                     STATE CHANGING FUNCTIONS
     //////////////////////////////////////////////////////*/
 
+    function batchSettleRequests(PreconfRequest[] calldata preconfReqs) external payable {
+        require(preconferList[msg.sender], "Caller is not a preconfer");
+        uint256 length = preconfReqs.length;
+        for (uint256 i = 0; i < length;) {
+            PreconfRequest calldata preconfReq = preconfReqs[i];
+            bytes32 txHash = this.settleRequest(preconfReq);
+            inclusionStatusMap[msg.sender][block.number][txHash] = true;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /// @notice Main bulk of the logic for validating and settling request
     /// @dev called by the preconfer to settle the request
-    function settleRequest(PreconfRequest calldata preconfReq) external payable {
-        require(preconferList[msg.sender], "Caller is not a preconfer");
+    function settleRequest(PreconfRequest calldata preconfReq) external payable returns (bytes32) {
+        //require(preconferList[msg.sender], "Caller is not a preconfer");
 
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
         PreconfConditions calldata preconfConditions = preconfReq.prefConditions;
 
-        require(preconfConditions.blockNumber == block.number, "Preconf request submitted at the wrong block number");
+        require(preconfConditions.blockNumber == block.number, "Wrong block number");
 
         // Validate the signature of the tipTx + preconfConditions
         bytes32 txHash = getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
-        require(verifySignature(txHash, preconfReq.initSignature) == tipTx.from, "Invalid user signature");
-        require(
-            verifySignature(bytes32(preconfReq.initSignature), preconfReq.preconferSignature) == tipTx.to,
-            "Invalid preconfer signature"
-        );
 
+        address signer = verifySignature(txHash, preconfReq.initSignature);
+        require(signer == tipTx.from, "Invalid user signature");
+
+        signer = verifySignature(bytes32(preconfReq.initSignature), preconfReq.preconferSignature);
+        require(signer == tipTx.to, "Invalid preconfer signature");
+
+        signer = verifySignature(getPreconfTxHash(preconfTx), preconfReq.preconfTxSignature);
+        require(signer == tipTx.from, "Invalid preconf tx signature");
+
+        bool success;
         if (!preconfTx.ethTransfer) {
             // Execute contract call with provided calldata
             require(preconfTx.callData.length > 0, "Calldata is empty");
-            (bool _status,) = payable(preconfTx.to).call{ value: preconfTx.value }(preconfTx.callData);
+            (success,) = payable(preconfTx.to).call{ value: preconfTx.value }(preconfTx.callData);
         } else {
             // Execute plain Ether transfer
-            (bool _status,) = payable(preconfTx.to).call{ value: preconfTx.value }("");
+            (success,) = payable(preconfTx.to).call{ value: preconfTx.value }("");
+        }
+
+        if (!success) {
+            emit TransactionExecutionFailed(preconfTx.to, preconfTx.value);
         }
 
         lubanEscrow.payout(tipTx, preconfReq.tipTxSignature, true, preconfReq.preconferSignature);
-
         preconfRequestStatus[bytes32(preconfReq.preconferSignature)] = PreconfRequestStatus.Executed;
+        return txHash;
     }
 
     /// @dev This function is used to exhaust the gas to the point of
@@ -153,15 +185,28 @@ contract LubanCore is ILubanCore {
     /// @notice only the preconfer could invoke this function
     /// @param tipTx The TipTx struct
     /// @param userSignature The signature of the TipTx
-    function exhaust(TipTx calldata tipTx, bytes calldata userSignature, bytes calldata preconferSignature) external {
+    function exhaust(
+        TipTx calldata tipTx,
+        PreconfConditions calldata preconfConditions,
+        bytes calldata userSignature,
+        bytes calldata preconferSignature
+    )
+        external
+    {
         require(preconferList[msg.sender], "Caller is not a preconfer");
 
         bytes32 txHash = getTipTxHash(tipTx);
         require(verifySignature(txHash, userSignature) == tipTx.from, "Invalid signature");
 
-        gasBurner(tipTx.gasLimit);
+        unchecked {
+            gasBurner(tipTx.gasLimit);
+        }
+
         lubanEscrow.payout(tipTx, userSignature, false, preconferSignature);
         preconfRequestStatus[bytes32(preconferSignature)] = PreconfRequestStatus.Exhausted;
+
+        txHash = getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
+        inclusionStatusMap[msg.sender][preconfConditions.blockNumber][txHash] = true;
         emit Exhausted(msg.sender, tipTx.prePay);
     }
 
@@ -198,30 +243,17 @@ contract LubanCore is ILubanCore {
 
     function gasBurner(uint256 gasLimit) public view returns (uint256) {
         uint256 startGas = gasleft();
-        uint256 gasCost = 0;
-        while (gasCost < gasLimit) {
-            // to prevent adding extra gas over the gasLimit
-            if ((gasCost + startGas - gasleft()) > gasLimit) {
-                break;
-            } else {
-                gasCost += startGas - gasleft();
+        uint256 gasCost;
+        assembly {
+            for { } lt(gasCost, gasLimit) { } {
+                // Check if we're about to exceed gasLimit
+                if gt(add(gasCost, sub(startGas, gas())), gasLimit) { break }
+                gasCost := add(gasCost, sub(startGas, gas()))
+                startGas := gas()
             }
-            startGas = gasleft();
         }
-        return gasCost;
-    }
 
-    function getPreconfRequestHash(PreconfRequest calldata preconfReq) public view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                preconfReq.tipTx,
-                preconfReq.prefConditions,
-                preconfReq.preconfTx,
-                preconfReq.tipTxSignature,
-                preconfReq.initSignature,
-                preconfReq.preconferSignature
-            )
-        );
+        return gasCost;
     }
 
     function getTipTxAndPreconfConditionsHash(
@@ -246,6 +278,14 @@ contract LubanCore is ILubanCore {
         return keccak256(
             abi.encode(TIP_TX_TYPEHASH, tipTx.gasLimit, tipTx.from, tipTx.to, tipTx.prePay, tipTx.afterPay, tipTx.nonce)
         );
+    }
+
+    function getPreconfTxHash(PreconfTx calldata preconfTx) public view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, _getPreconfTxHash(preconfTx)));
+    }
+
+    function _getPreconfTxHash(PreconfTx calldata preconfTx) internal pure returns (bytes32) {
+        return keccak256(abi.encode(preconfTx.to, preconfTx.value, preconfTx.callData, preconfTx.ethTransfer));
     }
 
     function getPreconfConditionsHash(PreconfConditions calldata preconfConditions) public view returns (bytes32) {

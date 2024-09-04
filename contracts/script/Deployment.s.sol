@@ -82,13 +82,20 @@ contract DeployTest is Test {
         (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
+        ILubanCore.PreconfTx memory preconfTx =
+            ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true });
+        bytes32 preconfTxHash = lubanCore.getPreconfTxHash(preconfTx);
+        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+
         ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
             tipTx: tipTx,
             prefConditions: preconfConditions,
-            preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true }),
+            preconfTx: preconfTx,
             tipTxSignature: tipTxUserSignature,
             initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconferSignature: preconferSignature,
+            preconfTxSignature: preconfTxSignature
         });
 
         lubanEscrow.deposit{ value: 1 ether }();
