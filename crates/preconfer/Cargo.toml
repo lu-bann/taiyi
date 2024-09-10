@@ -20,8 +20,8 @@ alloy-transport = { workspace = true }
 
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
-cb-common = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "0c12f37ffbb59fbfeadb8e7009ba7d1d30d699b5" }
-cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "0c12f37ffbb59fbfeadb8e7009ba7d1d30d699b5" }
+cb-common = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "20a04e9027b473299e736f133cf7392a16ff6bbf" }
+cb-pbs = { git = "https://github.com/lu-bann/commit-boost-client.git", rev = "20a04e9027b473299e736f133cf7392a16ff6bbf" }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = "0.3.30"

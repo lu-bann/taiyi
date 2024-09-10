@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Provider, ProviderBuilder};
+use alloy_rpc_types_beacon::BlsPublicKey;
 use api::PreconfBuilderApi;
 use cb_common::{
     config::{load_from_file, CommitBoostConfig, PbsModuleConfig},
@@ -78,7 +79,12 @@ pub async fn spawn_service(
         .get_pubkeys()
         .await
         .expect("pubkeys should be received.");
-    let pubkeys_dup = pubkeys.consensus.clone();
+    let pubkeys_dup: Vec<BlsPublicKey> = pubkeys
+        .consensus
+        .clone()
+        .into_iter()
+        .map(|pk| pk.into())
+        .collect();
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
@@ -103,15 +109,16 @@ pub async fn spawn_service(
             .into_stream();
 
     // pubkeys.proxy should be empty since no proxy keys is generated on intialization
-    if pubkeys.proxy.is_empty() {
+    if pubkeys.proxy_bls.is_empty() {
+        info!("Generating proxy keys for preconfer");
         for pubkey in pubkeys.consensus {
             let proxy_delegation = signer_client
                 .cb_signer_client()
-                .generate_proxy_key(pubkey)
+                .generate_proxy_key_bls(pubkey)
                 .await?;
             signer_client
                 .proxy_key_map
-                .insert(pubkey, proxy_delegation.message.proxy);
+                .insert(*pubkey, proxy_delegation.message.proxy.into());
         }
     };
 
