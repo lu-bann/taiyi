@@ -1,10 +1,10 @@
 use alloy_primitives::U256;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use cb_common::commit::request::GetPubkeysResponse;
 use cb_common::commit::{
-    client::{GetPubkeysResponse, SignerClient as CBSignerClient},
-    error::SignerClientError,
-    request::SignRequest,
+    client::SignerClient as CBSignerClient, error::SignerClientError, request::SignProxyRequest,
 };
+use cb_common::signer::BlsPublicKey as CBBlsPublicKey;
 use luban_primitives::PreconfRequest;
 use std::collections::HashMap;
 
@@ -41,8 +41,11 @@ impl SignerClient {
         pubkey: BlsPublicKey,
     ) -> Result<BlsSignature, SignerClientError> {
         let root = preconf_request.hash(self.chain_id);
-        let request = SignRequest::new(pubkey, false, root.into());
-        self.cb_signer_client.request_signature(&request).await
+        let request: SignProxyRequest<CBBlsPublicKey> =
+            SignProxyRequest::new(pubkey.into(), root.into());
+        self.cb_signer_client
+            .request_proxy_signature_bls(request)
+            .await
     }
 
     pub async fn sign_message(
@@ -50,7 +53,10 @@ impl SignerClient {
         message: [u8; 32],
         pubkey: BlsPublicKey,
     ) -> Result<BlsSignature, SignerClientError> {
-        let request = SignRequest::new(pubkey, true, message);
-        self.cb_signer_client.request_signature(&request).await
+        let request: SignProxyRequest<CBBlsPublicKey> =
+            SignProxyRequest::new(pubkey.into(), message);
+        self.cb_signer_client
+            .request_proxy_signature_bls(request)
+            .await
     }
 }
