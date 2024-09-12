@@ -29,6 +29,8 @@ pub enum RpcError {
     SignerClientError(#[from] SignerClientError),
     #[error("Luban pricer error: {0:?}")]
     PricerError(#[from] PricerError),
+    #[error("Escrow Error: {0:?}")]
+    EscrowError(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

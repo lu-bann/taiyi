@@ -69,7 +69,7 @@ where
         &self,
         address: &Address,
         preconf_request: &PreconfRequest,
-    ) -> eyre::Result<bool, RpcError> {
+    ) -> eyre::Result<(), RpcError> {
         let balance = self
             .luban_escrow_contract
             .balanceOf(*address)
@@ -81,15 +81,26 @@ where
             .call()
             .await?;
         if lock_block._0 != U256::MAX {
-            return Ok(false);
+            return Err(RpcError::EscrowError(
+                "from address haven't deposit in escrow contract".to_string(),
+            ));
         }
 
         let lookahead = preconf_request.preconf_conditions.slot;
         let predict_base_fee = self.pricer.price_preconf(lookahead.into()).await?;
         let preconf_request_tip = preconf_request.tip();
 
-        Ok(balance._0 >= preconf_request_tip
-            && U256::from(predict_base_fee) * preconf_request.tip_tx.gas_limit
-                <= preconf_request_tip)
+        if balance._0 < preconf_request_tip {
+            return Err(RpcError::EscrowError(format!(
+                "from address with {} don't have enough balance in escrow contract required {}",
+                balance._0, preconf_request_tip
+            )));
+        }
+        if U256::from(predict_base_fee) * preconf_request.tip_tx.gas_limit > preconf_request_tip {
+            return Err(RpcError::EscrowError(format!(
+                "preconf request tip is not enough based on predict base fee {predict_base_fee:}"
+            )));
+        }
+        Ok(())
     }
 }

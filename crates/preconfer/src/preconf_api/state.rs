@@ -234,13 +234,7 @@ where
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await
         {
-            Ok(res) => {
-                if !res {
-                    return Err(RpcError::UnknownError(
-                        "preconf request not valid".to_string(),
-                    ));
-                }
-            }
+            Ok(_) => {}
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
 
