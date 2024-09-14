@@ -1,7 +1,9 @@
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
-use luban_primitives::{AvailableSlotResponse, OrderingMetaData, PreconfCondition, PreconfRequest};
+use luban_primitives::{
+    AvailableSlotResponse, OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction,
+};
 use reth_primitives::{
     Transaction, TransactionKind, TransactionSigned, TransactionSignedEcRecovered, TxEip1559, U256,
 };
@@ -71,7 +73,14 @@ async fn main() -> eyre::Result<()> {
             },
             target_slot,
         ),
-        tip_tx: Default::default(),
+        tip_tx: TipTransaction::new(
+            Default::default(),
+            signer.address(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        ),
         init_signature: Default::default(),
         tip_tx_signature: Default::default(),
         preconfer_signature: Default::default(),

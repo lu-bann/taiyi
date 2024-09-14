@@ -2,6 +2,7 @@ mod commands;
 
 use clap::{Parser, Subcommand};
 
+use commands::luban_escrow_deposit::LubanEscrowDepositCommand;
 use commands::luban_stake::LubanStakeCommand;
 use commands::preconfer::PreconferCommand;
 
@@ -20,6 +21,8 @@ pub enum Commands {
     Preconfer(PreconferCommand),
     #[command(name = "luban-stake")]
     LubanStake(LubanStakeCommand),
+    #[command(name = "luban-escrow-deposit")]
+    LubanEscrowDeposit(LubanEscrowDepositCommand),
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -37,6 +40,9 @@ pub fn run() -> eyre::Result<()> {
         }
         Commands::LubanStake(luban_stake) => {
             runtime.block_on(async { luban_stake.execute().await })
+        }
+        Commands::LubanEscrowDeposit(luban_escrow_deposit) => {
+            runtime.block_on(async { luban_escrow_deposit.execute().await })
         }
     }
 }
