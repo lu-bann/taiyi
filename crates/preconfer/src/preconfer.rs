@@ -3,7 +3,6 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
-
 use luban_primitives::PreconfRequest;
 use LubanCore::LubanCoreInstance;
 use LubanEscrow::LubanEscrowInstance;
@@ -57,11 +56,7 @@ where
     ) -> Self {
         let luban_escrow_contract = LubanEscrow::new(luban_escrow_contract_addr, provider.clone());
         let luban_core_contract = LubanCoreInstance::new(luban_core_contract_addr, provider);
-        Self {
-            luban_escrow_contract,
-            luban_core_contract,
-            pricer,
-        }
+        Self { luban_escrow_contract, luban_core_contract, pricer }
     }
     // TODO: take priority gas fee into account when calculating the cost
     /// validate whether the address have enough balance lockedon the escrow contract
@@ -70,16 +65,8 @@ where
         address: &Address,
         preconf_request: &PreconfRequest,
     ) -> eyre::Result<(), RpcError> {
-        let balance = self
-            .luban_escrow_contract
-            .balanceOf(*address)
-            .call()
-            .await?;
-        let lock_block = self
-            .luban_escrow_contract
-            .lockBlockOf(*address)
-            .call()
-            .await?;
+        let balance = self.luban_escrow_contract.balanceOf(*address).call().await?;
+        let lock_block = self.luban_escrow_contract.lockBlockOf(*address).call().await?;
         if lock_block._0 != U256::MAX {
             return Err(RpcError::EscrowError(
                 "from address haven't deposit in escrow contract".to_string(),

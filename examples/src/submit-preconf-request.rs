@@ -15,16 +15,10 @@ async fn main() -> eyre::Result<()> {
     let el_url = std::env::var("EL_URL").unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
     let signer_private = std::env::var("PRIVATE_KEY").expect("Input private key");
     let signer: PrivateKeySigner = signer_private.parse().unwrap();
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .on_builtin(&el_url)
-        .await?;
+    let provider = ProviderBuilder::new().with_recommended_fillers().on_builtin(&el_url).await?;
 
     let client = reqwest::Client::new();
-    let res = client
-        .get(&format!("{}/commitments/v1/slots", taiyi_url))
-        .send()
-        .await?;
+    let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
     let res_b = res.bytes().await?;
     println!("res: {:?}", res_b);
     let available_slot = serde_json::from_slice::<AvailableSlotResponse>(&res_b)?;
@@ -40,15 +34,11 @@ async fn main() -> eyre::Result<()> {
 
     let tx: Transaction = Transaction::Eip1559(TxEip1559 {
         chain_id: 7014190335,
-        nonce: nonce,
+        nonce,
         max_priority_fee_per_gas: estimate.max_priority_fee_per_gas,
         max_fee_per_gas: estimate.max_fee_per_gas,
         gas_limit: 220000,
-        to: TransactionKind::Call(
-            "0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED"
-                .parse()
-                .unwrap(),
-        ),
+        to: TransactionKind::Call("0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED".parse().unwrap()),
         value: U256::from(10),
         input: Default::default(),
         access_list: Default::default(),
@@ -68,9 +58,7 @@ async fn main() -> eyre::Result<()> {
     let preconf_request = PreconfRequest {
         preconf_tx: Some(tx_b),
         preconf_conditions: PreconfCondition::new(
-            OrderingMetaData {
-                index: U256::from(3),
-            },
+            OrderingMetaData { index: U256::from(3) },
             target_slot,
         ),
         tip_tx: TipTransaction::new(

@@ -1,8 +1,9 @@
+use std::{cmp::Ordering, collections::HashMap};
+
 use alloy_primitives::{Address, U256};
 use ethereum_consensus::ssz::prelude::List;
 use luban_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfRequest};
 use priority_queue::PriorityQueue;
-use std::{cmp::Ordering, collections::HashMap};
 
 use crate::{error::OrderPoolError, rpc_state::AccountState};
 
@@ -22,9 +23,7 @@ impl PartialOrd for OrderPriority {
 
 impl Ord for OrderPriority {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority
-            .cmp(&other.priority)
-            .then_with(|| self.order_id.cmp(&other.order_id))
+        self.priority.cmp(&other.priority).then_with(|| self.order_id.cmp(&other.order_id))
     }
 }
 
@@ -70,23 +69,15 @@ impl PrioritizedOrderPool {
             self.slot = Some(order.preconf_conditions.slot);
         }
 
-        self.main_queue.push(
-            order_id,
-            OrderPriority {
-                priority: order.tip(),
-                order_id,
-            },
-        );
+        self.main_queue.push(order_id, OrderPriority { priority: order.tip(), order_id });
 
         self.orders.insert(order_id, order.clone());
 
-        self.intermediate_state
-            .entry(order.tip_tx.from)
-            .and_modify(|(balance, nonce)| {
-                // TODO balance should account for total transaction cost including gas costs
-                *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
-                *nonce += 1;
-            });
+        self.intermediate_state.entry(order.tip_tx.from).and_modify(|(balance, nonce)| {
+            // TODO balance should account for total transaction cost including gas costs
+            *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
+            *nonce += 1;
+        });
     }
 
     pub fn pop_order(&mut self) -> Option<PreconfRequest> {
@@ -103,9 +94,7 @@ impl PrioritizedOrderPool {
             preconfs.push(constraint_list);
         }
 
-        let slot = self
-            .slot
-            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
+        let slot = self.slot.ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
         let constraints = List::try_from(preconfs).expect("constraints");
 
         Ok(ConstraintsMessage { slot, constraints })

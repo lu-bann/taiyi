@@ -12,9 +12,5 @@ pub async fn get_account_state(rpc: String, address: Address) -> eyre::Result<Ac
     let url = rpc.parse()?;
     let provider = ProviderBuilder::new().on_http(url);
     let account = provider.get_account(address).await?;
-    Ok(AccountState {
-        nonce: account.nonce,
-        balance: account.balance,
-        _code: account.code_hash,
-    })
+    Ok(AccountState { nonce: account.nonce, balance: account.balance, _code: account.code_hash })
 }

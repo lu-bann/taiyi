@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
@@ -13,10 +15,8 @@ use luban_primitives::{
     PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
 
-use crate::preconf_api::PreconfState;
-use crate::{error::RpcError, pricer::PreconfPricer};
+use crate::{error::RpcError, preconf_api::PreconfState, pricer::PreconfPricer};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -36,22 +36,10 @@ where
     fn extra_routes() -> Option<Router<PbsState<PreconfState<T, P, F>>>> {
         Some(
             Router::new()
-                .route(
-                    "/commitments/v1/preconf_request",
-                    post(handle_preconf_request),
-                )
-                .route(
-                    "/commitments/v1/preconf_request",
-                    delete(delete_preconf_request),
-                )
-                .route(
-                    "/commitments/v1/preconf_request/tx",
-                    post(handle_preconf_request_tx),
-                )
-                .route(
-                    "/commitments/v1/preconf_request/:preconf_hash",
-                    get(get_preconf_request),
-                )
+                .route("/commitments/v1/preconf_request", post(handle_preconf_request))
+                .route("/commitments/v1/preconf_request", delete(delete_preconf_request))
+                .route("/commitments/v1/preconf_request/tx", post(handle_preconf_request_tx))
+                .route("/commitments/v1/preconf_request/:preconf_hash", get(get_preconf_request))
                 .route("/commitments/v1/slots", get(get_slots)),
         )
     }
@@ -66,9 +54,7 @@ where
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
     F: PreconfPricer + Clone + Send + Sync + 'static,
 {
-    Ok(Json(
-        state.data.send_preconf_request(preconf_request).await?,
-    ))
+    Ok(Json(state.data.send_preconf_request(preconf_request).await?))
 }
 pub async fn delete_preconf_request<T, P, F>(
     State(state): State<PbsState<PreconfState<T, P, F>>>,
@@ -79,9 +65,7 @@ where
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
     F: PreconfPricer + Clone + Send + Sync + 'static,
 {
-    Ok(Json(
-        state.data.cancel_preconf_request(cancel_request).await?,
-    ))
+    Ok(Json(state.data.cancel_preconf_request(cancel_request).await?))
 }
 
 pub async fn handle_preconf_request_tx<T, P, F>(
@@ -93,12 +77,7 @@ where
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
     F: PreconfPricer + Clone + Send + Sync + 'static,
 {
-    Ok(Json(
-        state
-            .data
-            .send_preconf_tx_request(request.preconf_hash, request.tx)
-            .await?,
-    ))
+    Ok(Json(state.data.send_preconf_tx_request(request.preconf_hash, request.tx).await?))
 }
 pub async fn get_preconf_request<T, P, F>(
     State(state): State<PbsState<PreconfState<T, P, F>>>,
@@ -109,12 +88,7 @@ where
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
     F: PreconfPricer + Clone + Send + Sync + 'static,
 {
-    Ok(Json(
-        state
-            .data
-            .check_preconf_request_status(params.preconf_hash)
-            .await?,
-    ))
+    Ok(Json(state.data.check_preconf_request_status(params.preconf_hash).await?))
 }
 pub async fn get_slots<T, P, F>(
     State(state): State<PbsState<PreconfState<T, P, F>>>,

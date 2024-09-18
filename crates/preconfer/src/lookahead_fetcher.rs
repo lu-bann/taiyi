@@ -6,7 +6,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey};
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
-
 use beacon_api_client::{mainnet::Client, BlockId};
 use futures::TryStreamExt;
 use luban_primitives::ProposerInfo;
@@ -130,10 +129,7 @@ where
                 "Received event: current: {}, epoch: {}, epoch_transition: {}",
                 current_epoch, epoch, event.epoch_transition
             );
-            assert!(
-                (epoch != current_epoch) == event.epoch_transition,
-                "Invalid epoch"
-            );
+            assert!((epoch != current_epoch) == event.epoch_transition, "Invalid epoch");
             if epoch != current_epoch {
                 info!("Epoch changed from {} to {}", current_epoch, epoch);
                 self.update_proposer_duties(epoch).await?;

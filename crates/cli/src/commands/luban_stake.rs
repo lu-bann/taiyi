@@ -6,7 +6,6 @@ use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::{coins_bip39::English, LocalSigner, MnemonicBuilder};
 use alloy_sol_types::sol;
 use bip39::{Mnemonic, Seed};
-
 use clap::Parser;
 use eth2_keystore::keypair_from_secret;
 use eth2_wallet::recover_validator_secret_from_mnemonic;
@@ -103,12 +102,9 @@ impl LubanStakeCommand {
             .expect("recover validator secret failed");
             let keypair = keypair_from_secret(wallet.as_bytes()).expect("keypair not good");
             let bls_pub_key = Bytes::from(keypair.pk.serialize());
-            let tx = luban_proposer_registry
-                .optIn(bls_pub_key)
-                .into_transaction_request();
-            let tx = tx
-                .value(U256::from(32000000000000000000u128))
-                .from(validator_signer.address());
+            let tx = luban_proposer_registry.optIn(bls_pub_key).into_transaction_request();
+            let tx =
+                tx.value(U256::from(32000000000000000000u128)).from(validator_signer.address());
             let res = provider.send_transaction(tx).await?;
             info!(
                 "OptIn Validator BLS public key: {:} with {:?}",

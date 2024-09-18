@@ -1,3 +1,5 @@
+use std::{future::Future, sync::Arc, time::Duration};
+
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_network::Ethereum;
 use alloy_primitives::U256;
@@ -6,10 +8,10 @@ use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_transport::Transport;
 use cb_pbs::BuilderApiState;
-use ethereum_consensus::clock::{SlotStream, SystemTimeProvider};
-use ethereum_consensus::crypto::Signature;
 use ethereum_consensus::{
     builder::compute_builder_domain,
+    clock::{SlotStream, SystemTimeProvider},
+    crypto::Signature,
     deneb::{compute_signing_root, Context},
 };
 use futures::StreamExt;
@@ -19,16 +21,13 @@ use luban_primitives::{
     SignedConstraintsMessage,
 };
 use parking_lot::RwLock;
-use std::future::Future;
-use std::sync::Arc;
-use std::time::Duration;
 use tracing::{error, info};
 
-use crate::preconf_pool::PreconfPool;
 use crate::{
     constraint_client::ConstraintClient,
     error::{OrderPoolError, ProposerError, RpcError, ValidationError},
     network_state::NetworkState,
+    preconf_pool::PreconfPool,
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
@@ -92,10 +91,7 @@ where
     }
 
     pub fn constraints(&self) -> Result<ConstraintsMessage, OrderPoolError> {
-        self.preconf_pool
-            .write()
-            .prioritized_orderpool
-            .constraints()
+        self.preconf_pool.write().prioritized_orderpool.constraints()
     }
 
     async fn signed_constraints_message(
@@ -114,17 +110,11 @@ where
             .get(&consensus_key)
             .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
 
-        let signature = self
-            .signer_client
-            .sign_message(signing_root.into(), *proxy_key)
-            .await?;
+        let signature = self.signer_client.sign_message(signing_root.into(), *proxy_key).await?;
         let signature = Signature::try_from(signature.as_ref())
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
 
-        Ok(SignedConstraintsMessage::new(
-            constraints_message,
-            signature,
-        ))
+        Ok(SignedConstraintsMessage::new(constraints_message, signature))
     }
 
     #[allow(unreachable_code)]
@@ -209,10 +199,7 @@ where
             .proxy_key_map
             .get(&consensus_key)
             .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
-        Ok(self
-            .signer_client
-            .sign_preconf_request(preconf_request, *proxy_key)
-            .await?)
+        Ok(self.signer_client.sign_preconf_request(preconf_request, *proxy_key).await?)
     }
 
     /// Send a preconf request to the preconfer
@@ -238,10 +225,7 @@ where
             Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
         }
 
-        self.preconf_pool
-            .write()
-            .orderpool
-            .insert(preconf_hash, preconf_request.clone());
+        self.preconf_pool.write().orderpool.insert(preconf_hash, preconf_request.clone());
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -259,9 +243,7 @@ where
         {
             Ok(CancelPreconfResponse {})
         } else {
-            Err(OrderPoolError::PreconfRequestNotFound(
-                cancel_preconf_request.preconf_hash,
-            ))
+            Err(OrderPoolError::PreconfRequestNotFound(cancel_preconf_request.preconf_hash))
         }
     }
 
@@ -296,17 +278,10 @@ where
         preconf_tx.encode(&mut tx);
         preconf_request.preconf_tx = Some(tx);
 
-        self.preconf_pool
-            .write()
-            .orderpool
-            .insert(preconf_req_hash, preconf_request.clone());
+        self.preconf_pool.write().orderpool.insert(preconf_req_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
-        if self
-            .validate_tx_request(&preconf_tx, &preconf_request)
-            .await
-            .is_err()
-        {
+        if self.validate_tx_request(&preconf_tx, &preconf_request).await.is_err() {
             self.preconfer
                 .luban_core_contract
                 .exhaust(
@@ -328,10 +303,7 @@ where
                 .write()
                 .prioritized_orderpool
                 .insert_order(preconf_req_hash, preconf_request);
-            self.preconf_pool
-                .write()
-                .orderpool
-                .delete(&preconf_req_hash);
+            self.preconf_pool.write().orderpool.delete(&preconf_req_hash);
         }
 
         Ok(())
@@ -343,10 +315,9 @@ where
         preconf_tx_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, OrderPoolError> {
         match self.preconf_pool.read().orderpool.get(&preconf_tx_hash) {
-            Some(preconf_request) => Ok(PreconfStatusResponse {
-                status: PreconfStatus::Accepted,
-                data: preconf_request,
-            }),
+            Some(preconf_request) => {
+                Ok(PreconfStatusResponse { status: PreconfStatus::Accepted, data: preconf_request })
+            }
             None => Err(OrderPoolError::PreconfRequestNotFound(preconf_tx_hash)),
         }
     }
@@ -415,11 +386,9 @@ where
         let mut account_state = match account_state_opt {
             Some(state) => state,
             None => {
-                let state = get_account_state(self.rpc_url.clone(), sender)
-                    .await
-                    .map_err(|e| {
-                        ValidationError::Internal(format!("Failed to get account state: {e:?}"))
-                    })?;
+                let state = get_account_state(self.rpc_url.clone(), sender).await.map_err(|e| {
+                    ValidationError::Internal(format!("Failed to get account state: {e:?}"))
+                })?;
                 {
                     self.preconf_pool
                         .write()
@@ -438,17 +407,11 @@ where
 
         // order can't be included
         if account_state.nonce > nonce.to() {
-            return Err(ValidationError::NonceTooLow(
-                account_state.nonce,
-                nonce.to(),
-            ));
+            return Err(ValidationError::NonceTooLow(account_state.nonce, nonce.to()));
         }
 
         if account_state.nonce < nonce.to() {
-            return Err(ValidationError::NonceTooHigh(
-                account_state.nonce,
-                nonce.to(),
-            ));
+            return Err(ValidationError::NonceTooHigh(account_state.nonce, nonce.to()));
         }
 
         // Check EIP-4844-specific limits

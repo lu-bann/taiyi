@@ -23,10 +23,7 @@ impl PreconfResponse {
             message:
                 "Your preconf request has been successfully received and is pending processing."
                     .to_string(),
-            data: PreconfResponseData {
-                preconf_hash,
-                preconfer_signature,
-            },
+            data: PreconfResponseData { preconf_hash, preconfer_signature },
         }
     }
 }

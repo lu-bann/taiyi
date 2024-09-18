@@ -49,10 +49,7 @@ impl LubanEscrowDepositCommand {
         let luban_escrow = LubanEscrow::new(contract_address, provider.clone());
 
         // Call deposit function
-        let tx = luban_escrow
-            .deposit()
-            .value(self.amount)
-            .into_transaction_request();
+        let tx = luban_escrow.deposit().value(self.amount).into_transaction_request();
 
         let pending_tx = provider.send_transaction(tx).await?;
 

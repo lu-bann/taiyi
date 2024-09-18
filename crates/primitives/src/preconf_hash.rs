@@ -29,9 +29,8 @@ pub fn domain_separator(chain_id: U256) -> B256 {
 mod tests {
     use alloy_primitives::U256;
 
-    use crate::preconf_hash::domain_separator;
-
     use super::eip712_domain_typehash;
+    use crate::preconf_hash::domain_separator;
 
     #[test]
     fn eip712_domain_typehash_test() {
