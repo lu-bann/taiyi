@@ -1,11 +1,12 @@
-use super::preconf_hash::domain_separator;
-use crate::PreconfHash;
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
 use alloy_rpc_types_beacon::BlsSignature;
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
+
+use super::preconf_hash::domain_separator;
+use crate::PreconfHash;
 
 type Transaction = Vec<u8>;
 
@@ -68,14 +69,7 @@ impl TipTransaction {
         after_pay: U256,
         nonce: U256,
     ) -> Self {
-        Self {
-            gas_limit,
-            from,
-            to,
-            pre_pay,
-            after_pay,
-            nonce,
-        }
+        Self { gas_limit, from, to, pre_pay, after_pay, nonce }
     }
 
     #[inline]
@@ -118,10 +112,7 @@ pub struct PreconfCondition {
 impl PreconfCondition {
     #[allow(dead_code)]
     pub fn new(ordering_meta_data: OrderingMetaData, slot: u64) -> Self {
-        Self {
-            ordering_meta_data,
-            slot,
-        }
+        Self { ordering_meta_data, slot }
     }
 
     #[inline]
@@ -178,12 +169,7 @@ mod tests {
 
     #[test]
     fn test_preconf_condition_hash() {
-        let condition = PreconfCondition::new(
-            super::OrderingMetaData {
-                index: U256::from(0),
-            },
-            0,
-        );
+        let condition = PreconfCondition::new(super::OrderingMetaData { index: U256::from(0) }, 0);
         let h = condition.preconf_condition_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),

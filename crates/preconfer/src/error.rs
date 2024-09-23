@@ -43,14 +43,7 @@ impl IntoResponse for RpcError {
     fn into_response(self) -> Response {
         let message = self.to_string();
         let code = StatusCode::BAD_REQUEST;
-        (
-            code,
-            Json(ErrorMessage {
-                code: code.as_u16(),
-                message,
-            }),
-        )
-            .into_response()
+        (code, Json(ErrorMessage { code: code.as_u16(), message })).into_response()
     }
 }
 

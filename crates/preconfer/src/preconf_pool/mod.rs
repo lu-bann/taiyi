@@ -16,10 +16,7 @@ pub struct PreconfPool {
 
 impl PreconfPool {
     pub fn new() -> Self {
-        Self {
-            orderpool: OrderPool::new(),
-            prioritized_orderpool: PrioritizedOrderPool::default(),
-        }
+        Self { orderpool: OrderPool::new(), prioritized_orderpool: PrioritizedOrderPool::default() }
     }
 
     pub fn slot_updated(&mut self, new_slot: u64) {
@@ -49,10 +46,7 @@ impl PreconfPool {
         }
 
         // Check if we can accomodate the preconf request
-        if self
-            .orderpool
-            .is_full(preconf_request.preconf_conditions.slot)
-        {
+        if self.orderpool.is_full(preconf_request.preconf_conditions.slot) {
             return Err(OrderPoolError::MaxCommitmentsReachedForSlot(
                 preconf_request.preconf_conditions.slot,
                 MAX_COMMITMENTS_PER_SLOT,
@@ -60,9 +54,7 @@ impl PreconfPool {
         }
 
         // Check if pool gas limit is reached
-        if self
-            .orderpool
-            .commited_gas(preconf_request.preconf_conditions.slot)
+        if self.orderpool.commited_gas(preconf_request.preconf_conditions.slot)
             + preconf_request.tip_tx.gas_limit.to::<u64>()
             > MAX_GAS_PER_SLOT
         {
@@ -82,11 +74,12 @@ impl PreconfPool {
 
 #[cfg(test)]
 mod tests {
-    use super::PreconfPool;
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{U256, U64};
     use alloy_rpc_client::ClientBuilder;
     use luban_primitives::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
+
+    use super::PreconfPool;
 
     #[tokio::test]
     async fn test_prevalidate_req() {
@@ -120,9 +113,7 @@ mod tests {
         assert!(preconf_pool.prevalidate_req(1, &preconf_request).is_ok());
 
         // Add the same preconf request again
-        preconf_pool
-            .orderpool
-            .insert(preconf_request.hash(U256::from(1)), preconf_request.clone());
+        preconf_pool.orderpool.insert(preconf_request.hash(U256::from(1)), preconf_request.clone());
         assert!(preconf_pool.prevalidate_req(1, &preconf_request).is_err());
 
         // Add a preconf request with slot less than current slot

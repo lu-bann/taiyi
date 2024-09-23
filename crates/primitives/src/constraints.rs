@@ -69,24 +69,16 @@ impl TryFrom<Vec<PreconfRequest>> for ConstraintsMessage {
                 if preconf_request.preconf_conditions.slot != slot {
                     Err("Slot mismatch".to_string())
                 } else {
-                    preconf_request
-                        .preconf_tx
-                        .ok_or("No preconf tx".to_string())
-                        .map(|tx| {
-                            let re: &[u8] = tx.as_ref();
-                            vec![Constraint {
-                                tx: re.try_into().expect("tx"),
-                            }]
+                    preconf_request.preconf_tx.ok_or("No preconf tx".to_string()).map(|tx| {
+                        let re: &[u8] = tx.as_ref();
+                        vec![Constraint { tx: re.try_into().expect("tx") }]
                             .try_into()
                             .expect("constraint")
-                        })
+                    })
                 }
             })
             .collect::<Result<Vec<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>>, String>>()?;
-        Ok(Self {
-            slot,
-            constraints: constraints.try_into().expect("constraints"),
-        })
+        Ok(Self { slot, constraints: constraints.try_into().expect("constraints") })
     }
 }
 

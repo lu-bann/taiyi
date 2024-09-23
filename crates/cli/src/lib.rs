@@ -1,10 +1,10 @@
 mod commands;
 
 use clap::{Parser, Subcommand};
-
-use commands::luban_escrow_deposit::LubanEscrowDepositCommand;
-use commands::luban_stake::LubanStakeCommand;
-use commands::preconfer::PreconferCommand;
+use commands::{
+    luban_escrow_deposit::LubanEscrowDepositCommand, luban_stake::LubanStakeCommand,
+    preconfer::PreconferCommand,
+};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "luban", long_about = None)]

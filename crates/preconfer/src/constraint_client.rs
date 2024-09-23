@@ -18,10 +18,7 @@ impl ConstraintClient {
 
         let client = reqwest::Client::builder().build()?;
 
-        Ok(Self {
-            url: url.into(),
-            client,
-        })
+        Ok(Self { url: url.into(), client })
     }
 
     pub async fn send_set_constraints(

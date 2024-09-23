@@ -54,10 +54,7 @@ pub async fn spawn_service(
         event_publiher: maybe_publiher,
     };
 
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .on_builtin(&rpc_url)
-        .await?;
+    let provider = ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
     let chain_id = provider.get_chain_id().await?;
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, 0, Vec::new());
@@ -66,25 +63,11 @@ pub async fn spawn_service(
     let mut signer_client = SignerClient::new(signer_mod_url, U256::from(chain_id), signer_mod_jwt);
 
     let constraint_client = ConstraintClient::new(
-        cb_config
-            .relays
-            .first()
-            .cloned()
-            .expect("at least one relay")
-            .entry
-            .url
-            .to_string(),
+        cb_config.relays.first().cloned().expect("at least one relay").entry.url.to_string(),
     )?;
-    let pubkeys = signer_client
-        .get_pubkeys()
-        .await
-        .expect("pubkeys should be received.");
-    let pubkeys_dup: Vec<BlsPublicKey> = pubkeys
-        .consensus
-        .clone()
-        .into_iter()
-        .map(|pk| pk.into())
-        .collect();
+    let pubkeys = signer_client.get_pubkeys().await.expect("pubkeys should be received.");
+    let pubkeys_dup: Vec<BlsPublicKey> =
+        pubkeys.consensus.clone().into_iter().map(|pk| pk.into()).collect();
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
@@ -112,13 +95,9 @@ pub async fn spawn_service(
     if pubkeys.proxy_bls.is_empty() {
         info!("Generating proxy keys for preconfer");
         for pubkey in pubkeys.consensus {
-            let proxy_delegation = signer_client
-                .cb_signer_client()
-                .generate_proxy_key_bls(pubkey)
-                .await?;
-            signer_client
-                .proxy_key_map
-                .insert(*pubkey, proxy_delegation.message.proxy.into());
+            let proxy_delegation =
+                signer_client.cb_signer_client().generate_proxy_key_bls(pubkey).await?;
+            signer_client.proxy_key_map.insert(*pubkey, proxy_delegation.message.proxy.into());
         }
     };
 
