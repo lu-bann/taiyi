@@ -5,7 +5,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin", "crates/cli", "crates/preconfer", "crates/primitives", "examples", "tests"]
+members = ["bin/luban", "bin/taiyi-boost", "crates/cli", "crates/preconfer", "crates/primitives", "examples", "tests"]
 resolver = "2"
 
 [workspace.dependencies]
