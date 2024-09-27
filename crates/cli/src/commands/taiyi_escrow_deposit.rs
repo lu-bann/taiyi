@@ -7,7 +7,7 @@ use clap::Parser;
 use tracing::info;
 
 #[derive(Debug, Parser)]
-pub struct LubanEscrowDepositCommand {
+pub struct TaiyiEscrowDepositCommand {
     /// rpc url
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
@@ -16,9 +16,9 @@ pub struct LubanEscrowDepositCommand {
     #[clap(long = "private_key")]
     pub private_key: String,
 
-    /// luban escrow contract address
-    #[clap(long = "luban_escrow_contract_addr")]
-    pub luban_escrow_contract_addr: String,
+    /// taiyi escrow contract address
+    #[clap(long = "taiyi_escrow_contract_addr")]
+    pub taiyi_escrow_contract_addr: String,
 
     #[clap(long = "amount")]
     pub amount: U256,
@@ -26,13 +26,13 @@ pub struct LubanEscrowDepositCommand {
 
 sol! {
     #[sol(rpc)]
-    contract LubanEscrow {
+    contract TaiyiEscrow {
         #[derive(Debug)]
         function deposit() public payable;
     }
 }
 
-impl LubanEscrowDepositCommand {
+impl TaiyiEscrowDepositCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         // Create a wallet from the private key
         let signer: PrivateKeySigner = self.private_key.parse()?;
@@ -44,12 +44,12 @@ impl LubanEscrowDepositCommand {
             .await?;
 
         // Parse contract address
-        let contract_address: Address = self.luban_escrow_contract_addr.parse()?;
+        let contract_address: Address = self.taiyi_escrow_contract_addr.parse()?;
         // Create contract instance
-        let luban_escrow = LubanEscrow::new(contract_address, provider.clone());
+        let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
 
         // Call deposit function
-        let tx = luban_escrow.deposit().value(self.amount).into_transaction_request();
+        let tx = taiyi_escrow.deposit().value(self.amount).into_transaction_request();
 
         let pending_tx = provider.send_transaction(tx).await?;
 

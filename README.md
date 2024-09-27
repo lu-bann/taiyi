@@ -27,7 +27,7 @@ Start signer-module:
 ```bash
 SIGNER_SERVER=8000  \
     CB_CONFIG=./debug/config.example.toml \
-    CB_JWTS="{\"luban\":\"8d1b71df48ff1971e714156b2aafcac8fc5ea02c6770adc3954557d978ba3439\"}" \
+    CB_JWTS="{\"taiyi\":\"8d1b71df48ff1971e714156b2aafcac8fc5ea02c6770adc3954557d978ba3439\"}" \
     SIGNER_LOADER_DIR_KEYS=/path/to/validator-keys/keys \
     SIGNER_LOADER_DIR_SECRETS=/path/to/validator-keys/secrets \
     ./target/debug/signer-module
@@ -39,10 +39,10 @@ Once you have your signer-module , cl and el ready, to start running the preconf
 ```
 cargo run -- preconfer --rpc_url EL_RPC_URL \
     --beacon_rpc_url CL_RPC_URL \
-    --luban_escrow_contract_addr 0xad4Ce1d2CdBdb84222D519a1FBc8cc181ba28e07 # helder contract \
-    --luban_core_contract_addr 0xb01F002F3b21E1e0E81c3023C85aCd02035abCE8 # helder contract \ 
-    --luban_proposer_registry_contract_addr 0x7B7f8371f8bC3e0f148BCeD3a54F89432a0Da5AE # helder contract \ 
+    --taiyi_escrow_contract_addr 0xad4Ce1d2CdBdb84222D519a1FBc8cc181ba28e07 # helder contract \
+    --taiyi_core_contract_addr 0xb01F002F3b21E1e0E81c3023C85aCd02035abCE8 # helder contract \ 
+    --taiyi_proposer_registry_contract_addr 0x7B7f8371f8bC3e0f148BCeD3a54F89432a0Da5AE # helder contract \ 
     --commit-boost-url http://127.0.0.1:8000 \
-    --commit-boost-id luban \
+    --commit-boost-id taiyi \
     --commit-boost-jwt 8d1b71df48ff1971e714156b2aafcac8fc5ea02c6770adc3954557d978ba3439
 ```

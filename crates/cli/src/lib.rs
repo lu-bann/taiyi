@@ -2,12 +2,12 @@ mod commands;
 
 use clap::{Parser, Subcommand};
 use commands::{
-    luban_escrow_deposit::LubanEscrowDepositCommand, luban_stake::LubanStakeCommand,
-    preconfer::PreconferCommand,
+    preconfer::PreconferCommand, taiyi_escrow_deposit::TaiyiEscrowDepositCommand,
+    taiyi_stake::TaiyiStakeCommand,
 };
 
 #[derive(Debug, Parser)]
-#[command(author, version, about = "luban", long_about = None)]
+#[command(author, version, about = "taiyi", long_about = None)]
 pub struct Cli {
     /// The command to execute
     #[clap(subcommand)]
@@ -19,10 +19,10 @@ pub struct Cli {
 pub enum Commands {
     #[command(name = "preconfer")]
     Preconfer(PreconferCommand),
-    #[command(name = "luban-stake")]
-    LubanStake(LubanStakeCommand),
-    #[command(name = "luban-escrow-deposit")]
-    LubanEscrowDeposit(LubanEscrowDepositCommand),
+    #[command(name = "taiyi-stake")]
+    TaiyiStake(TaiyiStakeCommand),
+    #[command(name = "taiyi-escrow-deposit")]
+    TaiyiEscrowDeposit(TaiyiEscrowDepositCommand),
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -38,11 +38,11 @@ pub fn run() -> eyre::Result<()> {
             });
             Ok(())
         }
-        Commands::LubanStake(luban_stake) => {
-            runtime.block_on(async { luban_stake.execute().await })
+        Commands::TaiyiStake(taiyi_stake) => {
+            runtime.block_on(async { taiyi_stake.execute().await })
         }
-        Commands::LubanEscrowDeposit(luban_escrow_deposit) => {
-            runtime.block_on(async { luban_escrow_deposit.execute().await })
+        Commands::TaiyiEscrowDeposit(taiyi_escrow_deposit) => {
+            runtime.block_on(async { taiyi_escrow_deposit.execute().await })
         }
     }
 }

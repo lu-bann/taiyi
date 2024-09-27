@@ -10,11 +10,11 @@ use axum::{
     Json, Router,
 };
 use cb_pbs::{BuilderApi, PbsState};
-use luban_primitives::{
+use serde::{Deserialize, Serialize};
+use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::{error::RpcError, preconf_api::PreconfState, pricer::PreconfPricer};
 

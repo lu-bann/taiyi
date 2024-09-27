@@ -2,9 +2,9 @@ pub mod orderpool;
 pub mod prioritized_orderpool;
 
 use alloy_primitives::U256;
-use luban_primitives::{PreconfHash, PreconfRequest};
 use orderpool::{OrderPool, MAX_GAS_PER_SLOT};
 use prioritized_orderpool::PrioritizedOrderPool;
+use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::{error::OrderPoolError, preconf_api::state::MAX_COMMITMENTS_PER_SLOT};
 
@@ -77,7 +77,7 @@ mod tests {
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{U256, U64};
     use alloy_rpc_client::ClientBuilder;
-    use luban_primitives::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
+    use taiyi_primitives::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
 
     use super::PreconfPool;
 

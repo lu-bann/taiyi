@@ -1,13 +1,13 @@
 [package]
-name = "luban"
+name = "taiyi"
 version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-luban-cli = { workspace = true }
+taiyi-cli = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [[bin]]
-name = "luban"
+name = "taiyi"
 path = "src/main.rs"

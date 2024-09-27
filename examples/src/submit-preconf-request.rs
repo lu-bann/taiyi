@@ -1,11 +1,11 @@
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
-use luban_primitives::{
-    AvailableSlotResponse, OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction,
-};
 use reth_primitives::{
     Transaction, TransactionKind, TransactionSigned, TransactionSignedEcRecovered, TxEip1559, U256,
+};
+use taiyi_primitives::{
+    AvailableSlotResponse, OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction,
 };
 
 #[tokio::main]

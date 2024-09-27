@@ -32,17 +32,17 @@ pub trait PreconfPricer {
 }
 
 #[derive(Debug, Clone)]
-pub struct LubanFeePricer {
+pub struct TaiyiFeePricer {
     url: String,
 }
 
-impl LubanFeePricer {
+impl TaiyiFeePricer {
     pub fn new(url: String) -> Self {
         Self { url }
     }
 }
 
-impl PreconfPricer for LubanFeePricer {
+impl PreconfPricer for TaiyiFeePricer {
     async fn get_optimal_base_gas_fee(&self) -> eyre::Result<u128, PricerError> {
         let response = reqwest::get(self.url.clone()).await?;
         let body = response.bytes().await?;
@@ -91,12 +91,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::pricer::{LubanFeePricer, PreconfPricer};
+    use crate::pricer::{PreconfPricer, TaiyiFeePricer};
 
     #[tokio::test]
     #[ignore = "need local infra"]
     async fn test_get_optimal_base_gas_fee() -> eyre::Result<()> {
-        let fetcher = LubanFeePricer::new("http://127.0.0.1:3000/base-fee".to_string());
+        let fetcher = TaiyiFeePricer::new("http://127.0.0.1:3000/base-fee".to_string());
         let res = fetcher.get_optimal_base_gas_fee().await?;
         assert_eq!(res, 0);
         Ok(())
