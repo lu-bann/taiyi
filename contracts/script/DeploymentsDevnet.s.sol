@@ -13,11 +13,9 @@ contract DeployDevnet is Script, Test {
         vm.startBroadcast();
 
         // 	0x83c8c0B395850bA55c830451Cfaca4F2A667a983 is just dummy address for testing
-        LubanCore lubanCore = new LubanCore(msg.sender, 0x83c8c0B395850bA55c830451Cfaca4F2A667a983, bytes32(0));
+        LubanCore lubanCore = new LubanCore(msg.sender, 1_606_824_023);
 
         emit log_address(address(lubanCore));
-        LubanEscrow lubanEscrow = new LubanEscrow(address(lubanCore));
-        emit log_address(address(lubanEscrow));
 
         ProposerRegistry lubanProposerRegistry = new ProposerRegistry();
         emit log_address(address(lubanProposerRegistry));

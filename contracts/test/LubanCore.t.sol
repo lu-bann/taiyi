@@ -5,145 +5,175 @@ import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
 import { LubanEscrow } from "../src/LubanEscrow.sol";
 import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
+import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/PreconfRequest.sol";
+import { PreconfRequestLib } from "../src/interfaces/PreconfRequestLib.sol";
+import { Helper } from "../src/Helper.sol";
+import { PreconfRequestStatus } from "../src/interfaces/PreconfRequest.sol";
 
 contract LubanCoreTest is Test {
+    using PreconfRequestLib for *;
+    using Helper for bytes;
+
     LubanCore public lubanCore;
-    LubanEscrow public lubanEscrow;
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
-    uint256 internal preconferPrivatekey;
+    uint256 internal bobPrivatekey;
+
+    uint256 internal constant genesisTimestamp = 1_606_824_023;
 
     address user;
     address owner;
-    address preconfer;
+    address bob;
 
     event Exhausted(address indexed preconfer, uint256 amount);
 
     function setUp() public {
         userPrivatekey = 0x5678;
         ownerPrivatekey = 0x69420;
-        preconferPrivatekey = 0x0001;
-        uint256 randomPrivate = 0x4321;
+        bobPrivatekey = 0x1337;
 
         user = vm.addr(userPrivatekey);
         owner = vm.addr(ownerPrivatekey);
-        preconfer = vm.addr(preconferPrivatekey);
-        address dummyAxiomV2Query = vm.addr(randomPrivate);
+        bob = vm.addr(bobPrivatekey);
 
+        console.log("User address:", user);
+        console.log("Owner address:", owner);
+        console.log("bob address:", bob);
         vm.deal(user, 100 ether);
-        vm.deal(preconfer, 100 ether);
+        vm.deal(owner, 100 ether);
 
-        lubanCore = new LubanCore(owner, dummyAxiomV2Query, bytes32(0));
-        lubanEscrow = lubanCore.getLubanEscrow();
+        vm.warp(genesisTimestamp);
+        lubanCore = new LubanCore(owner, genesisTimestamp);
     }
 
-    function testPaymentAndEventEmissionGasCost() public {
-        uint256 gasLimit = 60_000;
+    function fullfillPreconfRequest(
+        TipTx memory tipTx,
+        PreconfTx memory preconfTx
+    )
+        internal
+        returns (PreconfRequest memory)
+    {
+        bytes32 txHash = tipTx.getTipTxHash();
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
+        bytes memory tipTxSig = abi.encodePacked(r, s, v);
 
-        vm.prank(address(this));
-        uint256 gasCost = lubanCore.gasBurner(gasLimit);
-        assertLt(gasCost, gasLimit, "Gas cost should be less than the gas limit");
+        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
+        (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);
+        bytes memory preconfTxSig = abi.encodePacked(r, s, v);
+        preconfTx.signature = preconfTxSig;
+
+        (v, r, s) = vm.sign(ownerPrivatekey, tipTxSig.hashSignature());
+        bytes memory preconferSignature = abi.encodePacked(r, s, v);
+        PreconfRequest memory preconfReq = PreconfRequest({
+            tipTx: tipTx,
+            preconfTx: preconfTx,
+            tipTxSignature: tipTxSig,
+            preconferSignature: preconferSignature,
+            preconfReqSignature: ""
+        });
+
+        bytes32 preconfReqHash = preconfReq.getPreconfRequestHash();
+        (v, r, s) = vm.sign(ownerPrivatekey, preconfReqHash);
+        bytes memory preconfReqSig = abi.encodePacked(r, s, v);
+        preconfReq.preconfReqSignature = preconfReqSig;
+        return preconfReq;
+    }
+
+    function testNormalWorkflow() public {
+        uint256 target_slot = 10;
+        TipTx memory tipTx = TipTx({
+            gasLimit: 100_000,
+            from: user,
+            to: owner,
+            prePay: 1 ether,
+            afterPay: 2 ether,
+            nonce: 0,
+            target_slot: target_slot
+        });
+
+        PreconfTx memory preconfTx = PreconfTx({
+            from: user,
+            to: bob,
+            value: 1 ether,
+            callData: "",
+            callGasLimit: 100_000,
+            nonce: 0,
+            signature: ""
+        });
+
+        PreconfRequest memory preconfReq = fullfillPreconfRequest(tipTx, preconfTx);
+        bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
+        vm.prank(user);
+        lubanCore.deposit{ value: 4 ether }();
+
+        uint256 balances = lubanCore.balanceOf(user);
+        console.log("User balance:", balances);
+        vm.warp(genesisTimestamp + 12 * target_slot);
+
+        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.NonInitiated));
+
+        vm.prank(owner);
+        lubanCore.settleRequest(preconfReq);
+        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.Executed));
+
+        uint256 bobBalance = bob.balance;
+        assertEq(bobBalance, 1 ether);
+
+        uint256 collectedTip = lubanCore.getCollectedTip();
+        assertEq(collectedTip, 0);
+
+        lubanCore.collectTip(preconfRequestHash);
+        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.Collected));
+        collectedTip = lubanCore.getCollectedTip();
+        assertEq(collectedTip, 3 ether);
     }
 
     function testExhaustFunction() public {
-        ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
-            gasLimit: 60_000,
+        uint256 target_slot = 10;
+        TipTx memory tipTx = TipTx({
+            gasLimit: 100_000,
             from: user,
-            to: preconfer,
+            to: owner,
             prePay: 1 ether,
             afterPay: 2 ether,
-            nonce: 0
+            nonce: 0,
+            target_slot: 10
         });
-
-        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
-            blockNumber: 10
-        });
-
-        bytes32 txHash = lubanCore.getTipTxHash(tipTx);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
-        bytes memory userSignature = abi.encodePacked(r, s, v);
-
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
-        bytes memory preconferSignature = abi.encodePacked(r, s, v);
-
-        vm.prank(owner);
-        lubanCore.registerPreconfer(preconfer);
-
-        vm.prank(user);
-        lubanEscrow.deposit{ value: 9 ether }();
-
-        vm.prank(preconfer);
-        lubanCore.exhaust(tipTx, preconfConditions, userSignature, preconferSignature);
-
-        assertEq(address(lubanCore).balance, 1 ether);
-        assertEq(
-            lubanCore.preconferTips(preconfer, bytes32(preconferSignature)),
-            1 ether,
-            "Preconfer balance should be 1 ether after exhaust"
-        );
-    }
-
-    function testSettleRequestFunction() public {
-        ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
-            gasLimit: 60_000,
+        PreconfTx memory preconfTx = PreconfTx({
             from: user,
-            to: preconfer,
-            prePay: 1 ether,
-            afterPay: 2 ether,
-            nonce: 0
+            to: bob,
+            value: 1 ether,
+            callData: "",
+            callGasLimit: 100_000,
+            nonce: 0,
+            signature: ""
         });
-
-        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
-            blockNumber: 10
-        });
-
-        bytes32 tipTxAndPreconfConditionsHash = lubanCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, tipTxAndPreconfConditionsHash);
-        bytes memory userSignature = abi.encodePacked(r, s, v);
-
-        bytes32 tipTxHash = lubanCore.getTipTxHash(tipTx);
-        (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
-        bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
-
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
-        bytes memory preconferSignature = abi.encodePacked(r, s, v);
-
-        ILubanCore.PreconfTx memory preconfTx =
-            ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true });
-        bytes32 preconfTxHash = lubanCore.getPreconfTxHash(preconfTx);
-        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
-        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
-
-        ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
-            tipTx: tipTx,
-            prefConditions: preconfConditions,
-            preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 1 ether, callData: "", ethTransfer: true }),
-            tipTxSignature: tipTxUserSignature,
-            initSignature: userSignature,
-            preconferSignature: preconferSignature,
-            preconfTxSignature: preconfTxSignature
-        });
-
-        vm.prank(owner);
-        lubanCore.registerPreconfer(preconfer);
+        PreconfRequest memory preconfReq = fullfillPreconfRequest(tipTx, preconfTx);
+        bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
 
         vm.prank(user);
-        lubanEscrow.deposit{ value: 9 ether }();
+        lubanCore.deposit{ value: 9 ether }();
 
-        vm.roll(10);
-        vm.prank(preconfer);
-        lubanCore.settleRequest{ value: preconfReq.preconfTx.value }(preconfReq);
+        // Check balance before exhaust
+        uint256 balanceBefore = lubanCore.balanceOf(user);
+        assertEq(balanceBefore, 9 ether);
 
-        assertEq(address(lubanCore).balance, 3 ether);
-        assertEq(
-            lubanCore.preconferTips(preconfer, bytes32(preconferSignature)),
-            3 ether,
-            "Preconfer balance should be 1 ether after exhaust"
-        );
+        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.NonInitiated));
+
+        vm.prank(owner);
+        lubanCore.exhaust(preconfReq);
+        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.Exhausted));
+
+        lubanCore.collectTip(preconfRequestHash);
+        uint256 collectedTip = lubanCore.getCollectedTip();
+        assertEq(collectedTip, 1 ether);
+        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(PreconfRequestStatus.Collected));
     }
 }

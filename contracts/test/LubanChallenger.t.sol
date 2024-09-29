@@ -2,7 +2,6 @@
 pragma solidity ^0.8.5;
 
 import "@axiom-crypto/axiom-std/AxiomTest.sol";
-import { AverageBalance } from "@axiom-crypto/axiom-std/../test/example/AverageBalance.sol";
 
 contract LubanChallengerTest is AxiomTest {
     using Axiom for Query;
@@ -14,7 +13,6 @@ contract LubanChallengerTest is AxiomTest {
 
     // LubanChallenger public LubanChallenger; // unused
     AxiomInput public input;
-    AverageBalance averageBalance;
     bytes32 public querySchema;
 
     function setUp() public {
