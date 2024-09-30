@@ -163,7 +163,7 @@ mod tests {
         let h = tx.tip_tx_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "4ab6b3fdf276cc7aba6ac7de4ca4a737fac1ba57f4f473cd6268dc12160489d9"
+            "ba1fb42f1cb980c90b7db56e0e0d8f2645390e14385c6659e7085d32ec36eed9"
         )
     }
 
@@ -173,7 +173,7 @@ mod tests {
         let h = condition.preconf_condition_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "8985cece305ffa2d87e031ce7304f4678c372228300dc4b981878b447dfb6a59"
+            "3c026982636e294cb0506d712c83ab536260cea9cc6f56d83e8ac79eee4b300e"
         )
     }
 }

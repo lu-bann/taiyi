@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use alloy_primitives::Address;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use luban_preconfer::spawn_service;
+use taiyi_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
@@ -26,21 +26,21 @@ pub struct PreconferCommand {
     #[clap(long = "beacon_rpc_url")]
     pub beacon_rpc_url: String,
 
-    /// luban escrow contract address
-    #[clap(long = "luban_escrow_contract_addr")]
-    pub luban_escrow_contract_addr: String,
+    /// taiyi escrow contract address
+    #[clap(long = "taiyi_escrow_contract_addr")]
+    pub taiyi_escrow_contract_addr: String,
 
-    /// luban core contract address
-    #[clap(long = "luban_core_contract_addr")]
-    pub luban_core_contract_addr: String,
+    /// taiyi core contract address
+    #[clap(long = "taiyi_core_contract_addr")]
+    pub taiyi_core_contract_addr: String,
 
-    /// luban proposer registry contract address
-    #[clap(long = "luban_proposer_registry_contract_addr")]
-    pub luban_proposer_registry_contract_addr: String,
+    /// taiyi proposer registry contract address
+    #[clap(long = "taiyi_proposer_registry_contract_addr")]
+    pub taiyi_proposer_registry_contract_addr: String,
 
-    /// luban service url. Internal usage for luban base fee predict module
+    /// taiyi service url. Internal usage for taiyi base fee predict module
     #[clap(long)]
-    pub luban_service_url: Option<String>,
+    pub taiyi_service_url: Option<String>,
 
     /// commit boost url
     #[clap(long)]
@@ -58,17 +58,17 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
-        let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
-        let luban_proposer_registry_contract_addr: Address =
-            self.luban_proposer_registry_contract_addr.parse()?;
+        let taiyi_escrow_contract_addr: Address = self.taiyi_escrow_contract_addr.parse()?;
+        let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
+        let taiyi_proposer_registry_contract_addr: Address =
+            self.taiyi_proposer_registry_contract_addr.parse()?;
         spawn_service(
-            luban_escrow_contract_addr,
-            luban_core_contract_addr,
-            luban_proposer_registry_contract_addr,
+            taiyi_escrow_contract_addr,
+            taiyi_core_contract_addr,
+            taiyi_proposer_registry_contract_addr,
             self.rpc_url.clone(),
             self.beacon_rpc_url.clone(),
-            self.luban_service_url.clone(),
+            self.taiyi_service_url.clone(),
             self.signer_mod_url.clone(),
             self.signer_mod_jwt.clone(),
             self.commit_boost_config_path.clone(),

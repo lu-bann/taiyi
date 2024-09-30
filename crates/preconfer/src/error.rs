@@ -4,9 +4,9 @@ use axum::{
     Json,
 };
 use cb_common::commit::error::SignerClientError;
-use luban_primitives::PreconfHash;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use taiyi_primitives::PreconfHash;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -27,7 +27,7 @@ pub enum RpcError {
     ValidationError(#[from] ValidationError),
     #[error("Signer client error: {0:?}")]
     SignerClientError(#[from] SignerClientError),
-    #[error("Luban pricer error: {0:?}")]
+    #[error("Taiyi pricer error: {0:?}")]
     PricerError(#[from] PricerError),
     #[error("Escrow Error: {0:?}")]
     EscrowError(String),

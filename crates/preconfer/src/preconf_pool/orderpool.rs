@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use luban_primitives::{PreconfHash, PreconfRequest};
+use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::preconf_api::state::MAX_COMMITMENTS_PER_SLOT;
 

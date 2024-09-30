@@ -1,5 +1,5 @@
 [package]
-name = "luban-examples"
+name = "taiyi-examples"
 version = { workspace = true }
 edition = { workspace = true }
 
@@ -8,16 +8,10 @@ alloy-provider = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 eyre = { workspace = true }
-luban-primitives = { workspace = true }
 reqwest = "0.12"
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v0.2.0-beta.6" }
-secp256k1 = { version = "0.27.0", features = [
-    "global-context",
-    "rand-std",
-    "recovery",
-] }
-serde = "1"
 serde_json = "1"
+taiyi-primitives = { workspace = true }
 tokio = { workspace = true }
 
 [lib]
@@ -27,4 +21,4 @@ name = "submit-preconf-request"
 path = "src/submit-preconf-request.rs"
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["alloy-provider", "alloy-signer", "alloy-signer-local", "eyre", "luban-primitives", "reqwest", "reth-primitives", "secp256k1", "serde", "serde_json", "tokio"]
+normal = ["alloy-provider", "alloy-signer", "alloy-signer-local", "eyre", "taiyi-primitives", "reqwest", "reth-primitives", "secp256k1", "serde", "serde_json", "tokio"]

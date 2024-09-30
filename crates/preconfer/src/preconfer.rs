@@ -3,15 +3,15 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
-use luban_primitives::PreconfRequest;
-use LubanCore::LubanCoreInstance;
-use LubanEscrow::LubanEscrowInstance;
+use taiyi_primitives::PreconfRequest;
+use TaiyiCore::TaiyiCoreInstance;
+use TaiyiEscrow::TaiyiEscrowInstance;
 
 use crate::{error::RpcError, pricer::PreconfPricer};
 
 sol! {
     #[sol(rpc)]
-    contract LubanEscrow {
+    contract TaiyiEscrow {
         #[derive(Debug)]
         function lockBlockOf(address user) public view returns (uint256);
         #[derive(Debug)]
@@ -30,15 +30,15 @@ sol! {
         uint256 nonce;
     }
     #[sol(rpc)]
-    contract LubanCore {
+    contract TaiyiCore {
         #[derive(Debug)]
         function exhaust(TipTx calldata tipTx, bytes calldata userSignature, bytes calldata preconferSignature) external;
     }
 }
 #[derive(Debug, Clone)]
 pub struct Preconfer<T, P, F> {
-    luban_escrow_contract: LubanEscrowInstance<T, P>,
-    pub luban_core_contract: LubanCoreInstance<T, P>,
+    taiyi_escrow_contract: TaiyiEscrowInstance<T, P>,
+    pub taiyi_core_contract: TaiyiCoreInstance<T, P>,
     pricer: F,
 }
 
@@ -50,13 +50,13 @@ where
 {
     pub fn new(
         provider: P,
-        luban_escrow_contract_addr: Address,
-        luban_core_contract_addr: Address,
+        taiyi_escrow_contract_addr: Address,
+        taiyi_core_contract_addr: Address,
         pricer: F,
     ) -> Self {
-        let luban_escrow_contract = LubanEscrow::new(luban_escrow_contract_addr, provider.clone());
-        let luban_core_contract = LubanCoreInstance::new(luban_core_contract_addr, provider);
-        Self { luban_escrow_contract, luban_core_contract, pricer }
+        let taiyi_escrow_contract = TaiyiEscrow::new(taiyi_escrow_contract_addr, provider.clone());
+        let taiyi_core_contract = TaiyiCoreInstance::new(taiyi_core_contract_addr, provider);
+        Self { taiyi_escrow_contract, taiyi_core_contract, pricer }
     }
     // TODO: take priority gas fee into account when calculating the cost
     /// validate whether the address have enough balance lockedon the escrow contract
@@ -65,8 +65,8 @@ where
         address: &Address,
         preconf_request: &PreconfRequest,
     ) -> eyre::Result<(), RpcError> {
-        let balance = self.luban_escrow_contract.balanceOf(*address).call().await?;
-        let lock_block = self.luban_escrow_contract.lockBlockOf(*address).call().await?;
+        let balance = self.taiyi_escrow_contract.balanceOf(*address).call().await?;
+        let lock_block = self.taiyi_escrow_contract.lockBlockOf(*address).call().await?;
         if lock_block._0 != U256::MAX {
             return Err(RpcError::EscrowError(
                 "from address haven't deposit in escrow contract".to_string(),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use luban_primitives::ProposerInfo;
 use parking_lot::RwLock;
+use taiyi_primitives::ProposerInfo;
 
 #[derive(Debug, Clone, Default)]
 pub struct NetworkState {

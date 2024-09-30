@@ -15,12 +15,12 @@ use ethereum_consensus::{
     deneb::{compute_signing_root, Context},
 };
 use futures::StreamExt;
-use luban_primitives::{
+use parking_lot::RwLock;
+use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
     PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
     SignedConstraintsMessage,
 };
-use parking_lot::RwLock;
 use tracing::{error, info};
 
 use crate::{
@@ -283,7 +283,7 @@ where
         // Call exhuast if validate_tx_request fails
         if self.validate_tx_request(&preconf_tx, &preconf_request).await.is_err() {
             self.preconfer
-                .luban_core_contract
+                .taiyi_core_contract
                 .exhaust(
                     TipTx {
                         gasLimit: preconf_request.tip_tx.gas_limit,

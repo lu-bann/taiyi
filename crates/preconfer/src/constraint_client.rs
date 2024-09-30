@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use luban_primitives::SignedConstraintsMessage;
+use taiyi_primitives::SignedConstraintsMessage;
 
 /// Client used by commit modules to request signatures via the Signer API
 #[derive(Debug, Clone)]

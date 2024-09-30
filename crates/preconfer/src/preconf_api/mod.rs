@@ -18,7 +18,7 @@ use crate::{
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     preconfer::Preconfer,
-    pricer::{ExecutionClientFeePricer, LubanFeePricer},
+    pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
     signer_client::SignerClient,
 };
 
@@ -27,12 +27,12 @@ pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    luban_escrow_contract_addr: Address,
-    luban_core_contract_addr: Address,
-    luban_proposer_registry_contract_addr: Address,
+    taiyi_escrow_contract_addr: Address,
+    taiyi_core_contract_addr: Address,
+    taiyi_proposer_registry_contract_addr: Address,
     rpc_url: String,
     beacon_rpc_url: String,
-    luban_service_url: Option<String>,
+    taiyi_service_url: Option<String>,
     signer_mod_url: String,
     signer_mod_jwt: String,
     commit_boost_config_path: String,
@@ -73,7 +73,7 @@ pub async fn spawn_service(
         if let Err(e) = run_cl_process(
             provider_cl,
             beacon_rpc_url,
-            luban_proposer_registry_contract_addr,
+            taiyi_proposer_registry_contract_addr,
             network_state_cl,
             pubkeys_dup,
         )
@@ -102,13 +102,13 @@ pub async fn spawn_service(
     };
 
     info!("preconfer is on chain_id: {:?}", chain_id);
-    match luban_service_url {
+    match taiyi_service_url {
         Some(url) => {
-            let base_fee_fetcher = LubanFeePricer::new(url.to_string());
+            let base_fee_fetcher = TaiyiFeePricer::new(url.to_string());
             let validator = Preconfer::new(
                 provider,
-                luban_escrow_contract_addr,
-                luban_core_contract_addr,
+                taiyi_escrow_contract_addr,
+                taiyi_core_contract_addr,
                 base_fee_fetcher,
             );
             let state = PreconfState::new(
@@ -140,8 +140,8 @@ pub async fn spawn_service(
             let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
             let validator = Preconfer::new(
                 provider,
-                luban_escrow_contract_addr,
-                luban_core_contract_addr,
+                taiyi_escrow_contract_addr,
+                taiyi_core_contract_addr,
                 base_fee_fetcher,
             );
             let state = PreconfState::new(

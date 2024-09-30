@@ -8,11 +8,11 @@ use alloy_sol_types::sol;
 use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
 use futures::TryStreamExt;
-use luban_primitives::ProposerInfo;
 use mev_share_sse::EventClient;
 use reqwest::Url;
+use taiyi_primitives::ProposerInfo;
 use tracing::{debug, info};
-use LubanProposerRegistry::LubanProposerRegistryInstance;
+use TaiyiProposerRegistry::TaiyiProposerRegistryInstance;
 
 use crate::network_state::NetworkState;
 
@@ -27,7 +27,7 @@ sol! {
     }
 
     #[sol(rpc)]
-    contract LubanProposerRegistry {
+    contract TaiyiProposerRegistry {
         #[derive(Debug)]
         function getProposerStatus(bytes calldata blsPubKey) external view returns (ProposerStatus);
     }
@@ -35,7 +35,7 @@ sol! {
 
 pub struct LookaheadFetcher<T, P> {
     client: Client,
-    luban_proposer_registry_contract: LubanProposerRegistryInstance<T, P>,
+    taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
     pubkeys: Vec<BlsPublicKey>,
 }
@@ -48,14 +48,14 @@ where
     pub fn new(
         provider: P,
         beacon_url: String,
-        luban_proposer_registry_contract_addr: Address,
+        taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
         pubkeys: Vec<BlsPublicKey>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
-            luban_proposer_registry_contract: LubanProposerRegistryInstance::new(
-                luban_proposer_registry_contract_addr,
+            taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance::new(
+                taiyi_proposer_registry_contract_addr,
                 provider,
             ),
             network_state,
@@ -98,7 +98,7 @@ where
             if duty.slot > self.network_state.get_current_slot() {
                 let pubkey = duty.public_key.clone();
                 let proposer_status = self
-                    .luban_proposer_registry_contract
+                    .taiyi_proposer_registry_contract
                     .getProposerStatus(Bytes::from(pubkey.deref().to_vec()))
                     .call()
                     .await?;
@@ -146,7 +146,7 @@ where
 pub async fn run_cl_process<T, P>(
     provider: P,
     beacon_url: String,
-    luban_proposer_registry_contract_addr: Address,
+    taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
     pubkeys: Vec<BlsPublicKey>,
 ) -> eyre::Result<()>
@@ -157,7 +157,7 @@ where
     let mut lookahead_fetcher = LookaheadFetcher::new(
         provider,
         beacon_url,
-        luban_proposer_registry_contract_addr,
+        taiyi_proposer_registry_contract_addr,
         network_state,
         pubkeys,
     );

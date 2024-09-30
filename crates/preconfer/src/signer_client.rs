@@ -10,7 +10,7 @@ use cb_common::{
     },
     signer::BlsPublicKey as CBBlsPublicKey,
 };
-use luban_primitives::PreconfRequest;
+use taiyi_primitives::PreconfRequest;
 
 #[derive(Debug, Clone)]
 pub struct SignerClient {

@@ -10,10 +10,10 @@ use clap::Parser;
 use eth2_keystore::keypair_from_secret;
 use eth2_wallet::recover_validator_secret_from_mnemonic;
 use tracing::info;
-use LubanProposerRegistry::LubanProposerRegistryInstance;
+use TaiyiProposerRegistry::TaiyiProposerRegistryInstance;
 
 #[derive(Debug, Parser)]
-pub struct LubanStakeCommand {
+pub struct TaiyiStakeCommand {
     /// rpc url
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
@@ -22,9 +22,9 @@ pub struct LubanStakeCommand {
     #[clap(long = "validator_phrase")]
     pub validator_phrase: String,
 
-    /// luban proposer registry contract address
-    #[clap(long = "luban_proposer_registry_contract_addr")]
-    pub luban_proposer_registry_contract_addr: String,
+    /// taiyi proposer registry contract address
+    #[clap(long = "taiyi_proposer_registry_contract_addr")]
+    pub taiyi_proposer_registry_contract_addr: String,
 
     /// funded key to send ether to validator
     #[clap(long = "funded_private_key")]
@@ -41,13 +41,13 @@ pub struct LubanStakeCommand {
 
 sol! {
     #[sol(rpc)]
-    contract LubanProposerRegistry {
+    contract TaiyiProposerRegistry {
         #[derive(Debug)]
         function optIn(bytes calldata _blsPubKey) external payable;
     }
 }
 
-impl LubanStakeCommand {
+impl TaiyiStakeCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let key_bytes = hex::decode(self.funded_private_key.clone())?;
         let from_signer = LocalSigner::from_signing_key(SigningKey::from_slice(&key_bytes)?);
@@ -65,9 +65,9 @@ impl LubanStakeCommand {
             .wallet(wallet)
             .on_builtin(&self.rpc_url)
             .await?;
-        let luban_proposer_address: Address = self.luban_proposer_registry_contract_addr.parse()?;
-        let luban_proposer_registry =
-            LubanProposerRegistryInstance::new(luban_proposer_address, provider.clone());
+        let taiyi_proposer_address: Address = self.taiyi_proposer_registry_contract_addr.parse()?;
+        let taiyi_proposer_registry =
+            TaiyiProposerRegistryInstance::new(taiyi_proposer_address, provider.clone());
         for index in self.min_index..self.max_index {
             info!("OptIn Validator with index: {}", index);
             let validator_signer = MnemonicBuilder::<English>::default()
@@ -102,7 +102,7 @@ impl LubanStakeCommand {
             .expect("recover validator secret failed");
             let keypair = keypair_from_secret(wallet.as_bytes()).expect("keypair not good");
             let bls_pub_key = Bytes::from(keypair.pk.serialize());
-            let tx = luban_proposer_registry.optIn(bls_pub_key).into_transaction_request();
+            let tx = taiyi_proposer_registry.optIn(bls_pub_key).into_transaction_request();
             let tx =
                 tx.value(U256::from(32000000000000000000u128)).from(validator_signer.address());
             let res = provider.send_transaction(tx).await?;

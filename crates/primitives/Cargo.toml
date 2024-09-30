@@ -1,5 +1,5 @@
 [package]
-name = "luban-primitives"
+name = "taiyi-primitives"
 version = { workspace = true }
 edition = { workspace = true }
 
@@ -12,7 +12,6 @@ alloy-sol-types = { workspace = true }
 beacon-api-client = { workspace = true }
 ethereum-consensus = { workspace = true }
 serde = { workspace = true }
-serde_json ={ workspace = true }
 ssz_rs = { workspace = true }
 
 [lib]
