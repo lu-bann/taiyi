@@ -37,7 +37,7 @@ pub struct LookaheadFetcher<T, P> {
     client: Client,
     taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
-    pubkeys: Vec<BlsPublicKey>,
+    validator_pubkeys: Vec<BlsPublicKey>,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -50,7 +50,7 @@ where
         beacon_url: String,
         taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
-        pubkeys: Vec<BlsPublicKey>,
+        validator_pubkeys: Vec<BlsPublicKey>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
@@ -59,7 +59,7 @@ where
                 provider,
             ),
             network_state,
-            pubkeys,
+            validator_pubkeys,
         }
     }
 
@@ -85,7 +85,7 @@ where
         let duties = all_duties
             .into_iter()
             .filter(|duty| {
-                self.pubkeys.iter().any(|pubkey| {
+                self.validator_pubkeys.iter().any(|pubkey| {
                     let pub_ref: &[u8] = pubkey.as_ref();
                     let p_ref: &[u8] = duty.public_key.deref();
                     pub_ref == p_ref
@@ -148,7 +148,6 @@ pub async fn run_cl_process<T, P>(
     beacon_url: String,
     taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
-    pubkeys: Vec<BlsPublicKey>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -159,7 +158,7 @@ where
         beacon_url,
         taiyi_proposer_registry_contract_addr,
         network_state,
-        pubkeys,
+        Vec::new(),
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;

@@ -3,7 +3,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use cb_common::commit::error::SignerClientError;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfHash;
@@ -25,8 +24,6 @@ pub enum RpcError {
     ProposerError(#[from] ProposerError),
     #[error("Validation error: {0:?}")]
     ValidationError(#[from] ValidationError),
-    #[error("Signer client error: {0:?}")]
-    SignerClientError(#[from] SignerClientError),
     #[error("Taiyi pricer error: {0:?}")]
     PricerError(#[from] PricerError),
     #[error("Escrow Error: {0:?}")]

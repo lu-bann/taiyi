@@ -1,10 +1,7 @@
 mod commands;
 
 use clap::{Parser, Subcommand};
-use commands::{
-    preconfer::PreconferCommand, taiyi_escrow_deposit::TaiyiEscrowDepositCommand,
-    taiyi_stake::TaiyiStakeCommand,
-};
+use commands::preconfer::PreconferCommand;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi", long_about = None)]
@@ -19,10 +16,6 @@ pub struct Cli {
 pub enum Commands {
     #[command(name = "preconfer")]
     Preconfer(PreconferCommand),
-    #[command(name = "taiyi-stake")]
-    TaiyiStake(TaiyiStakeCommand),
-    #[command(name = "taiyi-escrow-deposit")]
-    TaiyiEscrowDeposit(TaiyiEscrowDepositCommand),
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -37,12 +30,6 @@ pub fn run() -> eyre::Result<()> {
                 preconfer.execute().await.expect("preconfer run");
             });
             Ok(())
-        }
-        Commands::TaiyiStake(taiyi_stake) => {
-            runtime.block_on(async { taiyi_stake.execute().await })
-        }
-        Commands::TaiyiEscrowDeposit(taiyi_escrow_deposit) => {
-            runtime.block_on(async { taiyi_escrow_deposit.execute().await })
         }
     }
 }

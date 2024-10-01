@@ -23,3 +23,4 @@ taiyi-preconfer = { workspace = true }
 tiny-bip39 = "1"
 tokio = { workspace = true }
 tracing = { workspace = true }
+blst = { workspace = true }
