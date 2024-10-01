@@ -5,7 +5,7 @@ use alloy_network::Ethereum;
 use alloy_primitives::U256;
 use alloy_provider::Provider;
 use alloy_rlp::Encodable;
-use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey, BlsSignature};
+use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
 use alloy_transport::Transport;
 use blst::min_pk::SecretKey;
 use ethereum_consensus::{
@@ -25,7 +25,7 @@ use tracing::{error, info};
 
 use crate::{
     constraint_client::ConstraintClient,
-    error::{OrderPoolError, ProposerError, RpcError, ValidationError},
+    error::{OrderPoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::PreconfPool,
     preconfer::{Preconfer, TipTx},
@@ -165,19 +165,14 @@ where
         }
     }
 
-    // pub async fn sign_init_signature(
-    //     &self,
-    //     preconf_request: &PreconfRequest,
-    // ) -> Result<BlsSignature, RpcError> {
-    //     let domain = compute_builder_domain(&self.context)
-    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    //     let signing_root = compute_signing_root(&preconf_request, domain)
-    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    //     let signature =
-    //         self.preconfer_private_key.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
-    //     let signature = Signature::try_from(signature.as_ref())
-    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    // }
+    pub async fn sign_init_signature(
+        &self,
+        init_signature: &BlsSignature,
+    ) -> Result<BlsSignature, RpcError> {
+        let signature = self.preconfer_private_key.sign(&init_signature.0, BLS_DST_SIG, &[]);
+        BlsSignature::try_from(signature.to_bytes().as_ref())
+            .map_err(|e| RpcError::UnknownError(e.to_string()))
+    }
 
     /// Send a preconf request to the preconfer
     ///
@@ -186,8 +181,10 @@ where
     pub async fn send_preconf_request(
         &self,
         mut preconf_request: PreconfRequest,
-    ) -> Result<(), RpcError> {
+    ) -> Result<PreconfResponse, RpcError> {
         let preconf_hash = self.preconf_pool.read().prevalidate_req(1, &preconf_request)?;
+        let preconfer_signature = self.sign_init_signature(&preconf_request.init_signature).await?;
+        preconf_request.preconfer_signature = preconfer_signature.into();
 
         match self
             .preconfer
@@ -200,7 +197,7 @@ where
 
         self.preconf_pool.write().orderpool.insert(preconf_hash, preconf_request.clone());
 
-        Ok(())
+        Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
 
     pub async fn cancel_preconf_request(

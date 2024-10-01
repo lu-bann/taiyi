@@ -1,11 +1,7 @@
-use std::{
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-};
+use std::net::{IpAddr, SocketAddr};
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types_beacon::BlsPublicKey;
 use api::PreconfApiServer;
 use blst::min_pk::SecretKey;
 use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
@@ -23,6 +19,7 @@ use crate::{
 mod api;
 pub mod state;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
     taiyi_escrow_contract_addr: Address,
     taiyi_core_contract_addr: Address,

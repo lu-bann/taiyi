@@ -56,7 +56,7 @@ impl PreconfApiServer {
 pub async fn handle_preconf_request<T, P, F>(
     State(state): State<PreconfState<T, P, F>>,
     Json(preconf_request): Json<PreconfRequest>,
-) -> Result<impl IntoResponse, RpcError>
+) -> Result<Json<PreconfResponse>, RpcError>
 where
     T: Transport + Clone + Send + Sync + 'static,
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,

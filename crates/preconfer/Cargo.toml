@@ -19,6 +19,7 @@ alloy-transport = { workspace = true }
 
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
+blst = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = "0.3.30"
@@ -32,7 +33,6 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-blst = { workspace = true }
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }

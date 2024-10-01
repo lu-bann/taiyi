@@ -12,6 +12,7 @@ alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
+blst = { workspace = true }
 
 clap = { version = "4.5.4", features = ["derive"] }
 eth2_keystore = { git = "https://github.com/sigp/lighthouse.git", rev = "9e12c21" }
@@ -23,4 +24,3 @@ taiyi-preconfer = { workspace = true }
 tiny-bip39 = "1"
 tokio = { workspace = true }
 tracing = { workspace = true }
-blst = { workspace = true }

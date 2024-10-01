@@ -3,12 +3,12 @@ use std::ops::Deref;
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::Provider;
-use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey};
+use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
 use ethereum_consensus::{
-    primitives::{BlsPublicKey as HelixPublicKey, BlsSignature},
+    primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
 };
 use futures::TryStreamExt;
@@ -48,7 +48,7 @@ pub struct SignedPreconferElection {
 #[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
 pub struct PreconferElection {
     /// Public key of the preconfer proposing for `slot`.
-    preconfer_pubkey: HelixPublicKey,
+    preconfer_pubkey: BlsPublicKey,
     /// Slot this delegation is valid for.
     slot_number: u64,
     /// Chain ID of the chain this election is for.
@@ -61,7 +61,6 @@ pub struct LookaheadFetcher<T, P> {
     client: Client,
     taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
-    validator_pubkeys: Vec<BlsPublicKey>,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -74,7 +73,6 @@ where
         beacon_url: String,
         taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
-        validator_pubkeys: Vec<BlsPublicKey>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
@@ -83,7 +81,6 @@ where
                 provider,
             ),
             network_state,
-            validator_pubkeys,
         }
     }
 
@@ -114,8 +111,8 @@ where
             .json::<Vec<SignedPreconferElection>>()
             .await?;
 
-        // Change this to our preconfer pubkey
-        let preconfer_pubkey = HelixPublicKey::default();
+        // TODO: Change this to our preconfer pubkey
+        let preconfer_pubkey = BlsPublicKey::default();
         let concerned_slots = response
             .into_iter()
             .filter(|signed_preconfer_election| {
@@ -195,7 +192,6 @@ where
         beacon_url,
         taiyi_proposer_registry_contract_addr,
         network_state,
-        Vec::new(),
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;

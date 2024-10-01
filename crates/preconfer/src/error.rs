@@ -64,6 +64,7 @@ pub enum ValidationError {
     Internal(String),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Error)]
 pub enum ProposerError {
     #[error("proxy key not found")]
