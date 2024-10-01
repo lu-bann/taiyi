@@ -3,7 +3,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_network::Ethereum;
 use alloy_primitives::U256;
-use alloy_provider::Provider;
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
 use alloy_transport::Transport;
@@ -177,12 +177,12 @@ where
     /// Send a preconf request to the preconfer
     ///
     /// Stores the preconf request in the Orderpool until the preconf tx is received
-    /// TODO: configure chainid in a better way
     pub async fn send_preconf_request(
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = self.preconf_pool.read().prevalidate_req(1, &preconf_request)?;
+        let chain_id = self.get_chain_id().await?;
+        let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
         let preconfer_signature = self.sign_init_signature(&preconf_request.init_signature).await?;
         preconf_request.preconfer_signature = preconfer_signature.into();
 
@@ -312,7 +312,11 @@ where
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
         if let Some(chainid) = tx.chain_id() {
-            if chainid != 1 {
+            if chainid
+                != self.get_chain_id().await.map_err(|e| {
+                    ValidationError::Internal(format!("Failed to get chain id: {e:?}"))
+                })?
+            {
                 return Err(ValidationError::ChainIdMismatch);
             }
         }
@@ -412,6 +416,15 @@ where
         // }
 
         Ok(())
+    }
+
+    async fn get_chain_id(&self) -> Result<u64, RpcError> {
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_builtin(&self.execution_client_url)
+            .await
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+        provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
     }
 }
 

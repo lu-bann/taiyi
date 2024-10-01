@@ -61,6 +61,7 @@ pub struct LookaheadFetcher<T, P> {
     client: Client,
     taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
+    preconfer_public_key: secp256k1::PublicKey,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -73,6 +74,7 @@ where
         beacon_url: String,
         taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
+        preconfer_public_key: secp256k1::PublicKey,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
@@ -81,6 +83,7 @@ where
                 provider,
             ),
             network_state,
+            preconfer_public_key,
         }
     }
 
@@ -111,8 +114,8 @@ where
             .json::<Vec<SignedPreconferElection>>()
             .await?;
 
-        // TODO: Change this to our preconfer pubkey
-        let preconfer_pubkey = BlsPublicKey::default();
+        let preconfer_pubkey = BlsPublicKey::try_from(&self.preconfer_public_key.serialize()[..])
+            .expect("Invalid public key");
         let concerned_slots = response
             .into_iter()
             .filter(|signed_preconfer_election| {
@@ -182,6 +185,7 @@ pub async fn run_cl_process<T, P>(
     beacon_url: String,
     taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
+    preconfer_public_key: secp256k1::PublicKey,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -192,6 +196,7 @@ where
         beacon_url,
         taiyi_proposer_registry_contract_addr,
         network_state,
+        preconfer_public_key,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;

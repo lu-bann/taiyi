@@ -37,7 +37,7 @@ pub struct PreconferCommand {
     pub beacon_rpc_url: String,
 
     /// luban escrow contract address
-    #[clap(long = "luban_escrow_contract_addr")]
+    #[clap(long = "taiyi_escrow_contract_addr")]
     pub taiyi_escrow_contract_addr: String,
 
     /// taiyi core contract address

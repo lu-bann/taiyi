@@ -27,6 +27,7 @@ mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
 parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 reqwest = "0.12.4"
+secp256k1 = "0.29.1"
 serde = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
