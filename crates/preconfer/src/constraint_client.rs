@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use taiyi_primitives::SignedConstraintsMessage;
 
-/// Client used by commit modules to request signatures via the Signer API
+/// Client used by commit modusfsdfsles to request signatures via the Signer API
 #[derive(Debug, Clone)]
 pub struct ConstraintClient {
     /// Url endpoint of the Signer Module
