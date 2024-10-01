@@ -7,6 +7,10 @@ use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey};
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
+use ethereum_consensus::{
+    primitives::{BlsPublicKey as HelixPublicKey, BlsSignature},
+    ssz::prelude::*,
+};
 use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
@@ -17,6 +21,7 @@ use TaiyiProposerRegistry::TaiyiProposerRegistryInstance;
 use crate::network_state::NetworkState;
 
 const SLOT_PER_EPOCH: u64 = 32;
+pub(crate) const PATH_GET_PRECONFERS: &str = "/preconfers";
 
 sol! {
     #[derive(Debug)]
@@ -31,6 +36,25 @@ sol! {
         #[derive(Debug)]
         function getProposerStatus(bytes calldata blsPubKey) external view returns (ProposerStatus);
     }
+}
+
+#[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
+pub struct SignedPreconferElection {
+    pub message: PreconferElection,
+    /// Signature over `message`. Must be signed by the key relating to: `message.public_key`.
+    pub signature: BlsSignature,
+}
+
+#[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
+pub struct PreconferElection {
+    /// Public key of the preconfer proposing for `slot`.
+    preconfer_pubkey: HelixPublicKey,
+    /// Slot this delegation is valid for.
+    slot_number: u64,
+    /// Chain ID of the chain this election is for.
+    chain_id: u64,
+    // The gas limit specified by the proposer that the preconfer must adhere to.
+    gas_limit: u64,
 }
 
 pub struct LookaheadFetcher<T, P> {
@@ -78,19 +102,32 @@ where
 
         let (_, duties) = self.client.get_proposer_duties(epoch).await?;
         all_duties.extend(duties);
-
         let (_, duties) = self.client.get_proposer_duties(epoch + 1).await?;
         all_duties.extend(duties);
 
+        // fetch validator pubkeys we represent
+        let client = reqwest::Client::new();
+        let response = client
+            .get(format!("{}{PATH_GET_PRECONFERS}", "titan.relay"))
+            .send()
+            .await?
+            .json::<Vec<SignedPreconferElection>>()
+            .await?;
+
+        // Change this to our preconfer pubkey
+        let preconfer_pubkey = HelixPublicKey::default();
+        let concerned_slots = response
+            .into_iter()
+            .filter(|signed_preconfer_election| {
+                let preconfer_election = &signed_preconfer_election.message;
+                preconfer_election.preconfer_pubkey == preconfer_pubkey
+            })
+            .map(|signed_preconfer_election| signed_preconfer_election.message.slot_number)
+            .collect::<Vec<_>>();
+
         let duties = all_duties
             .into_iter()
-            .filter(|duty| {
-                self.validator_pubkeys.iter().any(|pubkey| {
-                    let pub_ref: &[u8] = pubkey.as_ref();
-                    let p_ref: &[u8] = duty.public_key.deref();
-                    pub_ref == p_ref
-                })
-            })
+            .filter(|duty| concerned_slots.contains(&duty.slot))
             .collect::<Vec<_>>();
         let mut proposer_duties: Vec<ProposerInfo> = Vec::new();
 
