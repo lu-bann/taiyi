@@ -64,7 +64,6 @@ async fn main() -> eyre::Result<()> {
             Default::default(),
             U256::from(target_slot),
         ),
-        init_signature: Default::default(),
         tip_tx_signature: Default::default(),
         preconfer_signature: Default::default(),
     };

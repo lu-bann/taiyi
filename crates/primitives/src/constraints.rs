@@ -92,7 +92,6 @@ mod constraints_message_tests {
     fn test_try_from_vec_preconf_request() {
         let preconf_request = PreconfRequest {
             tip_tx: Default::default(),
-            init_signature: Default::default(),
             tip_tx_signature: Default::default(),
             preconfer_signature: Default::default(),
             preconf_tx: Some(vec![1, 2, 3]),

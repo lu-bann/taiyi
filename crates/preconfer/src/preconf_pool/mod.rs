@@ -97,7 +97,6 @@ mod tests {
         };
         let preconf_request = PreconfRequest {
             tip_tx,
-            init_signature: Default::default(),
             tip_tx_signature: Default::default(),
             preconfer_signature: Default::default(),
             preconf_tx: None,

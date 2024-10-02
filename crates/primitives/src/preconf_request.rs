@@ -15,10 +15,9 @@ type Transaction = Vec<u8>;
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
-    pub init_signature: Bytes,
     pub tip_tx_signature: Bytes,
-    pub preconfer_signature: BlsSignature,
     pub preconf_tx: Option<Transaction>,
+    pub preconfer_signature: Option<BlsSignature>,
 }
 
 impl PreconfRequest {
