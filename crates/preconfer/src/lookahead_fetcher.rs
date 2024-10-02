@@ -21,7 +21,7 @@ use TaiyiProposerRegistry::TaiyiProposerRegistryInstance;
 use crate::network_state::NetworkState;
 
 const SLOT_PER_EPOCH: u64 = 32;
-pub(crate) const PATH_GET_PRECONFERS: &str = "/preconfers";
+pub const PATH_GET_PRECONFERS: &str = "/constraints/v1/preconfers";
 
 sol! {
     #[derive(Debug)]
@@ -62,6 +62,7 @@ pub struct LookaheadFetcher<T, P> {
     taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
     preconfer_public_key: secp256k1::PublicKey,
+    relay_url: Vec<String>,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -75,6 +76,7 @@ where
         taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
         preconfer_public_key: secp256k1::PublicKey,
+        relay_url: Vec<String>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
@@ -84,6 +86,7 @@ where
             ),
             network_state,
             preconfer_public_key,
+            relay_url,
         }
     }
 
@@ -108,7 +111,7 @@ where
         // fetch validator pubkeys we represent
         let client = reqwest::Client::new();
         let response = client
-            .get(format!("{}{PATH_GET_PRECONFERS}", "titan.relay"))
+            .get(format!("{}{PATH_GET_PRECONFERS}", self.relay_url.first().expect("relay")))
             .send()
             .await?
             .json::<Vec<SignedPreconferElection>>()
@@ -186,6 +189,7 @@ pub async fn run_cl_process<T, P>(
     taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
     preconfer_public_key: secp256k1::PublicKey,
+    relay_url: Vec<String>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -197,6 +201,7 @@ where
         taiyi_proposer_registry_contract_addr,
         network_state,
         preconfer_public_key,
+        relay_url,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;

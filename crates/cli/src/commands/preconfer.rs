@@ -9,11 +9,11 @@ use taiyi_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
-    #[clap(long = "taiyi_rpc_url", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
+    #[clap(long = "taiyi_rpc_addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
     pub taiyi_rpc_addr: IpAddr,
 
     /// jsonrpc service port to listen on.
-    #[clap(long = "taiyi_rpc_portr", default_value_t = 5656)]
+    #[clap(long = "taiyi_rpc_port", default_value_t = 5656)]
     pub taiyi_rpc_port: u16,
 
     /// execution client rpc url
@@ -33,8 +33,8 @@ pub struct PreconferCommand {
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "beacon_rpc_url")]
-    pub beacon_rpc_url: String,
+    #[clap(long = "relay_url")]
+    pub relay_url: Vec<String>,
 
     /// luban escrow contract address
     #[clap(long = "taiyi_escrow_contract_addr")]
@@ -77,6 +77,7 @@ impl PreconferCommand {
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
             preconfer_private_key,
+            self.relay_url.clone(),
         )
         .await?;
 

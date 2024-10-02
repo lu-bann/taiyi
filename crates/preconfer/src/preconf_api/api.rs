@@ -47,8 +47,17 @@ impl PreconfApiServer {
             .route("/commitments/v1/slots", get(get_slots))
             .with_state(state);
 
-        let listener = TcpListener::bind(&self.addr).await?;
-        axum::serve(listener, app).await?;
+        let listener = match TcpListener::bind(&self.addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Failed to bind to {}: {:?}", self.addr, e);
+                return Err(e.into());
+            }
+        };
+        if let Err(e) = axum::serve(listener, app).await {
+            eprintln!("Server error: {e:?}");
+            return Err(e.into());
+        }
         Ok(())
     }
 }

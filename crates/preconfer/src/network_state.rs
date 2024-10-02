@@ -44,7 +44,7 @@ impl NetworkState {
     }
 
     #[allow(dead_code)]
-    pub fn propser_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
+    pub fn proposer_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
         self.proposers.read().iter().find(|duty| duty.slot == slot).cloned()
     }
 }

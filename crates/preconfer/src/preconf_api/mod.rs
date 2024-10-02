@@ -31,6 +31,7 @@ pub async fn spawn_service(
     preconfer_ip: IpAddr,
     preconfer_port: u16,
     preconfer_private_key: SecretKey,
+    relay_url: Vec<String>,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_client_url).await?;
@@ -51,6 +52,7 @@ pub async fn spawn_service(
             taiyi_proposer_registry_contract_addr,
             network_state_cl,
             preconfer_public_key,
+            relay_url,
         )
         .await
         {
