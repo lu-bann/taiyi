@@ -76,7 +76,7 @@ impl TipTransaction {
 
     #[inline]
     fn typehash() -> B256 {
-        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay, uint256 nonce, uint256 targetSlot)".as_bytes())
+        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)".as_bytes())
     }
 
     #[inline]
