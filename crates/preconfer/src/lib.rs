@@ -7,6 +7,5 @@ mod preconf_pool;
 mod preconfer;
 mod pricer;
 mod rpc_state;
-mod signer_client;
 
 pub use preconf_api::spawn_service;

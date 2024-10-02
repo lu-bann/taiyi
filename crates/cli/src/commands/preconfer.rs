@@ -1,32 +1,42 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use alloy_primitives::Address;
+use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
+use eyre::eyre;
 use taiyi_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
-    #[clap(long = "addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
-    pub addr: IpAddr,
+    #[clap(long = "taiyi_rpc_addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
+    pub taiyi_rpc_addr: IpAddr,
 
     /// jsonrpc service port to listen on.
-    #[clap(long = "port", default_value_t = 5656)]
-    pub port: u16,
+    #[clap(long = "taiyi_rpc_port", default_value_t = 5656)]
+    pub taiyi_rpc_port: u16,
 
     /// execution client rpc url
-    #[clap(long = "rpc_url")]
-    pub rpc_url: String,
+    #[clap(long = "execution_client_url")]
+    pub execution_client_url: String,
+
+    /// consensus client rpc url
+    #[clap(long = "beacon_client_url")]
+    pub beacon_client_url: String,
+
+    /// A BLS private key to use for signing
+    #[clap(long = "private_key")]
+    pub preconfer_private_key: String,
 
     /// network
     #[clap(long = "network")]
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "beacon_rpc_url")]
-    pub beacon_rpc_url: String,
+    #[clap(long = "relay_url")]
+    pub relay_url: Vec<String>,
 
-    /// taiyi escrow contract address
+    /// luban escrow contract address
     #[clap(long = "taiyi_escrow_contract_addr")]
     pub taiyi_escrow_contract_addr: String,
 
@@ -41,17 +51,6 @@ pub struct PreconferCommand {
     /// taiyi service url. Internal usage for taiyi base fee predict module
     #[clap(long)]
     pub taiyi_service_url: Option<String>,
-
-    /// commit boost url
-    #[clap(long)]
-    pub signer_mod_url: String,
-
-    /// commit boost jwt token
-    #[clap(long)]
-    pub signer_mod_jwt: String,
-
-    #[clap(long)]
-    pub commit_boost_config_path: String,
 }
 
 impl PreconferCommand {
@@ -62,17 +61,23 @@ impl PreconferCommand {
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
         let taiyi_proposer_registry_contract_addr: Address =
             self.taiyi_proposer_registry_contract_addr.parse()?;
+        let preconfer_private_key = SecretKey::from_bytes(&hex::decode(
+            self.preconfer_private_key.strip_prefix("0x").unwrap_or(&self.preconfer_private_key),
+        )?)
+        .map_err(|e| eyre!("Failed decoding preconfer private key: {:?}", e))?;
+
         spawn_service(
             taiyi_escrow_contract_addr,
             taiyi_core_contract_addr,
             taiyi_proposer_registry_contract_addr,
-            self.rpc_url.clone(),
-            self.beacon_rpc_url.clone(),
+            self.execution_client_url.clone(),
+            self.beacon_client_url.clone(),
             self.taiyi_service_url.clone(),
-            self.signer_mod_url.clone(),
-            self.signer_mod_jwt.clone(),
-            self.commit_boost_config_path.clone(),
             context,
+            self.taiyi_rpc_addr,
+            self.taiyi_rpc_port,
+            preconfer_private_key,
+            self.relay_url.clone(),
         )
         .await?;
 

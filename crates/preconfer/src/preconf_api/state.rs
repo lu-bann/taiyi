@@ -3,11 +3,11 @@ use std::{future::Future, sync::Arc, time::Duration};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_network::Ethereum;
 use alloy_primitives::U256;
-use alloy_provider::Provider;
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rlp::Encodable;
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
 use alloy_transport::Transport;
-use cb_pbs::BuilderApiState;
+use blst::min_pk::SecretKey;
 use ethereum_consensus::{
     builder::compute_builder_domain,
     clock::{SlotStream, SystemTimeProvider},
@@ -25,13 +25,12 @@ use tracing::{error, info};
 
 use crate::{
     constraint_client::ConstraintClient,
-    error::{OrderPoolError, ProposerError, RpcError, ValidationError},
+    error::{OrderPoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::PreconfPool,
     preconfer::{Preconfer, TipTx},
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
-    signer_client::SignerClient,
 };
 
 pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
@@ -40,21 +39,13 @@ pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    rpc_url: String,
+    execution_client_url: String,
     preconfer: Preconfer<T, P, F>,
-    signer_client: SignerClient,
     constraint_client: ConstraintClient,
     network_state: NetworkState,
     preconf_pool: Arc<RwLock<PreconfPool>>,
     context: Context,
-}
-
-impl<
-        T: Clone + Send + Sync + 'static,
-        P: Clone + Send + Sync + 'static,
-        F: Clone + Send + Sync + 'static,
-    > BuilderApiState for PreconfState<T, P, F>
-{
+    preconfer_private_key: SecretKey,
 }
 
 impl<T, P, F> PreconfState<T, P, F>
@@ -64,30 +55,22 @@ where
     F: PreconfPricer + Send + Sync + 'static,
 {
     pub async fn new(
-        rpc_url: String,
+        execution_client_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
-        signer_client: SignerClient,
         constraint_client: ConstraintClient,
         context: Context,
+        preconfer_private_key: SecretKey,
     ) -> Self {
         Self {
-            rpc_url,
+            execution_client_url,
             preconfer,
-            signer_client,
             constraint_client,
             network_state,
             preconf_pool: Arc::new(RwLock::new(PreconfPool::new())),
             context,
+            preconfer_private_key,
         }
-    }
-
-    fn key_for_slot(&self, slot: u64) -> Result<BlsPublicKey, ProposerError> {
-        Ok(self
-            .network_state
-            .propser_duty_for_slot(slot)
-            .ok_or(ProposerError::ProposerDutyNotFound)?
-            .pubkey)
     }
 
     pub fn constraints(&self) -> Result<ConstraintsMessage, OrderPoolError> {
@@ -102,15 +85,8 @@ where
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
         let signing_root = compute_signing_root(&constraints_message, domain)
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-
-        let consensus_key = self.key_for_slot(constraints_message.slot)?;
-        let proxy_key = self
-            .signer_client
-            .proxy_key_map
-            .get(&consensus_key)
-            .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
-
-        let signature = self.signer_client.sign_message(signing_root.into(), *proxy_key).await?;
+        let signature =
+            self.preconfer_private_key.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
         let signature = Signature::try_from(signature.as_ref())
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
 
@@ -191,15 +167,11 @@ where
 
     pub async fn sign_init_signature(
         &self,
-        preconf_request: &PreconfRequest,
+        init_signature: &BlsSignature,
     ) -> Result<BlsSignature, RpcError> {
-        let consensus_key = self.key_for_slot(preconf_request.preconf_conditions.slot)?;
-        let proxy_key = self
-            .signer_client
-            .proxy_key_map
-            .get(&consensus_key)
-            .ok_or(RpcError::ProposerError(ProposerError::ProxyKeyNotFound))?;
-        Ok(self.signer_client.sign_preconf_request(preconf_request, *proxy_key).await?)
+        let signature = self.preconfer_private_key.sign(&init_signature.0, BLS_DST_SIG, &[]);
+        BlsSignature::try_from(signature.to_bytes().as_ref())
+            .map_err(|e| RpcError::UnknownError(e.to_string()))
     }
 
     /// Send a preconf request to the preconfer
@@ -209,13 +181,11 @@ where
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let preconf_hash = self
-            .preconf_pool
-            .read()
-            .prevalidate_req(self.signer_client.chain_id.to(), &preconf_request)?;
-        let preconfer_signature = self.sign_init_signature(&preconf_request).await?;
+        let chain_id = self.get_chain_id().await?;
+        let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
+        let preconfer_signature = self.sign_init_signature(&preconf_request.init_signature).await?;
+        preconf_request.preconfer_signature = preconfer_signature.into();
 
-        preconf_request.init_signature = preconfer_signature;
         match self
             .preconfer
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
@@ -333,6 +303,7 @@ where
     // TDOD: validate all fields
     // After validating the tx req, update the state in insert_order function
     // NOTE: If validation fails, call exhaust
+    // TODO: configure chainid in a better way
     async fn validate_tx_request(
         &self,
         tx: &TxEnvelope,
@@ -341,7 +312,11 @@ where
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
         if let Some(chainid) = tx.chain_id() {
-            if chainid != self.signer_client.chain_id.to::<u64>() {
+            if chainid
+                != self.get_chain_id().await.map_err(|e| {
+                    ValidationError::Internal(format!("Failed to get chain id: {e:?}"))
+                })?
+            {
                 return Err(ValidationError::ChainIdMismatch);
             }
         }
@@ -386,9 +361,11 @@ where
         let mut account_state = match account_state_opt {
             Some(state) => state,
             None => {
-                let state = get_account_state(self.rpc_url.clone(), sender).await.map_err(|e| {
-                    ValidationError::Internal(format!("Failed to get account state: {e:?}"))
-                })?;
+                let state = get_account_state(self.execution_client_url.clone(), sender)
+                    .await
+                    .map_err(|e| {
+                        ValidationError::Internal(format!("Failed to get account state: {e:?}"))
+                    })?;
                 {
                     self.preconf_pool
                         .write()
@@ -439,6 +416,15 @@ where
         // }
 
         Ok(())
+    }
+
+    async fn get_chain_id(&self) -> Result<u64, RpcError> {
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_builtin(&self.execution_client_url)
+            .await
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+        provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
     }
 }
 
