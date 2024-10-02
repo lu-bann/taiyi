@@ -62,11 +62,11 @@ impl TryFrom<Vec<PreconfRequest>> for ConstraintsMessage {
 
     fn try_from(value: Vec<PreconfRequest>) -> Result<Self, Self::Error> {
         let first = value.first().ok_or("No preconf requests".to_string())?;
-        let slot = first.preconf_conditions.slot;
+        let slot = first.target_slot();
         let constraints: Vec<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>> = value
             .into_iter()
             .map(|preconf_request| {
-                if preconf_request.preconf_conditions.slot != slot {
+                if preconf_request.target_slot() != slot {
                     Err("Slot mismatch".to_string())
                 } else {
                     preconf_request.preconf_tx.ok_or("No preconf tx".to_string()).map(|tx| {
@@ -78,7 +78,7 @@ impl TryFrom<Vec<PreconfRequest>> for ConstraintsMessage {
                 }
             })
             .collect::<Result<Vec<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>>, String>>()?;
-        Ok(Self { slot, constraints: constraints.try_into().expect("constraints") })
+        Ok(Self { slot: slot.to(), constraints: constraints.try_into().expect("constraints") })
     }
 }
 
@@ -92,7 +92,6 @@ mod constraints_message_tests {
     fn test_try_from_vec_preconf_request() {
         let preconf_request = PreconfRequest {
             tip_tx: Default::default(),
-            preconf_conditions: Default::default(),
             init_signature: Default::default(),
             tip_tx_signature: Default::default(),
             preconfer_signature: Default::default(),

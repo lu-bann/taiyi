@@ -14,7 +14,7 @@ pub use check_preconf_response::{PreconfStatus, PreconfStatusResponse};
 pub use constraints::{Constraint, ConstraintsMessage, SignedConstraintsMessage};
 pub use preconf_hash::PreconfHash;
 #[allow(unused_imports)]
-pub use preconf_request::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
+pub use preconf_request::{PreconfRequest, TipTransaction};
 pub use preconf_response::PreconfResponse;
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;

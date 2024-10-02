@@ -40,7 +40,7 @@ impl OrderPool {
 
     pub fn insert(&mut self, key: PreconfHash, value: PreconfRequest) {
         self.known_orders.insert(key, value.clone());
-        self.orders_by_target_slot.entry(value.preconf_conditions.slot).or_default().push(key);
+        self.orders_by_target_slot.entry(value.target_slot().to()).or_default().push(key);
     }
 
     pub fn delete(&mut self, key: &PreconfHash) -> Option<PreconfRequest> {
@@ -48,7 +48,7 @@ impl OrderPool {
     }
 
     pub fn head_updated(&mut self, new_slot: u64) {
-        self.known_orders.retain(|_, order| order.preconf_conditions.slot >= new_slot);
+        self.known_orders.retain(|_, order| order.target_slot().to::<u64>() >= new_slot);
         self.orders_by_target_slot.retain(|slot, _| *slot >= new_slot);
     }
 

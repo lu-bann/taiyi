@@ -66,7 +66,7 @@ impl PrioritizedOrderPool {
         }
 
         if self.slot.is_none() {
-            self.slot = Some(order.preconf_conditions.slot);
+            self.slot = Some(order.target_slot().to());
         }
 
         self.main_queue.push(order_id, OrderPriority { priority: order.tip(), order_id });

@@ -33,35 +33,29 @@ impl PreconfPool {
         if self.orderpool.exist(&preconf_hash) {
             return Err(OrderPoolError::PreconfRequestAlreadyExist(preconf_hash));
         }
+        let target_slot = preconf_request.target_slot().to();
 
         let current_slot = self
             .prioritized_orderpool
             .slot
             .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        if preconf_request.preconf_conditions.slot <= current_slot {
-            return Err(OrderPoolError::PreconfRequestSlotTooOld(
-                preconf_request.preconf_conditions.slot,
-                current_slot,
-            ));
+        if target_slot <= current_slot {
+            return Err(OrderPoolError::PreconfRequestSlotTooOld(target_slot, current_slot));
         }
 
         // Check if we can accomodate the preconf request
-        if self.orderpool.is_full(preconf_request.preconf_conditions.slot) {
+        if self.orderpool.is_full(target_slot) {
             return Err(OrderPoolError::MaxCommitmentsReachedForSlot(
-                preconf_request.preconf_conditions.slot,
+                target_slot,
                 MAX_COMMITMENTS_PER_SLOT,
             ));
         }
 
         // Check if pool gas limit is reached
-        if self.orderpool.commited_gas(preconf_request.preconf_conditions.slot)
-            + preconf_request.tip_tx.gas_limit.to::<u64>()
+        if self.orderpool.commited_gas(target_slot) + preconf_request.tip_tx.gas_limit.to::<u64>()
             > MAX_GAS_PER_SLOT
         {
-            return Err(OrderPoolError::MaxGasLimitReachedForSlot(
-                preconf_request.preconf_conditions.slot,
-                MAX_GAS_PER_SLOT,
-            ));
+            return Err(OrderPoolError::MaxGasLimitReachedForSlot(target_slot, MAX_GAS_PER_SLOT));
         }
 
         // TODO
@@ -77,7 +71,7 @@ mod tests {
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{U256, U64};
     use alloy_rpc_client::ClientBuilder;
-    use taiyi_primitives::{OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction};
+    use taiyi_primitives::{PreconfRequest, TipTransaction};
 
     use super::PreconfPool;
 
@@ -99,12 +93,10 @@ mod tests {
             pre_pay: U256::from(1),
             after_pay: U256::from(1),
             nonce: U256::from(1),
+            target_slot: U256::from(slot.to::<u64>() + 2),
         };
-        let preconf_conditions =
-            PreconfCondition::new(OrderingMetaData::default(), slot.to::<u64>() + 2);
         let preconf_request = PreconfRequest {
             tip_tx,
-            preconf_conditions,
             init_signature: Default::default(),
             tip_tx_signature: Default::default(),
             preconfer_signature: Default::default(),

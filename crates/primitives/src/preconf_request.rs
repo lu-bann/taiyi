@@ -5,6 +5,7 @@ use alloy_rpc_types_beacon::BlsSignature;
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
+// use blst::min_sig::Signature
 use super::preconf_hash::domain_separator;
 use crate::PreconfHash;
 
@@ -14,10 +15,9 @@ type Transaction = Vec<u8>;
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
-    pub preconf_conditions: PreconfCondition,
-    pub init_signature: BlsSignature,
+    pub init_signature: Bytes,
     pub tip_tx_signature: Bytes,
-    pub preconfer_signature: Bytes,
+    pub preconfer_signature: BlsSignature,
     pub preconf_tx: Option<Transaction>,
 }
 
@@ -26,8 +26,6 @@ impl PreconfRequest {
         let mut buffer = Vec::<u8>::new();
         let tip_tx_hash = self.tip_tx.tip_tx_hash(chain_id);
         buffer.extend_from_slice(tip_tx_hash.as_ref());
-        let preconf_conditions_hash = self.preconf_conditions.preconf_condition_hash(chain_id);
-        buffer.extend_from_slice(preconf_conditions_hash.as_ref());
         PreconfHash(keccak256(buffer))
     }
 
@@ -47,6 +45,10 @@ impl PreconfRequest {
     pub fn nonce(&self) -> U256 {
         self.tip_tx.nonce
     }
+
+    pub fn target_slot(&self) -> U256 {
+        self.tip_tx.target_slot
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
@@ -57,10 +59,10 @@ pub struct TipTransaction {
     pub pre_pay: U256,
     pub after_pay: U256,
     pub nonce: U256,
+    pub target_slot: U256,
 }
 
 impl TipTransaction {
-    #[allow(dead_code)]
     pub fn new(
         gas_limit: U256,
         from: Address,
@@ -68,18 +70,17 @@ impl TipTransaction {
         pre_pay: U256,
         after_pay: U256,
         nonce: U256,
+        target_slot: U256,
     ) -> Self {
-        Self { gas_limit, from, to, pre_pay, after_pay, nonce }
+        Self { gas_limit, from, to, pre_pay, after_pay, nonce, target_slot }
     }
 
     #[inline]
-    #[allow(dead_code)]
     fn typehash() -> B256 {
-        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay)")
+        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay, uint256 nonce, uint256 targetSlot)".as_bytes())
     }
 
     #[inline]
-    #[allow(dead_code)]
     fn _tip_tx_hash(&self) -> B256 {
         let mut data = Vec::new();
         data.extend_from_slice(Self::typehash().tokenize().as_ref());
@@ -89,11 +90,11 @@ impl TipTransaction {
         data.extend_from_slice(self.pre_pay.tokenize().as_ref());
         data.extend_from_slice(self.after_pay.tokenize().as_ref());
         data.extend_from_slice(self.nonce.tokenize().as_ref());
+        data.extend_from_slice(self.target_slot.tokenize().as_ref());
         keccak256(data)
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub fn tip_tx_hash(&self, chain_id: U256) -> B256 {
         let mut data = vec![0x19, 0x01];
         data.extend_from_slice(domain_separator(chain_id).as_ref());
@@ -102,53 +103,11 @@ impl TipTransaction {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
-pub struct PreconfCondition {
-    ordering_meta_data: OrderingMetaData,
-    /// The consensus slot number at which the transaction should be included.
-    pub slot: u64,
-}
-
-impl PreconfCondition {
-    #[allow(dead_code)]
-    pub fn new(ordering_meta_data: OrderingMetaData, slot: u64) -> Self {
-        Self { ordering_meta_data, slot }
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    fn typehash() -> B256 {
-        keccak256("PreconfConditions(InclusionMeta inclusionMetaData,OrderingMeta orderingMetaData,uint256 blockNumber)")
-    }
-
-    #[inline]
-    fn _preconf_condition_hash(&self) -> B256 {
-        let mut data = Vec::new();
-        data.extend_from_slice(Self::typehash().tokenize().as_ref());
-        data.extend_from_slice(self.ordering_meta_data.index.tokenize().as_ref());
-        data.extend_from_slice(self.slot.tokenize().as_ref());
-        keccak256(data)
-    }
-
-    #[allow(dead_code)]
-    pub fn preconf_condition_hash(&self, chain_id: U256) -> B256 {
-        let mut data = vec![0x19, 0x01];
-        data.extend_from_slice(domain_separator(chain_id).as_ref());
-        data.extend_from_slice(self._preconf_condition_hash().as_ref());
-        keccak256(data)
-    }
-}
-
-#[derive(Debug, Clone, RlpEncodable, RlpDecodable, Default, Serialize, Deserialize, PartialEq)]
-pub struct OrderingMetaData {
-    pub index: U256,
-}
-
 #[cfg(test)]
 mod tests {
     use alloy_primitives::{Address, U256};
 
-    use super::{PreconfCondition, TipTransaction};
+    use super::TipTransaction;
 
     #[test]
     fn test_tip_tx_hash() {
@@ -159,21 +118,12 @@ mod tests {
             U256::from(1),
             U256::from(2),
             U256::from(0),
+            U256::from(1337),
         );
         let h = tx.tip_tx_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "ba1fb42f1cb980c90b7db56e0e0d8f2645390e14385c6659e7085d32ec36eed9"
-        )
-    }
-
-    #[test]
-    fn test_preconf_condition_hash() {
-        let condition = PreconfCondition::new(super::OrderingMetaData { index: U256::from(0) }, 0);
-        let h = condition.preconf_condition_hash(U256::from(1337));
-        assert_eq!(
-            format!("{:x}", h),
-            "3c026982636e294cb0506d712c83ab536260cea9cc6f56d83e8ac79eee4b300e"
+            "83bd12e871a7a4cd941ee0a9a853aae5c515d33271c5b715e41bae953f650377"
         )
     }
 }
