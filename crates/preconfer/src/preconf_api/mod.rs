@@ -3,7 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
 use api::PreconfApiServer;
-use blst::min_pk::{PublicKey, SecretKey};
+use blst::min_pk::SecretKey;
 use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
 use state::PreconfState;
 use tracing::{error, info};
@@ -41,8 +41,7 @@ pub async fn spawn_service(
     let network_state_cl = network_state.clone();
     let constraint_client = ConstraintClient::new("titanrelay".to_string())?;
 
-    let preconfer_public_key = PublicKey::from_bytes(&preconfer_private_key.serialize()[..])
-        .map_err(|e| eyre::eyre!("Failed to convert private key to public key: {:?}", e))?;
+    let preconfer_public_key = preconfer_private_key.sk_to_pk();
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
