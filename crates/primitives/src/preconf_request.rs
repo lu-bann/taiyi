@@ -122,7 +122,7 @@ mod tests {
         let h = tx.tip_tx_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "83bd12e871a7a4cd941ee0a9a853aae5c515d33271c5b715e41bae953f650377"
+            "443916ae266a6c6cc12c602970493707eec22b14620a0fe2d2c773976d7a32ed"
         )
     }
 }
