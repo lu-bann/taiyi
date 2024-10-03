@@ -41,9 +41,7 @@ pub async fn spawn_service(
     let network_state_cl = network_state.clone();
     let constraint_client = ConstraintClient::new("titanrelay".to_string())?;
 
-    let secp256k1_key = secp256k1::SecretKey::from_slice(&preconfer_private_key.to_bytes())
-        .map_err(|_| eyre::eyre!("Invalid private key"))?;
-    let preconfer_public_key = secp256k1_key.public_key(&secp256k1::Secp256k1::new());
+    let preconfer_public_key = preconfer_private_key.sk_to_pk();
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(

@@ -7,6 +7,7 @@ use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
+use blst::min_pk::PublicKey;
 use ethereum_consensus::{
     primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
@@ -61,7 +62,7 @@ pub struct LookaheadFetcher<T, P> {
     client: Client,
     taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
-    preconfer_public_key: secp256k1::PublicKey,
+    preconfer_public_key: PublicKey,
     relay_url: Vec<String>,
 }
 
@@ -75,7 +76,7 @@ where
         beacon_url: String,
         taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
-        preconfer_public_key: secp256k1::PublicKey,
+        preconfer_public_key: PublicKey,
         relay_url: Vec<String>,
     ) -> Self {
         Self {
@@ -188,7 +189,7 @@ pub async fn run_cl_process<T, P>(
     beacon_url: String,
     taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
-    preconfer_public_key: secp256k1::PublicKey,
+    preconfer_public_key: PublicKey,
     relay_url: Vec<String>,
 ) -> eyre::Result<()>
 where
