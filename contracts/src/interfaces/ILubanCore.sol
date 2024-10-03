@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { PreconfRequest, TipTx, PreconfTx, PreconfRequestStatus } from "./PreconfRequest.sol";
+import { PreconfRequest, PreconfRequestStatus } from "./PreconfRequest.sol";
 
 interface ILubanCore {
     /*//////////////////////////////////////////////////////

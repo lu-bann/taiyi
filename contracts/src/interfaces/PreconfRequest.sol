@@ -5,11 +5,10 @@ pragma solidity ^0.8.25;
 /// from - the address of the user
 /// to - the address of the preconfer
 /// prePay - is the payment a preconfer could receive after calling the exhaust function
-/// afterPay is the payment a preconfer could receive after succesffully exeucting the transaction by calling the
+/// afterPay is the payment a preconfer could receive after successfully executing the transaction by calling the
 /// settleRequest function
 /// nonce - prevents double spend
-/// slot - the slot of the target preconf transaction
-/// tipTxSignature - the signature of the tip transaction
+/// target_slot - the slot of the target preconf transaction
 struct TipTx {
     uint256 gasLimit;
     address from;
@@ -21,8 +20,8 @@ struct TipTx {
 }
 
 /// @dev A transaction that the user want to execute for preconfirmation, like normal transaction
-/// from - the address of the transaction
-/// to - the address of the preconfer
+/// from - the address of the sender
+/// to - the address of the recipient
 /// value - the value of the transaction
 /// callData - the calldata of the transaction
 /// callGasLimit - the gas limit of the transaction

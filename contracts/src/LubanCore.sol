@@ -12,7 +12,7 @@ import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import { Ownable } from "open-zeppelin/access/Ownable.sol";
 import "forge-std/console.sol";
 import { NonceManager } from "./NonceManager.sol";
-import { SlotHelderLib } from "./SlotLib.sol";
+import { SlotLib } from "./SlotLib.sol";
 import { Helper } from "./Helper.sol";
 
 contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, NonceManager {
@@ -72,7 +72,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         }
     }
 
-    function validateRequest(PreconfRequest calldata preconfReq) external view returns (bool) {
+    function validateRequest(PreconfRequest calldata preconfReq) external view {
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
         bytes32 tipHash = tipTx.getTipTxHash();
@@ -88,13 +88,13 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
 
     /// @notice Main bulk of the logic for validating and settling request
     /// @dev called by the preconfer to settle the request
-    function settleRequest(PreconfRequest calldata preconfReq) external payable {
+    function settleRequest(PreconfRequest calldata preconfReq) external payable nonReentrant {
         //require(preconferList[msg.sender], "Caller is not a preconfer");
 
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
 
-        uint256 slot = SlotHelderLib.getSlotFromTimestamp(block.timestamp);
+        uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
 
         require(tipTx.target_slot == slot, "Wrong slot number");
 
@@ -127,17 +127,14 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
     /// @dev This function is used to exhaust the gas to the point of
     ///      `gasLimit` defined in `TipTx` iteratively, and transfer the `prePayment` to the preconfer
     ///       This mechanism is designed to prevent user "griefing" the preconfer
-    ///       by allowing the preconfer to withdraw theaddress preconfer,eds to be exhaust
+    ///        by allowing the preconfer to withdraw the funds that need to be exhausted
     function exhaust(PreconfRequest calldata preconfReq) external onlyOwner {
         TipTx calldata tipTx = preconfReq.tipTx;
 
         this.validateRequest(preconfReq);
         require(tipTx.to == owner(), "Tip to is not the owner");
 
-        // TODO: fix this
-        // unchecked {
-        //     gasBurner(preconfTx.callGasLimit);
-        // }
+        gasBurner(preconfReq.tipTx.gasLimit);
 
         uint256 amount = payout(tipTx, false);
         handlePayment(amount, preconfReq.getPreconfRequestHash());
@@ -146,6 +143,11 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         bytes32 txHash = preconfReq.getPreconfRequestHash();
         inclusionStatusMap[txHash] = true;
         emit Exhausted(msg.sender, tipTx.prePay);
+    }
+
+    function gasBurner(uint256 amount) internal {
+        (bool success,) = payable(block.coinbase).call{ value: amount }("");
+        require(success, "Gas burn failed");
     }
 
     function handlePayment(uint256 amount, bytes32 preconfRequestHash) internal {
@@ -176,15 +178,15 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
             this.validateRequest(preconfReq);
 
             // Check the status of the PreconfRequest
-            PreconfRequestStatus status = this.getPreconfRequestStatus(preconfReq.preconferSignature.hashSignature());
+            PreconfRequestStatus status = this.getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
 
             require(status != PreconfRequestStatus.Collected, "PreconfRequest has already been collected");
 
             if (status == PreconfRequestStatus.NonInitiated) {
-                uint256 slot = SlotHelderLib.getSlotFromTimestamp(block.timestamp);
+                uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
                 require(slot >= tipTx.target_slot, "PreconfRequest has not reached the block requested yet");
             } else if (status == PreconfRequestStatus.Executed || status == PreconfRequestStatus.Exhausted) {
-                bool isIncluded = this.checkInclusion(preconfReq.getPreconfRequestHash());
+                bool isIncluded = inclusionStatusMap[preconfReq.getPreconfRequestHash()];
                 if (!isIncluded) {
                     // Slash the preconfer (to be implemented)
                     // eigenServiceManager.freezeOperator(tipTx.to);

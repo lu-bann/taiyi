@@ -7,9 +7,11 @@ import { LubanEscrow } from "../src/LubanEscrow.sol";
 import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
 import { PreconfRequestLib } from "../src/interfaces/PreconfRequestLib.sol";
 import { PreconfRequest, TipTx, PreconfTx } from "../src/interfaces/PreconfRequest.sol";
+import { Helper } from "../src/Helper.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;
+    using Helper for *;
 
     LubanCore public lubanCore;
     LubanEscrow public lubanEscrow;
@@ -73,7 +75,7 @@ contract DeployTest is Test {
         (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
         bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(tipTxUserSignature));
+        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
         PreconfTx memory preconfTx = PreconfTx({

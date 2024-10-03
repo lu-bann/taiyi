@@ -47,7 +47,7 @@ contract LubanCoreTest is Test {
         lubanCore = new LubanCore(owner, genesisTimestamp);
     }
 
-    function fullfillPreconfRequest(
+    function fulfillPreconfRequest(
         TipTx memory tipTx,
         PreconfTx memory preconfTx
     )
@@ -102,7 +102,7 @@ contract LubanCoreTest is Test {
             signature: ""
         });
 
-        PreconfRequest memory preconfReq = fullfillPreconfRequest(tipTx, preconfTx);
+        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
         vm.prank(user);
         lubanCore.deposit{ value: 4 ether }();
@@ -152,7 +152,7 @@ contract LubanCoreTest is Test {
             nonce: 0,
             signature: ""
         });
-        PreconfRequest memory preconfReq = fullfillPreconfRequest(tipTx, preconfTx);
+        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
 
         vm.prank(user);

@@ -32,7 +32,7 @@ contract ProposerRegistry {
     constructor() { }
 
     function optIn(bytes calldata _blsPubKey) external payable {
-        require(msg.value == ProposerRegistryLib.STAKE_AMOUNT, "Must stake exactly 32 ETH");
+        require(msg.value == ProposerRegistryLib.STAKE_AMOUNT, "stake amount not correct");
         require(proposers[_blsPubKey].ethAddress == address(0), "BLS public key already registered");
         require(ethAddressToBLSPubKey[msg.sender].length == 0, "Address already opted in");
 

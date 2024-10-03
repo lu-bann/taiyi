@@ -80,7 +80,7 @@ contract LubanEscrow is ReentrancyGuard {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function payout(TipTx calldata tipTx, bool isAfterExec) internal nonReentrant returns (uint256 amount) {
+    function payout(TipTx calldata tipTx, bool isAfterExec) internal returns (uint256 amount) {
         amount = isAfterExec ? tipTx.prePay + tipTx.afterPay : tipTx.prePay;
         require(balances[tipTx.from] >= amount, "Insufficient balance");
 
