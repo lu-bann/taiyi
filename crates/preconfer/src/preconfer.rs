@@ -73,8 +73,8 @@ where
             ));
         }
 
-        let lookahead = preconf_request.preconf_conditions.slot;
-        let predict_base_fee = self.pricer.price_preconf(lookahead.into()).await?;
+        let lookahead = preconf_request.target_slot().to::<u128>();
+        let predict_base_fee = self.pricer.price_preconf(lookahead).await?;
         let preconf_request_tip = preconf_request.tip();
 
         if balance._0 < preconf_request_tip {

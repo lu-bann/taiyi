@@ -2,7 +2,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_network::Ethereum;
-use alloy_primitives::U256;
+use alloy_primitives::{Bytes, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
@@ -165,11 +165,11 @@ where
         }
     }
 
-    pub async fn sign_init_signature(
+    pub async fn sign_tip_tx_signature(
         &self,
-        init_signature: &BlsSignature,
+        tip_tx_signature: &Bytes,
     ) -> Result<BlsSignature, RpcError> {
-        let signature = self.preconfer_private_key.sign(&init_signature.0, BLS_DST_SIG, &[]);
+        let signature = self.preconfer_private_key.sign(&tip_tx_signature.0, BLS_DST_SIG, &[]);
         BlsSignature::try_from(signature.to_bytes().as_ref())
             .map_err(|e| RpcError::UnknownError(e.to_string()))
     }
@@ -183,8 +183,9 @@ where
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
         let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
-        let preconfer_signature = self.sign_init_signature(&preconf_request.init_signature).await?;
-        preconf_request.preconfer_signature = preconfer_signature.into();
+        let preconfer_signature =
+            self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
+        preconf_request.preconfer_signature = Some(preconfer_signature);
 
         match self
             .preconfer
@@ -230,7 +231,7 @@ where
             .ok_or(OrderPoolError::PreconfRequestNotFound(preconf_req_hash))?;
 
         // User is expected to send the tx calldata in the slot specified in the preconf request.
-        let target_slot = preconf_request.preconf_conditions.slot;
+        let target_slot = preconf_request.target_slot().to();
         let current_slot = self
             .preconf_pool
             .read()
@@ -263,8 +264,8 @@ where
                         afterPay: preconf_request.tip_tx.after_pay,
                         nonce: preconf_request.tip_tx.nonce,
                     },
-                    preconf_request.init_signature.into(),
-                    preconf_request.preconfer_signature,
+                    preconf_request.tip_tx_signature,
+                    preconf_request.preconfer_signature.expect("sig").into(),
                 )
                 .call()
                 .await?;

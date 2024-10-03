@@ -4,9 +4,7 @@ use alloy_signer_local::PrivateKeySigner;
 use reth_primitives::{
     Transaction, TransactionKind, TransactionSigned, TransactionSignedEcRecovered, TxEip1559, U256,
 };
-use taiyi_primitives::{
-    AvailableSlotResponse, OrderingMetaData, PreconfCondition, PreconfRequest, TipTransaction,
-};
+use taiyi_primitives::{AvailableSlotResponse, PreconfRequest, TipTransaction};
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -57,10 +55,6 @@ async fn main() -> eyre::Result<()> {
     let tx_b = serde_json::to_vec(&tx.into_signed()).unwrap();
     let preconf_request = PreconfRequest {
         preconf_tx: Some(tx_b),
-        preconf_conditions: PreconfCondition::new(
-            OrderingMetaData { index: U256::from(3) },
-            target_slot,
-        ),
         tip_tx: TipTransaction::new(
             Default::default(),
             signer.address(),
@@ -68,8 +62,8 @@ async fn main() -> eyre::Result<()> {
             Default::default(),
             Default::default(),
             Default::default(),
+            U256::from(target_slot),
         ),
-        init_signature: Default::default(),
         tip_tx_signature: Default::default(),
         preconfer_signature: Default::default(),
     };
