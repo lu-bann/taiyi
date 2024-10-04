@@ -85,7 +85,7 @@ contract LubanEscrow is ReentrancyGuard {
      * @param tipTx The TipTx containing the payout details.
      * @param isAfterExec A boolean indicating if the payout is after execution.
      * @return amount The amount to be paid out.
-     * 
+     *
      * This function calculates the payout amount based on the TipTx details and whether the payout is after execution.
      * It then checks if the sender has sufficient balance and deducts the amount from the sender's balance.
      */

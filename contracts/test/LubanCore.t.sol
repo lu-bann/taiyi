@@ -51,6 +51,11 @@ contract LubanCoreTest is Test {
         lubanCore = new LubanCore(owner, genesisTimestamp);
     }
 
+    function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {
+        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
+    }
+
     function fulfillPreconfRequest(
         TipTx memory tipTx,
         PreconfTx memory preconfTx
@@ -115,13 +120,11 @@ contract LubanCoreTest is Test {
         console.log("User balance:", balances);
         vm.warp(genesisTimestamp + 12 * target_slot);
 
-        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.NonInitiated));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
 
         vm.prank(owner);
         lubanCore.settleRequest(preconfReq);
-        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.Executed));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Executed);
 
         uint256 bobBalance = bob.balance;
         assertEq(bobBalance, 1 ether);
@@ -130,8 +133,7 @@ contract LubanCoreTest is Test {
         assertEq(collectedTip, 0);
 
         lubanCore.collectTip(preconfRequestHash);
-        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.Collected));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
         collectedTip = lubanCore.getCollectedTip();
         assertEq(collectedTip, 3 ether);
     }
@@ -165,22 +167,19 @@ contract LubanCoreTest is Test {
         uint256 balanceBefore = lubanCore.balanceOf(user);
         assertEq(balanceBefore, 9 ether);
 
-        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.NonInitiated));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
 
         vm.coinbase(coinbase);
 
         vm.prank(owner);
         lubanCore.exhaust(preconfReq);
-        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.Exhausted));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Exhausted);
 
         assertEq(coinbase.balance, 100_000);
 
         lubanCore.collectTip(preconfRequestHash);
         uint256 collectedTip = lubanCore.getCollectedTip();
         assertEq(collectedTip, 1 ether);
-        status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
-        assertEq(status, uint8(PreconfRequestStatus.Collected));
+        assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
     }
 }

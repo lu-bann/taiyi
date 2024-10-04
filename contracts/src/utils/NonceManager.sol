@@ -8,8 +8,8 @@ abstract contract NonceManager {
     /**
      * The next valid sequence number for a given nonce key.
      */
-    mapping(address => uint256) public tipNonceSequenceNumber;
-    mapping(address => uint256) public preconfNonceSequenceNumber;
+    mapping(address => uint256) private tipNonceSequenceNumber;
+    mapping(address => uint256) private preconfNonceSequenceNumber;
 
     function getTipNonce(address sender) public view returns (uint256 nonce) {
         return tipNonceSequenceNumber[sender];
