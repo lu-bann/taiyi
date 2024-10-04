@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import "../src/LubanEscrow.sol";
 import "../src/LubanCore.sol";
 import "../src/interfaces/ILubanCore.sol";
-import "../src/interfaces/PreconfRequestLib.sol";
+import "../src/libs/PreconfRequestLib.sol";
 
 contract LubanEscrowTest is Test {
     using PreconfRequestLib for *;

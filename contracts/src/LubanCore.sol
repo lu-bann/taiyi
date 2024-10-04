@@ -6,14 +6,14 @@ import { ILubanCore } from "./interfaces/ILubanCore.sol";
 import { ILubanChallengeManager } from "./interfaces/ILubanChallengeManager.sol";
 import { LubanEscrow } from "./LubanEscrow.sol";
 import { ProposerRegistry } from "./LubanProposerRegistry.sol";
-import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/PreconfRequest.sol";
-import { PreconfRequestLib } from "./interfaces/PreconfRequestLib.sol";
+import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
+import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import { Ownable } from "open-zeppelin/access/Ownable.sol";
 import "forge-std/console.sol";
-import { NonceManager } from "./NonceManager.sol";
-import { SlotLib } from "./SlotLib.sol";
-import { Helper } from "./Helper.sol";
+import { NonceManager } from "./utils/NonceManager.sol";
+import { SlotLib } from "./libs/SlotLib.sol";
+import { Helper } from "./utils/Helper.sol";
 
 contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, NonceManager {
     using PreconfRequestLib for *;

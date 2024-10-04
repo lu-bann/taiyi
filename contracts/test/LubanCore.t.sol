@@ -5,10 +5,10 @@ import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
 import { LubanEscrow } from "../src/LubanEscrow.sol";
 import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
-import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/PreconfRequest.sol";
-import { PreconfRequestLib } from "../src/interfaces/PreconfRequestLib.sol";
-import { Helper } from "../src/Helper.sol";
-import { PreconfRequestStatus } from "../src/interfaces/PreconfRequest.sol";
+import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
+import { Helper } from "../src/utils/Helper.sol";
+import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
 
 contract LubanCoreTest is Test {
     using PreconfRequestLib for *;

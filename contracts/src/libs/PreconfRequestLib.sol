@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { TipTx, PreconfTx, PreconfRequest } from "./PreconfRequest.sol";
+import { TipTx, PreconfTx, PreconfRequest } from "../interfaces/Types.sol";
 
 library PreconfRequestLib {
     /*//////////////////////////////////////////////////////

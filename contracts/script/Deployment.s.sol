@@ -3,11 +3,11 @@ pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
-import "src/interfaces/PreconfRequestLib.sol";
-import "src/interfaces/PreconfRequest.sol";
-import "src/Helper.sol";
+import "../src/LubanEscrow.sol";
+import "../src/interfaces/ILubanCore.sol";
+import "../src/libs/PreconfRequestLib.sol";
+import "../src/interfaces/Types.sol";
+import "../src/utils/Helper.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;

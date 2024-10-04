@@ -2,8 +2,8 @@
 pragma solidity ^0.8.25;
 
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
-import "./interfaces/PreconfRequest.sol";
-import "./interfaces/PreconfRequestLib.sol";
+import "../interfaces/Types.sol";
+import "../libs/PreconfRequestLib.sol";
 
 library Helper {
     using PreconfRequestLib for PreconfTx;

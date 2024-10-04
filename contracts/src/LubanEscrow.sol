@@ -6,11 +6,11 @@ import "forge-std/console.sol";
 import "open-zeppelin/utils/ReentrancyGuard.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import "open-zeppelin/utils/cryptography/MessageHashUtils.sol";
-import { TipTx } from "./interfaces/PreconfRequest.sol";
-import { PreconfRequest } from "./interfaces/PreconfRequest.sol";
-import { PreconfTx } from "./interfaces/PreconfRequest.sol";
-import { PreconfRequestLib } from "./interfaces/PreconfRequestLib.sol";
-import { Helper } from "./Helper.sol";
+import { TipTx } from "./interfaces/Types.sol";
+import { PreconfRequest } from "./interfaces/Types.sol";
+import { PreconfTx } from "./interfaces/Types.sol";
+import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
+import { Helper } from "./utils/Helper.sol";
 
 contract LubanEscrow is ReentrancyGuard {
     using PreconfRequestLib for *;

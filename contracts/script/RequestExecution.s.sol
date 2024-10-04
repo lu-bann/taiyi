@@ -5,9 +5,9 @@ import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
 import { LubanEscrow } from "../src/LubanEscrow.sol";
 import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
-import { PreconfRequestLib } from "../src/interfaces/PreconfRequestLib.sol";
-import { PreconfRequest, TipTx, PreconfTx } from "../src/interfaces/PreconfRequest.sol";
-import { Helper } from "../src/Helper.sol";
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
+import { PreconfRequest, TipTx, PreconfTx } from "../src/interfaces/Types.sol";
+import { Helper } from "../src/utils/Helper.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;
