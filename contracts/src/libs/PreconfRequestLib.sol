@@ -8,8 +8,9 @@ library PreconfRequestLib {
                           CONSTANTS
     //////////////////////////////////////////////////////*/
 
-    bytes32 constant TIP_TX_TYPEHASH =
-        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay)");
+    bytes32 constant TIP_TX_TYPEHASH = keccak256(
+        "TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 target_slot)"
+    );
 
     bytes32 constant INCLUSION_META_TYPEHASH = keccak256("InclusionMeta(uint256 startingBlockNumber)");
 

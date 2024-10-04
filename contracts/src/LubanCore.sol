@@ -107,7 +107,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature);
         Helper.verifySignature(preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature);
         Helper.verifySignature(preconfReq.tipTxSignature.hashSignature(), tipTx.to, preconfReq.preconferSignature);
-        Helper.verifySignature(preconfReq.getPreconfRequestHash(), owner(), preconfReq.preconfReqSignature);
+        Helper.verifySignature(preconfReq.getPreconfRequestHash(), tipTx.to, preconfReq.preconfReqSignature);
 
         require(preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
         require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
