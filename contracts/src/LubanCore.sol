@@ -45,14 +45,31 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
                           VIEW FUNCTIONS
     //////////////////////////////////////////////////////*/
 
-    function getPreconfRequestStatus(bytes32 preconfRequestHash) external view returns (PreconfRequestStatus) {
+    /**
+     * @notice Returns the status of a given PreconfRequest.
+     * @dev This function retrieves the status of a PreconfRequest using its hash.
+     * @param preconfRequestHash The hash of the PreconfRequest.
+     * @return The status of the PreconfRequest.
+     */
+    function getPreconfRequestStatus(bytes32 preconfRequestHash) public view returns (PreconfRequestStatus) {
         return preconfRequestStatus[preconfRequestHash];
     }
 
+    /**
+     * @notice Checks if a given PreconfRequest is included.
+     * @dev This function checks the inclusion status of a PreconfRequest using its hash.
+     * @param preconfRequestHash The hash of the PreconfRequest.
+     * @return True if the PreconfRequest is included, false otherwise.
+     */
     function checkInclusion(bytes32 preconfRequestHash) external view returns (bool) {
         return inclusionStatusMap[preconfRequestHash];
     }
 
+    /**
+     * @notice Returns the collected tip amount.
+     * @dev This function retrieves the total amount of collected tips.
+     * @return The collected tip amount.
+     */
     function getCollectedTip() external view returns (uint256) {
         return collectedTip;
     }
@@ -61,18 +78,28 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
                     STATE CHANGING FUNCTIONS
     //////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Batches settles multiple PreconfRequests.
+     * @dev This function processes a list of PreconfRequests in a single call.
+     * @param preconfReqs An array of PreconfRequest structs to be settled.
+     */
     function batchSettleRequests(PreconfRequest[] calldata preconfReqs) external payable {
         uint256 length = preconfReqs.length;
         for (uint256 i = 0; i < length;) {
             PreconfRequest calldata preconfReq = preconfReqs[i];
-            this.settleRequest(preconfReq);
+            settleRequest(preconfReq);
             unchecked {
                 ++i;
             }
         }
     }
 
-    function validateRequest(PreconfRequest calldata preconfReq) external view {
+    /**
+     * @notice Validates the given PreconfRequest.
+     * @dev This function checks the signatures and nonces of the provided PreconfRequest.
+     * @param preconfReq The PreconfRequest to validate.
+     */
+    function validateRequest(PreconfRequest calldata preconfReq) public view {
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
         bytes32 tipHash = tipTx.getTipTxHash();
@@ -80,15 +107,15 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature);
         Helper.verifySignature(preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature);
         Helper.verifySignature(preconfReq.tipTxSignature.hashSignature(), tipTx.to, preconfReq.preconferSignature);
-        Helper.verifySignature(preconfReq.getPreconfRequestHash(), this.owner(), preconfReq.preconfReqSignature);
+        Helper.verifySignature(preconfReq.getPreconfRequestHash(), owner(), preconfReq.preconfReqSignature);
 
-        require(preconfTx.nonce == this.getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
-        require(tipTx.nonce == this.getTipNonce(tipTx.from), "Incorrect tip nonce");
+        require(preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
+        require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
     }
 
     /// @notice Main bulk of the logic for validating and settling request
     /// @dev called by the preconfer to settle the request
-    function settleRequest(PreconfRequest calldata preconfReq) external payable nonReentrant {
+    function settleRequest(PreconfRequest calldata preconfReq) public payable nonReentrant {
         //require(preconferList[msg.sender], "Caller is not a preconfer");
 
         TipTx calldata tipTx = preconfReq.tipTx;
@@ -98,7 +125,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
 
         require(tipTx.target_slot == slot, "Wrong slot number");
 
-        this.validateRequest(preconfReq);
+        validateRequest(preconfReq);
 
         require(preconfReq.tipTx.to == owner(), "Tip to is not the owner");
 
@@ -110,7 +137,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
             // Execute plain Ether transfer
             (success,) = payable(preconfTx.to).call{ value: preconfTx.value }("");
         }
-        this.incrementPreconfNonce(preconfTx.from);
+        incrementPreconfNonce(preconfTx.from);
 
         if (!success) {
             emit TransactionExecutionFailed(preconfTx.to, preconfTx.value);
@@ -119,7 +146,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         uint256 amount = payout(tipTx, true);
         handlePayment(amount, preconfReq.getPreconfRequestHash());
 
-        this.incrementTipNonce(tipTx.from);
+        incrementTipNonce(tipTx.from);
         preconfRequestStatus[preconfReq.getPreconfRequestHash()] = PreconfRequestStatus.Executed;
         inclusionStatusMap[preconfReq.getPreconfRequestHash()] = true;
     }
@@ -131,7 +158,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
     function exhaust(PreconfRequest calldata preconfReq) external onlyOwner {
         TipTx calldata tipTx = preconfReq.tipTx;
 
-        this.validateRequest(preconfReq);
+        validateRequest(preconfReq);
         require(tipTx.to == owner(), "Tip to is not the owner");
 
         gasBurner(preconfReq.tipTx.gasLimit);
@@ -145,16 +172,32 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
         emit Exhausted(msg.sender, tipTx.prePay);
     }
 
+    /**
+     * @notice Burns gas by transferring the specified amount to the coinbase.
+     * @dev This function attempts to transfer the given amount of gas to the block's coinbase.
+     * @param amount The amount of gas to be burned.
+     */
     function gasBurner(uint256 amount) internal {
         (bool success,) = payable(block.coinbase).call{ value: amount }("");
         require(success, "Gas burn failed");
     }
 
+    /**
+     * @notice Handles the payment by updating the preconfer tips.
+     * @dev This function adds the specified amount to the preconfer tips.
+     * @param amount The amount to be added to the preconfer tips.
+     * @param preconfRequestHash The hash of the PreconfRequest.
+     */
     function handlePayment(uint256 amount, bytes32 preconfRequestHash) internal {
         preconferTips[preconfRequestHash] += amount;
     }
 
-    function collectTip(bytes32 preconfRequestHash) external {
+    /**
+     * @notice Collects the tip for a given PreconfRequest.
+     * @dev This function collects the tip amount for a PreconfRequest and updates the status.
+     * @param preconfRequestHash The hash of the PreconfRequest.
+     */
+    function collectTip(bytes32 preconfRequestHash) public {
         uint256 tipAmount = preconferTips[preconfRequestHash];
         require(tipAmount > 0, "No tip to collect");
 
@@ -169,16 +212,21 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Challenges multiple PreconfRequests.
+     * @dev This function processes a list of PreconfRequests in a single call.
+     * @param preconfReqs An array of PreconfRequest structs to be challenged.
+     */
     function challengeRequests(PreconfRequest[] calldata preconfReqs) external {
         for (uint256 i = 0; i < preconfReqs.length; i++) {
             PreconfRequest calldata preconfReq = preconfReqs[i];
             TipTx calldata tipTx = preconfReq.tipTx;
 
             // Verify signatures
-            this.validateRequest(preconfReq);
+            validateRequest(preconfReq);
 
             // Check the status of the PreconfRequest
-            PreconfRequestStatus status = this.getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
+            PreconfRequestStatus status = getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
 
             require(status != PreconfRequestStatus.Collected, "PreconfRequest has already been collected");
 
@@ -191,7 +239,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
                     // Slash the preconfer (to be implemented)
                     // eigenServiceManager.freezeOperator(tipTx.to);
                 } else {
-                    this.collectTip(bytes32(preconfReq.preconferSignature));
+                    collectTip(bytes32(preconfReq.preconferSignature));
                 }
             }
         }

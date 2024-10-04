@@ -19,12 +19,14 @@ contract LubanCoreTest is Test {
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
     uint256 internal bobPrivatekey;
+    uint256 internal coinbasePrivatekey;
 
     uint256 internal constant genesisTimestamp = 1_606_824_023;
 
     address user;
     address owner;
     address bob;
+    address coinbase;
 
     event Exhausted(address indexed preconfer, uint256 amount);
 
@@ -32,10 +34,12 @@ contract LubanCoreTest is Test {
         userPrivatekey = 0x5678;
         ownerPrivatekey = 0x69420;
         bobPrivatekey = 0x1337;
+        coinbasePrivatekey = 0x69422;
 
         user = vm.addr(userPrivatekey);
         owner = vm.addr(ownerPrivatekey);
         bob = vm.addr(bobPrivatekey);
+        coinbase = vm.addr(coinbasePrivatekey);
 
         console.log("User address:", user);
         console.log("Owner address:", owner);
@@ -133,7 +137,6 @@ contract LubanCoreTest is Test {
     }
 
     function testExhaustFunction() public {
-        uint256 target_slot = 10;
         TipTx memory tipTx = TipTx({
             gasLimit: 100_000,
             from: user,
@@ -165,10 +168,14 @@ contract LubanCoreTest is Test {
         uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(PreconfRequestStatus.NonInitiated));
 
+        vm.coinbase(coinbase);
+
         vm.prank(owner);
         lubanCore.exhaust(preconfReq);
         status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(PreconfRequestStatus.Exhausted));
+
+        assertEq(coinbase.balance, 100_000);
 
         lubanCore.collectTip(preconfRequestHash);
         uint256 collectedTip = lubanCore.getCollectedTip();

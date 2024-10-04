@@ -16,7 +16,7 @@ abstract contract NonceManager {
     }
 
     // allow an account to manually increment its own tip nonce.
-    function incrementTipNonce(address sender) public {
+    function incrementTipNonce(address sender) internal {
         tipNonceSequenceNumber[sender]++;
     }
 
@@ -25,7 +25,7 @@ abstract contract NonceManager {
     }
 
     // allow an account to manually increment its own preconf nonce.
-    function incrementPreconfNonce(address sender) public {
+    function incrementPreconfNonce(address sender) internal {
         preconfNonceSequenceNumber[sender]++;
     }
 }
