@@ -5,8 +5,8 @@ import { Test, console } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LubanCore } from "../src/LubanCore.sol";
 import { ProposerRegistry } from "../src/LubanProposerRegistry.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import "../src/LubanEscrow.sol";
+import "../src/interfaces/ILubanCore.sol";
 
 contract DeployDevnet is Script, Test {
     LubanEscrow lubanEscrow;

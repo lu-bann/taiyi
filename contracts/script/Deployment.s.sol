@@ -3,10 +3,16 @@ pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
 import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import "../src/LubanEscrow.sol";
+import "../src/interfaces/ILubanCore.sol";
+import "../src/libs/PreconfRequestLib.sol";
+import "../src/interfaces/Types.sol";
+import "../src/utils/Helper.sol";
 
 contract DeployTest is Test {
+    using PreconfRequestLib for *;
+    using Helper for *;
+
     LubanCore public lubanCore;
     LubanEscrow public lubanEscrow;
 
@@ -45,50 +51,53 @@ contract DeployTest is Test {
         // Owner
         //////////////////////////
         vm.startBroadcast(ownerPrivatekey);
-        lubanCore = new LubanCore(owner, address(0), bytes32(0));
+        lubanCore = new LubanCore(owner, 1_606_824_023);
         console.log("Luban Core Address:   ", address(lubanCore));
-        console.log("Luban Escrow Address: ", address(lubanCore.getLubanEscrow()));
 
-        lubanCore.registerPreconfer(preconfer);
+        // lubanCore.registerPreconfer(preconfer);
         vm.stopBroadcast();
 
         //////////////////////////
         // User
         //////////////////////////
         vm.startBroadcast(userPrivatekey);
-        ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
-            gasLimit: 60_000,
+        TipTx memory tipTx = TipTx({
+            gasLimit: 100_000,
             from: user,
             to: preconfer,
             prePay: 0.1 ether,
             afterPay: 0.5 ether,
-            nonce: 0
+            nonce: 0,
+            target_slot: 10
         });
 
-        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
-            blockNumber: 10
-        });
-
-        bytes32 tipTxAndPreconfConditionsHash = lubanCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
-        (v, r, s) = vm.sign(userPrivatekey, tipTxAndPreconfConditionsHash);
-        bytes memory userSignature = abi.encodePacked(r, s, v);
-
-        bytes32 tipTxHash = lubanCore.getTipTxHash(tipTx);
+        bytes32 tipTxHash = tipTx.getTipTxHash();
         (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
         bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
+        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
-        ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
+        PreconfTx memory preconfTx = PreconfTx({
+            from: user,
+            to: preconfer,
+            value: 0.1 ether,
+            callData: "",
+            callGasLimit: 100_000,
+            nonce: 0,
+            signature: ""
+        });
+        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
+        (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+        preconfTx.signature = preconfTxSignature;
+
+        PreconfRequest memory preconfReq = PreconfRequest({
             tipTx: tipTx,
-            prefConditions: preconfConditions,
-            preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true }),
+            preconfTx: preconfTx,
             tipTxSignature: tipTxUserSignature,
-            initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconferSignature: preconferSignature,
+            preconfReqSignature: preconfTxSignature
         });
 
         lubanEscrow.deposit{ value: 1 ether }();
@@ -158,7 +167,7 @@ contract DeployTest is Test {
     //         prefConditions: preconfConditions,
     //         preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 1 ether, callData: "", ethTransfer: true }),
     //         tipTxSignature: tipTxUserSignature,
-    //         initSignature: userSignature,
+    //         tipTxSignature: userSignature,
     //         preconferSignature: preconferSignature
     //     });
 
