@@ -1,4 +1,5 @@
 mod constraint_client;
+mod contract;
 mod error;
 mod lookahead_fetcher;
 mod network_state;

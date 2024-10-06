@@ -90,4 +90,8 @@ where
         }
         Ok(())
     }
+
+    pub fn taiyi_core_contract_addr(&self) -> Address {
+        *self.taiyi_core_contract.address()
+    }
 }

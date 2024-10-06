@@ -1,10 +1,8 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
-use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_network::Ethereum;
-use alloy_primitives::{keccak256, Bytes, U256};
+use alloy_network::{Ethereum, EthereumWallet};
+use alloy_primitives::{keccak256, Bytes};
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rlp::Encodable;
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
@@ -19,13 +17,14 @@ use futures::StreamExt;
 use parking_lot::RwLock;
 use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
-    PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse,
+    PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
     SignedConstraintsMessage,
 };
 use tracing::{error, info};
 
 use crate::{
     constraint_client::ConstraintClient,
+    contract::preconf_reqs_to_constraints,
     error::{OrderPoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::PreconfPool,
@@ -48,6 +47,7 @@ pub struct PreconfState<T, P, F> {
     context: Context,
     bls_sk: blst::min_pk::SecretKey,
     ecdsa_signer: PrivateKeySigner,
+    provider: P,
 }
 
 impl<T, P, F> PreconfState<T, P, F>
@@ -56,6 +56,7 @@ where
     P: Provider<T, Ethereum> + Clone + 'static,
     F: PreconfPricer + Send + Sync + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         execution_client_url: String,
         preconfer: Preconfer<T, P, F>,
@@ -64,6 +65,7 @@ where
         context: Context,
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
+        provider: P,
     ) -> Self {
         Self {
             execution_client_url,
@@ -74,11 +76,12 @@ where
             context,
             bls_sk,
             ecdsa_signer,
+            provider,
         }
     }
 
-    pub fn constraints(&self) -> Result<ConstraintsMessage, OrderPoolError> {
-        self.preconf_pool.write().prioritized_orderpool.constraints()
+    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
+        self.preconf_pool.write().prioritized_orderpool.preconf_requests()
     }
 
     async fn signed_constraints_message(
@@ -106,8 +109,8 @@ where
 
         async move {
             loop {
-                let slot_start_timestamp = genesis_time
-                    + (self.network_state.get_current_slot() * self.context.seconds_per_slot);
+                let slot = self.network_state.get_current_slot();
+                let slot_start_timestamp = genesis_time + (slot * self.context.seconds_per_slot);
                 let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
                     + SET_CONSTRAINTS_CUTOFF_NS
                     + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
@@ -120,7 +123,16 @@ where
                     .await;
                 }
 
-                let constraint_message = self.constraints()?;
+                let preconf_requests = self.preconf_requests()?;
+                let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
+                let constraint_message = preconf_reqs_to_constraints(
+                    preconf_requests,
+                    self.preconfer.taiyi_core_contract_addr(),
+                    self.provider.clone(),
+                    wallet,
+                    slot,
+                )
+                .await;
                 if constraint_message.is_empty() {
                     continue;
                 } else {
@@ -229,7 +241,7 @@ where
     pub async fn send_preconf_tx_request(
         &self,
         preconf_req_hash: PreconfHash,
-        preconf_tx: TxEnvelope,
+        preconf_tx: PreconfTx,
     ) -> Result<(), RpcError> {
         let mut preconf_request = self
             .preconf_pool
@@ -253,9 +265,7 @@ where
         if preconf_request.preconf_tx.is_some() {
             return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
-        let mut tx = Vec::new();
-        preconf_tx.encode(&mut tx);
-        preconf_request.preconf_tx = Some(tx);
+        preconf_request.preconf_tx = Some(preconf_tx.clone());
 
         self.preconf_pool.write().orderpool.insert(preconf_req_hash, preconf_request.clone());
 
@@ -317,20 +327,21 @@ where
     // TODO: configure chainid in a better way
     async fn validate_tx_request(
         &self,
-        tx: &TxEnvelope,
+        tx: &PreconfTx,
         order: &PreconfRequest,
     ) -> Result<(), ValidationError> {
         let sender = order.tip_tx.from;
         // Vaiidate the chain id
-        if let Some(chainid) = tx.chain_id() {
-            if chainid
-                != self.get_chain_id().await.map_err(|e| {
-                    ValidationError::Internal(format!("Failed to get chain id: {e:?}"))
-                })?
-            {
-                return Err(ValidationError::ChainIdMismatch);
-            }
-        }
+        // TODO: check wheter we should introduce chain id
+        // if let Some(chainid) = tx.chain_id() {
+        //     if chainid
+        //         != self.get_chain_id().await.map_err(|e| {
+        //             ValidationError::Internal(format!("Failed to get chain id: {e:?}"))
+        //         })?
+        //     {
+        //         return Err(ValidationError::ChainIdMismatch);
+        //     }
+        // }
 
         // Check if the transaction size exceeds the maximum
         // if tx.inner_length() > MAX_TRANSACTION_SIZE {
@@ -344,8 +355,7 @@ where
         //     }
         // }
 
-        let gas_limit = get_tx_gas_limit(tx);
-        if U256::from(gas_limit) > order.tip_tx.gas_limit {
+        if tx.gas_limit() > order.tip_tx.gas_limit {
             return Err(ValidationError::GasLimitTooHigh);
         }
 
@@ -436,15 +446,5 @@ where
             .await
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
         provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
-    }
-}
-
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u64 {
-    match tx {
-        TxEnvelope::Legacy(t) => t.tx().gas_limit,
-        TxEnvelope::Eip2930(t) => t.tx().gas_limit,
-        TxEnvelope::Eip1559(t) => t.tx().gas_limit,
-        TxEnvelope::Eip4844(t) => t.tx().tx().gas_limit,
-        _ => panic!("not implemted"),
     }
 }

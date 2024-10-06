@@ -75,16 +75,13 @@ library PreconfRequestLib {
         );
     }
 
-    function getPreconfTxHash(PreconfTx calldata preconfTx) public pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                preconfTx.from,
-                preconfTx.to,
-                preconfTx.value,
-                preconfTx.callData,
-                preconfTx.callGasLimit,
-                preconfTx.nonce
-            )
+    function encodePreconfTx(PreconfTx calldata preconfTx) public pure returns (bytes memory) {
+        return abi.encode(
+            preconfTx.from, preconfTx.to, preconfTx.value, preconfTx.callData, preconfTx.callGasLimit, preconfTx.nonce
         );
+    }
+
+    function getPreconfTxHash(PreconfTx calldata preconfTx) public pure returns (bytes32) {
+        return keccak256(encodePreconfTx(preconfTx));
     }
 }

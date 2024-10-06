@@ -1,22 +1,12 @@
 use ethereum_consensus::{bellatrix::mainnet::Transaction, crypto::Signature, ssz::prelude::*};
 use ssz_rs::{prelude::SimpleSerialize, List};
 
-use crate::PreconfRequest;
 pub const MAX_TRANSACTIONS_PER_BLOCK: usize = 10_000;
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, SimpleSerialize, Default, PartialEq,
 )]
 pub struct Constraint {
-    tx: Transaction,
-}
-
-impl From<PreconfRequest> for Constraint {
-    fn from(preconf_request: PreconfRequest) -> Self {
-        let tx_data = preconf_request.preconf_tx.expect("No preconf tx");
-        let tx_ref = tx_data.as_ref();
-        let tx = Transaction::try_from(tx_ref).expect("tx");
-        Self { tx }
-    }
+    pub tx: Transaction,
 }
 
 #[derive(
@@ -56,63 +46,3 @@ impl SignedConstraintsMessage {
         Self { message, signature }
     }
 }
-
-impl TryFrom<Vec<PreconfRequest>> for ConstraintsMessage {
-    type Error = String;
-
-    fn try_from(value: Vec<PreconfRequest>) -> Result<Self, Self::Error> {
-        let first = value.first().ok_or("No preconf requests".to_string())?;
-        let slot = first.target_slot();
-        let constraints: Vec<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>> = value
-            .into_iter()
-            .map(|preconf_request| {
-                if preconf_request.target_slot() != slot {
-                    Err("Slot mismatch".to_string())
-                } else {
-                    preconf_request.preconf_tx.ok_or("No preconf tx".to_string()).map(|tx| {
-                        let re: &[u8] = tx.as_ref();
-                        vec![Constraint { tx: re.try_into().expect("tx") }]
-                            .try_into()
-                            .expect("constraint")
-                    })
-                }
-            })
-            .collect::<Result<Vec<List<Constraint, MAX_TRANSACTIONS_PER_BLOCK>>, String>>()?;
-        Ok(Self { slot: slot.to(), constraints: constraints.try_into().expect("constraints") })
-    }
-}
-
-// FIXME
-// generate test cases for ConstraintsMessage
-// #[cfg(test)]
-// mod constraints_message_tests {
-//     use alloy_primitives::Signature;
-
-//     use super::*;
-//     use crate::PreconfRequest;
-
-//     // FIXME
-//     #[test]
-//     #[ignore]
-//     fn test_try_from_vec_preconf_request() {
-//         let preconf_request = PreconfRequest {
-//             tip_tx: Default::default(),
-//             tip_tx_signature: Signature::,
-//             preconfer_signature: None,
-//             preconf_tx: Some(vec![1, 2, 3]),
-//         };
-//         let tx_data = vec![1, 2, 3];
-//         let tx_data_ref: &[u8] = tx_data.as_ref();
-//         let tx: Transaction = tx_data_ref.try_into().expect("tx");
-//         let constraints_message = ConstraintsMessage {
-//             slot: 0,
-//             constraints: vec![vec![Constraint { tx }].try_into().expect("constraint")]
-//                 .try_into()
-//                 .expect("constraints"),
-//         };
-//         assert_eq!(
-//             ConstraintsMessage::try_from(vec![preconf_request.clone()]),
-//             Ok(constraints_message.clone())
-//         );
-//     }
-// }

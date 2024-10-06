@@ -1,22 +1,18 @@
-use alloy_consensus::TxEnvelope;
 use alloy_primitives::{keccak256, Address, Signature, B256, U256};
-use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
 // use blst::min_sig::Signature
 use super::preconf_hash::domain_separator;
-use crate::PreconfHash;
+use crate::{PreconfHash, PreconfTx};
 
-type Transaction = Vec<u8>;
-
-#[derive(Debug, Serialize, Deserialize, Clone, RlpDecodable, RlpEncodable, PartialEq)]
-#[rlp(trailing)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
+    pub preconf_tx: Option<PreconfTx>,
     pub tip_tx_signature: Signature,
-    pub preconf_tx: Option<Transaction>,
     pub preconfer_signature: Option<Signature>,
+    pub preconf_req_signature: Option<Signature>,
 }
 
 impl PreconfRequest {
@@ -27,13 +23,8 @@ impl PreconfRequest {
         PreconfHash(keccak256(buffer))
     }
 
-    pub fn transaction(&self) -> Result<Option<TxEnvelope>, alloy_rlp::Error> {
-        if let Some(preconf_tx) = &self.preconf_tx {
-            let mut tx_decoded = preconf_tx.as_slice();
-            TxEnvelope::decode(&mut tx_decoded).map(Some)
-        } else {
-            Ok(None)
-        }
+    pub fn transaction(&self) -> Option<&PreconfTx> {
+        self.preconf_tx.as_ref()
     }
 
     pub fn tip(&self) -> U256 {
@@ -49,7 +40,7 @@ impl PreconfRequest {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, RlpEncodable, RlpDecodable, Default, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct TipTransaction {
     pub gas_limit: U256,
     pub from: Address,
@@ -75,20 +66,35 @@ impl TipTransaction {
 
     #[inline]
     fn typehash() -> B256 {
-        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)".as_bytes())
+        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 target_slot)".as_bytes())
     }
 
+    #[allow(dead_code)]
+    fn abi_encode(&self) -> Vec<u8> {
+        (
+            self.gas_limit,
+            self.from,
+            self.to,
+            self.pre_pay,
+            self.after_pay,
+            self.nonce,
+            self.target_slot,
+        )
+            .abi_encode_sequence()
+    }
     #[inline]
     fn _tip_tx_hash(&self) -> B256 {
-        let mut data = Vec::new();
-        data.extend_from_slice(Self::typehash().tokenize().as_ref());
-        data.extend_from_slice(self.gas_limit.tokenize().as_ref());
-        data.extend_from_slice(self.from.tokenize().as_ref());
-        data.extend_from_slice(self.to.tokenize().as_ref());
-        data.extend_from_slice(self.pre_pay.tokenize().as_ref());
-        data.extend_from_slice(self.after_pay.tokenize().as_ref());
-        data.extend_from_slice(self.nonce.tokenize().as_ref());
-        data.extend_from_slice(self.target_slot.tokenize().as_ref());
+        let data = (
+            Self::typehash(),
+            self.gas_limit,
+            self.from,
+            self.to,
+            self.pre_pay,
+            self.after_pay,
+            self.nonce,
+            self.target_slot,
+        )
+            .abi_encode_sequence();
         keccak256(data)
     }
 
@@ -103,25 +109,26 @@ impl TipTransaction {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{Address, U256};
+
+    use alloy_primitives::U256;
 
     use super::TipTransaction;
 
     #[test]
     fn test_tip_tx_hash() {
         let tx = TipTransaction::new(
-            U256::from(60000),
-            Address::ZERO,
-            Address::ZERO,
+            U256::from(100_000),
+            "0xa83114A443dA1CecEFC50368531cACE9F37fCCcb".parse().unwrap(),
+            "0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766".parse().unwrap(),
+            U256::from(1000),
+            U256::from(2000),
             U256::from(1),
-            U256::from(2),
-            U256::from(0),
-            U256::from(1337),
+            U256::from(1),
         );
         let h = tx.tip_tx_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "443916ae266a6c6cc12c602970493707eec22b14620a0fe2d2c773976d7a32ed"
+            "200c2a794d5aaf7a95ac301b273412f3e65dca45e052cb513202adcd9a6da79b"
         )
     }
 }

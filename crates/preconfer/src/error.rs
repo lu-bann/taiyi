@@ -56,9 +56,10 @@ pub enum ValidationError {
     /// The gas limit is too high.
     #[error("Gas limit too high")]
     GasLimitTooHigh,
+    /// TODO: Re-enable chainId check https://github.com/lu-bann/taiyi/issues/111s
     /// The transaction chain ID does not match the expected chain ID.
-    #[error("Chain ID mismatch")]
-    ChainIdMismatch,
+    // #[error("Chain ID mismatch")]
+    // ChainIdMismatch,
     /// NOTE: this should not be exposed to the user.
     #[error("Internal error: {0}")]
     Internal(String),

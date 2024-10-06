@@ -73,7 +73,7 @@ pub async fn spawn_service(
         Some(url) => {
             let base_fee_fetcher = TaiyiFeePricer::new(url.to_string());
             let validator = Preconfer::new(
-                provider,
+                provider.clone(),
                 taiyi_escrow_contract_addr,
                 taiyi_core_contract_addr,
                 base_fee_fetcher,
@@ -86,6 +86,7 @@ pub async fn spawn_service(
                 context,
                 bls_private_key,
                 ecdsa_signer,
+                provider.clone(),
             )
             .await;
 
@@ -106,7 +107,7 @@ pub async fn spawn_service(
         None => {
             let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
             let validator = Preconfer::new(
-                provider,
+                provider.clone(),
                 taiyi_escrow_contract_addr,
                 taiyi_core_contract_addr,
                 base_fee_fetcher,
@@ -119,6 +120,7 @@ pub async fn spawn_service(
                 context,
                 bls_private_key,
                 ecdsa_signer,
+                provider.clone(),
             )
             .await;
 
