@@ -2,12 +2,13 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_network::Ethereum;
-use alloy_primitives::{Bytes, U256};
+use alloy_primitives::{keccak256, Bytes, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rlp::Encodable;
-use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
+use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
+use alloy_signer::{Signature as ECDSASignature, Signer};
+use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
-use blst::min_pk::SecretKey;
 use ethereum_consensus::{
     builder::compute_builder_domain,
     clock::{SlotStream, SystemTimeProvider},
@@ -45,7 +46,8 @@ pub struct PreconfState<T, P, F> {
     network_state: NetworkState,
     preconf_pool: Arc<RwLock<PreconfPool>>,
     context: Context,
-    preconfer_private_key: SecretKey,
+    bls_sk: blst::min_pk::SecretKey,
+    ecdsa_signer: PrivateKeySigner,
 }
 
 impl<T, P, F> PreconfState<T, P, F>
@@ -60,7 +62,8 @@ where
         network_state: NetworkState,
         constraint_client: ConstraintClient,
         context: Context,
-        preconfer_private_key: SecretKey,
+        bls_sk: blst::min_pk::SecretKey,
+        ecdsa_signer: PrivateKeySigner,
     ) -> Self {
         Self {
             execution_client_url,
@@ -69,7 +72,8 @@ where
             network_state,
             preconf_pool: Arc::new(RwLock::new(PreconfPool::new())),
             context,
-            preconfer_private_key,
+            bls_sk,
+            ecdsa_signer,
         }
     }
 
@@ -85,8 +89,7 @@ where
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
         let signing_root = compute_signing_root(&constraints_message, domain)
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-        let signature =
-            self.preconfer_private_key.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
+        let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
         let signature = Signature::try_from(signature.as_ref())
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
 
@@ -167,11 +170,16 @@ where
 
     pub async fn sign_tip_tx_signature(
         &self,
-        tip_tx_signature: &Bytes,
-    ) -> Result<BlsSignature, RpcError> {
-        let signature = self.preconfer_private_key.sign(&tip_tx_signature.0, BLS_DST_SIG, &[]);
-        BlsSignature::try_from(signature.to_bytes().as_ref())
-            .map_err(|e| RpcError::UnknownError(e.to_string()))
+        tip_tx_signature: &ECDSASignature,
+    ) -> Result<ECDSASignature, RpcError> {
+        let message = tip_tx_signature.as_bytes().to_vec();
+        let message = keccak256(&message);
+        let signature = self
+            .ecdsa_signer
+            .sign_hash(&message)
+            .await
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+        Ok(signature)
     }
 
     /// Send a preconf request to the preconfer
@@ -264,8 +272,10 @@ where
                         afterPay: preconf_request.tip_tx.after_pay,
                         nonce: preconf_request.tip_tx.nonce,
                     },
-                    preconf_request.tip_tx_signature,
-                    preconf_request.preconfer_signature.expect("sig").into(),
+                    Bytes::from(preconf_request.tip_tx_signature.as_bytes().to_vec()),
+                    Bytes::from(
+                        preconf_request.preconfer_signature.expect("sig").as_bytes().to_vec(),
+                    ),
                 )
                 .call()
                 .await?;

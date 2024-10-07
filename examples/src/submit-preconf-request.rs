@@ -1,5 +1,8 @@
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer::SignerSync;
+use alloy_signer::{Signature, SignerSync};
 use alloy_signer_local::PrivateKeySigner;
 use reth_primitives::{
     Transaction, TransactionKind, TransactionSigned, TransactionSignedEcRecovered, TxEip1559, U256,
@@ -53,26 +56,26 @@ async fn main() -> eyre::Result<()> {
     );
 
     let tx_b = serde_json::to_vec(&tx.into_signed()).unwrap();
-    let preconf_request = PreconfRequest {
-        preconf_tx: Some(tx_b),
-        tip_tx: TipTransaction::new(
-            Default::default(),
-            signer.address(),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            U256::from(target_slot),
-        ),
-        tip_tx_signature: Default::default(),
-        preconfer_signature: Default::default(),
-    };
-    let res = client
-        .post(&format!("{}/commitments/v1/preconf_request", taiyi_url))
-        .json(&preconf_request)
-        .send()
-        .await?;
-    let res_body = res.text().await?;
-    println!("res: {}", res_body);
+    // let preconf_request = PreconfRequest {
+    //     preconf_tx: Some(tx_b),
+    //     tip_tx: TipTransaction::new(
+    //         Default::default(),
+    //         signer.address(),
+    //         Default::default(),
+    //         Default::default(),
+    //         Default::default(),
+    //         Default::default(),
+    //         U256::from(target_slot),
+    //     ),
+    //     tip_tx_signature: Signature::,
+    //     preconfer_signature: Default::default(),
+    // };
+    // let res = client
+    //     .post(&format!("{}/commitments/v1/preconf_request", taiyi_url))
+    //     .json(&preconf_request)
+    //     .send()
+    //     .await?;
+    // let res_body = res.text().await?;
+    // println!("res: {}", res_body);
     Ok(())
 }

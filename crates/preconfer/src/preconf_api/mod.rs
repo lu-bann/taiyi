@@ -2,6 +2,7 @@ use std::net::{IpAddr, SocketAddr};
 
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
+use alloy_signer_local::PrivateKeySigner;
 use api::PreconfApiServer;
 use blst::min_pk::SecretKey;
 use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
@@ -30,7 +31,8 @@ pub async fn spawn_service(
     context: Context,
     preconfer_ip: IpAddr,
     preconfer_port: u16,
-    preconfer_private_key: SecretKey,
+    bls_private_key: SecretKey,
+    ecdsa_signer: PrivateKeySigner,
     relay_url: Vec<String>,
 ) -> eyre::Result<()> {
     let provider =
@@ -41,7 +43,7 @@ pub async fn spawn_service(
     let network_state_cl = network_state.clone();
     let constraint_client = ConstraintClient::new("titanrelay".to_string())?;
 
-    let preconfer_public_key = preconfer_private_key.sk_to_pk();
+    let bls_pk = bls_private_key.sk_to_pk();
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(
@@ -49,7 +51,7 @@ pub async fn spawn_service(
             beacon_client_url,
             taiyi_proposer_registry_contract_addr,
             network_state_cl,
-            preconfer_public_key,
+            bls_pk,
             relay_url,
         )
         .await
@@ -82,7 +84,8 @@ pub async fn spawn_service(
                 network_state,
                 constraint_client,
                 context,
-                preconfer_private_key,
+                bls_private_key,
+                ecdsa_signer,
             )
             .await;
 
@@ -114,7 +117,8 @@ pub async fn spawn_service(
                 network_state,
                 constraint_client,
                 context,
-                preconfer_private_key,
+                bls_private_key,
+                ecdsa_signer,
             )
             .await;
 

@@ -25,8 +25,12 @@ pub struct PreconferCommand {
     pub beacon_client_url: String,
 
     /// A BLS private key to use for signing
-    #[clap(long = "private_key")]
-    pub preconfer_private_key: String,
+    #[clap(long = "bls_sk")]
+    pub bls_sk: String,
+
+    /// A BLS private key to use for signing
+    #[clap(long = "ecdsa_sk")]
+    pub ecdsa_sk: String,
 
     /// network
     #[clap(long = "network")]
@@ -61,10 +65,16 @@ impl PreconferCommand {
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
         let taiyi_proposer_registry_contract_addr: Address =
             self.taiyi_proposer_registry_contract_addr.parse()?;
-        let preconfer_private_key = SecretKey::from_bytes(&hex::decode(
-            self.preconfer_private_key.strip_prefix("0x").unwrap_or(&self.preconfer_private_key),
+        let bls_private_key = SecretKey::from_bytes(&hex::decode(
+            self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
         )?)
         .map_err(|e| eyre!("Failed decoding preconfer private key: {:?}", e))?;
+
+        let ecdsa_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+            k256::ecdsa::SigningKey::from_slice(&hex::decode(
+                self.ecdsa_sk.strip_prefix("0x").unwrap_or(&self.ecdsa_sk),
+            )?)?,
+        );
 
         spawn_service(
             taiyi_escrow_contract_addr,
@@ -76,7 +86,8 @@ impl PreconferCommand {
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
-            preconfer_private_key,
+            bls_private_key,
+            ecdsa_signer,
             self.relay_url.clone(),
         )
         .await?;

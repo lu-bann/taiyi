@@ -1,4 +1,4 @@
-use alloy_rpc_types_beacon::BlsSignature;
+use alloy_primitives::Signature;
 use serde::{Deserialize, Serialize};
 
 use crate::PreconfHash;
@@ -13,11 +13,11 @@ pub struct PreconfResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponseData {
     preconf_hash: PreconfHash,
-    preconfer_signature: BlsSignature,
+    preconfer_signature: Signature,
 }
 
 impl PreconfResponse {
-    pub fn success(preconf_hash: PreconfHash, preconfer_signature: BlsSignature) -> Self {
+    pub fn success(preconf_hash: PreconfHash, preconfer_signature: Signature) -> Self {
         Self {
             status: "success".to_string(),
             message:
