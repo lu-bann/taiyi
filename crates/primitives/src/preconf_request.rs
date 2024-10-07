@@ -1,7 +1,6 @@
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Address, Signature, B256, U256};
 use alloy_rlp::{Decodable, RlpDecodable, RlpEncodable};
-use alloy_rpc_types_beacon::BlsSignature;
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
@@ -11,13 +10,13 @@ use crate::PreconfHash;
 
 type Transaction = Vec<u8>;
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone, RlpDecodable, RlpEncodable, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, RlpDecodable, RlpEncodable, PartialEq)]
 #[rlp(trailing)]
 pub struct PreconfRequest {
     pub tip_tx: TipTransaction,
-    pub tip_tx_signature: Bytes,
+    pub tip_tx_signature: Signature,
     pub preconf_tx: Option<Transaction>,
-    pub preconfer_signature: Option<BlsSignature>,
+    pub preconfer_signature: Option<Signature>,
 }
 
 impl PreconfRequest {

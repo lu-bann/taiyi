@@ -6,12 +6,14 @@ edition = { workspace = true }
 [dependencies]
 alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
+alloy-signer-local = { workspace = true }
 blst = { workspace = true }
 
 clap = { version = "4.5.4", features = ["derive"] }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 hex = "0.4.3"
+k256 = { workspace = true }
 taiyi-preconfer = { workspace = true }
 tiny-bip39 = "1"
 tokio = { workspace = true }

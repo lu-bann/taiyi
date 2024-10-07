@@ -189,7 +189,7 @@ pub async fn run_cl_process<T, P>(
     beacon_url: String,
     taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
-    preconfer_public_key: PublicKey,
+    bls_pk: PublicKey,
     relay_url: Vec<String>,
 ) -> eyre::Result<()>
 where
@@ -201,7 +201,7 @@ where
         beacon_url,
         taiyi_proposer_registry_contract_addr,
         network_state,
-        preconfer_public_key,
+        bls_pk,
         relay_url,
     );
     lookahead_fetcher.initialze().await?;
