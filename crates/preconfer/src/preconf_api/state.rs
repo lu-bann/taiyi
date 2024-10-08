@@ -439,7 +439,7 @@ where
     }
 }
 
-fn get_tx_gas_limit(tx: &TxEnvelope) -> u128 {
+fn get_tx_gas_limit(tx: &TxEnvelope) -> u64 {
     match tx {
         TxEnvelope::Legacy(t) => t.tx().gas_limit,
         TxEnvelope::Eip2930(t) => t.tx().gas_limit,

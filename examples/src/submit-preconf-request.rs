@@ -1,12 +1,12 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+use alloy_consensus::TxEip1559;
+use alloy_primitives::{TxKind, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer::{Signature, SignerSync};
 use alloy_signer_local::PrivateKeySigner;
-use reth_primitives::{
-    Transaction, TransactionKind, TransactionSigned, TransactionSignedEcRecovered, TxEip1559, U256,
-};
+use reth_primitives::{Transaction, TransactionSigned, TransactionSignedEcRecovered};
 use taiyi_primitives::{AvailableSlotResponse, PreconfRequest, TipTransaction};
 
 #[tokio::main]
@@ -39,17 +39,12 @@ async fn main() -> eyre::Result<()> {
         max_priority_fee_per_gas: estimate.max_priority_fee_per_gas,
         max_fee_per_gas: estimate.max_fee_per_gas,
         gas_limit: 220000,
-        to: TransactionKind::Call("0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED".parse().unwrap()),
+        to: TxKind::Call("0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED".parse().unwrap()),
         value: U256::from(10),
         input: Default::default(),
         access_list: Default::default(),
     });
-    let sig: [u8; 65] = signer.sign_hash_sync(&tx.signature_hash())?.into();
-    let sig: reth_primitives::Signature = reth_primitives::Signature {
-        r: U256::try_from_be_slice(&sig[..32]).expect("The slice has at most 32 bytes"),
-        s: U256::try_from_be_slice(&sig[32..64]).expect("The slice has at most 32 bytes"),
-        odd_y_parity: sig[64] != 0,
-    };
+    let sig = signer.sign_hash_sync(&tx.signature_hash())?;
     let tx = TransactionSignedEcRecovered::from_signed_transaction(
         TransactionSigned::from_transaction_and_signature(tx, sig),
         signer.address(),
