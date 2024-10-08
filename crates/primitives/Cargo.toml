@@ -10,6 +10,7 @@ alloy-rlp = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
 alloy-sol-types = { workspace = true }
 beacon-api-client = { workspace = true }
+derive_more = { workspace = true }
 ethereum-consensus = { workspace = true }
 serde = { workspace = true }
 ssz_rs = { workspace = true }
