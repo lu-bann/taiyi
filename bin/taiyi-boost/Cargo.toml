@@ -4,7 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+alloy-rpc-types-beacon = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+beacon-api-client = { workspace = true }
+cb-common = { workspace = true }
 commit-boost = { workspace = true }
 eyre = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tree_hash = { workspace = true }
+tree_hash_derive = { workspace = true }
+
+[dev-dependencies]
+ethereum-consensus = { workspace = true }
