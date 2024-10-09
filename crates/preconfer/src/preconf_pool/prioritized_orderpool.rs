@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{cmp::Ordering, collections::HashMap};
 
 use alloy_primitives::{Address, U256};

@@ -207,16 +207,27 @@ where
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
         preconf_request.preconfer_signature = Some(preconfer_signature);
 
-        match self
-            .preconfer
+        self.preconfer
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await
-        {
-            Ok(_) => {}
-            Err(e) => return Err(RpcError::UnknownError(format!("validate error {e:?}"))),
-        }
+            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
 
-        self.preconf_pool.write().orderpool.insert(preconf_hash, preconf_request.clone());
+        // Check for preconf tx
+        match &preconf_request.preconf_tx {
+            Some(preconf_tx) => {
+                // Validate the tx and insert into prioritized orderpool
+                self.mock_validation_tx_request(preconf_tx, &preconf_request)
+                    .await
+                    .map_err(|e| RpcError::PreconfRequestError(e.to_string()))?;
+                self.preconf_pool
+                    .write()
+                    .prioritized_orderpool
+                    .insert_order(preconf_hash, preconf_request.clone());
+            }
+            None => {
+                self.preconf_pool.write().orderpool.insert(preconf_hash, preconf_request.clone());
+            }
+        }
 
         Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
     }
@@ -270,7 +281,7 @@ where
         self.preconf_pool.write().orderpool.insert(preconf_req_hash, preconf_request.clone());
 
         // Call exhuast if validate_tx_request fails
-        if self.validate_tx_request(&preconf_tx, &preconf_request).await.is_err() {
+        if self.mock_validation_tx_request(&preconf_tx, &preconf_request).await.is_err() {
             self.preconfer
                 .taiyi_core_contract
                 .exhaust(
@@ -321,11 +332,18 @@ where
         })
     }
 
+    async fn mock_validation_tx_request(
+        &self,
+        _tx: &PreconfTx,
+        _order: &PreconfRequest,
+    ) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
     // TDOD: validate all fields
     // After validating the tx req, update the state in insert_order function
     // NOTE: If validation fails, call exhaust
-    // TODO: configure chainid in a better way
-    async fn validate_tx_request(
+    async fn _validate_tx_request(
         &self,
         tx: &PreconfTx,
         order: &PreconfRequest,
