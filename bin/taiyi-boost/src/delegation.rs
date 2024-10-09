@@ -109,3 +109,27 @@ impl DelegationService {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ethereum_consensus::primitives::BlsPublicKey as ConsensusBlsPublicKey;
+
+    use super::*;
+
+    #[test]
+    // test conversion between alloy BlsPublicKey and ethereum-consunsus BlsPublicKey
+    fn test_bls_pubkey_conversion() {
+        let pubkey_slice: &[u8] = &[1; 48];
+        let alloy_bls_pubkey = BlsPublicKey::try_from(pubkey_slice).unwrap();
+        let consensus_bls_pubkey = ConsensusBlsPublicKey::try_from(pubkey_slice).unwrap();
+        assert_eq!(alloy_bls_pubkey.as_slice(), consensus_bls_pubkey.as_slice());
+        assert_eq!(
+            alloy_bls_pubkey,
+            BlsPublicKey::try_from(consensus_bls_pubkey.as_slice()).unwrap()
+        );
+        assert_eq!(
+            consensus_bls_pubkey,
+            ConsensusBlsPublicKey::try_from(alloy_bls_pubkey.as_slice()).unwrap()
+        );
+    }
+}
