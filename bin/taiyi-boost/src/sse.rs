@@ -26,7 +26,6 @@ impl BeaconEventClient {
         let mut last_updated_slot = 0;
         let mut payload_attributes_events = self
             .bn_client
-            .clone()
             .get_events::<PayloadAttributesTopic>()
             .await
             .expect("fail to get payload attributes events");
