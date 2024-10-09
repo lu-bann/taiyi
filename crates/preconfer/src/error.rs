@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use alloy_contract::Error as AlloyContractError;
 use axum::{
     response::{IntoResponse, Response},
@@ -28,6 +29,8 @@ pub enum RpcError {
     PricerError(#[from] PricerError),
     #[error("Escrow Error: {0:?}")]
     EscrowError(String),
+    #[error("Preconf request error: {0:?}")]
+    PreconfRequestError(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

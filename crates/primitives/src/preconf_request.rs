@@ -16,6 +16,7 @@ pub struct PreconfRequest {
 }
 
 impl PreconfRequest {
+    /// Returns hash of the tip tx
     pub fn hash(&self, chain_id: U256) -> PreconfHash {
         let mut buffer = Vec::<u8>::new();
         let tip_tx_hash = self.tip_tx.tip_tx_hash(chain_id);

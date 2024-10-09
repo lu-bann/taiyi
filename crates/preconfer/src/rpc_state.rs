@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 
