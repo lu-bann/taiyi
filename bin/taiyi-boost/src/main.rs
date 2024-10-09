@@ -8,7 +8,7 @@ mod builder;
 mod delegation;
 mod sse;
 mod types;
-use sse::BeaconEventCient;
+use sse::BeaconEventClient;
 use tokio::{join, sync::mpsc};
 use types::ExtraConfig;
 
@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state);
 
     let (duties_tx, duties_rx) = mpsc::unbounded_channel();
-    let beacon_event_client = BeaconEventCient::new(&extra.beacon_node, duties_tx);
+    let beacon_event_client = BeaconEventClient::new(&extra.beacon_node, duties_tx);
 
     let delegator = DelegationService::new(
         extra.chain_id,

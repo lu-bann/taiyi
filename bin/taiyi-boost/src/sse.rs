@@ -11,16 +11,16 @@ const EPOCH_SLOTS: u64 = 32;
 const PROPOSER_DUTIES_REFRESH_FREQ: u64 = EPOCH_SLOTS / 4;
 
 #[derive(Clone)]
-pub struct BeaconEventCient {
+pub struct BeaconEventClient {
     bn_client: Arc<Client>,
     duties_tx: UnboundedSender<Vec<ProposerDuty>>,
 }
 
-impl BeaconEventCient {
+impl BeaconEventClient {
     pub fn new(beacon_node: &str, duties_tx: UnboundedSender<Vec<ProposerDuty>>) -> Self {
         let bn_client =
             Client::new(Url::parse(beacon_node).expect("fail to parse beacon node url"));
-        BeaconEventCient { bn_client: Arc::new(bn_client), duties_tx }
+        BeaconEventClient { bn_client: Arc::new(bn_client), duties_tx }
     }
     pub async fn run(&self) -> Result<()> {
         let mut last_updated_slot = 0;
@@ -39,7 +39,9 @@ impl BeaconEventCient {
                             && new_slot % PROPOSER_DUTIES_REFRESH_FREQ == 0)
                     {
                         last_updated_slot = new_slot;
-                        self.fetch_and_send_duties(new_slot).await;
+                        if let Err(e) = self.fetch_and_send_duties(new_slot).await {
+                            error!("Failed to fetch and send duties: {e}");
+                        }
                     }
                 }
                 Err(e) => {
@@ -50,20 +52,16 @@ impl BeaconEventCient {
         Ok(())
     }
     // Fetch for `epoch` and `epoch + 1`;
-    async fn fetch_and_send_duties(&self, slot: u64) {
+    async fn fetch_and_send_duties(&self, slot: u64) -> Result<()> {
         let epoch = slot / EPOCH_SLOTS;
         let mut all_duties = Vec::with_capacity(64);
         for i in 0..2 {
-            let (_, duties) = self
-                .bn_client
-                .clone()
-                .get_proposer_duties(epoch + i)
-                .await
-                .expect("fail to get proposer duties");
+            let (_, duties) = self.bn_client.get_proposer_duties(epoch + i).await?;
             all_duties.extend(duties);
         }
         if let Err(e) = self.duties_tx.send(all_duties) {
             error!("Failed to send duties: {e}");
         }
+        Ok(())
     }
 }

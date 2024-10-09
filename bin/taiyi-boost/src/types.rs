@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
 use serde::{Deserialize, Serialize};
 use tree_hash_derive::TreeHash;
@@ -11,7 +13,7 @@ pub struct ExtraConfig {
     pub chain_id: u64,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize, TreeHash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, TreeHash)]
 pub struct ElectPreconferRequest {
     pub preconfer_pubkey: BlsPublicKey,
     pub slot_number: u64,
@@ -19,8 +21,11 @@ pub struct ElectPreconferRequest {
     pub gas_limit: u64,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SignedRequest<T> {
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize)]
+pub struct SignedRequest<T>
+where
+    T: Debug + Default + Clone + Eq + PartialEq + Serialize,
+{
     pub message: T,
     pub signature: BlsSignature,
 }
