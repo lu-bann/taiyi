@@ -7,7 +7,7 @@ use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer::{Signature, SignerSync};
 use alloy_signer_local::PrivateKeySigner;
 use reth_primitives::{Transaction, TransactionSigned, TransactionSignedEcRecovered};
-use taiyi_primitives::{AvailableSlotResponse, PreconfRequest, TipTransaction};
+use taiyi_primitives::{AvailableSlotResponse, PreconfRequest, PreconfTx, TipTransaction};
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -30,27 +30,27 @@ async fn main() -> eyre::Result<()> {
     let target_slot = available_slot.available_slots.last().expect("last").slot;
     println!("target_slot: {:?}", available_slot);
 
-    let estimate = provider.estimate_eip1559_fees(None).await?;
+    // FIXME: get nonce from contract
     let nonce = provider.get_transaction_count(signer.address()).await?;
 
-    let tx: Transaction = Transaction::Eip1559(TxEip1559 {
-        chain_id: 7014190335,
-        nonce,
-        max_priority_fee_per_gas: estimate.max_priority_fee_per_gas,
-        max_fee_per_gas: estimate.max_fee_per_gas,
-        gas_limit: 220000,
-        to: TxKind::Call("0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED".parse().unwrap()),
-        value: U256::from(10),
-        input: Default::default(),
-        access_list: Default::default(),
-    });
-    let sig = signer.sign_hash_sync(&tx.signature_hash())?;
-    let tx = TransactionSignedEcRecovered::from_signed_transaction(
-        TransactionSigned::from_transaction_and_signature(tx, sig),
-        signer.address(),
-    );
+    // let tx: Transaction = Transaction::Eip1559(TxEip1559 {
+    //     chain_id: 7014190335,
+    //     nonce,
+    //     max_priority_fee_per_gas: estimate.max_priority_fee_per_gas,
+    //     max_fee_per_gas: estimate.max_fee_per_gas,
+    //     gas_limit: 220000,
+    //     to: TxKind::Call("0xc998d0300e83d2Bf0eD9abB2A62D25A368adb8ED".parse().unwrap()),
+    //     value: U256::from(10),
+    //     input: Default::default(),
+    //     access_list: Default::default(),
+    // });
+    // let sig = signer.sign_hash_sync(&tx.signature_hash())?;
+    // let tx = TransactionSignedEcRecovered::from_signed_transaction(
+    //     TransactionSigned::from_transaction_and_signature(tx, sig),
+    //     signer.address(),
+    // );
 
-    let tx_b = serde_json::to_vec(&tx.into_signed()).unwrap();
+    // let tx_b = serde_json::to_vec(&tx.into_signed()).unwrap();
     // let preconf_request = PreconfRequest {
     //     preconf_tx: Some(tx_b),
     //     tip_tx: TipTransaction::new(

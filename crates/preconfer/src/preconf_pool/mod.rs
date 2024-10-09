@@ -111,6 +111,7 @@ mod tests {
             tip_tx_signature,
             preconfer_signature: None,
             preconf_tx: None,
+            preconf_req_signature: None,
         };
         assert!(preconf_pool.prevalidate_req(1, &preconf_request).is_ok());
 

@@ -15,14 +15,9 @@ pub fn eip712_domain_typehash() -> B256 {
 #[allow(dead_code)]
 pub fn domain_separator(chain_id: U256) -> B256 {
     let typehash = eip712_domain_typehash();
-    let contract_name = keccak256("TaiyiCore".as_bytes());
+    let contract_name = keccak256("LubanCore".as_bytes());
     let version = keccak256("1.0".as_bytes());
-    let mut data = Vec::new();
-    data.extend_from_slice(typehash.tokenize().as_ref());
-    data.extend_from_slice(contract_name.tokenize().as_ref());
-    data.extend_from_slice(version.tokenize().as_ref());
-    data.extend_from_slice(chain_id.tokenize().as_ref());
-    keccak256(data)
+    keccak256((typehash, contract_name, version, chain_id).abi_encode_sequence())
 }
 
 #[cfg(test)]
@@ -46,7 +41,7 @@ mod tests {
         let res = domain_separator(U256::from(1337));
         assert_eq!(
             format!("{res:x}"),
-            "c5e54e20a9ad29abf87784cb9fe36a45b5ca20222503dd672c344fabc500a581"
+            "da358caadda82b600096a11150b79559d2f07fdaac4ddf2425e295c3e432700d"
         );
     }
 }

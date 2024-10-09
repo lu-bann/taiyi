@@ -1,9 +1,8 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use alloy_primitives::{Address, U256};
-use ethereum_consensus::ssz::prelude::List;
 use priority_queue::PriorityQueue;
-use taiyi_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfRequest};
+use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::{error::OrderPoolError, rpc_state::AccountState};
 
@@ -85,19 +84,14 @@ impl PrioritizedOrderPool {
         self.orders.remove(&id)
     }
 
-    pub fn constraints(&mut self) -> Result<ConstraintsMessage, OrderPoolError> {
+    pub fn preconf_requests(&mut self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
         let mut preconfs = Vec::new();
         while !self.main_queue.is_empty() {
-            let preconf = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
-            let constraint = vec![Constraint::from(preconf)];
-            let constraint_list = List::try_from(constraint).expect("constraint list");
-            preconfs.push(constraint_list);
+            let preconf_request = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
+            preconfs.push(preconf_request);
         }
 
-        let slot = self.slot.ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        let constraints = List::try_from(preconfs).expect("constraints");
-
-        Ok(ConstraintsMessage { slot, constraints })
+        Ok(preconfs)
     }
 
     pub fn update_slot(&mut self, slot: u64) {
