@@ -1,4 +1,4 @@
-use alloy::rpc::types::beacon::BlsPublicKey;
+use alloy_rpc_types_beacon::BlsPublicKey;
 use beacon_api_client::ProposerDuty;
 use cb_common::pbs::RelayClient;
 use commit::client::SignerClient;

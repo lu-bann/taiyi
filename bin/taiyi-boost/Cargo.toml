@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { workspace = true, features = ["ssz", "rpc-types-beacon", "serde"] }
+alloy-rpc-types-beacon = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
