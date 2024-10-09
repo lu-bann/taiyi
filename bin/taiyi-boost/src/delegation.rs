@@ -51,7 +51,7 @@ impl DelegationService {
             for duty in our_duties {
                 // this could be done in parallel
                 if let Err(err) = self.elect_preconfer(duty).await {
-                    error!("Failed to elect gateway: {err}");
+                    error!("Failed to elect preconfer: {err}");
                 };
             }
         }
