@@ -94,7 +94,7 @@ impl DelegationService {
             match res {
                 Ok(response) => {
                     let status = response.status();
-                    let response_bytes = response.bytes().await.expect("failed to get bytes");
+                    let response_bytes = response.bytes().await?;
                     let ans = String::from_utf8_lossy(&response_bytes).into_owned();
                     if !status.is_success() {
                         error!(err = ans, ?status, "failed sending delegation sign request");
