@@ -4,7 +4,7 @@ use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use serde::{Deserialize, Serialize};
 use tree_hash_derive::TreeHash;
 
-pub const ELECT_PRECONFER_PATH: &str = "/eth/v1/builder/elect_preconfer";
+pub const ELECT_PRECONFER_PATH: &str = "/elect_preconfer";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
