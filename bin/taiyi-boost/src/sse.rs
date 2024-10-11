@@ -50,14 +50,15 @@ impl BeaconEventClient {
         }
         Ok(())
     }
-    // Fetch for `epoch` and `epoch + 1`;
+    // Fetch for `epoch + 1`;
+    // helix only receive delegation duties from epoch + 1
     async fn fetch_and_send_duties(&self, slot: u64) -> Result<()> {
-        let epoch = slot / EPOCH_SLOTS;
-        let mut all_duties = Vec::with_capacity(64);
-        for i in 0..2 {
-            let (_, duties) = self.bn_client.get_proposer_duties(epoch + i).await?;
-            all_duties.extend(duties);
+        let mut target_epoch = (slot / EPOCH_SLOTS) + 1;
+        // edge case: if the slot is the first slot of the epoch, the epoch is not ready yet
+        if slot % EPOCH_SLOTS == 0 {
+            target_epoch -= 1;
         }
+        let (_, all_duties) = self.bn_client.get_proposer_duties(target_epoch).await?;
         if let Err(e) = self.duties_tx.send(all_duties) {
             error!("Failed to send duties: {e}");
         }
