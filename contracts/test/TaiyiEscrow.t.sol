@@ -3,20 +3,20 @@ pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../src/LubanEscrow.sol";
-import "../src/LubanCore.sol";
-import "../src/interfaces/ILubanCore.sol";
+import "../src/TaiyiEscrow.sol";
+import "../src/TaiyiCore.sol";
+import "../src/interfaces/ITaiyiCore.sol";
 import "../src/libs/PreconfRequestLib.sol";
 
-contract LubanEscrowTest is Test {
+contract TaiyiEscrowTest is Test {
     using PreconfRequestLib for *;
 
-    LubanCore core;
+    TaiyiCore core;
     address user;
-    address lubanCore;
+    address taiyiCore;
     address owner;
 
-    uint256 internal lubanCorePrivatekey;
+    uint256 internal taiyiCorePrivatekey;
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
 
@@ -29,7 +29,7 @@ contract LubanEscrowTest is Test {
 
         vm.deal(user, 100 ether);
 
-        core = new LubanCore(owner, 1_606_824_023);
+        core = new TaiyiCore(owner, 1_606_824_023);
     }
 
     function testDeposit() public {

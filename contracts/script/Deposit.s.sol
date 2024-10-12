@@ -3,20 +3,20 @@ pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
-import { LubanCore } from "../src/LubanCore.sol";
-import { ProposerRegistry } from "../src/LubanProposerRegistry.sol";
-import "../src/LubanEscrow.sol";
-import "../src/interfaces/ILubanCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { ProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
+import "../src/TaiyiEscrow.sol";
+import "../src/interfaces/ITaiyiCore.sol";
 
 contract DeployDevnet is Script, Test {
-    LubanEscrow lubanEscrow;
+    TaiyiEscrow taiyiEscrow;
 
     function run() public {
         vm.startBroadcast();
         address payable escrow_addr = payable(0x80326143C9157A6f3692634201475f3328e1Eb64);
-        lubanEscrow = LubanEscrow(escrow_addr);
+        taiyiEscrow = TaiyiEscrow(escrow_addr);
 
-        lubanEscrow.deposit{ value: 10 }();
+        taiyiEscrow.deposit{ value: 10 }();
 
         vm.stopBroadcast();
     }

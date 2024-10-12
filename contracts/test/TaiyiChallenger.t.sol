@@ -3,7 +3,7 @@ pragma solidity ^0.8.5;
 
 import "@axiom-crypto/axiom-std/AxiomTest.sol";
 
-contract LubanChallengerTest is AxiomTest {
+contract TaiyiChallengerTest is AxiomTest {
     using Axiom for Query;
 
     struct AxiomInput {
@@ -11,7 +11,7 @@ contract LubanChallengerTest is AxiomTest {
         address _address;
     }
 
-    // LubanChallenger public LubanChallenger; // unused
+    // TaiyiChallenger public TaiyiChallenger; // unused
     AxiomInput public input;
     bytes32 public querySchema;
 

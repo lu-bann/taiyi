@@ -2,9 +2,9 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
-import "../src/LubanProposerRegistry.sol";
+import "../src/TaiyiProposerRegistry.sol";
 
-contract LubanProposerRegistryTest is Test {
+contract TaiyiProposerRegistryTest is Test {
     ProposerRegistry public registry;
     address public proposer1 = address(0x1);
     address public proposer2 = address(0x2);

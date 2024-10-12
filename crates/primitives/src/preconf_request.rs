@@ -67,7 +67,7 @@ impl TipTransaction {
 
     #[inline]
     fn typehash() -> B256 {
-        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 target_slot)".as_bytes())
+        keccak256("TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)".as_bytes())
     }
 
     #[allow(dead_code)]
@@ -129,7 +129,7 @@ mod tests {
         let h = tx.tip_tx_hash(U256::from(1337));
         assert_eq!(
             format!("{:x}", h),
-            "200c2a794d5aaf7a95ac301b273412f3e65dca45e052cb513202adcd9a6da79b"
+            "6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a"
         )
     }
 }

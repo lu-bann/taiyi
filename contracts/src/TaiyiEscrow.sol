@@ -12,7 +12,7 @@ import { PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import { Helper } from "./utils/Helper.sol";
 
-contract LubanEscrow is ReentrancyGuard {
+contract TaiyiEscrow is ReentrancyGuard {
     using PreconfRequestLib for *;
     using ECDSA for bytes32;
 

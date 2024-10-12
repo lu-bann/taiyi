@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
-import "../src/LubanProposerRegistry.sol";
+import "../src/TaiyiProposerRegistry.sol";
 import "../src/interfaces/Types.sol";
 import "../src/libs/PreconfRequestLib.sol";
 
@@ -57,12 +57,11 @@ contract PreconTxTest is Test {
             prePay: 1000,
             afterPay: 2000,
             nonce: 1,
-            target_slot: 1
+            targetSlot: 1
         });
         vm.chainId(1337);
         bytes32 hash = tipTx.getTipTxHash();
-        console.logBytes32(PreconfRequestLib.TIP_TX_TYPEHASH);
 
-        assertEq(hash, bytes32(0x200c2a794d5aaf7a95ac301b273412f3e65dca45e052cb513202adcd9a6da79b));
+        assertEq(hash, bytes32(0x6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a));
     }
 }
