@@ -22,7 +22,6 @@ pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    taiyi_escrow_contract_addr: Address,
     taiyi_core_contract_addr: Address,
     taiyi_proposer_registry_contract_addr: Address,
     execution_client_url: String,
@@ -72,12 +71,8 @@ pub async fn spawn_service(
     match taiyi_service_url {
         Some(url) => {
             let base_fee_fetcher = TaiyiFeePricer::new(url.to_string());
-            let validator = Preconfer::new(
-                provider.clone(),
-                taiyi_escrow_contract_addr,
-                taiyi_core_contract_addr,
-                base_fee_fetcher,
-            );
+            let validator =
+                Preconfer::new(provider.clone(), taiyi_core_contract_addr, base_fee_fetcher);
             let state = PreconfState::new(
                 execution_client_url,
                 validator,
@@ -106,12 +101,8 @@ pub async fn spawn_service(
         }
         None => {
             let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
-            let validator = Preconfer::new(
-                provider.clone(),
-                taiyi_escrow_contract_addr,
-                taiyi_core_contract_addr,
-                base_fee_fetcher,
-            );
+            let validator =
+                Preconfer::new(provider.clone(), taiyi_core_contract_addr, base_fee_fetcher);
             let state = PreconfState::new(
                 execution_client_url,
                 validator,
