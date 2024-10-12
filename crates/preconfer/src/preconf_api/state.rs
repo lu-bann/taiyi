@@ -1,7 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{keccak256, Bytes};
+use alloy_primitives::keccak256;
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -28,7 +28,7 @@ use crate::{
     error::{OrderPoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::PreconfPool,
-    preconfer::{Preconfer, TipTx},
+    preconfer::Preconfer,
     pricer::PreconfPricer,
     rpc_state::{get_account_state, AccountState},
 };
@@ -282,24 +282,7 @@ where
 
         // Call exhuast if validate_tx_request fails
         if self.mock_validation_tx_request(&preconf_tx, &preconf_request).await.is_err() {
-            self.preconfer
-                .taiyi_core_contract
-                .exhaust(
-                    TipTx {
-                        gasLimit: preconf_request.tip_tx.gas_limit,
-                        from: preconf_request.tip_tx.from,
-                        to: preconf_request.tip_tx.to,
-                        prePay: preconf_request.tip_tx.pre_pay,
-                        afterPay: preconf_request.tip_tx.after_pay,
-                        nonce: preconf_request.tip_tx.nonce,
-                    },
-                    Bytes::from(preconf_request.tip_tx_signature.as_bytes().to_vec()),
-                    Bytes::from(
-                        preconf_request.preconfer_signature.expect("sig").as_bytes().to_vec(),
-                    ),
-                )
-                .call()
-                .await?;
+            self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
         } else {
             self.preconf_pool
                 .write()

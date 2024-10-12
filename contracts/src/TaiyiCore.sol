@@ -2,10 +2,10 @@
 pragma solidity ^0.8.25;
 
 import { SignatureChecker } from "open-zeppelin/utils/cryptography/SignatureChecker.sol";
-import { ILubanCore } from "./interfaces/ILubanCore.sol";
-import { ILubanChallengeManager } from "./interfaces/ILubanChallengeManager.sol";
-import { LubanEscrow } from "./LubanEscrow.sol";
-import { ProposerRegistry } from "./LubanProposerRegistry.sol";
+import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
+import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
+import { TaiyiEscrow } from "./TaiyiEscrow.sol";
+import { ProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
@@ -15,7 +15,7 @@ import { NonceManager } from "./utils/NonceManager.sol";
 import { SlotLib } from "./libs/SlotLib.sol";
 import { Helper } from "./utils/Helper.sol";
 
-contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, NonceManager {
+contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager {
     using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
@@ -123,7 +123,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
 
         uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
 
-        require(tipTx.target_slot == slot, "Wrong slot number");
+        require(tipTx.targetSlot == slot, "Wrong slot number");
 
         validateRequest(preconfReq);
 
@@ -232,7 +232,7 @@ contract LubanCore is Ownable, ILubanCore, LubanEscrow, ILubanChallengeManager, 
 
             if (status == PreconfRequestStatus.NonInitiated) {
                 uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
-                require(slot >= tipTx.target_slot, "PreconfRequest has not reached the block requested yet");
+                require(slot >= tipTx.targetSlot, "PreconfRequest has not reached the block requested yet");
             } else if (status == PreconfRequestStatus.Executed || status == PreconfRequestStatus.Exhausted) {
                 bool isIncluded = inclusionStatusMap[preconfReq.getPreconfRequestHash()];
                 if (!isIncluded) {

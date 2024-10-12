@@ -1,43 +1,13 @@
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
-use alloy_sol_types::sol;
 use alloy_transport::Transport;
 use taiyi_primitives::PreconfRequest;
-use TaiyiCore::TaiyiCoreInstance;
-use TaiyiEscrow::TaiyiEscrowInstance;
 
-use crate::{error::RpcError, pricer::PreconfPricer};
+use crate::{contract::TaiyiCoreInstance, error::RpcError, pricer::PreconfPricer};
 
-sol! {
-    #[sol(rpc)]
-    contract TaiyiEscrow {
-        #[derive(Debug)]
-        function lockBlockOf(address user) public view returns (uint256);
-        #[derive(Debug)]
-        function balanceOf(address user) public view returns (uint256);
-    }
-}
-
-sol! {
-    #[derive(Debug)]
-    struct TipTx {
-        uint256 gasLimit;
-        address from;
-        address to;
-        uint256 prePay;
-        uint256 afterPay;
-        uint256 nonce;
-    }
-    #[sol(rpc)]
-    contract TaiyiCore {
-        #[derive(Debug)]
-        function exhaust(TipTx calldata tipTx, bytes calldata userSignature, bytes calldata preconferSignature) external;
-    }
-}
 #[derive(Debug, Clone)]
 pub struct Preconfer<T, P, F> {
-    taiyi_escrow_contract: TaiyiEscrowInstance<T, P>,
     pub taiyi_core_contract: TaiyiCoreInstance<T, P>,
     pricer: F,
 }
@@ -48,15 +18,9 @@ where
     P: Provider<T, Ethereum> + Clone,
     F: PreconfPricer + Sync,
 {
-    pub fn new(
-        provider: P,
-        taiyi_escrow_contract_addr: Address,
-        taiyi_core_contract_addr: Address,
-        pricer: F,
-    ) -> Self {
-        let taiyi_escrow_contract = TaiyiEscrow::new(taiyi_escrow_contract_addr, provider.clone());
+    pub fn new(provider: P, taiyi_core_contract_addr: Address, pricer: F) -> Self {
         let taiyi_core_contract = TaiyiCoreInstance::new(taiyi_core_contract_addr, provider);
-        Self { taiyi_escrow_contract, taiyi_core_contract, pricer }
+        Self { taiyi_core_contract, pricer }
     }
     // TODO: take priority gas fee into account when calculating the cost
     /// validate whether the address have enough balance lockedon the escrow contract
@@ -65,8 +29,8 @@ where
         address: &Address,
         preconf_request: &PreconfRequest,
     ) -> eyre::Result<(), RpcError> {
-        let balance = self.taiyi_escrow_contract.balanceOf(*address).call().await?;
-        let lock_block = self.taiyi_escrow_contract.lockBlockOf(*address).call().await?;
+        let balance = self.taiyi_core_contract.balanceOf(*address).call().await?;
+        let lock_block = self.taiyi_core_contract.lockBlockOf(*address).call().await?;
         if lock_block._0 != U256::MAX {
             return Err(RpcError::EscrowError(
                 "from address haven't deposit in escrow contract".to_string(),

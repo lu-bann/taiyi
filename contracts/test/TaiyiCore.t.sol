@@ -2,19 +2,19 @@
 pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
-import { LubanCore } from "../src/LubanCore.sol";
-import { LubanEscrow } from "../src/LubanEscrow.sol";
-import { ILubanCore } from "../src/interfaces/ILubanCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
+import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
 import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
 import { Helper } from "../src/utils/Helper.sol";
 import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
 
-contract LubanCoreTest is Test {
+contract TaiyiCoreTest is Test {
     using PreconfRequestLib for *;
     using Helper for bytes;
 
-    LubanCore public lubanCore;
+    TaiyiCore public taiyiCore;
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
@@ -48,11 +48,11 @@ contract LubanCoreTest is Test {
         vm.deal(owner, 100 ether);
 
         vm.warp(genesisTimestamp);
-        lubanCore = new LubanCore(owner, genesisTimestamp);
+        taiyiCore = new TaiyiCore(owner, genesisTimestamp);
     }
 
     function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {
-        uint8 status = uint8(lubanCore.getPreconfRequestStatus(preconfRequestHash));
+        uint8 status = uint8(taiyiCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
     }
 
@@ -90,7 +90,7 @@ contract LubanCoreTest is Test {
     }
 
     function testNormalWorkflow() public {
-        uint256 target_slot = 10;
+        uint256 targetSlot = 10;
         TipTx memory tipTx = TipTx({
             gasLimit: 100_000,
             from: user,
@@ -98,7 +98,7 @@ contract LubanCoreTest is Test {
             prePay: 1 ether,
             afterPay: 2 ether,
             nonce: 0,
-            target_slot: target_slot
+            targetSlot: targetSlot
         });
 
         PreconfTx memory preconfTx = PreconfTx({
@@ -114,27 +114,27 @@ contract LubanCoreTest is Test {
         PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
         vm.prank(user);
-        lubanCore.deposit{ value: 4 ether }();
+        taiyiCore.deposit{ value: 4 ether }();
 
-        uint256 balances = lubanCore.balanceOf(user);
+        uint256 balances = taiyiCore.balanceOf(user);
         console.log("User balance:", balances);
-        vm.warp(genesisTimestamp + 12 * target_slot);
+        vm.warp(genesisTimestamp + 12 * targetSlot);
 
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
 
         vm.prank(owner);
-        lubanCore.settleRequest(preconfReq);
+        taiyiCore.settleRequest(preconfReq);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Executed);
 
         uint256 bobBalance = bob.balance;
         assertEq(bobBalance, 1 ether);
 
-        uint256 collectedTip = lubanCore.getCollectedTip();
+        uint256 collectedTip = taiyiCore.getCollectedTip();
         assertEq(collectedTip, 0);
 
-        lubanCore.collectTip(preconfRequestHash);
+        taiyiCore.collectTip(preconfRequestHash);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
-        collectedTip = lubanCore.getCollectedTip();
+        collectedTip = taiyiCore.getCollectedTip();
         assertEq(collectedTip, 3 ether);
     }
 
@@ -146,7 +146,7 @@ contract LubanCoreTest is Test {
             prePay: 1 ether,
             afterPay: 2 ether,
             nonce: 0,
-            target_slot: 10
+            targetSlot: 10
         });
         PreconfTx memory preconfTx = PreconfTx({
             from: user,
@@ -161,10 +161,10 @@ contract LubanCoreTest is Test {
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
 
         vm.prank(user);
-        lubanCore.deposit{ value: 9 ether }();
+        taiyiCore.deposit{ value: 9 ether }();
 
         // Check balance before exhaust
-        uint256 balanceBefore = lubanCore.balanceOf(user);
+        uint256 balanceBefore = taiyiCore.balanceOf(user);
         assertEq(balanceBefore, 9 ether);
 
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
@@ -172,13 +172,13 @@ contract LubanCoreTest is Test {
         vm.coinbase(coinbase);
 
         vm.prank(owner);
-        lubanCore.exhaust(preconfReq);
+        taiyiCore.exhaust(preconfReq);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Exhausted);
 
         assertEq(coinbase.balance, 100_000);
 
-        lubanCore.collectTip(preconfRequestHash);
-        uint256 collectedTip = lubanCore.getCollectedTip();
+        taiyiCore.collectTip(preconfRequestHash);
+        uint256 collectedTip = taiyiCore.getCollectedTip();
         assertEq(collectedTip, 1 ether);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
     }

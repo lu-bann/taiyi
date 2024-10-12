@@ -35,9 +35,9 @@ struct Opts {
     #[clap(long = "num_txs", default_value = "1")]
     num_txs: u64,
 
-    /// Luban core contract address
-    #[clap(long = "luban_core_address")]
-    luban_core_address: Address,
+    /// Taiyi core contract address
+    #[clap(long = "taiyi_core_address")]
+    taiyi_core_address: Address,
 }
 
 #[tokio::main]
@@ -64,13 +64,13 @@ async fn main() -> Result<()> {
 
     sol!(
         #[sol(rpc)]
-        contract LubanCore{
+        contract TaiyiCore{
             function getTipNonce(address sender) public view returns (uint256 nonce);
             function getPreconfNonce(address sender) public view returns (uint256 nonce);
         }
     );
 
-    let contract = LubanCore::LubanCoreInstance::new(opts.luban_core_address, provider.clone());
+    let contract = TaiyiCore::TaiyiCoreInstance::new(opts.taiyi_core_address, provider.clone());
     let mut tip_nonce = contract.getTipNonce(sender).call().await?.nonce;
     let mut preconf_nonce = contract.getPreconfNonce(sender).call().await?.nonce;
 

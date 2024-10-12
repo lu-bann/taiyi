@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import { PreconfRequest, PreconfRequestStatus } from "./Types.sol";
 
-interface ILubanCore {
+interface ITaiyiCore {
     function settleRequest(PreconfRequest calldata preconfReq) external payable;
 
     function checkInclusion(bytes32 preconfRequestHash) external view returns (bool);

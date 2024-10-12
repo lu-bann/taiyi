@@ -7,10 +7,11 @@ use ethereum_consensus::ssz::prelude::{ByteList, List};
 use taiyi_primitives::{
     Constraint, ConstraintsMessage, PreconfRequest, MAX_TRANSACTIONS_PER_BLOCK,
 };
-mod core {
+pub mod core {
     use alloy_sol_types::sol;
 
     sol! {
+            #[derive(Debug)]
             struct TipTx {
                 uint256 gasLimit;
                 address from;
@@ -18,9 +19,10 @@ mod core {
                 uint256 prePay;
                 uint256 afterPay;
                 uint256 nonce;
-                uint256 target_slot;
+                uint256 targetSlot;
             }
 
+            #[derive(Debug)]
             struct PreconfTx {
                 address from;
                 address to;
@@ -31,6 +33,7 @@ mod core {
                 bytes signature;
             }
 
+            #[derive(Debug)]
             struct PreconfRequest {
                 TipTx tipTx;
                 PreconfTx preconfTx;
@@ -40,11 +43,19 @@ mod core {
             }
 
             #[sol(rpc)]
-            contract LubanCore{
+            contract TaiyiCore {
+                #[derive(Debug)]
                 function batchSettleRequests(PreconfRequest[] calldata preconfReqs) external payable;
+                #[derive(Debug)]
+                function exhaust(PreconfRequest calldata preconfReq) external;
+                #[derive(Debug)]
+                function lockBlockOf(address user) public view returns (uint256);
+                #[derive(Debug)]
+                function balanceOf(address user) public view returns (uint256);
             }
     }
 }
+pub use core::TaiyiCore::TaiyiCoreInstance;
 
 impl From<PreconfRequest> for core::PreconfRequest {
     fn from(req: PreconfRequest) -> Self {
@@ -57,7 +68,7 @@ impl From<PreconfRequest> for core::PreconfRequest {
                 prePay: req.tip_tx.pre_pay,
                 afterPay: req.tip_tx.after_pay,
                 nonce: req.tip_tx.nonce,
-                target_slot: req.tip_tx.target_slot,
+                targetSlot: req.tip_tx.target_slot,
             },
             preconfTx: core::PreconfTx {
                 from: preconf_tx.from,
@@ -81,7 +92,7 @@ impl From<PreconfRequest> for core::PreconfRequest {
 
 pub async fn preconf_reqs_to_constraints<T, P>(
     preconf_reqs: Vec<PreconfRequest>,
-    luban_core_address: Address,
+    taiyi_core_address: Address,
     provider: P,
     wallet: EthereumWallet,
     slot: u64,
@@ -90,7 +101,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    let contract = core::LubanCore::LubanCoreInstance::new(luban_core_address, provider);
+    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider);
     let preconf_reqs: Vec<core::PreconfRequest> =
         preconf_reqs.into_iter().map(|req| req.into()).collect();
     let tx = contract.batchSettleRequests(preconf_reqs).into_transaction_request();

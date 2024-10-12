@@ -8,7 +8,7 @@ pragma solidity ^0.8.25;
 /// afterPay is the payment a preconfer could receive after successfully executing the transaction by calling the
 /// settleRequest function
 /// nonce - prevents double spend
-/// target_slot - the slot of the target preconf transaction
+/// targetSlot - the slot of the target preconf transaction
 struct TipTx {
     uint256 gasLimit;
     address from;
@@ -16,7 +16,7 @@ struct TipTx {
     uint256 prePay;
     uint256 afterPay;
     uint256 nonce;
-    uint256 target_slot;
+    uint256 targetSlot;
 }
 
 /// @dev A transaction that the user want to execute for preconfirmation, like normal transaction

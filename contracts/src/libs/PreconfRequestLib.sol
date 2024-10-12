@@ -9,7 +9,7 @@ library PreconfRequestLib {
     //////////////////////////////////////////////////////*/
 
     bytes32 constant TIP_TX_TYPEHASH = keccak256(
-        "TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 target_slot)"
+        "TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)"
     );
 
     bytes32 constant INCLUSION_META_TYPEHASH = keccak256("InclusionMeta(uint256 startingBlockNumber)");
@@ -39,7 +39,7 @@ library PreconfRequestLib {
             abi.encode(
                 PreconfRequestLib.EIP712_DOMAIN_TYPEHASH,
                 // Contract name
-                keccak256(bytes("LubanCore")),
+                keccak256(bytes("TaiyiCore")),
                 // Version
                 keccak256(bytes("1.0")),
                 // Chain ID
@@ -70,7 +70,7 @@ library PreconfRequestLib {
                 tipTx.prePay,
                 tipTx.afterPay,
                 tipTx.nonce,
-                tipTx.target_slot
+                tipTx.targetSlot
             )
         );
     }

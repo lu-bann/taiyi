@@ -3,6 +3,6 @@ pragma solidity ^0.8.25;
 
 import { PreconfRequest } from "./Types.sol";
 
-interface ILubanChallengeManager {
+interface ITaiyiChallengeManager {
     function challengeRequests(PreconfRequest[] calldata preconfReqs) external;
 }

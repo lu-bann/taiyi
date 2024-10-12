@@ -40,10 +40,6 @@ pub struct PreconferCommand {
     #[clap(long = "relay_url")]
     pub relay_url: Vec<String>,
 
-    /// luban escrow contract address
-    #[clap(long = "taiyi_escrow_contract_addr")]
-    pub taiyi_escrow_contract_addr: String,
-
     /// taiyi core contract address
     #[clap(long = "taiyi_core_contract_addr")]
     pub taiyi_core_contract_addr: String,
@@ -61,7 +57,6 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let taiyi_escrow_contract_addr: Address = self.taiyi_escrow_contract_addr.parse()?;
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
         let taiyi_proposer_registry_contract_addr: Address =
             self.taiyi_proposer_registry_contract_addr.parse()?;
@@ -77,7 +72,6 @@ impl PreconferCommand {
         );
 
         spawn_service(
-            taiyi_escrow_contract_addr,
             taiyi_core_contract_addr,
             taiyi_proposer_registry_contract_addr,
             self.execution_client_url.clone(),
