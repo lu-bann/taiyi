@@ -16,7 +16,7 @@ struct TipTx {
     uint256 prePay;
     uint256 afterPay;
     uint256 nonce;
-    uint256 target_slot;
+    uint256 targetSlot;
 }
 
 /// @dev A transaction that the user want to execute for preconfirmation, like normal transaction

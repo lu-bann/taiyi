@@ -19,7 +19,7 @@ pub mod core {
                 uint256 prePay;
                 uint256 afterPay;
                 uint256 nonce;
-                uint256 target_slot;
+                uint256 targetSlot;
             }
 
             #[derive(Debug)]
@@ -68,7 +68,7 @@ impl From<PreconfRequest> for core::PreconfRequest {
                 prePay: req.tip_tx.pre_pay,
                 afterPay: req.tip_tx.after_pay,
                 nonce: req.tip_tx.nonce,
-                target_slot: req.tip_tx.target_slot,
+                targetSlot: req.tip_tx.target_slot,
             },
             preconfTx: core::PreconfTx {
                 from: preconf_tx.from,
