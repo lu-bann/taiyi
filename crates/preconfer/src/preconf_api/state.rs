@@ -124,18 +124,19 @@ where
                 }
 
                 let preconf_requests = self.preconf_requests()?;
-                let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                let constraint_message = preconf_reqs_to_constraints(
-                    preconf_requests,
-                    self.preconfer.taiyi_core_contract_addr(),
-                    self.provider.clone(),
-                    wallet,
-                    slot,
-                )
-                .await;
-                if constraint_message.is_empty() {
+
+                if preconf_requests.is_empty() {
                     continue;
                 } else {
+                    let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
+                    let constraint_message = preconf_reqs_to_constraints(
+                        preconf_requests,
+                        self.preconfer.taiyi_core_contract_addr(),
+                        self.provider.clone(),
+                        wallet,
+                        slot,
+                    )
+                    .await;
                     info!(
                         "Sending {} constraints message with slot: {}",
                         constraint_message.len(),
