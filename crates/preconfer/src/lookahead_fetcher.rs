@@ -118,8 +118,9 @@ where
             .json::<Vec<SignedPreconferElection>>()
             .await?;
 
-        let preconfer_pubkey = BlsPublicKey::try_from(&self.preconfer_public_key.serialize()[..])
-            .expect("Invalid public key");
+        let preconfer_pubkey =
+            BlsPublicKey::try_from(self.preconfer_public_key.to_bytes().as_ref())
+                .expect("Invalid public key");
         let concerned_slots = response
             .into_iter()
             .filter(|signed_preconfer_election| {
