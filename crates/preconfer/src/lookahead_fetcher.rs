@@ -118,8 +118,9 @@ where
             .json::<Vec<SignedPreconferElection>>()
             .await?;
 
-        let preconfer_pubkey = BlsPublicKey::try_from(&self.preconfer_public_key.serialize()[..])
-            .expect("Invalid public key");
+        let preconfer_pubkey =
+            BlsPublicKey::try_from(self.preconfer_public_key.to_bytes().as_ref())
+                .expect("Invalid public key");
         let concerned_slots = response
             .into_iter()
             .filter(|signed_preconfer_election| {
@@ -208,4 +209,16 @@ where
     lookahead_fetcher.run().await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bls_public_key_conversion() {
+        let pk = PublicKey::default();
+        let bls_pk = BlsPublicKey::try_from(pk.to_bytes().as_ref()).unwrap();
+        assert_eq!(pk.to_bytes().as_ref(), bls_pk.as_ref());
+    }
 }
