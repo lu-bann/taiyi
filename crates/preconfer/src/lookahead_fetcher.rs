@@ -210,3 +210,15 @@ where
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bls_public_key_conversion() {
+        let pk = PublicKey::default();
+        let bls_pk = BlsPublicKey::try_from(pk.to_bytes().as_ref()).unwrap();
+        assert_eq!(pk.to_bytes().as_ref(), bls_pk.as_ref());
+    }
+}
