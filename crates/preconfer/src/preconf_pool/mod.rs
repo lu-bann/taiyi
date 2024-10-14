@@ -21,7 +21,6 @@ impl PreconfPool {
 
     pub fn slot_updated(&mut self, new_slot: u64) {
         self.orderpool.head_updated(new_slot);
-        self.prioritized_orderpool.update_slot(new_slot);
     }
 
     pub fn prevalidate_req(
@@ -34,14 +33,6 @@ impl PreconfPool {
             return Err(OrderPoolError::PreconfRequestAlreadyExist(preconf_hash));
         }
         let target_slot = preconf_request.target_slot().to();
-
-        let current_slot = self
-            .prioritized_orderpool
-            .slot
-            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        if target_slot <= current_slot {
-            return Err(OrderPoolError::PreconfRequestSlotTooOld(target_slot, current_slot));
-        }
 
         // Check if we can accomodate the preconf request
         if self.orderpool.is_full(target_slot) {

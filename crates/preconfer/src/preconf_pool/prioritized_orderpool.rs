@@ -6,15 +6,15 @@ use alloy_primitives::{Address, U256};
 use priority_queue::PriorityQueue;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 
-use crate::{error::OrderPoolError, rpc_state::AccountState};
+use crate::error::OrderPoolError;
+
+pub type OrderId = PreconfHash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OrderPriority {
     pub order_id: OrderId,
     pub priority: U256,
 }
-
-pub type OrderId = PreconfHash;
 
 impl PartialOrd for OrderPriority {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -34,30 +34,13 @@ pub struct AccountNonce {
     pub account: Address,
 }
 
-/// Orders are validated after the user sends the full transaction.
-///
-/// Only contains orders for which target_block is next slot
-#[derive(Debug, Clone)]
+// Stores Preconfirmation requests containing PreconfTx
+#[derive(Debug, Clone, Default)]
 pub struct PrioritizedOrderPool {
-    main_queue: PriorityQueue<OrderId, OrderPriority>,
-    pub canonical_state: HashMap<Address, AccountState>,
-    pub intermediate_state: HashMap<Address, (U256, u64)>,
-    /// Id -> order for all orders we manage. Carefully maintained by remove/insert
+    queue_by_target_slot: HashMap<u64, PriorityQueue<OrderId, OrderPriority>>,
     orders: HashMap<OrderId, PreconfRequest>,
-    // current slot
-    pub slot: Option<u64>,
-}
-
-impl Default for PrioritizedOrderPool {
-    fn default() -> Self {
-        Self {
-            main_queue: PriorityQueue::new(),
-            canonical_state: HashMap::default(),
-            intermediate_state: HashMap::default(),
-            orders: HashMap::default(),
-            slot: None,
-        }
-    }
+    // pub canonical_state: HashMap<Address, AccountState>,
+    // pub intermediate_state: HashMap<Address, (U256, u64)>,
 }
 
 impl PrioritizedOrderPool {
@@ -66,37 +49,25 @@ impl PrioritizedOrderPool {
             return;
         }
 
-        if self.slot.is_none() {
-            self.slot = Some(order.target_slot().to());
-        }
-
-        self.main_queue.push(order_id, OrderPriority { priority: order.tip(), order_id });
+        let slot = order.target_slot().to();
+        let priority = OrderPriority { order_id, priority: order.tip() };
+        self.queue_by_target_slot.entry(slot).or_default().push(order_id, priority);
 
         self.orders.insert(order_id, order.clone());
-
-        self.intermediate_state.entry(order.tip_tx.from).and_modify(|(balance, nonce)| {
-            // TODO balance should account for total transaction cost including gas costs
-            *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
-            *nonce += 1;
-        });
     }
 
-    pub fn pop_order(&mut self) -> Option<PreconfRequest> {
-        let (id, _) = self.main_queue.pop()?;
-        self.orders.remove(&id)
-    }
-
-    pub fn preconf_requests(&mut self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
+    pub fn fetch_preconf_requests_for_slot(
+        &mut self,
+        slot: u64,
+    ) -> Result<Vec<PreconfRequest>, OrderPoolError> {
         let mut preconfs = Vec::new();
-        while !self.main_queue.is_empty() {
-            let preconf_request = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
-            preconfs.push(preconf_request);
+        let queue =
+            self.queue_by_target_slot.get_mut(&slot).ok_or(OrderPoolError::OrderPoolIsEmpty)?;
+        while !queue.is_empty() {
+            let (order_id, _) = queue.pop().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
+            preconfs.push(self.orders.remove(&order_id).ok_or(OrderPoolError::OrderPoolIsEmpty)?);
         }
 
         Ok(preconfs)
-    }
-
-    pub fn update_slot(&mut self, slot: u64) {
-        self.slot = Some(slot);
     }
 }

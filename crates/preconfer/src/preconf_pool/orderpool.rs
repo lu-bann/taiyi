@@ -5,14 +5,10 @@ use taiyi_primitives::{PreconfHash, PreconfRequest};
 use crate::preconf_api::state::MAX_COMMITMENTS_PER_SLOT;
 
 // Currently set to Helder block gas limit
+// FIXME: make this value configurable
 pub const MAX_GAS_PER_SLOT: u64 = 25_000_000;
 
-/// OrderPool is a temporary pool that holds the preconf requests
-///
-/// It is responsible for
-///  - adding/removing preconf requests to the pool
-///  
-/// Preconf should be stored here until target_block is reached. Once target_block is reached, we validate and move all the preconf reqs for the target_block to the PrioritizedOrderPool
+/// Stores Preconfirmation requests sent without PreconfTx
 #[derive(Debug, Clone)]
 pub struct OrderPool {
     known_orders: HashMap<PreconfHash, PreconfRequest>,

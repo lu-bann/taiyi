@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
@@ -80,8 +82,8 @@ where
         }
     }
 
-    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
-        self.preconf_pool.write().prioritized_orderpool.preconf_requests()
+    pub fn preconf_requests(&self, slot: u64) -> Result<Vec<PreconfRequest>, OrderPoolError> {
+        self.preconf_pool.write().prioritized_orderpool.fetch_preconf_requests_for_slot(slot)
     }
 
     async fn signed_constraints_message(
@@ -123,7 +125,7 @@ where
                     .await;
                 }
 
-                let preconf_requests = self.preconf_requests()?;
+                let preconf_requests = self.preconf_requests(slot + 1)?;
 
                 if preconf_requests.is_empty() {
                     continue;
@@ -262,18 +264,6 @@ where
             .get(&preconf_req_hash)
             .ok_or(OrderPoolError::PreconfRequestNotFound(preconf_req_hash))?;
 
-        // User is expected to send the tx calldata in the slot specified in the preconf request.
-        let target_slot = preconf_request.target_slot().to();
-        let current_slot = self
-            .preconf_pool
-            .read()
-            .prioritized_orderpool
-            .slot
-            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        if target_slot != current_slot {
-            return Err(RpcError::SlotMismatch(target_slot, current_slot));
-        }
-
         if preconf_request.preconf_tx.is_some() {
             return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
@@ -329,10 +319,10 @@ where
     // NOTE: If validation fails, call exhaust
     async fn _validate_tx_request(
         &self,
-        tx: &PreconfTx,
-        order: &PreconfRequest,
+        _tx: &PreconfTx,
+        _order: &PreconfRequest,
     ) -> Result<(), ValidationError> {
-        let sender = order.tip_tx.from;
+        // let sender = order.tip_tx.from;
         // Vaiidate the chain id
         // TODO: check wheter we should introduce chain id
         // if let Some(chainid) = tx.chain_id() {
@@ -357,62 +347,62 @@ where
         //     }
         // }
 
-        if tx.gas_limit() > order.tip_tx.gas_limit {
-            return Err(ValidationError::GasLimitTooHigh);
-        }
+        // if tx.gas_limit() > order.tip_tx.gas_limit {
+        //     return Err(ValidationError::GasLimitTooHigh);
+        // }
 
-        let (prev_balance, prev_nonce) = self
-            .preconf_pool
-            .read()
-            .prioritized_orderpool
-            .intermediate_state
-            .get(&sender)
-            .cloned()
-            .unwrap_or_default();
+        // let (prev_balance, prev_nonce) = self
+        //     .preconf_pool
+        //     .read()
+        //     .prioritized_orderpool
+        //     .intermediate_state
+        //     .get(&sender)
+        //     .cloned()
+        //     .unwrap_or_default();
 
-        let account_state_opt: Option<AccountState>;
-        {
-            account_state_opt = self
-                .preconf_pool
-                .read()
-                .prioritized_orderpool
-                .canonical_state
-                .get(&sender)
-                .copied();
-        }
+        // let account_state_opt: Option<AccountState>;
+        // {
+        //     account_state_opt = self
+        //         .preconf_pool
+        //         .read()
+        //         .prioritized_orderpool
+        //         .canonical_state
+        //         .get(&sender)
+        //         .copied();
+        // }
 
-        let mut account_state = match account_state_opt {
-            Some(state) => state,
-            None => {
-                let state = get_account_state(self.execution_client_url.clone(), sender)
-                    .await
-                    .map_err(|e| {
-                        ValidationError::Internal(format!("Failed to get account state: {e:?}"))
-                    })?;
-                {
-                    self.preconf_pool
-                        .write()
-                        .prioritized_orderpool
-                        .canonical_state
-                        .insert(sender, state);
-                }
-                state
-            }
-        };
-        // apply the nonce and balance diff
-        account_state.nonce += prev_nonce;
-        account_state.balance -= prev_balance;
+        // let mut account_state = match account_state_opt {
+        //     Some(state) => state,
+        //     None => {
+        //         let state = get_account_state(self.execution_client_url.clone(), sender)
+        //             .await
+        //             .map_err(|e| {
+        //                 ValidationError::Internal(format!("Failed to get account state: {e:?}"))
+        //             })?;
+        //         {
+        //             self.preconf_pool
+        //                 .write()
+        //                 .prioritized_orderpool
+        //                 .canonical_state
+        //                 .insert(sender, state);
+        //         }
+        //         state
+        //     }
+        // };
+        // // apply the nonce and balance diff
+        // account_state.nonce += prev_nonce;
+        // account_state.balance -= prev_balance;
 
-        let nonce = order.nonce();
+        // let nonce = order.nonce();
 
-        // order can't be included
-        if account_state.nonce > nonce.to() {
-            return Err(ValidationError::NonceTooLow(account_state.nonce, nonce.to()));
-        }
+        // // order can't be included
+        // if account_state.nonce > nonce.to() {
+        //     return Err(ValidationError::NonceTooLow(account_state.nonce, nonce.to()));
+        // }
 
-        if account_state.nonce < nonce.to() {
-            return Err(ValidationError::NonceTooHigh(account_state.nonce, nonce.to()));
-        }
+        // if account_state.nonce < nonce.to() {
+        //     return Err(ValidationError::NonceTooHigh(account_state.nonce, nonce.to()));
+        // }
 
         // Check EIP-4844-specific limits
         // if let Some(transaction) = tx.as_eip4844() {
