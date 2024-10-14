@@ -12,8 +12,16 @@ library Helper {
         return keccak256(signature);
     }
 
-    function verifySignature(bytes32 hashValue, address signer, bytes memory signature) internal pure {
+    function verifySignature(
+        bytes32 hashValue,
+        address signer,
+        bytes memory signature,
+        string memory errorMessage
+    )
+        internal
+        pure
+    {
         address hash_signer = ECDSA.recover(hashValue, signature);
-        require(hash_signer == signer, "Invalid signature");
+        require(hash_signer == signer, errorMessage);
     }
 }
