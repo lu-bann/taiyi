@@ -104,10 +104,22 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
         bytes32 tipHash = tipTx.getTipTxHash();
 
-        Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature);
-        Helper.verifySignature(preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature);
-        Helper.verifySignature(preconfReq.tipTxSignature.hashSignature(), tipTx.to, preconfReq.preconferSignature);
-        Helper.verifySignature(preconfReq.getPreconfRequestHash(), tipTx.to, preconfReq.preconfReqSignature);
+        Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature, "invalid tip signature");
+        Helper.verifySignature(
+            preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature, "invalid preconf signature"
+        );
+        Helper.verifySignature(
+            preconfReq.tipTxSignature.hashSignature(),
+            tipTx.to,
+            preconfReq.preconferSignature,
+            "invalid preconfer signature"
+        );
+        Helper.verifySignature(
+            preconfReq.getPreconfRequestHash(),
+            tipTx.to,
+            preconfReq.preconfReqSignature,
+            "invalid preconf req signature"
+        );
 
         require(preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
         require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
@@ -121,9 +133,9 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
 
-        uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
+        // uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
 
-        require(tipTx.targetSlot == slot, "Wrong slot number");
+        // require(tipTx.targetSlot == slot, "Wrong slot number");
 
         validateRequest(preconfReq);
 

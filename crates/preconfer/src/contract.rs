@@ -1,7 +1,7 @@
 use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
 use alloy_primitives::{Address, Bytes};
-use alloy_provider::Provider;
+use alloy_provider::{utils::Eip1559Estimation, Provider};
 use alloy_transport::Transport;
 use ethereum_consensus::ssz::prelude::{ByteList, List};
 use taiyi_primitives::{
@@ -95,16 +95,26 @@ pub async fn preconf_reqs_to_constraints<T, P>(
     taiyi_core_address: Address,
     provider: P,
     wallet: EthereumWallet,
-    slot: u64,
-) -> ConstraintsMessage
+) -> eyre::Result<ConstraintsMessage>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider);
+    // FIXME: check all slots are the same
+    let slot: u64 = preconf_reqs[0].tip_tx.target_slot.to();
+    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
     let preconf_reqs: Vec<core::PreconfRequest> =
         preconf_reqs.into_iter().map(|req| req.into()).collect();
-    let tx = contract.batchSettleRequests(preconf_reqs).into_transaction_request();
+    let mut tx = contract.batchSettleRequests(preconf_reqs).into_transaction_request();
+    let estimate_gas = provider.estimate_gas(&tx).await?;
+    let gas_limit = estimate_gas + 100000;
+    let Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas } =
+        provider.estimate_eip1559_fees(None).await?;
+    let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
+    tx.set_gas_limit(gas_limit);
+    tx.set_max_fee_per_gas(max_fee_per_gas);
+    tx.set_max_priority_fee_per_gas(max_priority_fee_per_gas);
+    tx.set_nonce(nonce);
 
     let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
     let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
@@ -114,5 +124,5 @@ where
     .try_into()
     .expect("constraint");
     let constraints = vec![constraint].try_into().expect("constraints");
-    ConstraintsMessage { slot, constraints }
+    Ok(ConstraintsMessage { slot, constraints })
 }
