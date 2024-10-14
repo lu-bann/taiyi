@@ -2,13 +2,19 @@
 pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
-import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
+import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
+import { PreconfRequest, TipTx, PreconfTx } from "../src/interfaces/Types.sol";
+import { Helper } from "../src/utils/Helper.sol";
 
 contract DeployTest is Test {
-    LubanCore public lubanCore;
-    LubanEscrow public lubanEscrow;
+    using PreconfRequestLib for *;
+    using Helper for *;
+
+    TaiyiCore public taiyiCore;
+    TaiyiEscrow public taiyiEscrow;
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
@@ -36,8 +42,8 @@ contract DeployTest is Test {
         // vm.deal(user, 100 ether);
         // vm.deal(preconfer, 100 ether);
 
-        // lubanCore = new LubanCore(owner);
-        // lubanEscrow = lubanCore.getLubanEscrow();
+        // taiyiCore = new TaiyiCore(owner);
+        // taiyiEscrow = taiyiCore.getTaiyiEscrow();
     }
 
     function run() public {
@@ -45,62 +51,64 @@ contract DeployTest is Test {
         // Owner
         //////////////////////////
         vm.startBroadcast(ownerPrivatekey);
-        lubanCore = LubanCore(payable(0x88F59F8826af5e695B13cA934d6c7999875A9EeA));
-        console.log("Luban Core Address:   ", address(lubanCore));
-        console.log("Luban Escrow Address: ", address(lubanCore.getLubanEscrow()));
+        taiyiCore = TaiyiCore(payable(0x88F59F8826af5e695B13cA934d6c7999875A9EeA));
+        console.log("Taiyi Core Address:   ", address(taiyiCore));
 
         // check preconfer
-        require(lubanCore.preconferList(preconfer), "preconfer is not yet set");
         vm.stopBroadcast();
 
         //////////////////////////
         // User
         //////////////////////////
         vm.startBroadcast(userPrivatekey);
-        ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
-            gasLimit: 60_000,
+        TipTx memory tipTx = TipTx({
+            gasLimit: 100_000,
             from: user,
             to: preconfer,
             prePay: 0.1 ether,
             afterPay: 0.5 ether,
-            nonce: 0
+            nonce: 0,
+            targetSlot: 10
         });
 
-        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
-            blockNumber: 10
-        });
-
-        bytes32 tipTxAndPreconfConditionsHash = lubanCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
-        (v, r, s) = vm.sign(userPrivatekey, tipTxAndPreconfConditionsHash);
-        bytes memory userSignature = abi.encodePacked(r, s, v);
-
-        bytes32 tipTxHash = lubanCore.getTipTxHash(tipTx);
+        bytes32 tipTxHash = tipTx.getTipTxHash();
         (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
         bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
+        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
-        ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
+        PreconfTx memory preconfTx = PreconfTx({
+            from: user,
+            to: preconfer,
+            value: 0.1 ether,
+            callData: "",
+            callGasLimit: 100_000,
+            nonce: 0,
+            signature: ""
+        });
+        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
+        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+        preconfTx.signature = preconfTxSignature;
+
+        PreconfRequest memory preconfReq = PreconfRequest({
             tipTx: tipTx,
-            prefConditions: preconfConditions,
-            preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true }),
-            tipTxSignature: tipTxUserSignature,
-            initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconfTx: preconfTx,
+            tipTxSignature: "",
+            preconferSignature: preconferSignature,
+            preconfReqSignature: ""
         });
 
-        // lubanEscrow.deposit{ value: 1 ether }();
+        // taiyiEscrow.deposit{ value: 1 ether }();
 
-        console.log("user balance:    ", lubanEscrow.balances(user));
-        // console.log("user lock block: ", lubanEscrow.lockBlock(user));
-        // console.log("user nonce:      ", lubanEscrow.nonce(user));
+        console.log("user balance:    ", taiyiEscrow.balances(user));
+        // console.log("user lock block: ", taiyiEscrow.lockBlock(user));
+        // console.log("user nonce:      ", taiyiEscrow.nonce(user));
         vm.stopBroadcast();
 
         // vm.startBroadcast(preconferPrivatekey);
-        //     lubanCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
+        //     taiyiCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
         // vm.stopBroadcast();
     }
 }

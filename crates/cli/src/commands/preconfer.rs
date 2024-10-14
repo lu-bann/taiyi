@@ -1,78 +1,88 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use alloy_primitives::Address;
+use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use luban_preconfer::spawn_service;
+use eyre::eyre;
+use taiyi_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
-    #[clap(long = "addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
-    pub addr: IpAddr,
+    #[clap(long = "taiyi_rpc_addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
+    pub taiyi_rpc_addr: IpAddr,
 
     /// jsonrpc service port to listen on.
-    #[clap(long = "port", default_value_t = 5656)]
-    pub port: u16,
+    #[clap(long = "taiyi_rpc_port", default_value_t = 5656)]
+    pub taiyi_rpc_port: u16,
 
     /// execution client rpc url
-    #[clap(long = "rpc_url")]
-    pub rpc_url: String,
+    #[clap(long = "execution_client_url")]
+    pub execution_client_url: String,
+
+    /// consensus client rpc url
+    #[clap(long = "beacon_client_url")]
+    pub beacon_client_url: String,
+
+    /// A BLS private key to use for signing
+    #[clap(long = "bls_sk")]
+    pub bls_sk: String,
+
+    /// A BLS private key to use for signing
+    #[clap(long = "ecdsa_sk")]
+    pub ecdsa_sk: String,
 
     /// network
     #[clap(long = "network")]
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "beacon_rpc_url")]
-    pub beacon_rpc_url: String,
+    #[clap(long = "relay_url")]
+    pub relay_url: Vec<String>,
 
-    /// luban escrow contract address
-    #[clap(long = "luban_escrow_contract_addr")]
-    pub luban_escrow_contract_addr: String,
+    /// taiyi core contract address
+    #[clap(long = "taiyi_core_contract_addr")]
+    pub taiyi_core_contract_addr: String,
 
-    /// luban core contract address
-    #[clap(long = "luban_core_contract_addr")]
-    pub luban_core_contract_addr: String,
+    /// taiyi proposer registry contract address
+    #[clap(long = "taiyi_proposer_registry_contract_addr")]
+    pub taiyi_proposer_registry_contract_addr: String,
 
-    /// luban proposer registry contract address
-    #[clap(long = "luban_proposer_registry_contract_addr")]
-    pub luban_proposer_registry_contract_addr: String,
-
-    /// luban service url. Internal usage for luban base fee predict module
+    /// taiyi service url. Internal usage for taiyi base fee predict module
     #[clap(long)]
-    pub luban_service_url: Option<String>,
-
-    /// commit boost url
-    #[clap(long)]
-    pub signer_mod_url: String,
-
-    /// commit boost jwt token
-    #[clap(long)]
-    pub signer_mod_jwt: String,
-
-    #[clap(long)]
-    pub commit_boost_config_path: String,
+    pub taiyi_service_url: Option<String>,
 }
 
 impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let luban_escrow_contract_addr: Address = self.luban_escrow_contract_addr.parse()?;
-        let luban_core_contract_addr: Address = self.luban_core_contract_addr.parse()?;
-        let luban_proposer_registry_contract_addr: Address =
-            self.luban_proposer_registry_contract_addr.parse()?;
+        let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
+        let taiyi_proposer_registry_contract_addr: Address =
+            self.taiyi_proposer_registry_contract_addr.parse()?;
+        let bls_private_key = SecretKey::from_bytes(&hex::decode(
+            self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
+        )?)
+        .map_err(|e| eyre!("Failed decoding preconfer private key: {:?}", e))?;
+
+        let ecdsa_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+            k256::ecdsa::SigningKey::from_slice(&hex::decode(
+                self.ecdsa_sk.strip_prefix("0x").unwrap_or(&self.ecdsa_sk),
+            )?)?,
+        );
+
         spawn_service(
-            luban_escrow_contract_addr,
-            luban_core_contract_addr,
-            luban_proposer_registry_contract_addr,
-            self.rpc_url.clone(),
-            self.beacon_rpc_url.clone(),
-            self.luban_service_url.clone(),
-            self.signer_mod_url.clone(),
-            self.signer_mod_jwt.clone(),
-            self.commit_boost_config_path.clone(),
+            taiyi_core_contract_addr,
+            taiyi_proposer_registry_contract_addr,
+            self.execution_client_url.clone(),
+            self.beacon_client_url.clone(),
+            self.taiyi_service_url.clone(),
             context,
+            self.taiyi_rpc_addr,
+            self.taiyi_rpc_port,
+            bls_private_key,
+            ecdsa_signer,
+            self.relay_url.clone(),
         )
         .await?;
 

@@ -4,7 +4,7 @@ use tracing::Level;
 
 fn main() {
     initialize_tracing_log();
-    if let Err(err) = luban_cli::run() {
+    if let Err(err) = taiyi_cli::run() {
         eprintln!("Error: {err:?}");
         std::process::exit(1);
     }

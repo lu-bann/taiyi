@@ -1,5 +1,6 @@
-use luban_primitives::{PreconfHash, PreconfRequest};
 use std::collections::HashMap;
+
+use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::preconf_api::state::MAX_COMMITMENTS_PER_SLOT;
 
@@ -26,10 +27,7 @@ impl Default for OrderPool {
 
 impl OrderPool {
     pub fn new() -> Self {
-        Self {
-            known_orders: HashMap::new(),
-            orders_by_target_slot: HashMap::new(),
-        }
+        Self { known_orders: HashMap::new(), orders_by_target_slot: HashMap::new() }
     }
 
     pub fn get(&self, key: &PreconfHash) -> Option<PreconfRequest> {
@@ -42,10 +40,7 @@ impl OrderPool {
 
     pub fn insert(&mut self, key: PreconfHash, value: PreconfRequest) {
         self.known_orders.insert(key, value.clone());
-        self.orders_by_target_slot
-            .entry(value.preconf_conditions.slot)
-            .or_default()
-            .push(key);
+        self.orders_by_target_slot.entry(value.target_slot().to()).or_default().push(key);
     }
 
     pub fn delete(&mut self, key: &PreconfHash) -> Option<PreconfRequest> {
@@ -53,10 +48,8 @@ impl OrderPool {
     }
 
     pub fn head_updated(&mut self, new_slot: u64) {
-        self.known_orders
-            .retain(|_, order| order.preconf_conditions.slot >= new_slot);
-        self.orders_by_target_slot
-            .retain(|slot, _| *slot >= new_slot);
+        self.known_orders.retain(|_, order| order.target_slot().to::<u64>() >= new_slot);
+        self.orders_by_target_slot.retain(|slot, _| *slot >= new_slot);
     }
 
     pub fn is_full(&self, target_block: u64) -> bool {
@@ -66,13 +59,11 @@ impl OrderPool {
     }
 
     pub fn commited_gas(&self, target_block: u64) -> u64 {
-        self.orders_by_target_slot
-            .get(&target_block)
-            .map_or(0, |v| {
-                v.iter()
-                    .filter_map(|hash| self.known_orders.get(hash))
-                    .map(|order| order.tip_tx.gas_limit.to::<u64>())
-                    .sum()
-            })
+        self.orders_by_target_slot.get(&target_block).map_or(0, |v| {
+            v.iter()
+                .filter_map(|hash| self.known_orders.get(hash))
+                .map(|order| order.tip_tx.gas_limit.to::<u64>())
+                .sum()
+        })
     }
 }

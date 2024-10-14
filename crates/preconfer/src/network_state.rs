@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use luban_primitives::ProposerInfo;
 use parking_lot::RwLock;
+use taiyi_primitives::ProposerInfo;
 
 #[derive(Debug, Clone, Default)]
 pub struct NetworkState {
@@ -43,11 +43,8 @@ impl NetworkState {
         *self.proposers.write() = proposers;
     }
 
-    pub fn propser_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
-        self.proposers
-            .read()
-            .iter()
-            .find(|duty| duty.slot == slot)
-            .cloned()
+    #[allow(dead_code)]
+    pub fn proposer_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
+        self.proposers.read().iter().find(|duty| duty.slot == slot).cloned()
     }
 }

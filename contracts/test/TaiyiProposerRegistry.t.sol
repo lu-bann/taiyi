@@ -2,9 +2,9 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
-import "../src/LubanProposerRegistry.sol";
+import "../src/TaiyiProposerRegistry.sol";
 
-contract LubanProposerRegistryTest is Test {
+contract TaiyiProposerRegistryTest is Test {
     ProposerRegistry public registry;
     address public proposer1 = address(0x1);
     address public proposer2 = address(0x2);
@@ -16,22 +16,22 @@ contract LubanProposerRegistryTest is Test {
     }
 
     function testOptInRequires32Eth() public {
-        vm.deal(proposer1, 32 ether);
+        vm.deal(proposer1, ProposerRegistryLib.STAKE_AMOUNT);
         vm.prank(proposer1);
-        registry.optIn{ value: 32 ether }(blsPubKey1);
+        registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
 
         assertEq(
             uint8(registry.getProposerStatus(blsPubKey1)),
             uint8(ProposerRegistry.ProposerStatus.OptIn),
             "Proposer status should be OptIn"
         );
-        assertEq(address(registry).balance, 32 ether);
+        assertEq(address(registry).balance, ProposerRegistryLib.STAKE_AMOUNT);
     }
 
     function testCannotWithdrawBeforeCooldown() public {
-        vm.deal(proposer1, 32 ether);
+        vm.deal(proposer1, ProposerRegistryLib.STAKE_AMOUNT);
         vm.startPrank(proposer1);
-        registry.optIn{ value: 32 ether }(blsPubKey1);
+        registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
 
         registry.initOptOut();
 
@@ -44,7 +44,7 @@ contract LubanProposerRegistryTest is Test {
 
         vm.warp(block.timestamp + 2 hours);
         registry.confirmOptOut();
-        assertEq(proposer1.balance, 32 ether);
+        assertEq(proposer1.balance, ProposerRegistryLib.STAKE_AMOUNT);
         vm.stopPrank();
     }
 
@@ -53,7 +53,7 @@ contract LubanProposerRegistryTest is Test {
         vm.startPrank(proposer1);
 
         // First opt-in
-        registry.optIn{ value: 32 ether }(blsPubKey1);
+        registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
         assertEq(
             uint8(registry.getProposerStatus(blsPubKey1)),
             uint8(ProposerRegistry.ProposerStatus.OptIn),
@@ -77,7 +77,7 @@ contract LubanProposerRegistryTest is Test {
         );
 
         // Opt-in again
-        registry.optIn{ value: 32 ether }(blsPubKey1);
+        registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
         assertEq(
             uint8(registry.getProposerStatus(blsPubKey1)),
             uint8(ProposerRegistry.ProposerStatus.OptIn),
@@ -91,7 +91,7 @@ contract LubanProposerRegistryTest is Test {
         vm.deal(proposer1, 32 ether);
         vm.startPrank(proposer1);
 
-        registry.optIn{ value: 32 ether }(blsPubKey1);
+        registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
         assertEq(
             uint8(registry.getProposerStatus(blsPubKey1)),
             uint8(ProposerRegistry.ProposerStatus.OptIn),

@@ -1,12 +1,10 @@
 mod commands;
 
 use clap::{Parser, Subcommand};
-
-use commands::luban_stake::LubanStakeCommand;
 use commands::preconfer::PreconferCommand;
 
 #[derive(Debug, Parser)]
-#[command(author, version, about = "luban", long_about = None)]
+#[command(author, version, about = "taiyi", long_about = None)]
 pub struct Cli {
     /// The command to execute
     #[clap(subcommand)]
@@ -18,8 +16,6 @@ pub struct Cli {
 pub enum Commands {
     #[command(name = "preconfer")]
     Preconfer(PreconferCommand),
-    #[command(name = "luban-stake")]
-    LubanStake(LubanStakeCommand),
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -34,9 +30,6 @@ pub fn run() -> eyre::Result<()> {
                 preconfer.execute().await.expect("preconfer run");
             });
             Ok(())
-        }
-        Commands::LubanStake(luban_stake) => {
-            runtime.block_on(async { luban_stake.execute().await })
         }
     }
 }

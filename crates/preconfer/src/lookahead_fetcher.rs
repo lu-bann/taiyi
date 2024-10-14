@@ -3,21 +3,26 @@ use std::ops::Deref;
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::Provider;
-use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey};
+use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_sol_types::sol;
 use alloy_transport::Transport;
-
 use beacon_api_client::{mainnet::Client, BlockId};
+use blst::min_pk::PublicKey;
+use ethereum_consensus::{
+    primitives::{BlsPublicKey, BlsSignature},
+    ssz::prelude::*,
+};
 use futures::TryStreamExt;
-use luban_primitives::ProposerInfo;
 use mev_share_sse::EventClient;
 use reqwest::Url;
+use taiyi_primitives::ProposerInfo;
 use tracing::{debug, info};
-use LubanProposerRegistry::LubanProposerRegistryInstance;
+use TaiyiProposerRegistry::TaiyiProposerRegistryInstance;
 
 use crate::network_state::NetworkState;
 
 const SLOT_PER_EPOCH: u64 = 32;
+pub const PATH_GET_PRECONFERS: &str = "/constraints/v1/preconfers";
 
 sol! {
     #[derive(Debug)]
@@ -28,17 +33,37 @@ sol! {
     }
 
     #[sol(rpc)]
-    contract LubanProposerRegistry {
+    contract TaiyiProposerRegistry {
         #[derive(Debug)]
         function getProposerStatus(bytes calldata blsPubKey) external view returns (ProposerStatus);
     }
 }
 
+#[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
+pub struct SignedPreconferElection {
+    pub message: PreconferElection,
+    /// Signature over `message`. Must be signed by the key relating to: `message.public_key`.
+    pub signature: BlsSignature,
+}
+
+#[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
+pub struct PreconferElection {
+    /// Public key of the preconfer proposing for `slot`.
+    preconfer_pubkey: BlsPublicKey,
+    /// Slot this delegation is valid for.
+    slot_number: u64,
+    /// Chain ID of the chain this election is for.
+    chain_id: u64,
+    // The gas limit specified by the proposer that the preconfer must adhere to.
+    gas_limit: u64,
+}
+
 pub struct LookaheadFetcher<T, P> {
     client: Client,
-    luban_proposer_registry_contract: LubanProposerRegistryInstance<T, P>,
+    taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance<T, P>,
     network_state: NetworkState,
-    pubkeys: Vec<BlsPublicKey>,
+    preconfer_public_key: PublicKey,
+    relay_url: Vec<String>,
 }
 
 impl<T, P> LookaheadFetcher<T, P>
@@ -49,18 +74,20 @@ where
     pub fn new(
         provider: P,
         beacon_url: String,
-        luban_proposer_registry_contract_addr: Address,
+        taiyi_proposer_registry_contract_addr: Address,
         network_state: NetworkState,
-        pubkeys: Vec<BlsPublicKey>,
+        preconfer_public_key: PublicKey,
+        relay_url: Vec<String>,
     ) -> Self {
         Self {
             client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
-            luban_proposer_registry_contract: LubanProposerRegistryInstance::new(
-                luban_proposer_registry_contract_addr,
+            taiyi_proposer_registry_contract: TaiyiProposerRegistryInstance::new(
+                taiyi_proposer_registry_contract_addr,
                 provider,
             ),
             network_state,
-            pubkeys,
+            preconfer_public_key,
+            relay_url,
         }
     }
 
@@ -79,19 +106,33 @@ where
 
         let (_, duties) = self.client.get_proposer_duties(epoch).await?;
         all_duties.extend(duties);
-
         let (_, duties) = self.client.get_proposer_duties(epoch + 1).await?;
         all_duties.extend(duties);
 
+        // fetch validator pubkeys we represent
+        let client = reqwest::Client::new();
+        let response = client
+            .get(format!("{}{PATH_GET_PRECONFERS}", self.relay_url.first().expect("relay")))
+            .send()
+            .await?
+            .json::<Vec<SignedPreconferElection>>()
+            .await?;
+
+        let preconfer_pubkey =
+            BlsPublicKey::try_from(self.preconfer_public_key.to_bytes().as_ref())
+                .expect("Invalid public key");
+        let concerned_slots = response
+            .into_iter()
+            .filter(|signed_preconfer_election| {
+                let preconfer_election = &signed_preconfer_election.message;
+                preconfer_election.preconfer_pubkey == preconfer_pubkey
+            })
+            .map(|signed_preconfer_election| signed_preconfer_election.message.slot_number)
+            .collect::<Vec<_>>();
+
         let duties = all_duties
             .into_iter()
-            .filter(|duty| {
-                self.pubkeys.iter().any(|pubkey| {
-                    let pub_ref: &[u8] = pubkey.as_ref();
-                    let p_ref: &[u8] = duty.public_key.deref();
-                    pub_ref == p_ref
-                })
-            })
+            .filter(|duty| concerned_slots.contains(&duty.slot))
             .collect::<Vec<_>>();
         let mut proposer_duties: Vec<ProposerInfo> = Vec::new();
 
@@ -99,7 +140,7 @@ where
             if duty.slot > self.network_state.get_current_slot() {
                 let pubkey = duty.public_key.clone();
                 let proposer_status = self
-                    .luban_proposer_registry_contract
+                    .taiyi_proposer_registry_contract
                     .getProposerStatus(Bytes::from(pubkey.deref().to_vec()))
                     .call()
                     .await?;
@@ -130,10 +171,7 @@ where
                 "Received event: current: {}, epoch: {}, epoch_transition: {}",
                 current_epoch, epoch, event.epoch_transition
             );
-            assert!(
-                (epoch != current_epoch) == event.epoch_transition,
-                "Invalid epoch"
-            );
+            assert!((epoch != current_epoch) == event.epoch_transition, "Invalid epoch");
             if epoch != current_epoch {
                 info!("Epoch changed from {} to {}", current_epoch, epoch);
                 self.update_proposer_duties(epoch).await?;
@@ -150,9 +188,10 @@ where
 pub async fn run_cl_process<T, P>(
     provider: P,
     beacon_url: String,
-    luban_proposer_registry_contract_addr: Address,
+    taiyi_proposer_registry_contract_addr: Address,
     network_state: NetworkState,
-    pubkeys: Vec<BlsPublicKey>,
+    bls_pk: PublicKey,
+    relay_url: Vec<String>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -161,12 +200,25 @@ where
     let mut lookahead_fetcher = LookaheadFetcher::new(
         provider,
         beacon_url,
-        luban_proposer_registry_contract_addr,
+        taiyi_proposer_registry_contract_addr,
         network_state,
-        pubkeys,
+        bls_pk,
+        relay_url,
     );
     lookahead_fetcher.initialze().await?;
     lookahead_fetcher.run().await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bls_public_key_conversion() {
+        let pk = PublicKey::default();
+        let bls_pk = BlsPublicKey::try_from(pk.to_bytes().as_ref()).unwrap();
+        assert_eq!(pk.to_bytes().as_ref(), bls_pk.as_ref());
+    }
 }

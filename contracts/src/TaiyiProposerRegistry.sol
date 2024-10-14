@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-contract ProposerRegistry {
+library ProposerRegistryLib {
     uint256 public constant OPT_OUT_COOLDOWN = 1 days;
-    uint256 public constant STAKE_AMOUNT = 32 ether;
+    uint256 public constant STAKE_AMOUNT = 0.01 ether; // just for testing now. TODO: figure out a better value
+}
 
+contract ProposerRegistry {
     enum ProposerStatus {
         OptedOut,
         OptIn,
@@ -30,7 +32,7 @@ contract ProposerRegistry {
     constructor() { }
 
     function optIn(bytes calldata _blsPubKey) external payable {
-        require(msg.value == STAKE_AMOUNT, "Must stake exactly 32 ETH");
+        require(msg.value == ProposerRegistryLib.STAKE_AMOUNT, "stake amount not correct");
         require(proposers[_blsPubKey].ethAddress == address(0), "BLS public key already registered");
         require(ethAddressToBLSPubKey[msg.sender].length == 0, "Address already opted in");
 
@@ -58,13 +60,16 @@ contract ProposerRegistry {
         require(blsPubKey.length > 0, "Proposer does not exist");
         Proposer storage proposer = proposers[blsPubKey];
         require(proposer.status == ProposerStatus.OptingOut, "Not opting out");
-        require(block.timestamp >= optOutTimestamps[blsPubKey] + OPT_OUT_COOLDOWN, "Cooldown not elapsed");
+        require(
+            block.timestamp >= optOutTimestamps[blsPubKey] + ProposerRegistryLib.OPT_OUT_COOLDOWN,
+            "Cooldown not elapsed"
+        );
 
         proposer.status = ProposerStatus.OptedOut;
         proposer.ethAddress = address(0);
         delete ethAddressToBLSPubKey[msg.sender];
 
-        (bool sent,) = msg.sender.call{ value: STAKE_AMOUNT }("");
+        (bool sent,) = msg.sender.call{ value: ProposerRegistryLib.STAKE_AMOUNT }("");
         require(sent, "Failed to send ETH");
 
         emit ProposerOptedOut(blsPubKey, msg.sender);

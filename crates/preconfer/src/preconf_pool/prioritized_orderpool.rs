@@ -1,8 +1,10 @@
-use alloy_primitives::{Address, U256};
-use ethereum_consensus::ssz::prelude::List;
-use luban_primitives::{Constraint, ConstraintsMessage, PreconfHash, PreconfRequest};
-use priority_queue::PriorityQueue;
+#![allow(dead_code)]
+
 use std::{cmp::Ordering, collections::HashMap};
+
+use alloy_primitives::{Address, U256};
+use priority_queue::PriorityQueue;
+use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::{error::OrderPoolError, rpc_state::AccountState};
 
@@ -22,9 +24,7 @@ impl PartialOrd for OrderPriority {
 
 impl Ord for OrderPriority {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority
-            .cmp(&other.priority)
-            .then_with(|| self.order_id.cmp(&other.order_id))
+        self.priority.cmp(&other.priority).then_with(|| self.order_id.cmp(&other.order_id))
     }
 }
 
@@ -67,26 +67,18 @@ impl PrioritizedOrderPool {
         }
 
         if self.slot.is_none() {
-            self.slot = Some(order.preconf_conditions.slot);
+            self.slot = Some(order.target_slot().to());
         }
 
-        self.main_queue.push(
-            order_id,
-            OrderPriority {
-                priority: order.tip(),
-                order_id,
-            },
-        );
+        self.main_queue.push(order_id, OrderPriority { priority: order.tip(), order_id });
 
         self.orders.insert(order_id, order.clone());
 
-        self.intermediate_state
-            .entry(order.tip_tx.from)
-            .and_modify(|(balance, nonce)| {
-                // TODO balance should account for total transaction cost including gas costs
-                *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
-                *nonce += 1;
-            });
+        self.intermediate_state.entry(order.tip_tx.from).and_modify(|(balance, nonce)| {
+            // TODO balance should account for total transaction cost including gas costs
+            *balance += order.tip_tx.pre_pay + order.tip_tx.after_pay;
+            *nonce += 1;
+        });
     }
 
     pub fn pop_order(&mut self) -> Option<PreconfRequest> {
@@ -94,21 +86,14 @@ impl PrioritizedOrderPool {
         self.orders.remove(&id)
     }
 
-    pub fn constraints(&mut self) -> Result<ConstraintsMessage, OrderPoolError> {
+    pub fn preconf_requests(&mut self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
         let mut preconfs = Vec::new();
         while !self.main_queue.is_empty() {
-            let preconf = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
-            let constraint = vec![Constraint::from(preconf)];
-            let constraint_list = List::try_from(constraint).expect("constraint list");
-            preconfs.push(constraint_list);
+            let preconf_request = self.pop_order().ok_or(OrderPoolError::OrderPoolIsEmpty)?;
+            preconfs.push(preconf_request);
         }
 
-        let slot = self
-            .slot
-            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        let constraints = List::try_from(preconfs).expect("constraints");
-
-        Ok(ConstraintsMessage { slot, constraints })
+        Ok(preconfs)
     }
 
     pub fn update_slot(&mut self, slot: u64) {

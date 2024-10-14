@@ -2,12 +2,11 @@
 
 use std::sync::Arc;
 
-use luban_primitives::SignedConstraintsMessage;
+use taiyi_primitives::SignedConstraintsMessage;
 
 /// Client used by commit modules to request signatures via the Signer API
 #[derive(Debug, Clone)]
 pub struct ConstraintClient {
-    /// Url endpoint of the Signer Module
     url: Arc<String>,
     client: reqwest::Client,
 }
@@ -18,10 +17,7 @@ impl ConstraintClient {
 
         let client = reqwest::Client::builder().build()?;
 
-        Ok(Self {
-            url: url.into(),
-            client,
-        })
+        Ok(Self { url: url.into(), client })
     }
 
     pub async fn send_set_constraints(

@@ -2,13 +2,19 @@
 pragma solidity ^0.8.25;
 
 import { Test, console } from "forge-std/Test.sol";
-import { LubanCore } from "../src/LubanCore.sol";
-import "src/LubanEscrow.sol";
-import "src/interfaces/ILubanCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import "../src/TaiyiEscrow.sol";
+import "../src/interfaces/ITaiyiCore.sol";
+import "../src/libs/PreconfRequestLib.sol";
+import "../src/interfaces/Types.sol";
+import "../src/utils/Helper.sol";
 
 contract DeployTest is Test {
-    LubanCore public lubanCore;
-    LubanEscrow public lubanEscrow;
+    using PreconfRequestLib for *;
+    using Helper for *;
+
+    TaiyiCore public taiyiCore;
+    TaiyiEscrow public taiyiEscrow;
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
@@ -36,8 +42,8 @@ contract DeployTest is Test {
         // vm.deal(user, 100 ether);
         // vm.deal(preconfer, 100 ether);
 
-        // lubanCore = new LubanCore(owner);
-        // lubanEscrow = lubanCore.getLubanEscrow();
+        // taiyiCore = new TaiyiCore(owner);
+        // taiyiEscrow = taiyiCore.getTaiyiEscrow();
     }
 
     function run() public {
@@ -45,62 +51,65 @@ contract DeployTest is Test {
         // Owner
         //////////////////////////
         vm.startBroadcast(ownerPrivatekey);
-        lubanCore = new LubanCore(owner, address(0), bytes32(0));
-        console.log("Luban Core Address:   ", address(lubanCore));
-        console.log("Luban Escrow Address: ", address(lubanCore.getLubanEscrow()));
+        taiyiCore = new TaiyiCore(owner, 1_606_824_023);
+        console.log("Taiyi Core Address:   ", address(taiyiCore));
 
-        lubanCore.registerPreconfer(preconfer);
+        // taiyiCore.registerPreconfer(preconfer);
         vm.stopBroadcast();
 
         //////////////////////////
         // User
         //////////////////////////
         vm.startBroadcast(userPrivatekey);
-        ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
-            gasLimit: 60_000,
+        TipTx memory tipTx = TipTx({
+            gasLimit: 100_000,
             from: user,
             to: preconfer,
             prePay: 0.1 ether,
             afterPay: 0.5 ether,
-            nonce: 0
+            nonce: 0,
+            targetSlot: 10
         });
 
-        ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-            inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-            orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
-            blockNumber: 10
-        });
-
-        bytes32 tipTxAndPreconfConditionsHash = lubanCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
-        (v, r, s) = vm.sign(userPrivatekey, tipTxAndPreconfConditionsHash);
-        bytes memory userSignature = abi.encodePacked(r, s, v);
-
-        bytes32 tipTxHash = lubanCore.getTipTxHash(tipTx);
+        bytes32 tipTxHash = tipTx.getTipTxHash();
         (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
         bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
+        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
-        ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
+        PreconfTx memory preconfTx = PreconfTx({
+            from: user,
+            to: preconfer,
+            value: 0.1 ether,
+            callData: "",
+            callGasLimit: 100_000,
+            nonce: 0,
+            signature: ""
+        });
+        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
+        (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);
+        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
+        preconfTx.signature = preconfTxSignature;
+
+        PreconfRequest memory preconfReq = PreconfRequest({
             tipTx: tipTx,
-            prefConditions: preconfConditions,
-            preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 0.1 ether, callData: "", ethTransfer: true }),
+            preconfTx: preconfTx,
             tipTxSignature: tipTxUserSignature,
-            initSignature: userSignature,
-            preconferSignature: preconferSignature
+            preconferSignature: preconferSignature,
+            preconfReqSignature: preconfTxSignature
         });
 
-        lubanEscrow.deposit{ value: 1 ether }();
+        taiyiEscrow.deposit{ value: 1 ether }();
         vm.stopBroadcast();
 
         // vm.startBroadcast(preconferPrivatekey);
-        //     lubanCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
+        //     taiyiCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
         // vm.stopBroadcast();
     }
 
     // function testExhaustFunction() public {
-    //     ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
+    //     ITaiyiCore.TipTx memory tipTx = ITaiyiCore.TipTx({
     //         gasLimit: 60_000,
     //         from: user,
     //         to: preconfer,
@@ -109,25 +118,25 @@ contract DeployTest is Test {
     //         nonce: 0
     //     });
 
-    //     bytes32 txHash = lubanCore.getTipTxHash(tipTx);
+    //     bytes32 txHash = taiyiCore.getTipTxHash(tipTx);
     //     (v, r, s) = vm.sign(userPrivatekey, txHash);
     //     bytes memory userSignature = abi.encodePacked(r, s, v);
 
     //     vm.prank(owner);
-    //     lubanCore.registerPreconfer(preconfer);
+    //     taiyiCore.registerPreconfer(preconfer);
 
     //     vm.prank(user);
-    //     lubanEscrow.deposit{ value: 9 ether }();
+    //     taiyiEscrow.deposit{ value: 9 ether }();
 
     //     vm.prank(preconfer);
-    //     lubanCore.exhaust(tipTx, userSignature);
+    //     taiyiCore.exhaust(tipTx, userSignature);
 
-    //     assertEq(address(lubanCore).balance, 1 ether);
-    //     assertEq(lubanCore.preconferTips(preconfer), 1 ether, "Preconfer balance should be 1 ether after exhaust");
+    //     assertEq(address(taiyiCore).balance, 1 ether);
+    //     assertEq(taiyiCore.preconferTips(preconfer), 1 ether, "Preconfer balance should be 1 ether after exhaust");
     // }
 
     // function testSettleRequestFunction() public {
-    //     ILubanCore.TipTx memory tipTx = ILubanCore.TipTx({
+    //     ITaiyiCore.TipTx memory tipTx = ITaiyiCore.TipTx({
     //         gasLimit: 60_000,
     //         from: user,
     //         to: preconfer,
@@ -136,43 +145,43 @@ contract DeployTest is Test {
     //         nonce: 0
     //     });
 
-    //     ILubanCore.PreconfConditions memory preconfConditions = ILubanCore.PreconfConditions({
-    //         inclusionMetaData: ILubanCore.InclusionMeta({ startingBlockNumber: 5 }),
-    //         orderingMetaData: ILubanCore.OrderingMeta({ txCount: 1, index: 1 }),
+    //     ITaiyiCore.PreconfConditions memory preconfConditions = ITaiyiCore.PreconfConditions({
+    //         inclusionMetaData: ITaiyiCore.InclusionMeta({ startingBlockNumber: 5 }),
+    //         orderingMetaData: ITaiyiCore.OrderingMeta({ txCount: 1, index: 1 }),
     //         blockNumber: 10
     //     });
 
-    //     bytes32 tipTxAndPreconfConditionsHash = lubanCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
+    //     bytes32 tipTxAndPreconfConditionsHash = taiyiCore.getTipTxAndPreconfConditionsHash(tipTx, preconfConditions);
     //     (v, r, s) = vm.sign(userPrivatekey, tipTxAndPreconfConditionsHash);
     //     bytes memory userSignature = abi.encodePacked(r, s, v);
 
-    //     bytes32 tipTxHash = lubanCore.getTipTxHash(tipTx);
+    //     bytes32 tipTxHash = taiyiCore.getTipTxHash(tipTx);
     //     (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
     //     bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
 
     //     (v, r, s) = vm.sign(preconferPrivatekey, bytes32(userSignature));
     //     bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
-    //     ILubanCore.PreconfRequest memory preconfReq = ILubanCore.PreconfRequest({
+    //     ITaiyiCore.PreconfRequest memory preconfReq = ITaiyiCore.PreconfRequest({
     //         tipTx: tipTx,
     //         prefConditions: preconfConditions,
-    //         preconfTx: ILubanCore.PreconfTx({ to: preconfer, value: 1 ether, callData: "", ethTransfer: true }),
+    //         preconfTx: ITaiyiCore.PreconfTx({ to: preconfer, value: 1 ether, callData: "", ethTransfer: true }),
     //         tipTxSignature: tipTxUserSignature,
-    //         initSignature: userSignature,
+    //         tipTxSignature: userSignature,
     //         preconferSignature: preconferSignature
     //     });
 
     //     vm.prank(owner);
-    //     lubanCore.registerPreconfer(preconfer);
+    //     taiyiCore.registerPreconfer(preconfer);
 
     //     vm.prank(user);
-    //     lubanEscrow.deposit{ value: 2 ether }();
+    //     taiyiEscrow.deposit{ value: 2 ether }();
 
     //     vm.roll(10);
     //     vm.prank(preconfer);
-    //     lubanCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
+    //     taiyiCore.settleRequest{value: preconfReq.preconfTx.value}(preconfReq);
 
-    //     assertEq(address(lubanCore).balance, 3 ether);
-    //     assertEq(lubanCore.preconferTips(preconfer), 3 ether, "Preconfer balance should be 1 ether after exhaust");
+    //     assertEq(address(taiyiCore).balance, 3 ether);
+    //     assertEq(taiyiCore.preconferTips(preconfer), 3 ether, "Preconfer balance should be 1 ether after exhaust");
     // }
 }

@@ -1,7 +1,7 @@
 {
   "name": "l1-preconf-on-chain",
   "version": "1.0.0",
-  "description": "l1 preconf contracts and circuit for Luban",
+  "description": "l1 preconf contracts and circuit for Taiyi",
   "main": "index.js",
   "scripts": {
     "build": "tsc",

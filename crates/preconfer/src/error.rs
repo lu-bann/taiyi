@@ -1,12 +1,12 @@
+#![allow(dead_code)]
 use alloy_contract::Error as AlloyContractError;
 use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use cb_common::commit::error::SignerClientError;
-use luban_primitives::PreconfHash;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use taiyi_primitives::PreconfHash;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -25,10 +25,12 @@ pub enum RpcError {
     ProposerError(#[from] ProposerError),
     #[error("Validation error: {0:?}")]
     ValidationError(#[from] ValidationError),
-    #[error("Signer client error: {0:?}")]
-    SignerClientError(#[from] SignerClientError),
-    #[error("Luban pricer error: {0:?}")]
+    #[error("Taiyi pricer error: {0:?}")]
     PricerError(#[from] PricerError),
+    #[error("Escrow Error: {0:?}")]
+    EscrowError(String),
+    #[error("Preconf request error: {0:?}")]
+    PreconfRequestError(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -41,14 +43,7 @@ impl IntoResponse for RpcError {
     fn into_response(self) -> Response {
         let message = self.to_string();
         let code = StatusCode::BAD_REQUEST;
-        (
-            code,
-            Json(ErrorMessage {
-                code: code.as_u16(),
-                message,
-            }),
-        )
-            .into_response()
+        (code, Json(ErrorMessage { code: code.as_u16(), message })).into_response()
     }
 }
 
@@ -64,14 +59,16 @@ pub enum ValidationError {
     /// The gas limit is too high.
     #[error("Gas limit too high")]
     GasLimitTooHigh,
+    /// TODO: Re-enable chainId check https://github.com/lu-bann/taiyi/issues/111s
     /// The transaction chain ID does not match the expected chain ID.
-    #[error("Chain ID mismatch")]
-    ChainIdMismatch,
+    // #[error("Chain ID mismatch")]
+    // ChainIdMismatch,
     /// NOTE: this should not be exposed to the user.
     #[error("Internal error: {0}")]
     Internal(String),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Error)]
 pub enum ProposerError {
     #[error("proxy key not found")]

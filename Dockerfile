@@ -7,4 +7,4 @@ COPY . .
 
 RUN cargo build --release
 
-ENTRYPOINT ["./target/release/luban"]
+ENTRYPOINT ["./target/release/taiyi"]
