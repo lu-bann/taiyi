@@ -29,11 +29,14 @@ impl DelegationService {
     ) -> Self {
         Self { chain_id, trusted_preconfer, signer_client, relays, duties_rx }
     }
+
     pub async fn run(mut self) -> Result<()> {
         let pubkeys = self.signer_client.get_pubkeys().await?.keys;
         let consensus_pubkeys: Vec<BlsPublicKey> =
             pubkeys.iter().map(|pk| pk.clone().consensus.into()).collect();
+
         info!(consensus_pubkeys = %serde_json::to_string_pretty(&consensus_pubkeys).expect("consensus pubkeys wrong format"), "Received consensus_pubkeys");
+
         while let Some(duties) = self.duties_rx.recv().await {
             let l = duties.len();
             let our_duties: Vec<_> = duties
@@ -46,18 +49,22 @@ impl DelegationService {
                 })
                 .collect();
 
-            info!("Received {l} duties, we have {} to elect", our_duties.len());
+            info!("Received {l} duties, we have {} to delegate", our_duties.len());
 
             for duty in our_duties {
                 // this could be done in parallel
-                if let Err(err) = self.elect_preconfer(duty).await {
-                    error!("Failed to elect preconfer: {err}");
+                if let Err(err) = self.delegate_preconfer(duty).await {
+                    error!("Failed to delegate preconfer: {err}");
                 };
             }
         }
         Ok(())
     }
-    async fn elect_preconfer(&self, duty: ProposerDuty) -> Result<()> {
+
+    /// sends a delegation request
+    ///
+    /// requested slot should be of {current_epoch + 1}
+    async fn delegate_preconfer(&self, duty: ProposerDuty) -> Result<()> {
         let elect_preconfer_req = ElectPreconferRequest {
             preconfer_pubkey: self.trusted_preconfer,
             slot_number: duty.slot,
@@ -80,10 +87,11 @@ impl DelegationService {
             "Sending delegation {}",
             serde_json::to_string(&signed_req).expect("signed req wrong format")
         );
+
         for relay in &self.relays {
             let elec_preconfer_url = relay
                 .builder_api_url(ELECT_PRECONFER_PATH)
-                .expect("failed to build elect preconfer url");
+                .expect("failed to build elect_preconfer url");
             let client = Client::new();
             handles.push(client.post(elec_preconfer_url).json(&signed_req).send());
         }
@@ -117,7 +125,6 @@ mod tests {
     use super::*;
 
     #[test]
-    // test conversion between alloy BlsPublicKey and ethereum-consunsus BlsPublicKey
     fn test_bls_pubkey_conversion() {
         let pubkey_slice: &[u8] = &[1; 48];
         let alloy_bls_pubkey = BlsPublicKey::try_from(pubkey_slice).unwrap();
