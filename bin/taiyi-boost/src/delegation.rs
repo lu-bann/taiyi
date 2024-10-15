@@ -89,11 +89,11 @@ impl DelegationService {
         );
 
         for relay in &self.relays {
-            let elec_preconfer_url = relay
+            let elect_preconfer_url = relay
                 .builder_api_url(ELECT_PRECONFER_PATH)
                 .expect("failed to build elect_preconfer url");
             let client = Client::new();
-            handles.push(client.post(elec_preconfer_url).json(&signed_req).send());
+            handles.push(client.post(elect_preconfer_url).json(&signed_req).send());
         }
 
         let results = join_all(handles).await;
