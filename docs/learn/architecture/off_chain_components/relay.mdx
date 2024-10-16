@@ -1,0 +1,69 @@
+---
+title: Relay
+description: Relay's role in the context of Taiyi
+icon: 'satellite'
+---
+
+
+### Relay's Role under PBS
+
+<img
+  className="block dark:hidden"
+  src="/images/relay-pbs.jpg"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/relay-pbs.jpg"
+  alt="Hero Dark"
+/>
+<p className="text-center text-sm text-gray-500 mt-2">Image source: https://docs.flashbots.net/flashbots-mev-boost/relay</p>
+Relay serve as a data-availability layer and communication interface, ensuring fair payload routing for builders and block validity for proposers. Relays aggregate bids from multiple builders, verify block validity, and submit the highest valid bid to validators for signing. They also handle validator registrations, provide block escrow, and perform block simulations to ensure compliance with various parameters such as fee payments, block attributes, and gas limits. By connecting to one or many builders and interfacing with validators through mev-boost, relays streamline the block production process and enhance the overall efficiency and security of the network.
+
+### Relay's Role under Taiyi
+<Note>
+  Taiyi's relay is a fork of [Helix relay](https://github.com/gattaca-com/helix). You can find Taiyi's fork of the relay in the [Taiyi GitHub organization repositories](https://github.com/orgs/lu-bann/repositories).
+</Note>
+<Note>
+  For a detailed understanding of the additional APIs that the relay needs to implement, please refer to the API References section in the documentation.
+</Note>
+
+<img
+  className="block dark:hidden"
+  src="/images/architecture.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/architecture.png"
+  alt="Hero Dark"
+/>
+
+The Relay plays a crucial intermediary role in the Taiyi ecosystem, facilitating communication and coordination between Proposers, Preconfirmers, and Block Builders. Its primary functions include:
+
+- Preconfer Election
+- Constraints Management
+- Block Submission and Verification
+
+### 1. Preconfer Election
+
+The Relay manages the delegation of preconfirmation rights from Proposers to Preconfirmers. This process is initiated by the Proposer and handled by the Relay:
+
+- Proposers send a `SignedPreconferElection` to the Relay, delegating their preconfirmation rights to a specific Preconfer for a given slot.
+- The Relay validates this election and updates its internal state to reflect the new delegation.
+
+### 2. Constraints Management
+
+The Relay acts as a central point for managing and distributing constraints:
+
+- Preconfirmers generate constraint messages based on the preconfirmation requests they receive.
+- These constraints are sent to the Relay, which then broadcasts them to Block Builders.
+
+### 3. Block Submission and Verification
+
+The Relay serves as an intermediary between Block Builders and Proposers:
+
+- Block Builders submit their constructed blocks to the Relay along with inclusion proofs.
+- The Relay verifies these blocks against the set constraints.
+- Proposers request payloads from the Relay using the `get_payload` method.
+- The Relay provides the most profitable valid block to the Proposer.

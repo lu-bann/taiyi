@@ -1,45 +1,57 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "Taiyi V1",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "/logo/luban-logo-v.png",
+    "light": "/logo/luban-logo-v.png"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
-    "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+    "primary": "#E53935",
+    "light": "#F0E6DD",
+    "dark": "#A23C2B",
+    "background": {
+      "light": "#FFF3E9",
+      "dark": "#4A2C2C"
     }
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "mailto:hi@mintlify.com"
+  "theme": "quill",
+  "font": {
+    "headings": {
+      "family": "Futura",
+      "weight": 400
+    },
+    "body": {
+      "family": "Futura"
     }
-  ],
+  },
+  "topbar": {
+    "style": "gradient"
+ },
   "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
+    "type": "github",
+    "url": "https://github.com/lu-bann/taiyi"
   },
   "tabs": [
     {
-      "name": "API Reference",
-      "url": "api-reference"
+      "name": "Preconfirmer API Endpoints",
+      "url": "preconfirmer-api-endpoints"
     }
   ],
   "anchors": [
     {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://mintlify.com/docs"
+      "name": "Github",
+      "icon": "github",
+      "url": "https://github.com/lu-bann"
     },
     {
-      "name": "Community",
-      "icon": "slack",
+      "name": "X",
+      "icon": "x",
+      "url": "https://x.com/lu_ban_"
+    },
+    {
+      "name": "Telegram",
+      "icon": "telegram",
       "url": "https://mintlify.com/community"
     },
     {
@@ -52,40 +64,97 @@
     {
       "group": "Get Started",
       "pages": [
-        "introduction",
-        "quickstart",
-        "development"
+        "taiyi_overview",
+        {
+          "group": "Node Operator Setup Guide",
+          "icon": "computer",
+          "pages": [
+            "node_operator_setup_guide/helder_devnet",
+            "node_operator_setup_guide/holesky_testnet"
+          ]
+        },
+        "send_your_first_preconfirmation",
+        "using_preconf_aggregator"
       ]
     },
     {
-      "group": "Essentials",
+      "group": "Build",
       "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
+        {
+          "group": "Examples",
+          "icon": "laptop-binary",
+          "pages": [
+            "build/examples/send_preconf_tx"
+          ]
+        },
+        {
+          "group": "API Reference",
+          "icon": "scanner-keyboard",
+          "pages": [
+            "build/api_reference/preconfer_api",
+            "build/api_reference/builder_api",
+            "build/api_reference/relay_api"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Learn",
+      "pages": [
+        {
+          "group": "Concepts",
+          "icon": "bulldozer",
+          "pages": [
+            "learn/fundamentals/what",
+            "learn/fundamentals/life_cycle_of_a_preconf_tx",
+            "learn/fundamentals/economic_security",
+            "learn/fundamentals/preconf_fungibility"
+          ]
+        },
+        {
+          "group": "System Architecture",
+          "icon": "bridge",
+          "pages": [
+            {
+              "group": "Off-Chain Components",
+              "icon": "satellite",
+              "pages": [
+                "learn/architecture/off_chain_components/overview",
+                "learn/architecture/off_chain_components/commit_boost",
+                "learn/architecture/off_chain_components/builder",
+                "learn/architecture/off_chain_components/relay"
+              ]
+            },
+            {
+              "group": "On-Chain Components",
+              "icon": "link",
+              "pages": [
+                "learn/architecture/on_chain_components/overview",
+                "learn/architecture/on_chain_components/luban_core"
+              ]
+            }
+          ]
+        },
+        "learn/glossary"
       ]
     },
     {
       "group": "API Documentation",
       "pages": [
-        "api-reference/introduction"
+        "preconfirmer-api-endpoints/introduction"
       ]
     },
     {
       "group": "Endpoint Examples",
       "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
+        "preconfirmer-api-endpoints/endpoint/get",
+        "preconfirmer-api-endpoints/endpoint/create",
+        "preconfirmer-api-endpoints/endpoint/delete"
       ]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "x": "https://x.com/lu_ban_",
+    "github": "https://github.com/lu-bann"
   }
 }

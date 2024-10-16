@@ -1,0 +1,57 @@
+---
+title: 'Send Preconf Tx'
+description: 'Example to send a preconf tx'
+---
+
+# How to Submit a Preconf Transaction
+
+This guide will walk you through the process of submitting a preconfirmation (preconf) transaction using the Taiyi protocol. We'll break down the steps and explain each part of the process.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+1. Rust installed on your system
+2. Access to a Taiyi node and an Ethereum execution layer node
+3. A private key for signing transactions
+
+## Step 1: Configure Connection Details
+
+First, set up the connection details for the Taiyi node, Ethereum execution layer, and your private key.
+<Accordion title="Connection Configuration">
+```rust
+let taiyi_url =
+std::env::var("TAIYI_URL").unwrap_or_else(|| "http://127.0.0.1:18550".to_string());
+let el_url = std::env::var("EL_URL").unwrap_or_else(|| "http://127.0.0.1:8545".to_string());
+let signer_private = std::env::var("PRIVATE_KEY").expect("Input private key");
+let signer: PrivateKeySigner = signer_private.parse().unwrap();
+let provider = ProviderBuilder::new().with_recommended_fillers().on_builtin(&el_url).await?;
+```
+</Accordion>
+
+
+
+## Step 2: Query Available Slots
+
+Query the Taiyi node for available slots to submit your preconf transaction.
+
+<Accordion title="Query Available Slots">
+
+```rust
+let client = reqwest::Client::new();
+let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
+let res_b = res.bytes().await?;
+println!("res: {:?}", res_b);
+let available_slot = serde_json::from_slice::<AvailableSlotResponse>(&res_b)?;
+if available_slot.available_slots.is_empty() {
+println!("No available slot");
+return Ok(());
+}
+let target_slot = available_slot.available_slots.last().expect("last").slot;
+println!("target_slot: {:?}", available_slot);
+```
+
+
+</Accordion>
+
+Todo

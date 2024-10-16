@@ -1,0 +1,95 @@
+---
+title: 'What is Taiyi?'
+description: "An introduction to Taiyi, Luban's solution for Ethereum L1 preconfirmation"
+icon: 'lightbulb'
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/taiyi-updated.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/taiyi-updated.png"
+  alt="Hero Dark"
+/>
+
+Taiyi (太一) is Luban's solution for Ethereum L1 preconfirmation. As developers deeply invested in the Ethereum ecosystem, we've identified critical user experience bottlenecks that hinder Ethereum Mainnet's usability:
+
+- Long Transaction Confirmation Times (~12 seconds): Users face delays as they wait for their transactions to be included in the next block.
+- Non-Deterministic Transaction Fees: Fluctuating gas prices make it challenging to predict transaction costs accurately.
+
+
+
+### What Taiyi Means for Different Stakeholders
+
+#### 👤 For Users
+- Shorter Confirmation Times: Transactions are confirmed rapidly without the need to wait for the 12-second block interval.
+- Deterministic Transaction Costs: Users know the exact fees upfront, eliminating uncertainty and enabling better financial planning.   
+
+#### ⛏️ For Validators
+- Enhanced Yield Opportunities: Earn additional income through preconfirmation tips, maximizing the revenue from validating transactions.
+
+#### 🦄 For Applications
+- Wholesale Blockspace Settlement: Access to blockspace with long-term commitments at fixed fees, allowing for more predictable operational costs.
+- Flexible Pricing Schemes: With a fixed cost basis, applications can offer more adaptable and competitive pricing models to their end-users.
+
+#### 🤖 For Builders
+- Innovative Block Builder Pipeline: Leverage and transfer existing skill sets into a novel pipeline that enhances the block-building process.
+
+## Taiyi Problem - Solution Mapping
+
+| Problem | Solution |
+| --- | --- |
+| [Long Confirmation Times](#1-long-confirmation-times) | [Optimizing L1 Confirmation Times](#1-optimizing-l1-confirmation-times) |
+| [Volatile Gas Fees and Lack of Hedging Solutions](#2-volatile-gas-fees-and-lack-of-hedging-solutions) | [Natural Hedging Solutions for Blockspace](#2-natural-hedging-solutions-for-blockspace) |
+| [Opaque Price Discovery Mechanisms](#3-opaque-price-discovery-mechanisms) | [Transparent and Efficient Blockspace Price Discovery](#3-transparent-and-efficient-blockspace-price-discovery) |
+| [Centralization of Block Building](#4-centralization-of-block-building) | [Enhancing Censorship Resistance](#4-enhancing-censorship-resistance) |
+
+
+### Problems
+
+<AccordionGroup>
+
+<Accordion title="1. Long Confirmation Times">
+The current PBS model in Ethereum necessitates a just-in-time competition among block builders for each block. This auction process, lasting approximately 12 seconds, introduces significant latency in transaction confirmations, degrading user experience and limiting Ethereum's potential for high-frequency applications.
+</Accordion>
+
+<Accordion title="2. Volatile Gas Fees and Lack of Hedging Solutions">
+The key issue in Ethereum's gas fee market is the absence of effective hedging solutions, primarily due to the lack of natural sellers for future blockspace. Without the ability to hedge against these fluctuations, users and applications face significant uncertainty in transaction costs, and the ecosystem lacks the sophisticated financial instruments necessary for a mature and stable market.
+</Accordion>
+
+<Accordion title="3. Opaque Price Discovery Mechanisms">
+Block builders, by maintaining private order flows, circumvent true price discovery for blockspace within individual blocks. This opacity in pricing mechanisms leads to market inefficiencies and potentially unfair advantages for certain participants.
+</Accordion>
+
+<Accordion title="4. Centralization of Block Building">
+As of October 2024, [the top two block builders are responsible for constructing over 95% of blocks](https://mevboost.pics/). This concentration of power significantly undermines Ethereum's fundamental value proposition of censorship resistance and decentralization.
+</Accordion>
+
+
+</AccordionGroup>
+
+### Solutions
+
+<AccordionGroup>
+
+<Accordion title="1. Optimizing L1 Confirmation Times">
+Taiyi significantly reduces confirmation times by introducing a preconfirmation mechanism. This allows transactions to be confirmed before they are included in a block, effectively eliminating the 12-second block time delay. Users can receive near-instant transaction confirmations, drastically improving the Layer 1 experience and enabling high-frequency applications directly on Ethereum's base layer.
+</Accordion>
+
+<Accordion title="2. Natural Hedging Solutions for Blockspace">
+Taiyi leverages validators, the natural producers of blockspace, to create a robust marketplace for future blockspace. This paradigm shift introduces a perfect natural hedge against gas fee volatility, addressing a critical pain point for users and applications. By enabling validators to sell their future blockspace directly, Taiyi creates a win-win scenario: users gain access to predictable transaction costs and effective hedging instruments, while validators unlock new revenue streams, enhancing their economic incentives within the Ethereum ecosystem. 
+</Accordion>
+
+<Accordion title="3. Transparent and Efficient Blockspace Price Discovery">
+Taiyi introduces a fungible preconfirmation for blockspace trading, enabling price discovery to occur in a permissionless and open market. This allows for the trading of both absolute positioning (e.g., top of block) and relative positioning (e.g., an arbitrage after a swap transaction) of blockspace between dynamic buyers and sellers. By facilitating this open trading environment, Taiyi promotes transparent price discovery and enhances censorship resistance properties, addressing the opacity issues present in current blockspace markets.
+</Accordion>
+
+<Accordion title="4. Enhancing Censorship Resistance">
+Taiyi significantly improves Ethereum's censorship resistance by decentralizing the block production process. Unlike the current system where a single block builder dominates, Taiyi enables free trading and exchange of blockspace among multiple dynamic parties. This decentralization increases the cost and difficulty of censorship.
+</Accordion>
+
+
+</AccordionGroup>
