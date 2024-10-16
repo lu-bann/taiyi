@@ -1,7 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::keccak256;
+use alloy_primitives::{keccak256, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -134,9 +134,8 @@ where
                         self.preconfer.taiyi_core_contract_addr(),
                         self.provider.clone(),
                         wallet,
-                        slot,
                     )
-                    .await;
+                    .await?;
                     info!(
                         "Sending {} constraints message with slot: {}",
                         constraint_message.len(),
@@ -208,6 +207,18 @@ where
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
         preconf_request.preconfer_signature = Some(preconfer_signature);
 
+        let preconf_req_hash = preconf_request.preconf_req_hash(U256::from(chain_id)).ok_or(
+            RpcError::UnknownError(format!(
+                "Failed to get preconf req hash from {preconf_request:?}",
+            )),
+        )?;
+        let preconf_req_signature = self
+            .ecdsa_signer
+            .sign_hash(&preconf_req_hash)
+            .await
+            .map_err(|err| RpcError::UnknownError(err.to_string()))?;
+        preconf_request.preconf_req_signature = Some(preconf_req_signature);
+
         self.preconfer
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await
@@ -230,7 +241,7 @@ where
             }
         }
 
-        Ok(PreconfResponse::success(preconf_hash, preconfer_signature))
+        Ok(PreconfResponse::success(preconf_hash, preconfer_signature, preconf_req_signature))
     }
 
     pub async fn cancel_preconf_request(

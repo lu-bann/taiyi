@@ -1,32 +1,27 @@
-#![allow(dead_code)]
-
-use std::sync::Arc;
-
+use reqwest::Url;
 use taiyi_primitives::SignedConstraintsMessage;
 
 /// Client used by commit modules to request signatures via the Signer API
 #[derive(Debug, Clone)]
 pub struct ConstraintClient {
-    url: Arc<String>,
+    url: Url,
     client: reqwest::Client,
 }
 
 impl ConstraintClient {
     pub fn new(relay_server_address: String) -> eyre::Result<Self> {
-        let url = format!("http://{relay_server_address}");
-
         let client = reqwest::Client::builder().build()?;
 
-        Ok(Self { url: url.into(), client })
+        Ok(Self { url: Url::parse(&relay_server_address)?, client })
     }
 
     pub async fn send_set_constraints(
         &self,
         constraint: SignedConstraintsMessage,
     ) -> eyre::Result<()> {
-        let url = format!("{}/eth/v1/builder/set_constraints", self.url);
+        let url = self.url.join("/eth/v1/builder/set_constraints")?;
 
-        let response = self.client.post(&url).json(&constraint).send().await?;
+        let response = self.client.post(url).json(&constraint).send().await?;
 
         if response.status().is_success() {
             Ok(())

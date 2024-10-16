@@ -30,6 +30,7 @@ async fn main() -> Result<()> {
         pbs_config.relays.clone(),
         duties_rx,
     );
+
     join!(
         PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state),
         beacon_event_client.run(),

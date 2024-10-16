@@ -66,6 +66,7 @@ contract TaiyiCoreTest is Test {
         bytes32 txHash = tipTx.getTipTxHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
         bytes memory tipTxSig = abi.encodePacked(r, s, v);
+        console.logBytes(tipTxSig);
 
         bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
         (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);

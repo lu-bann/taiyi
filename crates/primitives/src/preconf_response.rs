@@ -14,16 +14,21 @@ pub struct PreconfResponse {
 pub struct PreconfResponseData {
     preconf_hash: PreconfHash,
     preconfer_signature: Signature,
+    preconf_req_signature: Signature,
 }
 
 impl PreconfResponse {
-    pub fn success(preconf_hash: PreconfHash, preconfer_signature: Signature) -> Self {
+    pub fn success(
+        preconf_hash: PreconfHash,
+        preconfer_signature: Signature,
+        preconf_req_signature: Signature,
+    ) -> Self {
         Self {
             status: "success".to_string(),
             message:
                 "Your preconf request has been successfully received and is pending processing."
                     .to_string(),
-            data: PreconfResponseData { preconf_hash, preconfer_signature },
+            data: PreconfResponseData { preconf_hash, preconfer_signature, preconf_req_signature },
         }
     }
 }
