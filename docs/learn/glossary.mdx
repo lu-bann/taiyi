@@ -1,0 +1,58 @@
+---
+title: 'Glossary'
+description: "A glossary of terms used in the Taiyi documentation"
+icon: 'book'
+---
+## Index
+
+- [Commit-Boost](#commit-boost)
+- [Commit-Boost Sidecar](#commit-boost-sidecar)
+- [Commitment Deadline](#commitment-deadline)
+- [Epoch and Slot](#epoch-and-slot)
+- [Gateway](#gateway)
+- [Opt-in Validator](#opt-in-validator)
+- [Preconfirmation](#preconfirmation)
+- [Preconfirmer](#preconfirmer)
+- [PreconfRequest](#preconfrequest)
+- [PreconfTx (Preconfirmation Transaction)](#preconftx-preconfirmation-transaction)
+- [Second-Price Auction](#second-price-auction)
+- [Sealed Bid Auction](#sealed-bid-auction)
+- [Slashing Mechanisms](#slashing-mechanisms)
+- [TipTx (Tip Transaction)](#tiptx-tip-transaction)
+
+
+#### Commit-Boost:
+[Commit-Boost](https://github.com/Commit-Boost/commit-boost-client) is a proposer commitment side car that allows validators to make commitments to the block proposer.
+
+#### Commitment Deadline:
+This is a time limit set for accepting commitments to ensure they can be included and bordcasted to the block builders by the relay.
+
+#### Epoch and Slot:
+These are time-based concepts in Ethereum. An epoch is a fixed period consisting of multiple slots, and a slot is a unit of time during which a block can be proposed. Through the documentation, otherwise seperately noted, epoch and slots are defined according to the [consensus client spec](https://github.com/ethereum/consensus-specs). 
+
+#### Gateway:
+Unless otherwise specified, it refers to a preconfirmer. 
+
+#### Opt-in Validator:
+A validator that chooses to participate in the preconfirmation protocol, allowing their slots to be used for preconfirmation services.
+
+#### Preconfirmation:
+Preconfirmation is a mechanism that allows transactions to be confirmed before they are included in a block on Ethereum L1. This process aims to reduce latency and improve the user experience by providing faster transaction feedback.
+
+#### Preconfirmer:
+A preconfirmer is a specialized node in the Taiyi network responsible for processing and validating transactions before they are included in a block. Preconfirmers act as intermediaries between users and the blockchain, helping to expedite the transaction confirmation process. It is interchangeable with "based sequencer" and plays a key role in transaction processing and sequencing.
+
+#### PreconfRequest:
+A PreconfRequest combines a TipTx and a PreconfTx with associated signatures. It's the complete package of information needed for the preconfirmation process.
+
+#### PreconfTx, aka Preconfirmation Transaction:
+A PreconfTx represents the actual transaction that a user wants to execute with preconfirmation. It contains standard transaction details like sender, recipient, value, and additional preconfirmation-specific information.
+
+#### Second-Price Auction:
+An auction format where the highest bidder wins but pays the amount of the second-highest bid. It encourages truthful bidding by reducing incentives to overbid.
+
+#### Sealed Bid Auction:
+An auction where all bidders submit their bids without knowing the bids of other participants. In this context, it uses a commit-reveal scheme to ensure confidentiality during the commit phase.
+
+#### Slashing Mechanisms:
+Protocol rules that penalize participants (e.g., preconfirmers or validators) for misbehavior by confiscating a portion or all of their staked tokens.

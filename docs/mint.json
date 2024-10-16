@@ -1,0 +1,160 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Taiyi V1",
+  "logo": {
+    "dark": "/logo/luban-logo-v.png",
+    "light": "/logo/luban-logo-v.png"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#E53935",
+    "light": "#F0E6DD",
+    "dark": "#A23C2B",
+    "background": {
+      "light": "#FFF3E9",
+      "dark": "#4A2C2C"
+    }
+  },
+  "theme": "quill",
+  "font": {
+    "headings": {
+      "family": "Futura",
+      "weight": 400
+    },
+    "body": {
+      "family": "Futura"
+    }
+  },
+  "topbar": {
+    "style": "gradient"
+ },
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/lu-bann/taiyi"
+  },
+  "tabs": [
+    {
+      "name": "Preconfirmer API Endpoints",
+      "url": "preconfirmer-api-endpoints"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Github",
+      "icon": "github",
+      "url": "https://github.com/lu-bann"
+    },
+    {
+      "name": "X",
+      "icon": "x",
+      "url": "https://x.com/lu_ban_"
+    },
+    {
+      "name": "Telegram",
+      "icon": "telegram",
+      "url": "https://mintlify.com/community"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://mintlify.com/blog"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "taiyi_overview",
+        {
+          "group": "Node Operator Setup Guide",
+          "icon": "computer",
+          "pages": [
+            "node_operator_setup_guide/helder_devnet",
+            "node_operator_setup_guide/holesky_testnet"
+          ]
+        },
+        "send_your_first_preconfirmation",
+        "using_preconf_aggregator"
+      ]
+    },
+    {
+      "group": "Build",
+      "pages": [
+        {
+          "group": "Examples",
+          "icon": "laptop-binary",
+          "pages": [
+            "build/examples/send_preconf_tx"
+          ]
+        },
+        {
+          "group": "API Reference",
+          "icon": "scanner-keyboard",
+          "pages": [
+            "build/api_reference/preconfer_api",
+            "build/api_reference/builder_api",
+            "build/api_reference/relay_api"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Learn",
+      "pages": [
+        {
+          "group": "Concepts",
+          "icon": "bulldozer",
+          "pages": [
+            "learn/fundamentals/what",
+            "learn/fundamentals/life_cycle_of_a_preconf_tx",
+            "learn/fundamentals/economic_security",
+            "learn/fundamentals/preconf_fungibility"
+          ]
+        },
+        {
+          "group": "System Architecture",
+          "icon": "bridge",
+          "pages": [
+            {
+              "group": "Off-Chain Components",
+              "icon": "satellite",
+              "pages": [
+                "learn/architecture/off_chain_components/overview",
+                "learn/architecture/off_chain_components/commit_boost",
+                "learn/architecture/off_chain_components/builder",
+                "learn/architecture/off_chain_components/relay"
+              ]
+            },
+            {
+              "group": "On-Chain Components",
+              "icon": "link",
+              "pages": [
+                "learn/architecture/on_chain_components/overview",
+                "learn/architecture/on_chain_components/luban_core"
+              ]
+            }
+          ]
+        },
+        "learn/glossary"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "preconfirmer-api-endpoints/introduction"
+      ]
+    },
+    {
+      "group": "Endpoint Examples",
+      "pages": [
+        "preconfirmer-api-endpoints/endpoint/get",
+        "preconfirmer-api-endpoints/endpoint/create",
+        "preconfirmer-api-endpoints/endpoint/delete"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/lu_ban_",
+    "github": "https://github.com/lu-bann"
+  }
+}
