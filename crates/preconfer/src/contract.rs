@@ -1,6 +1,6 @@
 use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{Address, Bytes, ChainId};
 use alloy_provider::{utils::Eip1559Estimation, Provider};
 use alloy_transport::Transport;
 use ethereum_consensus::ssz::prelude::{ByteList, List};
@@ -102,6 +102,7 @@ where
 {
     // FIXME: check all slots are the same
     let slot: u64 = preconf_reqs[0].tip_tx.target_slot.to();
+    let chain_id = provider.get_chain_id().await?;
     let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
     let preconf_reqs: Vec<core::PreconfRequest> =
         preconf_reqs.into_iter().map(|req| req.into()).collect();
@@ -115,6 +116,7 @@ where
     tx.set_max_fee_per_gas(max_fee_per_gas);
     tx.set_max_priority_fee_per_gas(max_priority_fee_per_gas);
     tx.set_nonce(nonce);
+    tx.set_chain_id(ChainId::from(chain_id));
 
     let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
     let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
