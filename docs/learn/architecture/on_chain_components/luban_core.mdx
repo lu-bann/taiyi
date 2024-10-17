@@ -1,0 +1,95 @@
+---
+title: LubanCore Contract
+icon: 'corn'
+---
+
+## LubanCore 
+Manages preconfirmation requests, settles transactions, and handles the escrow system for the Taiyi protocol
+
+### Functions
+
+
+
+#### `batchSettleRequests`
+```solidity
+function batchSettleRequests(PreconfRequest[] calldata preconfReqs) external payable
+```
+
+Settles multiple preconfirmation requests in a single transaction.
+This function processes a batch of preconfirmation requests, executing the associated transactions and handling the payment of tips. It's designed to be called by the preconfirmer.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconfReqs` | `PreconfRequest[]` | An array of preconfirmation requests to be settled |
+
+#### `settleRequest`
+```solidity
+function settleRequest(PreconfRequest calldata preconfReq) public payable nonReentrant
+```
+Settles a single PreconfRequest. This is the main function for validating and executing a preconfirmation request.
+The function will validate the request, execute the transaction, handle payments, and update the request status.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconfReq` | `PreconfRequest` | The PreconfRequest struct to be settled |
+
+#### `exhaust`
+```solidity
+function exhaust(PreconfRequest calldata preconfReq) external onlyOwner
+```
+Exhausts the gas to the point of gasLimit defined in TipTx iteratively, and transfers the prePayment to the preconfer.
+This function is used to prevent user "griefing" of the preconfer. It can only be called by the contract owner.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconfReq` | `PreconfRequest` | The PreconfRequest struct to be exhausted |
+
+#### `challengeRequests`
+```solidity
+function challengeRequests(PreconfRequest[] calldata preconfReqs) external
+```
+hallenges multiple PreconfRequests in a single call.
+This function allows users to challenge PreconfRequests that may not have been properly executed or included in a block.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconfReqs` | `PreconfRequest[]` | An array of PreconfRequest structs to be challenged |
+
+#### `checkInclusion`
+```solidity
+function checkInclusion(bytes32 preconfRequestHash) external view returns (bool)
+```
+Checks if a PreconfRequest has been included in a block.
+Returns:
+| Type | Description |
+|------|-------------|
+| bool | True if the PreconfRequest has been included, false otherwise |
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| preconfRequestHash | bytes32 | The hash of the PreconfRequest to check |
+
+#### `getPreconfRequestStatus`
+```solidity
+function getPreconfRequestStatus(bytes32 preconferSignature) external view returns (PreconfRequestStatus)
+```
+Gets the status of a PreconfRequest.
+Returns:
+| Type | Description |
+|------|-------------|
+| `PreconfRequestStatus` | The current status of the PreconfRequest |
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconferSignature` | `bytes32` | The signature of the PreconfRequest |
+
+#### `collectTip`
+```solidity
+function collectTip(bytes32 preconferSignature) external
+```
+Collects the tip for a settled PreconfRequest.
+This function allows the preconfer to collect their tip after a PreconfRequest has been successfully settled.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconferSignature` | `bytes32` | The signature of the PreconfRequest for which to collect the tip |
