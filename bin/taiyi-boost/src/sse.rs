@@ -5,7 +5,7 @@ use eyre::Result;
 use futures_util::StreamExt;
 use reqwest::Url;
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 const SLOT_PER_EPOCH: u64 = 32;
 
@@ -36,20 +36,19 @@ impl BeaconEventClient {
                 Ok(event) => {
                     let new_slot = event.data.proposal_slot;
                     if new_slot > last_updated_slot {
-                        info!("Received new slot: {new_slot}");
-
                         let current_epoch = new_slot / SLOT_PER_EPOCH;
-                        if current_epoch != last_epoch {
-                            info!(
-                                "Epoch changed to: {current_epoch} from last epoch: {last_epoch}"
-                            );
-                            last_epoch = current_epoch;
-                            // We fetch duties for the next epoch ie: `current_epoch + 1`
-                            if let Err(e) = self.fetch_and_send_duties(current_epoch + 1).await {
-                                error!("Failed to fetch and send duties: {e}");
+                        debug!("Received new slot: {new_slot}, current_eopch: {current_epoch}, last_epoch: {last_epoch}");
+                        // We found that helix is slower to sync proposer duties, so we fetch and send duties for the next epoch, when we are near the end of the current epoch
+                        if new_slot >= current_epoch * SLOT_PER_EPOCH + SLOT_PER_EPOCH - 2 {
+                            let sending_epoch = current_epoch + 1;
+                            if sending_epoch != last_epoch {
+                                info!("Sending duties for next epoch: {sending_epoch}, last sent epoch: {last_epoch}");
+                                last_epoch = sending_epoch;
+                                if let Err(e) = self.fetch_and_send_duties(sending_epoch).await {
+                                    error!("Failed to fetch and send duties: {e}");
+                                }
                             }
                         }
-
                         last_updated_slot = new_slot;
                     }
                 }
