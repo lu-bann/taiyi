@@ -39,7 +39,7 @@ impl BeaconEventClient {
                         let current_epoch = new_slot / SLOT_PER_EPOCH;
                         debug!("Received new slot: {new_slot}, current_eopch: {current_epoch}, last_epoch: {last_epoch}");
                         // We found that helix is slower to sync proposer duties, so we fetch and send duties for the next epoch, when we are near the end of the current epoch
-                        if new_slot >= current_epoch * SLOT_PER_EPOCH + SLOT_PER_EPOCH - 1 {
+                        if new_slot >= current_epoch * SLOT_PER_EPOCH + SLOT_PER_EPOCH - 2 {
                             let sending_epoch = current_epoch + 1;
                             if sending_epoch != last_epoch {
                                 info!("Sending duties for next epoch: {sending_epoch}, last sent epoch: {last_epoch}");
