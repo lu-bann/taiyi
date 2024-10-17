@@ -26,20 +26,27 @@ Endpoint for submitting a preconfirmation request.
 <Accordion title="Schema">
 `PreconfRequest`
 ```rust
-struct PreconfRequest {
+pub struct PreconfRequest {
     tip_tx: TipTransaction,
-    preconf_tx: PreconfTx,
-    tip_tx_signature: Bytes,
-    preconfer_signature: Bytes,
-    preconf_req_signature: Bytes,
+    preconf_tx: Option<PreconfTx>,
+    tip_tx_signature: Signature,
+    preconfer_signature: Option<Signature>,
+    preconf_req_signature: Option<Signature>,
 }
 ```
 
 `PreconfResponse`
 ```rust
-struct PreconfResponse {
+pub struct PreconfResponse {
+    status: String,
+    message: String,
+    data: PreconfResponseData,
+}
+
+pub struct PreconfResponseData {
     preconf_hash: PreconfHash,
-    status: PreconfStatus,
+    preconfer_signature: Signature,
+    preconf_req_signature: Signature,
 }
 ```
 </Accordion>
