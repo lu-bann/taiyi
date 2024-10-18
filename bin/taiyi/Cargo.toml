@@ -4,9 +4,10 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+clap = { workspace = true }
+eyre = { workspace = true }
 taiyi-cli = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
 
 [[bin]]
 name = "taiyi"
