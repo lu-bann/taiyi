@@ -12,16 +12,16 @@ use taiyi_primitives::{AvailableSlotResponse, PreconfRequest, PreconfTx, TipTran
 
 const TAIYI_CORE_ADDRESS: &str = "0xBc158E71537d843616D1fE0cc5e39900bB38cBff"; // taiyi core contract address for Helder
 const TAIYI_PRECONFER_ADDRESS: &str = "0xbC37A63E213a791c944a7EA104e67FB5B4b3DF07"; // taiyi preconfer contract address for Helder
-const CHAIN_ID: u64 = 7014190335; // currently only helder is supported
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    let taiyi_url =
-        std::env::var("TAIYI_URL").unwrap_or_else(|_| "http://127.0.0.1:5656".to_string());
+    let taiyi_url = std::env::var("TAIYI_PRECONFER_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:5656".to_string());
     let el_url = std::env::var("EL_URL").unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
     let signer_private = std::env::var("PRIVATE_KEY").expect("Input private key");
     let signer: PrivateKeySigner = signer_private.parse().unwrap();
     let provider = ProviderBuilder::new().with_recommended_fillers().on_builtin(&el_url).await?;
+    let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
     let client = reqwest::Client::new();
@@ -55,12 +55,14 @@ async fn main() -> eyre::Result<()> {
         gas_limit: U256::from(21_000),
         from: sender,
         to: preconfer_address,
+        // the user would need to pay pre_pay to preconfer for the preconf request even if it is failed
         pre_pay: U256::from(estimate.max_fee_per_gas * 21_000),
+        // the user need to pay after_pay  to preconfer for the preconf request when the tx is successful
         after_pay: U256::from(estimate.max_fee_per_gas * 21_000),
         nonce: tip_nonce,
         target_slot: U256::from(target_slot),
     };
-    let tip_hash = tip_tx.tip_tx_hash(U256::from(CHAIN_ID));
+    let tip_hash = tip_tx.tip_tx_hash(U256::from(chain_id));
     let tip_sig = signer.sign_hash_sync(&tip_hash)?;
     let mut preconf_tx = PreconfTx {
         from: sender,
