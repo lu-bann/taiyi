@@ -1,27 +1,41 @@
-use std::str::FromStr;
+use clap::{Parser, Subcommand};
+use taiyi_cli::{initialize_tracing_log, PreconferCommand};
 
-use tracing::Level;
+#[derive(Debug, Parser)]
+#[command(author, version, about = "taiyi", long_about = None)]
+pub struct Cli {
+    /// The command to execute
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+/// Commands to be executed
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    #[command(name = "preconfer")]
+    Preconfer(PreconferCommand),
+}
+
+pub fn run() -> eyre::Result<()> {
+    let cli = Cli::parse();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime build failed");
+    match cli.command {
+        Commands::Preconfer(preconfer) => {
+            runtime.block_on(async {
+                preconfer.execute().await.expect("preconfer run");
+            });
+            Ok(())
+        }
+    }
+}
 
 fn main() {
     initialize_tracing_log();
-    if let Err(err) = taiyi_cli::run() {
+    if let Err(err) = run() {
         eprintln!("Error: {err:?}");
         std::process::exit(1);
     }
-}
-pub fn initialize_tracing_log() {
-    let level_env = std::env::var("RUST_LOG").unwrap_or("info".to_owned());
-    let level = if let Ok(level) = Level::from_str(&level_env) {
-        level
-    } else {
-        eprint!("Invalid log level {level_env}, defaulting to info");
-        Level::INFO
-    };
-
-    tracing_subscriber::fmt()
-        .compact()
-        .with_max_level(level)
-        .with_target(true)
-        .with_file(true)
-        .init();
 }

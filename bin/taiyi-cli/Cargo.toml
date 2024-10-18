@@ -1,0 +1,13 @@
+[package]
+name = "taiyi-utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { workspace = true }
+eyre = { workspace = true }
+taiyi-cli = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tree_hash = { workspace = true }
+
+[dev-dependencies]
