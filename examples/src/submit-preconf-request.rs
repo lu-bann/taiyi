@@ -56,9 +56,9 @@ async fn main() -> eyre::Result<()> {
         from: sender,
         to: preconfer_address,
         // the user would need to pay pre_pay to preconfer for the preconf request even if it is failed
-        pre_pay: U256::from(estimate.max_fee_per_gas * 21_000),
+        pre_pay: U256::from(estimate.max_fee_per_gas * 2_000),
         // the user need to pay after_pay  to preconfer for the preconf request when the tx is successful
-        after_pay: U256::from(estimate.max_fee_per_gas * 21_000),
+        after_pay: U256::from(estimate.max_fee_per_gas * 1_000),
         nonce: tip_nonce,
         target_slot: U256::from(target_slot),
     };
