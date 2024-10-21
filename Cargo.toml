@@ -5,7 +5,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["bin/taiyi", "bin/taiyi-boost", "crates/cli", "crates/preconfer", "crates/primitives", "examples", "helder-preconf-spammer", "tests"]
+members = [
+    "bin/taiyi",
+    "bin/taiyi-boost",
+    "bin/taiyi-cli",
+    "crates/cli",
+    "crates/preconfer",
+    "crates/primitives",
+    "examples",
+    "tests"
+]
 resolver = "2"
 
 [workspace.metadata.cargo-machete]
@@ -42,6 +51,7 @@ alloy-node-bindings = { version = "0.4.2", default-features = false }
 alloy-rpc-client = { version = "0.4.2", default-features = false }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
 
+clap = { version = "4.5.4", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"

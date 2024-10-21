@@ -10,7 +10,7 @@ alloy-provider = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
-clap = { version = "4.5.4", features = ["derive", "env"] }
+clap = { workspace = true }
 eyre = { workspace = true }
 reqwest = { workspace = true }
 # serde = { workspace = true }
