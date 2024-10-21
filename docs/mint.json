@@ -48,16 +48,6 @@
       "name": "X",
       "icon": "x",
       "url": "https://x.com/lu_ban_"
-    },
-    {
-      "name": "Telegram",
-      "icon": "telegram",
-      "url": "https://mintlify.com/community"
-    },
-    {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://mintlify.com/blog"
     }
   ],
   "navigation": [
@@ -108,7 +98,8 @@
             "learn/fundamentals/what",
             "learn/fundamentals/life_cycle_of_a_preconf_tx",
             "learn/fundamentals/economic_security",
-            "learn/fundamentals/preconf_fungibility"
+            "learn/fundamentals/preconf_fungibility",
+            "learn/fundamentals/based_sequencing"
           ]
         },
         {
@@ -120,9 +111,9 @@
               "icon": "satellite",
               "pages": [
                 "learn/architecture/off_chain_components/overview",
-                "learn/architecture/off_chain_components/commit_boost",
                 "learn/architecture/off_chain_components/builder",
-                "learn/architecture/off_chain_components/relay"
+                "learn/architecture/off_chain_components/relay",
+                "learn/architecture/off_chain_components/commit_boost"
               ]
             },
             {
