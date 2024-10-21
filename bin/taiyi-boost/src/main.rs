@@ -6,6 +6,7 @@ use eyre::Result;
 
 mod builder;
 mod delegation;
+mod metrics;
 mod sse;
 mod types;
 use sse::BeaconEventClient;
@@ -30,6 +31,8 @@ async fn main() -> Result<()> {
         pbs_config.relays.clone(),
         duties_rx,
     );
+
+    metrics::init_metrics()?;
 
     join!(
         PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state),
