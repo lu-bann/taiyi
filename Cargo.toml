@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.metadata.cargo-machete]
-ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash"]
+ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs"]
 
 [workspace.dependencies]
 taiyi-preconfer = { path = "crates/preconfer" }
@@ -30,31 +30,31 @@ axum = { version = "0.7.7", features = ["macros"] }
 axum-extra = { version = "0.9.4", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "c32d1f3049627c7b5f4cf4b37ae891b10b3979b7" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "c32d1f3049627c7b5f4cf4b37ae891b10b3979b7" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "546b32eec531e90eb0915521fe60739301b35513" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "546b32eec531e90eb0915521fe60739301b35513" }
 
 # alloy
-alloy-primitives = { version = "0.8.7", default-features = false }
-alloy-rpc-types-beacon = { version = "0.4.2", default-features = false }
-alloy-rpc-types = { version = "0.4.2", features = ["eth"], default-features = false }
-alloy-network = { version = "0.4.2", default-features = false }
-alloy-provider = { version = "0.4.2", features = ["reqwest"], default-features = false }
-alloy-signer = { version = "0.4.2", default-features = false }
-alloy-signer-local = { version = "0.4.2", features = ["mnemonic"] }
-alloy-transport = { version = "0.4.2" }
-alloy-contract = { version = "0.4.2" }
-alloy-eips = { version = "0.4.2", default-features = false }
-alloy-consensus = { version = "0.4.2", default-features = false }
+alloy-primitives = { version = "0.8.8", default-features = false }
+alloy-rpc-types-beacon = { version = "0.5.2", default-features = false }
+alloy-rpc-types = { version = "0.5.2", features = ["eth"], default-features = false }
+alloy-network = { version = "0.5.2", default-features = false }
+alloy-provider = { version = "0.5.2", features = ["reqwest"], default-features = false }
+alloy-signer = { version = "0.5.2", default-features = false }
+alloy-signer-local = { version = "0.5.2", features = ["mnemonic"] }
+alloy-transport = { version = "0.5.2" }
+alloy-contract = { version = "0.5.2" }
+alloy-eips = { version = "0.5.2", default-features = false }
+alloy-consensus = { version = "0.5.2", default-features = false }
 alloy-rlp = "0.3.8"
-alloy-sol-types = "0.8.7"
-alloy-node-bindings = { version = "0.4.2", default-features = false }
-alloy-rpc-client = { version = "0.4.2", default-features = false }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+alloy-sol-types = "0.8.8"
+alloy-node-bindings = { version = "0.5.2", default-features = false }
+alloy-rpc-client = { version = "0.5.2", default-features = false }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 
-clap = { version = "4.5.4", features = ["derive", "env"] }
+clap = { version = "4.5.20", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
 serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
+serde_json = "1.0.132"
 tokio = { version = "1.37.0", features = ["full"] }
 thiserror = { version = "1.0.64" }
 parking_lot = "0.12"
@@ -65,7 +65,7 @@ blst = "0.3.12"
 lru = "0.12.5"
 priority-queue = "2.1.1"
 ahash = "0.8.6"
-ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "84ef2b71aa004f6767420badb42c902ad56b8b72" }
+ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "ec3073e2273b4d0873fcb6df68ff4eff79588e92" }
 time = { version = "0.3.36", features = ["macros", "formatting", "parsing"] }
 async-trait = "0.1.83"
 reqwest = "0.12.8"

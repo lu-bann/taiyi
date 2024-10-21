@@ -1,5 +1,10 @@
-use ethereum_consensus::{bellatrix::mainnet::Transaction, crypto::Signature, ssz::prelude::*};
-use ssz_rs::{prelude::SimpleSerialize, List};
+use ethereum_consensus::{
+    bellatrix::mainnet::Transaction,
+    crypto::Signature,
+    ssz::prelude::{SimpleSerialize, *},
+};
+
+use self::ssz_rs::List;
 
 pub const MAX_TRANSACTIONS_PER_BLOCK: usize = 10_000;
 #[derive(
