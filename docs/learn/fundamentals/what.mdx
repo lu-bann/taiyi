@@ -35,8 +35,8 @@ Taiyi (太一) is Luban's solution for Ethereum L1 preconfirmation. As developer
 - Wholesale Blockspace Settlement: Access to blockspace with long-term commitments at fixed fees, allowing for more predictable operational costs.
 - Flexible Pricing Schemes: With a fixed cost basis, applications can offer more adaptable and competitive pricing models to their end-users.
 
-#### 🤖 For Builders
-- Innovative Block Builder Pipeline: Leverage and transfer existing skill sets into a novel pipeline that enhances the block-building process.
+#### 🧻 For Based Rollups
+- Bootstrap Validators Easily: Leverage Taiyi's opt-in validator set to quickly establish a validator network with minimal changes required.
 
 ## Taiyi Problem - Solution Mapping
 
@@ -46,6 +46,7 @@ Taiyi (太一) is Luban's solution for Ethereum L1 preconfirmation. As developer
 | [Volatile Gas Fees and Lack of Hedging Solutions](#2-volatile-gas-fees-and-lack-of-hedging-solutions) | [Natural Hedging Solutions for Blockspace](#2-natural-hedging-solutions-for-blockspace) |
 | [Opaque Price Discovery Mechanisms](#3-opaque-price-discovery-mechanisms) | [Transparent and Efficient Blockspace Price Discovery](#3-transparent-and-efficient-blockspace-price-discovery) |
 | [Centralization of Block Building](#4-centralization-of-block-building) | [Enhancing Censorship Resistance](#4-enhancing-censorship-resistance) |
+| [Cold Start Problem for Based Rollups](#5-cold-start-problem-for-based-rollups) | [Reusable Validator Set For Based Rollups](#5-reusable-validator-set-for-based-rollups) |
 
 
 ### Problems
@@ -66,6 +67,9 @@ Block builders, by maintaining private order flows, circumvent true price discov
 
 <Accordion title="4. Centralization of Block Building">
 As of October 2024, [the top two block builders are responsible for constructing over 95% of blocks](https://mevboost.pics/). This concentration of power significantly undermines Ethereum's fundamental value proposition of censorship resistance and decentralization.
+</Accordion>
+<Accordion title="5. Cold Start Problem for Based Rollups">
+Bootstraping new validator set for based rollups presents a significant challenge. The process of bootstrapping a new network of validators is time-consuming and resource-intensive. This "cold start" problem can be a major hurdle for new based rollups, slowing down their launch.
 </Accordion>
 
 
@@ -90,6 +94,12 @@ Taiyi introduces a fungible preconfirmation for blockspace trading, enabling pri
 <Accordion title="4. Enhancing Censorship Resistance">
 Taiyi significantly improves Ethereum's censorship resistance by decentralizing the block production process. Unlike the current system where a single block builder dominates, Taiyi enables free trading and exchange of blockspace among multiple dynamic parties. This decentralization increases the cost and difficulty of censorship.
 </Accordion>
+
+<Accordion title="5. Reusable Validator Set For Based Rollups">
+Taiyi solves the cold start problem for based rollups by providing a reusable validator set. This allows new rollups to leverage Taiyi's existing network of validators, significantly reducing deployment time and costs. Built-in delegation mechanism allows validators to delegate L2 block building to "superbuilders" from day 1, significantly the time needed to provide optimal UX.
+</Accordion>
+
+
 
 
 </AccordionGroup>

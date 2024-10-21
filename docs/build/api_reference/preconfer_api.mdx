@@ -12,13 +12,15 @@ description: 'This namespace defines endpoints that should be called by users or
 
 
 
-### Submit Preconf Request - `/commitments/v1/preconf_request`.
+### Submit Preconf Request 
+
+`/commitments/v1/preconf_request`
 
 Endpoint for submitting a preconfirmation request.
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| Method | POST | The HTTP method used for this endpoint |
+| Method | `POST` | The HTTP method used for this endpoint |
 | Response | `PreconfResponse` | The type of response returned by the endpoint |
 | Headers | `Content-Type: application/json` | The required headers for the request |
 | Body | `PreconfRequest` | The type of data expected in the request body |
@@ -74,13 +76,14 @@ pub struct PreconfResponseData {
 </Accordion>
 
 
-### Cancel Preconf Request - `/commitments/v1/preconf_request`
+### Cancel Preconf Request 
+`/commitments/v1/preconf_request`
 
 Endpoint for cancelling a preconfirmation request.
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| Method | DELETE | The HTTP method used for this endpoint |
+| Method | `DELETE` | The HTTP method used for this endpoint |
 | Response | `CancelPreconfResponse` | The type of response returned by the endpoint |
 | Headers | `Content-Type: application/json` | The required headers for the request |
 | Body | `CancelPreconfRequest` | The type of data expected in the request body |
@@ -117,14 +120,16 @@ struct CancelPreconfResponse {
 ```
 </Accordion>
 
-### Submit Preconf Transaction - `/commitments/v1/preconf_request/tx`
+### Submit Preconf Transaction 
+
+`/commitments/v1/preconf_request/tx`
 
 Endpoint for submitting a preconfirmation transaction.
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| Method | POST | The HTTP method used for this endpoint |
-| Response | JSON | The response type is not specified in the provided code |
+| Method | `POST` | The HTTP method used for this endpoint |
+| Response | - | - |
 | Headers | `Content-Type: application/json` | The required headers for the request |
 | Body | `PreconfTxRequest` | The type of data expected in the request body |
 
@@ -160,13 +165,15 @@ tx: Transaction,
 ```
 </Accordion>
 
-### Get Preconf Request Status - `/commitments/v1/preconf_request/:preconf_hash`
+### Get Preconf Request Status 
+
+`/commitments/v1/preconf_request/:preconf_hash`
 
 Endpoint for checking the status of a preconfirmation request.
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| Method | GET | The HTTP method used for this endpoint |
+| Method | `GET` | The HTTP method used for this endpoint |
 | Response | `PreconfStatusResponse` | The type of response returned by the endpoint |
 | Headers | `Content-Type: application/json` | The required headers for the request |
 | Path Parameters | `preconf_hash: PreconfHash` | The hash of the preconfirmation request |
@@ -195,13 +202,15 @@ struct PreconfStatusResponse {
 ```
 </Accordion>
 
-### Get Available Slots - `/commitments/v1/slots`
+### Get Available Slots 
+
+`/commitments/v1/slots`
 
 Endpoint for retrieving available slots for preconfirmation.
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| Method | GET | The HTTP method used for this endpoint |
+| Method | `GET` | The HTTP method used for this endpoint |
 | Response | `AvailableSlotResponse` | The type of response returned by the endpoint |
 | Headers | `Content-Type: application/json` | The required headers for the request |
 
