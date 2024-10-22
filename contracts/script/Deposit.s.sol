@@ -4,7 +4,7 @@ pragma solidity ^0.8.25;
 import { Test, console } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { TaiyiCore } from "../src/TaiyiCore.sol";
-import { ProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
+import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
 import "../src/TaiyiEscrow.sol";
 import "../src/interfaces/ITaiyiCore.sol";
 
