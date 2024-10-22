@@ -11,7 +11,7 @@ use crate::error::PoolError;
 pub struct Ready {
     main_queue: PriorityQueue<PreconfHash, OrderPriority>,
     orders: HashMap<PreconfHash, PreconfRequest>,
-    // current slot
+    // current slot = target_slot - 1
     slot: u64,
 }
 
@@ -29,7 +29,7 @@ impl Ready {
             return;
         }
         self.main_queue.push(order_id, OrderPriority { priority: order.tip(), order_id });
-        self.orders.insert(order_id, order.clone());
+        self.orders.insert(order_id, order);
     }
 
     pub fn pop_order(&mut self) -> Option<PreconfRequest> {
@@ -65,6 +65,6 @@ impl PartialOrd for OrderPriority {
 
 impl Ord for OrderPriority {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority.cmp(&other.priority).then_with(|| self.order_id.cmp(&other.order_id))
+        self.priority.cmp(&other.priority)
     }
 }

@@ -158,8 +158,7 @@ where
                     }
                 }
 
-                // Moves preconf requests from pending to ready pool for which target slot is current slot + 2
-                self.preconf_pool.write().slot_updated(slot + 2);
+                self.preconf_pool.write().slot_updated(slot + 1);
             }
             Ok(())
         }

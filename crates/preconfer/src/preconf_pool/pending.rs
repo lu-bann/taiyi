@@ -35,8 +35,10 @@ impl Pending {
         if let Some(reqs) = self.reqs_by_slot.remove(&slot) {
             let mut preconfs = HashMap::new();
             for preconf_hash in reqs {
-                let preconf_request =
-                    self.by_hash.remove(&preconf_hash).expect("PreconfRequest not found");
+                let preconf_request = match self.by_hash.remove(&preconf_hash) {
+                    Some(req) => req,
+                    None => return Err(PoolError::PreconfRequestNotFound(preconf_hash)),
+                };
                 preconfs.insert(preconf_hash, preconf_request);
             }
             Ok(preconfs)
