@@ -83,7 +83,9 @@ impl PreconfPool {
     }
 
     pub fn slot_updated(&mut self, new_slot: u64) {
-        let preconfs = self.pending.on_new_slot(new_slot).expect("Failed to update pending pool");
+        // Moves preconf requests from pending to ready pool for which target slot is new slot + 1
+        let preconfs =
+            self.pending.on_new_slot(new_slot + 1).expect("Failed to update pending pool");
         for (preconf_hash, preconf_request) in preconfs {
             self.insert_ready(preconf_hash, preconf_request);
         }
