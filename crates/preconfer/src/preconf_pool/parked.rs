@@ -24,7 +24,7 @@ impl Parked {
     }
 
     pub fn insert(&mut self, key: PreconfHash, value: PreconfRequest) {
-        self.by_hash.insert(key, value.clone());
+        self.by_hash.insert(key, value);
     }
 
     pub fn remove(&mut self, key: &PreconfHash) -> Option<PreconfRequest> {
