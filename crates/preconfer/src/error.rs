@@ -20,7 +20,7 @@ pub enum RpcError {
     #[error("contract error: {0:?}")]
     ContractError(#[from] AlloyContractError),
     #[error("Orderpool error: {0:?}")]
-    OrderPoolError(#[from] OrderPoolError),
+    OrderPoolError(#[from] PoolError),
     #[error("Proposer error: {0:?}")]
     ProposerError(#[from] ProposerError),
     #[error("Validation error: {0:?}")]
@@ -90,7 +90,7 @@ pub enum PricerError {
 }
 
 #[derive(Debug, Error)]
-pub enum OrderPoolError {
+pub enum PoolError {
     #[error("Order pool is empty")]
     OrderPoolIsEmpty,
     #[error("Prioritized Orderpool not initialized")]
@@ -105,4 +105,8 @@ pub enum OrderPoolError {
     PreconfRequestNotFound(PreconfHash),
     #[error("preconf request {0:?} already exists")]
     PreconfRequestAlreadyExist(PreconfHash),
+    #[error("slot {0} not ready")]
+    SlotNotReady(u64),
+    #[error("unknown error {0:?}")]
+    UnknownError(String),
 }
