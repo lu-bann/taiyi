@@ -14,14 +14,14 @@ pub struct PreconfResponse {
 pub struct PreconfResponseData {
     preconf_hash: PreconfHash,
     preconfer_signature: Signature,
-    preconf_req_signature: Signature,
+    preconf_req_signature: Option<Signature>,
 }
 
 impl PreconfResponse {
     pub fn success(
         preconf_hash: PreconfHash,
         preconfer_signature: Signature,
-        preconf_req_signature: Signature,
+        preconf_req_signature: Option<Signature>,
     ) -> Self {
         Self {
             status: "success".to_string(),

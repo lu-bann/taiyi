@@ -2,7 +2,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::{keccak256, U256};
-use alloy_provider::{Provider, ProviderBuilder};
+use alloy_provider::Provider;
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
@@ -25,21 +25,18 @@ use tracing::{error, info};
 use crate::{
     constraint_client::ConstraintClient,
     contract::preconf_reqs_to_constraints,
-    error::{OrderPoolError, RpcError, ValidationError},
+    error::{PoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::PreconfPool,
     preconfer::Preconfer,
     pricer::PreconfPricer,
-    rpc_state::{get_account_state, AccountState},
 };
 
-pub const MAX_COMMITMENTS_PER_SLOT: usize = 1024 * 1024;
 pub const SET_CONSTRAINTS_CUTOFF_NS: i64 = 8_000_000_000;
 pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P, F> {
-    execution_client_url: String,
     preconfer: Preconfer<T, P, F>,
     constraint_client: ConstraintClient,
     network_state: NetworkState,
@@ -58,7 +55,6 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
-        execution_client_url: String,
         preconfer: Preconfer<T, P, F>,
         network_state: NetworkState,
         constraint_client: ConstraintClient,
@@ -67,12 +63,12 @@ where
         ecdsa_signer: PrivateKeySigner,
         provider: P,
     ) -> Self {
+        let current_slot = network_state.get_current_slot();
         Self {
-            execution_client_url,
             preconfer,
             constraint_client,
             network_state,
-            preconf_pool: Arc::new(RwLock::new(PreconfPool::new())),
+            preconf_pool: Arc::new(RwLock::new(PreconfPool::new(1_000_000_000, current_slot))),
             context,
             bls_sk,
             ecdsa_signer,
@@ -80,8 +76,8 @@ where
         }
     }
 
-    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, OrderPoolError> {
-        self.preconf_pool.write().prioritized_orderpool.preconf_requests()
+    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
+        self.preconf_pool.write().preconf_requests()
     }
 
     async fn signed_constraints_message(
@@ -161,6 +157,9 @@ where
                         tokio::time::sleep(Duration::from_millis(100)).await;
                     }
                 }
+
+                // Moves preconf requests from pending to ready pool for which target slot is current slot + 2
+                self.preconf_pool.write().slot_updated(slot + 2);
             }
             Ok(())
         }
@@ -203,6 +202,8 @@ where
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
         let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
+        let target_slot = preconf_request.target_slot().to::<u64>();
+        let next_slot = self.network_state.get_current_slot() + 1;
         let preconfer_signature =
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
         preconf_request.preconfer_signature = Some(preconfer_signature);
@@ -212,12 +213,6 @@ where
                 "Failed to get preconf req hash from {preconf_request:?}",
             )),
         )?;
-        let preconf_req_signature = self
-            .ecdsa_signer
-            .sign_hash(&preconf_req_hash)
-            .await
-            .map_err(|err| RpcError::UnknownError(err.to_string()))?;
-        preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
         self.preconfer
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
@@ -231,92 +226,108 @@ where
                 self.mock_validation_tx_request(preconf_tx, &preconf_request)
                     .await
                     .map_err(|e| RpcError::PreconfRequestError(e.to_string()))?;
-                self.preconf_pool
-                    .write()
-                    .prioritized_orderpool
-                    .insert_order(preconf_hash, preconf_request.clone());
+
+                match target_slot {
+                    slot if slot > next_slot => {
+                        self.preconf_pool
+                            .write()
+                            .insert_pending(preconf_hash, preconf_request.clone());
+                    }
+                    slot if slot == next_slot => {
+                        self.preconf_pool
+                            .write()
+                            .insert_ready(preconf_hash, preconf_request.clone());
+                    }
+                    _ => {
+                        return Err(RpcError::PreconfRequestError(
+                            "Target slot is in the past".to_string(),
+                        ));
+                    }
+                }
+
+                let preconf_req_signature = self
+                    .ecdsa_signer
+                    .sign_hash(&preconf_req_hash)
+                    .await
+                    .map_err(|err| RpcError::UnknownError(err.to_string()))?;
+                preconf_request.preconf_req_signature = Some(preconf_req_signature);
+
+                Ok(PreconfResponse::success(
+                    preconf_hash,
+                    preconfer_signature,
+                    Some(preconf_req_signature),
+                ))
             }
             None => {
-                self.preconf_pool.write().orderpool.insert(preconf_hash, preconf_request.clone());
+                self.preconf_pool.write().insert_parked(preconf_hash, preconf_request.clone());
+                Ok(PreconfResponse::success(preconf_hash, preconfer_signature, None))
             }
         }
-
-        Ok(PreconfResponse::success(preconf_hash, preconfer_signature, preconf_req_signature))
     }
 
     pub async fn cancel_preconf_request(
         &self,
-        cancel_preconf_request: CancelPreconfRequest,
-    ) -> Result<CancelPreconfResponse, OrderPoolError> {
-        if self
-            .preconf_pool
-            .write()
-            .orderpool
-            .delete(&cancel_preconf_request.preconf_hash)
-            .is_some()
-        {
-            Ok(CancelPreconfResponse {})
-        } else {
-            Err(OrderPoolError::PreconfRequestNotFound(cancel_preconf_request.preconf_hash))
-        }
+        _cancel_preconf_request: CancelPreconfRequest,
+    ) -> Result<CancelPreconfResponse, PoolError> {
+        unimplemented!()
     }
 
     pub async fn send_preconf_tx_request(
         &self,
         preconf_req_hash: PreconfHash,
         preconf_tx: PreconfTx,
-    ) -> Result<(), RpcError> {
+    ) -> Result<PreconfResponse, RpcError> {
         let mut preconf_request = self
             .preconf_pool
             .read()
-            .orderpool
-            .get(&preconf_req_hash)
-            .ok_or(OrderPoolError::PreconfRequestNotFound(preconf_req_hash))?;
-
-        // User is expected to send the tx calldata in the slot specified in the preconf request.
-        let target_slot = preconf_request.target_slot().to();
-        let current_slot = self
-            .preconf_pool
-            .read()
-            .prioritized_orderpool
-            .slot
-            .ok_or(OrderPoolError::PrioritizedOrderPoolNotInitialized)?;
-        if target_slot != current_slot {
-            return Err(RpcError::SlotMismatch(target_slot, current_slot));
-        }
-
+            .get_parked(&preconf_req_hash)
+            .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
+        let target_slot = preconf_request.target_slot().to::<u64>();
+        let current_slot = self.network_state.get_current_slot();
         if preconf_request.preconf_tx.is_some() {
             return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
         preconf_request.preconf_tx = Some(preconf_tx.clone());
 
-        self.preconf_pool.write().orderpool.insert(preconf_req_hash, preconf_request.clone());
-
         // Call exhuast if validate_tx_request fails
         if self.mock_validation_tx_request(&preconf_tx, &preconf_request).await.is_err() {
             self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
+            Err(RpcError::PreconfRequestError("Failed to validate tx request".to_string()))
         } else {
-            self.preconf_pool
-                .write()
-                .prioritized_orderpool
-                .insert_order(preconf_req_hash, preconf_request);
-            self.preconf_pool.write().orderpool.delete(&preconf_req_hash);
-        }
+            if target_slot > current_slot {
+                self.preconf_pool.write().insert_pending(preconf_req_hash, preconf_request.clone());
+            } else if target_slot == current_slot + 1 {
+                self.preconf_pool.write().insert_ready(preconf_req_hash, preconf_request.clone());
+            }
+            self.preconf_pool.write().delete_parked(&preconf_req_hash);
+            let preconf_req_signature = self
+                .ecdsa_signer
+                .sign_hash(&preconf_req_hash)
+                .await
+                .map_err(|err| RpcError::UnknownError(err.to_string()))?;
+            preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
-        Ok(())
+            Ok(PreconfResponse::success(
+                preconf_req_hash,
+                preconf_request.preconfer_signature.expect("preconfer signature"),
+                Some(preconf_req_signature),
+            ))
+        }
     }
 
-    // TODO: change this
     pub async fn check_preconf_request_status(
         &self,
-        preconf_tx_hash: PreconfHash,
-    ) -> Result<PreconfStatusResponse, OrderPoolError> {
-        match self.preconf_pool.read().orderpool.get(&preconf_tx_hash) {
-            Some(preconf_request) => {
-                Ok(PreconfStatusResponse { status: PreconfStatus::Accepted, data: preconf_request })
-            }
-            None => Err(OrderPoolError::PreconfRequestNotFound(preconf_tx_hash)),
-        }
+        preconf_hash: PreconfHash,
+    ) -> Result<PreconfStatusResponse, PoolError> {
+        let gaurd = self.preconf_pool.read();
+        let pool = gaurd.get_pool(&preconf_hash)?;
+        let status = match pool {
+            "parked" => PreconfStatus::Pending,
+            "pending" => PreconfStatus::Pending,
+            "ready" => PreconfStatus::Accepted,
+            _ => unreachable!(),
+        };
+        Ok(PreconfStatusResponse { status })
     }
 
     pub async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError> {
@@ -340,10 +351,10 @@ where
     // NOTE: If validation fails, call exhaust
     async fn _validate_tx_request(
         &self,
-        tx: &PreconfTx,
-        order: &PreconfRequest,
+        _tx: &PreconfTx,
+        _order: &PreconfRequest,
     ) -> Result<(), ValidationError> {
-        let sender = order.tip_tx.from;
+        // let sender = order.tip_tx.from;
         // Vaiidate the chain id
         // TODO: check wheter we should introduce chain id
         // if let Some(chainid) = tx.chain_id() {
@@ -368,62 +379,62 @@ where
         //     }
         // }
 
-        if tx.gas_limit() > order.tip_tx.gas_limit {
-            return Err(ValidationError::GasLimitTooHigh);
-        }
+        // if tx.gas_limit() > order.tip_tx.gas_limit {
+        //     return Err(ValidationError::GasLimitTooHigh);
+        // }
 
-        let (prev_balance, prev_nonce) = self
-            .preconf_pool
-            .read()
-            .prioritized_orderpool
-            .intermediate_state
-            .get(&sender)
-            .cloned()
-            .unwrap_or_default();
+        // let (prev_balance, prev_nonce) = self
+        //     .preconf_pool
+        //     .read()
+        //     .prioritized_orderpool
+        //     .intermediate_state
+        //     .get(&sender)
+        //     .cloned()
+        //     .unwrap_or_default();
 
-        let account_state_opt: Option<AccountState>;
-        {
-            account_state_opt = self
-                .preconf_pool
-                .read()
-                .prioritized_orderpool
-                .canonical_state
-                .get(&sender)
-                .copied();
-        }
+        // let account_state_opt: Option<AccountState>;
+        // {
+        //     account_state_opt = self
+        //         .preconf_pool
+        //         .read()
+        //         .prioritized_orderpool
+        //         .canonical_state
+        //         .get(&sender)
+        //         .copied();
+        // }
 
-        let mut account_state = match account_state_opt {
-            Some(state) => state,
-            None => {
-                let state = get_account_state(self.execution_client_url.clone(), sender)
-                    .await
-                    .map_err(|e| {
-                        ValidationError::Internal(format!("Failed to get account state: {e:?}"))
-                    })?;
-                {
-                    self.preconf_pool
-                        .write()
-                        .prioritized_orderpool
-                        .canonical_state
-                        .insert(sender, state);
-                }
-                state
-            }
-        };
-        // apply the nonce and balance diff
-        account_state.nonce += prev_nonce;
-        account_state.balance -= prev_balance;
+        // let mut account_state = match account_state_opt {
+        //     Some(state) => state,
+        //     None => {
+        //         let state = get_account_state(self.execution_client_url.clone(), sender)
+        //             .await
+        //             .map_err(|e| {
+        //                 ValidationError::Internal(format!("Failed to get account state: {e:?}"))
+        //             })?;
+        //         {
+        //             self.preconf_pool
+        //                 .write()
+        //                 .prioritized_orderpool
+        //                 .canonical_state
+        //                 .insert(sender, state);
+        //         }
+        //         state
+        //     }
+        // };
+        // // apply the nonce and balance diff
+        // account_state.nonce += prev_nonce;
+        // account_state.balance -= prev_balance;
 
-        let nonce = order.nonce();
+        // let nonce = order.nonce();
 
-        // order can't be included
-        if account_state.nonce > nonce.to() {
-            return Err(ValidationError::NonceTooLow(account_state.nonce, nonce.to()));
-        }
+        // // order can't be included
+        // if account_state.nonce > nonce.to() {
+        //     return Err(ValidationError::NonceTooLow(account_state.nonce, nonce.to()));
+        // }
 
-        if account_state.nonce < nonce.to() {
-            return Err(ValidationError::NonceTooHigh(account_state.nonce, nonce.to()));
-        }
+        // if account_state.nonce < nonce.to() {
+        //     return Err(ValidationError::NonceTooHigh(account_state.nonce, nonce.to()));
+        // }
 
         // Check EIP-4844-specific limits
         // if let Some(transaction) = tx.as_eip4844() {
@@ -453,11 +464,6 @@ where
     }
 
     async fn get_chain_id(&self) -> Result<u64, RpcError> {
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_builtin(&self.execution_client_url)
-            .await
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-        provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
+        self.provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
     }
 }

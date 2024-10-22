@@ -75,7 +75,6 @@ pub async fn spawn_service(
             let validator =
                 Preconfer::new(provider.clone(), taiyi_core_contract_addr, base_fee_fetcher);
             let state = PreconfState::new(
-                execution_client_url,
                 validator,
                 network_state,
                 constraint_client,
@@ -108,7 +107,6 @@ pub async fn spawn_service(
             let validator =
                 Preconfer::new(provider.clone(), taiyi_core_contract_addr, base_fee_fetcher);
             let state = PreconfState::new(
-                execution_client_url,
                 validator,
                 network_state,
                 constraint_client,
