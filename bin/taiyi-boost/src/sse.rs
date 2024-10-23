@@ -7,7 +7,9 @@ use reqwest::Url;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info};
 
-const SLOT_PER_EPOCH: u64 = 32;
+use crate::metrics::BEACON_NODE_LATEST_SLOT;
+
+pub const SLOT_PER_EPOCH: u64 = 32;
 
 #[derive(Clone)]
 pub struct BeaconEventClient {
@@ -36,6 +38,9 @@ impl BeaconEventClient {
                 Ok(event) => {
                     let new_slot = event.data.proposal_slot;
                     if new_slot > last_updated_slot {
+                        BEACON_NODE_LATEST_SLOT
+                            .with_label_values(&[self.bn_client.endpoint.as_str()])
+                            .set(new_slot as i64);
                         let current_epoch = new_slot / SLOT_PER_EPOCH;
                         debug!("Received new slot: {new_slot}, current_eopch: {current_epoch}, last_epoch: {last_epoch}");
                         // We found that helix is slower to sync proposer duties, so we fetch and send duties for the next epoch, when we are near the end of the current epoch
