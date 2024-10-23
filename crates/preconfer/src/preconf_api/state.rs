@@ -27,7 +27,7 @@ use crate::{
     contract::preconf_reqs_to_constraints,
     error::{PoolError, RpcError, ValidationError},
     network_state::NetworkState,
-    preconf_pool::PreconfPool,
+    preconf_pool::{PoolState, PreconfPool},
     preconfer::Preconfer,
     pricer::PreconfPricer,
 };
@@ -202,7 +202,7 @@ where
         let chain_id = self.get_chain_id().await?;
         let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
         let target_slot = preconf_request.target_slot().to::<u64>();
-        let next_slot = self.network_state.get_current_slot() + 1;
+        let current_slot = self.network_state.get_current_slot();
         let preconfer_signature =
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
         preconf_request.preconfer_signature = Some(preconfer_signature);
@@ -225,22 +225,19 @@ where
                     .await
                     .map_err(|e| RpcError::PreconfRequestError(e.to_string()))?;
 
-                match target_slot {
-                    slot if slot > next_slot => {
-                        self.preconf_pool
-                            .write()
-                            .insert_pending(preconf_hash, preconf_request.clone());
-                    }
-                    slot if slot == next_slot => {
-                        self.preconf_pool
-                            .write()
-                            .insert_ready(preconf_hash, preconf_request.clone());
-                    }
-                    _ => {
-                        return Err(RpcError::PreconfRequestError(
-                            "Target slot is in the past".to_string(),
-                        ));
-                    }
+                let pool_state = self.get_pool_state(target_slot, current_slot)?;
+                match pool_state {
+                    PoolState::Pending => self
+                        .preconf_pool
+                        .write()
+                        .insert_pending(preconf_hash, preconf_request.clone()),
+                    PoolState::Ready => self
+                        .preconf_pool
+                        .write()
+                        .insert_ready(preconf_hash, preconf_request.clone()),
+                    _ => Err(RpcError::PreconfRequestError(
+                        "Target slot is in the past".to_string(),
+                    ))?,
                 }
 
                 let preconf_req_signature = self
@@ -292,10 +289,17 @@ where
             self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
             Err(RpcError::PreconfRequestError("Failed to validate tx request".to_string()))
         } else {
-            if target_slot > current_slot {
-                self.preconf_pool.write().insert_pending(preconf_req_hash, preconf_request.clone());
-            } else if target_slot == current_slot + 1 {
-                self.preconf_pool.write().insert_ready(preconf_req_hash, preconf_request.clone());
+            let pool_state = self.get_pool_state(target_slot, current_slot)?;
+            match pool_state {
+                PoolState::Pending => self
+                    .preconf_pool
+                    .write()
+                    .insert_pending(preconf_req_hash, preconf_request.clone()),
+                PoolState::Ready => self
+                    .preconf_pool
+                    .write()
+                    .insert_ready(preconf_req_hash, preconf_request.clone()),
+                _ => Err(RpcError::PreconfRequestError("Target slot is in the past".to_string()))?,
             }
             self.preconf_pool.write().delete_parked(&preconf_req_hash);
             let preconf_req_signature = self
@@ -320,10 +324,9 @@ where
         let guard = self.preconf_pool.read();
         let pool = guard.get_pool(&preconf_hash)?;
         let status = match pool {
-            "parked" => PreconfStatus::Pending,
-            "pending" => PreconfStatus::Pending,
-            "ready" => PreconfStatus::Accepted,
-            _ => unreachable!(),
+            PoolState::Parked => PreconfStatus::Pending,
+            PoolState::Pending => PreconfStatus::Pending,
+            PoolState::Ready => PreconfStatus::Accepted,
         };
         Ok(PreconfStatusResponse { status })
     }
@@ -463,5 +466,14 @@ where
 
     async fn get_chain_id(&self) -> Result<u64, RpcError> {
         self.provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))
+    }
+
+    fn get_pool_state(&self, target_slot: u64, current_slot: u64) -> Result<PoolState, RpcError> {
+        let next_slot = current_slot + 1;
+        match target_slot {
+            slot if slot == next_slot => Ok(PoolState::Ready),
+            slot if slot > next_slot => Ok(PoolState::Pending),
+            _ => Err(RpcError::PreconfRequestError("Target slot is in the past".to_string())),
+        }
     }
 }
