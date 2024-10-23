@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {BLS12381} from "./BLS12381.sol";
+import { BLS12381 } from "./BLS12381.sol";
 
 contract BLSSignatureChecker {
     using BLS12381 for *;
@@ -19,7 +19,11 @@ contract BLSSignatureChecker {
      * @param sig The BLS signature
      * @param pubkey The BLS public key of the expected signer
      */
-    function verifySignature(bytes memory message, BLS12381.G2Point memory sig, BLS12381.G1Point memory pubkey)
+    function verifySignature(
+        bytes memory message,
+        BLS12381.G2Point memory sig,
+        BLS12381.G1Point memory pubkey
+    )
         internal
         view
         returns (bool)

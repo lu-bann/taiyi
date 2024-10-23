@@ -64,7 +64,7 @@ library BLS12381 {
         }
         yNeg[0] = fieldModulus[0] - point.y[0];
 
-        return G1Point({x: point.x, y: yNeg});
+        return G1Point({ x: point.x, y: yNeg });
     }
 
     /**
@@ -119,7 +119,8 @@ library BLS12381 {
 
     /**
      * @notice Returns a G1Point in the compressed form
-     * @dev Based on https://github.com/zcash/librustzcash/blob/6e0364cd42a2b3d2b958a54771ef51a8db79dd29/pairing/src/bls12_381/README.md#serialization
+     * @dev Based on
+     * https://github.com/zcash/librustzcash/blob/6e0364cd42a2b3d2b958a54771ef51a8db79dd29/pairing/src/bls12_381/README.md#serialization
      * @param point The G1 point to compress
      */
     function compress(G1Point memory point) internal pure returns (uint256[2] memory) {
@@ -168,7 +169,8 @@ library BLS12381 {
         ];
 
         // ABI for G2 addition precompile
-        // G2 addition call expects 512 bytes as an input that is interpreted as byte concatenation of two G2 points (256 bytes each). Output is an encoding of addition operation result - single G2 point (256 bytes).
+        // G2 addition call expects 512 bytes as an input that is interpreted as byte concatenation of two G2 points
+        // (256 bytes each). Output is an encoding of addition operation result - single G2 point (256 bytes).
         assembly {
             let success :=
                 staticcall(
@@ -195,7 +197,8 @@ library BLS12381 {
         uint256[4] memory input = [fp2.u[0], fp2.u[1], fp2.u_I[0], fp2.u_I[1]];
 
         // ABI for mapping Fp2 element to G2 point precompile
-        // Field-to-curve call expects 128 bytes an an input that is interpreted as a an element of the quadratic extension field. Output of this call is 256 bytes and is G2 point following respective encoding rules.
+        // Field-to-curve call expects 128 bytes an an input that is interpreted as a an element of the quadratic
+        // extension field. Output of this call is 256 bytes and is G2 point following respective encoding rules.
         assembly {
             let success :=
                 staticcall(
@@ -216,7 +219,12 @@ library BLS12381 {
     /**
      * @notice Pairing check using the precompile at 0x11
      */
-    function pairing(G1Point memory a1, G2Point memory b1, G1Point memory a2, G2Point memory b2)
+    function pairing(
+        G1Point memory a1,
+        G2Point memory b1,
+        G1Point memory a2,
+        G2Point memory b2
+    )
         internal
         view
         returns (bool)
@@ -274,7 +282,11 @@ library BLS12381 {
     // Helpers
     //=========
 
-    function _expandMsgXmd(bytes memory message, bytes memory dst, uint16 lenInBytes)
+    function _expandMsgXmd(
+        bytes memory message,
+        bytes memory dst,
+        uint16 lenInBytes
+    )
         internal
         pure
         returns (uint256[] memory)
@@ -350,7 +362,8 @@ library BLS12381 {
             mstore(add(freemem, 0xa0), 1)
 
             // arg[5] = mod.bits @ +96+base.length+exp.length
-            // this field_modulus as hex 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
+            // this field_modulus as hex
+            // 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
             // we add the 0 prefix so that the result will be exactly 64 bytes
             // saves 300 gas per call instead of sending it along every time
             // places the first 32 bytes and the last 32 bytes of the field modulus
