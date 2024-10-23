@@ -97,7 +97,6 @@ where
         let epoch = slot / 32;
         self.update_proposer_duties(epoch).await?;
         self.network_state.update_slot(slot);
-        self.network_state.update_epoch(epoch);
         Ok(())
     }
 
@@ -175,7 +174,6 @@ where
             if epoch != current_epoch {
                 info!("Epoch changed from {} to {}", current_epoch, epoch);
                 self.update_proposer_duties(epoch).await?;
-                self.network_state.update_epoch(epoch);
             }
             self.network_state.update_slot(slot);
             info!("Current slot: {}", slot);
