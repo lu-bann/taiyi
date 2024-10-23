@@ -8,5 +8,6 @@ mod preconf_pool;
 mod preconfer;
 mod pricer;
 mod rpc_state;
+mod validator;
 
 pub use preconf_api::spawn_service;

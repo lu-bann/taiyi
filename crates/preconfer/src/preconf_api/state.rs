@@ -15,6 +15,7 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use parking_lot::RwLock;
+use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
     PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
@@ -30,6 +31,7 @@ use crate::{
     preconf_pool::{PoolState, PreconfPool},
     preconfer::Preconfer,
     pricer::PreconfPricer,
+    validator::PreconfValidator,
 };
 
 pub const SET_CONSTRAINTS_CUTOFF_NS: i64 = 8_000_000_000;
@@ -64,11 +66,16 @@ where
         provider: P,
     ) -> Self {
         let current_slot = network_state.get_current_slot();
+        let preconf_validator = PreconfValidator::new(0, Some(0), EnvKzgSettings::default(), 0);
         Self {
             preconfer,
             constraint_client,
             network_state,
-            preconf_pool: Arc::new(RwLock::new(PreconfPool::new(1_000_000_000, current_slot))),
+            preconf_pool: Arc::new(RwLock::new(PreconfPool::new(
+                1_000_000_000,
+                current_slot,
+                preconf_validator,
+            ))),
             context,
             bls_sk,
             ecdsa_signer,
@@ -194,15 +201,15 @@ where
 
     /// Send a preconf request to the preconfer
     ///
-    /// Stores the preconf request in the Orderpool until the preconf tx is received
+    /// Expected forms
+    ///     - PreconfRequest without PreconfTx
+    ///     - PreconfRequest with PreconfTx
     pub async fn send_preconf_request(
         &self,
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
-        let preconf_hash = self.preconf_pool.read().prevalidate_req(chain_id, &preconf_request)?;
-        let target_slot = preconf_request.target_slot().to::<u64>();
-        let current_slot = self.network_state.get_current_slot();
+        let preconf_hash = preconf_request.hash(U256::from(chain_id));
         let preconfer_signature =
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
         preconf_request.preconfer_signature = Some(preconfer_signature);
@@ -217,29 +224,8 @@ where
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await?;
 
-        // Check for preconf tx
-        match &preconf_request.preconf_tx {
-            Some(preconf_tx) => {
-                // Validate the tx and insert into prioritized orderpool
-                self.mock_validation_tx_request(preconf_tx, &preconf_request)
-                    .await
-                    .map_err(|e| RpcError::PreconfRequestError(e.to_string()))?;
-
-                let pool_state = self.get_pool_state(target_slot, current_slot)?;
-                match pool_state {
-                    PoolState::Pending => self
-                        .preconf_pool
-                        .write()
-                        .insert_pending(preconf_hash, preconf_request.clone()),
-                    PoolState::Ready => self
-                        .preconf_pool
-                        .write()
-                        .insert_ready(preconf_hash, preconf_request.clone()),
-                    _ => Err(RpcError::PreconfRequestError(
-                        "Target slot is in the past".to_string(),
-                    ))?,
-                }
-
+        match self.preconf_pool.write().request_inclusion(preconf_request.clone()) {
+            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
                 let preconf_req_signature = self
                     .ecdsa_signer
                     .sign_hash(&preconf_req_hash)
@@ -253,10 +239,10 @@ where
                     Some(preconf_req_signature),
                 ))
             }
-            None => {
-                self.preconf_pool.write().insert_parked(preconf_hash, preconf_request.clone());
+            Ok(PoolState::Parked) => {
                 Ok(PreconfResponse::success(preconf_hash, preconfer_signature, None))
             }
+            Err(e) => Err(RpcError::PoolError(e)),
         }
     }
 
@@ -277,43 +263,32 @@ where
             .read()
             .get_parked(&preconf_req_hash)
             .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
-        let target_slot = preconf_request.target_slot().to::<u64>();
-        let current_slot = self.network_state.get_current_slot();
         if preconf_request.preconf_tx.is_some() {
             return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
         preconf_request.preconf_tx = Some(preconf_tx.clone());
 
-        // Call exhuast if validate_tx_request fails
-        if self.mock_validation_tx_request(&preconf_tx, &preconf_request).await.is_err() {
-            self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
-            Err(RpcError::PreconfRequestError("Failed to validate tx request".to_string()))
-        } else {
-            let pool_state = self.get_pool_state(target_slot, current_slot)?;
-            match pool_state {
-                PoolState::Pending => self
-                    .preconf_pool
-                    .write()
-                    .insert_pending(preconf_req_hash, preconf_request.clone()),
-                PoolState::Ready => self
-                    .preconf_pool
-                    .write()
-                    .insert_ready(preconf_req_hash, preconf_request.clone()),
-                _ => Err(RpcError::PreconfRequestError("Target slot is in the past".to_string()))?,
-            }
-            self.preconf_pool.write().delete_parked(&preconf_req_hash);
-            let preconf_req_signature = self
-                .ecdsa_signer
-                .sign_hash(&preconf_req_hash)
-                .await
-                .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-            preconf_request.preconf_req_signature = Some(preconf_req_signature);
+        match self.preconf_pool.write().request_inclusion(preconf_request.clone()) {
+            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
+                let preconf_req_signature = self
+                    .ecdsa_signer
+                    .sign_hash(&preconf_req_hash)
+                    .await
+                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
+                preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
-            Ok(PreconfResponse::success(
-                preconf_req_hash,
-                preconf_request.preconfer_signature.expect("preconfer signature"),
-                Some(preconf_req_signature),
-            ))
+                Ok(PreconfResponse::success(
+                    preconf_req_hash,
+                    preconf_request.preconfer_signature.expect("preconfer signature"),
+                    Some(preconf_req_signature),
+                ))
+            }
+            Err(PoolError::InvalidPreconfTx(_)) => {
+                self.preconf_pool.write().delete_parked(&preconf_req_hash);
+                self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
+                Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
+            }
+            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
         }
     }
 
