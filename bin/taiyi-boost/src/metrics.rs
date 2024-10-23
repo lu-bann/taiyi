@@ -12,7 +12,7 @@ pub fn init_metrics() -> Result<()> {
 
 lazy_static! {
     pub static ref TAIYI_BOOST_METRICS: Registry =
-        Registry::new_custom(Some("taiyi_boost".to_string()), None).unwrap();
+        Registry::new_custom(Some("taiyi_boost".to_string()), None).expect("fail to create registry");
 
     /// Preconfer slot for which our validator has the right to propose a block
     pub static ref PRECONFER_SLOT: IntGaugeVec = register_int_gauge_vec_with_registry!(
