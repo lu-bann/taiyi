@@ -70,13 +70,13 @@ impl PreconfPool {
     }
 
     /// Returns the pool where the preconf request is currently in.
-    pub fn get_pool(&self, preconf_hash: &PreconfHash) -> Result<&str, PoolError> {
+    pub fn get_pool(&self, preconf_hash: &PreconfHash) -> Result<PoolState, PoolError> {
         if self.parked.contains(preconf_hash) {
-            Ok("parked")
+            Ok(PoolState::Parked)
         } else if self.pending.contains(preconf_hash) {
-            Ok("pending")
+            Ok(PoolState::Pending)
         } else if self.ready.contains(preconf_hash) {
-            Ok("ready")
+            Ok(PoolState::Ready)
         } else {
             Err(PoolError::PreconfRequestNotFound(*preconf_hash))
         }
@@ -140,6 +140,13 @@ impl PoolConfig {
     pub fn new(max_gas: u64) -> Self {
         Self { max_gas_per_slot: max_gas }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum PoolState {
+    Parked,
+    Pending,
+    Ready,
 }
 
 #[cfg(test)]
