@@ -13,6 +13,9 @@ commit-boost = { workspace = true }
 eyre = { workspace = true }
 futures = { workspace = true }
 futures-util = { workspace = true }
+hex = { workspace = true }
+lazy_static = { workspace = true }
+prometheus = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

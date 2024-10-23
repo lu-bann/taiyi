@@ -9,7 +9,11 @@ use reqwest::Client;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, info};
 
-use crate::types::{ElectPreconferRequest, SignedRequest, ELECT_PRECONFER_PATH};
+use crate::{
+    metrics::{DELEGATION_FAIL_SLOT, DELEGATION_SUCCESS_VALIDATORS, PRECONFER_SLOT},
+    sse::SLOT_PER_EPOCH,
+    types::{ElectPreconferRequest, SignedRequest, ELECT_PRECONFER_PATH},
+};
 
 pub struct DelegationService {
     pub chain_id: u64,
@@ -98,6 +102,7 @@ impl DelegationService {
 
         let results = join_all(handles).await;
 
+        let epoch_id = duty.slot / SLOT_PER_EPOCH;
         for res in results {
             match res {
                 Ok(response) => {
@@ -109,9 +114,23 @@ impl DelegationService {
                         continue;
                     }
 
-                    info!("Successful election: {ans:?}")
+                    info!("Successful election: {ans:?}");
+                    PRECONFER_SLOT
+                        .with_label_values(&[epoch_id.to_string().as_str()])
+                        .set(duty.slot as i64);
+                    DELEGATION_SUCCESS_VALIDATORS
+                        .with_label_values(&[
+                            hex::encode(duty.public_key.as_slice()).as_str(),
+                            duty.validator_index.to_string().as_str(),
+                        ])
+                        .inc();
                 }
-                Err(err) => error!("Failed election: {err}"),
+                Err(err) => {
+                    DELEGATION_FAIL_SLOT
+                        .with_label_values(&[epoch_id.to_string().as_str()])
+                        .set(duty.slot as i64);
+                    error!("Failed election: {err}");
+                }
             }
         }
         Ok(())
