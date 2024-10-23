@@ -87,10 +87,10 @@ where
         let domain = compute_builder_domain(&self.context)
             .map_err(|e| RpcError::UnknownError(e.to_string()))?;
         let signing_root = compute_signing_root(&constraints_message, domain)
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
         let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
         let signature = Signature::try_from(signature.as_ref())
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
         Ok(SignedConstraintsMessage::new(constraints_message, signature))
     }
@@ -188,7 +188,7 @@ where
             .ecdsa_signer
             .sign_hash(&message)
             .await
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
         Ok(signature)
     }
 
@@ -215,8 +215,7 @@ where
 
         self.preconfer
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
-            .await
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+            .await?;
 
         // Check for preconf tx
         match &preconf_request.preconf_tx {
@@ -248,7 +247,7 @@ where
                     .ecdsa_signer
                     .sign_hash(&preconf_req_hash)
                     .await
-                    .map_err(|err| RpcError::UnknownError(err.to_string()))?;
+                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
                 preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
                 Ok(PreconfResponse::success(
@@ -303,7 +302,7 @@ where
                 .ecdsa_signer
                 .sign_hash(&preconf_req_hash)
                 .await
-                .map_err(|err| RpcError::UnknownError(err.to_string()))?;
+                .map_err(|err| RpcError::SignatureError(err.to_string()))?;
             preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
             Ok(PreconfResponse::success(
@@ -318,8 +317,8 @@ where
         &self,
         preconf_hash: PreconfHash,
     ) -> Result<PreconfStatusResponse, PoolError> {
-        let gaurd = self.preconf_pool.read();
-        let pool = gaurd.get_pool(&preconf_hash)?;
+        let guard = self.preconf_pool.read();
+        let pool = guard.get_pool(&preconf_hash)?;
         let status = match pool {
             "parked" => PreconfStatus::Pending,
             "pending" => PreconfStatus::Pending,

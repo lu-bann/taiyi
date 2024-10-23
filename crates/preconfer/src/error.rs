@@ -31,6 +31,8 @@ pub enum RpcError {
     EscrowError(String),
     #[error("Preconf request error: {0:?}")]
     PreconfRequestError(String),
+    #[error("Signature error: {0:?}")]
+    SignatureError(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
