@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused)]
+
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 

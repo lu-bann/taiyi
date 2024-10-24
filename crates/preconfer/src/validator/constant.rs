@@ -1,5 +1,5 @@
 /// Constants used in reth.
-/// 
+///
 /// [`TX_SLOT_BYTE_SIZE`] is used to calculate how many data slots a single transaction
 /// takes up based on its byte size. The slots are used as `DoS` protection, ensuring
 /// that validating a new transaction remains a constant operation (in reality

@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.metadata.cargo-machete]
-ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs"]
+ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs", "alloy-rpc-client"]
 
 [workspace.dependencies]
 taiyi-preconfer = { path = "crates/preconfer" }
