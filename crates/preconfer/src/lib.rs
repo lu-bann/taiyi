@@ -7,7 +7,7 @@ mod preconf_api;
 mod preconf_pool;
 mod preconfer;
 mod pricer;
-mod rpc_state;
 mod validator;
+mod simulator;
 
 pub use preconf_api::spawn_service;

@@ -58,6 +58,9 @@ reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-payload-builder = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 
 clap = { version = "4.5.20", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
