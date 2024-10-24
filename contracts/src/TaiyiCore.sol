@@ -5,7 +5,7 @@ import { SignatureChecker } from "open-zeppelin/utils/cryptography/SignatureChec
 import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
 import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
-import { ProposerRegistry } from "./TaiyiProposerRegistry.sol";
+import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
