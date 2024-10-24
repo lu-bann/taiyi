@@ -20,7 +20,7 @@ pub enum RpcError {
     #[error("contract error: {0:?}")]
     ContractError(#[from] AlloyContractError),
     #[error("Orderpool error: {0:?}")]
-    OrderPoolError(#[from] PoolError),
+    PoolError(#[from] PoolError),
     #[error("Proposer error: {0:?}")]
     ProposerError(#[from] ProposerError),
     #[error("Validation error: {0:?}")]
@@ -109,6 +109,10 @@ pub enum PoolError {
     PreconfRequestAlreadyExist(PreconfHash),
     #[error("slot {0} not ready")]
     SlotNotReady(u64),
+    #[error("Invalid preconf tx for hash: {0:?}")]
+    InvalidPreconfTx(PreconfHash),
+    #[error("Invalid preconf request")]
+    InvalidPreconfRequest,
     #[error("unknown error {0:?}")]
     UnknownError(String),
 }

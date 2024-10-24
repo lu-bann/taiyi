@@ -18,7 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.metadata.cargo-machete]
-ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs"]
+ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs", "alloy-rpc-client"]
 
 [workspace.dependencies]
 taiyi-preconfer = { path = "crates/preconfer" }
@@ -49,7 +49,15 @@ alloy-rlp = "0.3.8"
 alloy-sol-types = "0.8.8"
 alloy-node-bindings = { version = "0.5.2", default-features = false }
 alloy-rpc-client = { version = "0.5.2", default-features = false }
+
+# reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 
 clap = { version = "4.5.20", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }

@@ -17,6 +17,8 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
+reth-revm = { workspace = true }
+
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
 blst = { workspace = true }
