@@ -9,7 +9,7 @@ use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::{
     error::PoolError,
-    validator::{PreconfValidator, ValidationOutcome},
+    validator::{constant::DEFAULT_MAX_TX_INPUT_BYTES, PreconfValidator, ValidationOutcome},
 };
 
 mod parked;
@@ -24,11 +24,14 @@ impl PreconfPoolBuilder {
         Self
     }
 
-    pub fn build(self) -> Arc<PreconfPool> {
-        let max_gas = 1_000_000_000;
-        let current_slot = 1;
-        let validator = PreconfValidator::new(max_gas, None, EnvKzgSettings::default(), 0);
-        Arc::new(PreconfPool::new(current_slot, validator))
+    pub fn build(self, slot: u64) -> Arc<PreconfPool> {
+        let validator = PreconfValidator::new(
+            30_000_000,
+            None,
+            EnvKzgSettings::default(),
+            DEFAULT_MAX_TX_INPUT_BYTES,
+        );
+        Arc::new(PreconfPool::new(slot, validator))
     }
 }
 

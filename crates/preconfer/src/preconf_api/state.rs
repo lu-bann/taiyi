@@ -62,7 +62,8 @@ where
         ecdsa_signer: PrivateKeySigner,
         provider: P,
     ) -> Self {
-        let preconf_pool = PreconfPoolBuilder::new().build();
+        let slot = network_state.get_current_slot();
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
         Self {
             preconfer,
             constraint_client,
