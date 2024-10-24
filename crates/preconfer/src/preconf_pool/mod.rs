@@ -115,11 +115,12 @@ impl PreconfPool {
 
     /// Returns the pool where the preconf request is currently in.
     pub fn get_pool(&self, preconf_hash: &PreconfHash) -> Result<PoolState, PoolError> {
-        if self.pool_inner.read().parked.contains(preconf_hash) {
+        let pool_inner = self.pool_inner.read();
+        if pool_inner.parked.contains(preconf_hash) {
             Ok(PoolState::Parked)
-        } else if self.pool_inner.read().pending.contains(preconf_hash) {
+        } else if pool_inner.pending.contains(preconf_hash) {
             Ok(PoolState::Pending)
-        } else if self.pool_inner.read().ready.contains(preconf_hash) {
+        } else if pool_inner.ready.contains(preconf_hash) {
             Ok(PoolState::Ready)
         } else {
             Err(PoolError::PreconfRequestNotFound(*preconf_hash))
