@@ -3,3 +3,80 @@ title: Preconf Fungibility
 description: The Why and How of Preconf Fungibility in Taiyi
 icon: 'right-left'
 ---
+
+### Current limitations of non-fungible preconfirmations
+
+Achieving preconfirmation with blockspace futures introduces an important concept: preconfirmations should be fungible and tradable in a secondary market, similar to traditional futures.
+
+Note that most of the preconfirmation solutions today create non-fungible/transaction-specific preconfirmation. In other words, the preconfirmation buyers must submit transaction details together with the preconfirmation request.
+
+<img
+  className="block dark:hidden"
+  src="/images/concepts/non-fungible-preconf.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/concepts/non-fungible-preconf.png"
+  alt="Hero Dark"
+/>
+
+There are three problems with non-fungible preconfirmation:
+
+1. **Limited use cases**. For simple transactions like transfer, non-fungible preconfirmation works well; but when it comes to state-dependent transactions like swap, non-fungible preconfirmation will face the challenge from **state drift** - the latest network state can change during the time between preconfirmation issuance and actual transaction execution, which could invalidate the preconfirmed transaction.
+
+<img
+  className="block dark:hidden"
+  src="/images/concepts/preconf-fungibility.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/concepts/preconf-fungibility.png"
+  alt="Hero Dark"
+/>
+1. **Restricted lookahead**. Proposers can only control their own block. To mitigate state drift, users can only purchase state-dependent preconfirmations one slot ahead. This limitation significantly reduces the utility of preconfirmation as a financial instrument, despite the theoretical maximum lookahead of 64 slots (as proposers know their slot one epoch, or 32 slots, in advance).
+2. **Integration challenges for applications**: dApps and wallets, which stand to benefit most from preconfirmations by offering enhanced user experiences, face a significant hurdle. At the time of preconfirmation purchase, these entities typically lack knowledge of future user transactions, rendering non-fungible preconfirmations largely impractical in such scenarios.
+
+### Taiyi: Introducing Fungible Preconfirmations
+
+Taiyi handles it differently. With Taiyi, preconfirmations are **fungible**. Taiyi enables users to acquire blank blockspace and **defer transaction detail submission**. This innovative methodology addresses the three primary issues associated with non-fungible preconfirmations:
+
+1. **All use cases unlocked**. State-dependent preconfirmation can avoid state drift by allowing transaction details to be submitted at the beginning of the destination block. This feature makes fungible preconfirmations more suitable for complex operations such as swaps.
+2. **Max lookahead**. With the reduced impact of state drift, users can benefit from extended lookahead periods when purchasing fungible preconfirmations. This enhancement significantly increases their utility as financial instruments and facilitates more sophisticated use cases. 
+3. **Seamless B2B2C integration**. dApps and wallets are anticipated to be the primary adopters of Taiyi preconfirmations. This allows end-users to experience more stable gas fee quotations and accelerated confirmations without alterations to their existing workflow (e.g., RPC endpoint changes or new frontend interfaces). The underlying complexities are managed by the dApps or wallets at the backend level.
+
+<img
+  className="block dark:hidden"
+  src="/images/concepts/AMM-preconf.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/concepts/AMM-preconf.png"
+  alt="Hero Dark"
+/>
+### Secondary Market Dynamics for Blockspace
+
+The fungibility of Taiyi preconfirmations facilitates the emergence of a secondary market for blockspace. This development enables:
+
+1. Participation of sophisticated market actors as blockspace brokers, wholesalers, and market makers.
+2. Creation of structured financial products for end-users.
+3. Enhanced price discovery mechanisms for Ethereum blockspace, paralleling dynamics observed in other commodity markets.
+
+Not all blockspace are equal. For example, top-of-block (TOB) positions usually carry much higher value than the rest of the block. Blockspace that contain swap transactions are usually more valuable than blockspace that only have transfers. 
+
+Taiyi addresses this variability by enabling customizable constraints on preconfirmations. This feature facilitates the development of finely-segmented markets for diverse blockspace types, further enhancing the efficiency and sophistication of the Ethereum ecosystem.
+
+<img
+  className="block dark:hidden"
+  src="/images/concepts/preconf-segments.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/concepts/preconf-segments.png"
+  alt="Hero Dark"
+/>
+
+Taiyi's implementation of fungible preconfirmations represents a significant advancement in blockspace futures technology. By addressing key limitations of non-fungible preconfirmations and introducing novel market dynamics, Taiyi paves the way for increased flexibility, efficiency, and market sophistication in the blockchain space.

@@ -1,0 +1,107 @@
+---
+title: Taiyi Proposer Registry
+icon: 'registered'
+---
+
+## `TaiyiProposerRegistry.sol`
+Maintains registry of opted-in validators and manages their status and delegations. Handles BLS signature verification for validator registration and opt-out processes.
+
+### Key Responsibilities
+- Maintains registry of opted-in validators
+- Handles BLS signature verification for validator registration
+- Manages validator status and delegations
+- Coordinates opt-in/opt-out processes with cooldown periods
+
+### Functions
+#### `registerValidator`
+```solidity
+function registerValidator(
+    BLS12381.G1Point calldata pubkey,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature,
+    address delegatee
+) external payable
+```
+Registers a validator with their BLS public key and optional delegatee.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkey` | `BLS12381.G1Point` | The BLS public key of the validator |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+| `delegatee` | `address` | Address of the delegatee for preconfirmations |
+
+#### `initOptOut`
+```solidity
+function initOptOut(
+    bytes32 pubKeyHash,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature
+) external
+```
+Initiates the opt-out process for a validator, starting the cooldown period.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+#### `confirmOptOut`
+```solidity
+function confirmOptOut(bytes32 pubKeyHash) external
+```
+Confirms validator opt-out after cooldown period has elapsed.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+
+#### `delegatePreconfDuty`
+```solidity
+function delegatePreconfDuty(
+    PreconferElection calldata preconferElection,
+    BLS12381.G2Point memory signature
+) external
+```
+Allows a validator to delegate preconfirmation duties to a registered preconfirmer.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconferElection` | `PreconferElection` | Struct containing delegation details including validator pubkey and preconfirmer address |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of validator pubkey |
+
+#### `revokeDelegation`
+```solidity
+function revokeDelegation(
+    bytes32 validatorPubKeyHash,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature
+) external
+```
+Revokes an existing delegation for a validator.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `validatorPubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+### View Functions
+
+#### `getDelegatedPreconfirmer`
+```solidity
+function getDelegatedPreconfirmer(bytes32 validatorPubKeyHash) external view returns (address)
+```
+Returns the current delegated preconfirmer for a validator.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `validatorPubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `address` | Address of the delegated preconfirmer |
+
+
