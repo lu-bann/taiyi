@@ -98,9 +98,12 @@
             "learn/fundamentals/what",
             "learn/fundamentals/life_cycle_of_a_preconf_tx",
             "learn/fundamentals/preconf_fungibility",
+            "learn/fundamentals/blockspace_derivatives",
+            "learn/fundamentals/preconf_pricing_backtesting",
+            "learn/fundamentals/pricing_preconf",
+            "learn/fundamentals/fair_exchange_problem",
             "learn/fundamentals/based_sequencing",
-            "learn/fundamentals/economic_security",
-            "learn/fundamentals/blockspace_derivatives"
+            "learn/fundamentals/economic_security"
           ]
         },
         {
