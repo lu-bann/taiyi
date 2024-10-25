@@ -7,6 +7,11 @@ use prometheus::{
 };
 
 pub fn init_metrics() -> Result<()> {
+    PbsService::register_metric(Box::new(PRECONFER_SLOT.clone()));
+    PbsService::register_metric(Box::new(BEACON_NODE_LATEST_SLOT.clone()));
+    PbsService::register_metric(Box::new(DELEGATION_FAIL_SLOT.clone()));
+    PbsService::register_metric(Box::new(DELEGATION_SUCCESS_VALIDATORS.clone()));
+
     PbsService::init_metrics()
 }
 

@@ -2,6 +2,7 @@ mod constraint_client;
 mod contract;
 mod error;
 mod lookahead_fetcher;
+pub mod metrics;
 mod network_state;
 mod preconf_api;
 mod preconf_pool;
