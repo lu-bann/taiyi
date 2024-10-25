@@ -56,6 +56,7 @@ reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }

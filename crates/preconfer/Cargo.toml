@@ -17,6 +17,7 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
+reth-evm = { workspace = true }
 reth-revm = { workspace = true }
 reth-db = { workspace = true }
 reth-chainspec = { workspace = true }
