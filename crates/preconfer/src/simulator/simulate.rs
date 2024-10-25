@@ -1,10 +1,15 @@
 use reth_revm::{
     primitives::{hex, BlockEnv, CfgEnv, Env, SpecId, TransactTo, TxEnv},
-    Evm,
+    Database, DatabaseCommit, Evm, State,
 };
 use taiyi_primitives::PreconfRequest;
 
 use super::state_cache::StateCacheDB;
+
+pub enum SimulationOutcome {
+    Success,
+    Failure,
+}
 struct PreconfTxWrapper;
 
 impl PreconfTxWrapper {
@@ -34,5 +39,6 @@ pub fn transact(preconf_req: PreconfRequest, state: &mut StateCacheDB) {
         .with_db(db.as_mut())
         .build();
 
-    evm.transact();
+    let result_and_state = evm.transact().unwrap();
+    evm.context.evm.inner.db.commit(result_and_state.state);
 }
