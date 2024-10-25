@@ -3,3 +3,187 @@ title: 'Helder Devnet'
 description: 'Setup guide for Hedler Devnet'
 icon: 'ethereum'
 ---
+
+# Deploy commit-boost-signer and taiyi-boost
+
+This guide will walk you through the process of deploying `commit-boost-signer` and `taiyi-boost` on the Helder Devnet.
+
+## Prerequisites
+
+- A Helder validator (reth + lighthouse bn + lighthouse vc) deployed on the same server
+
+## Build Binaries
+
+### commit-boost-signer
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Commit-Boost/commit-boost-client.git
+   ```
+
+2. Build the binary:
+   ```bash
+   cargo build --release # target binary: ./target/release/commit-boost-signer
+   ```
+
+   The target binary will be located at `./target/release/commit-boost-signer`.
+
+### taiyi-boost
+
+1. Clone the repository:
+   ```bash
+   git clone git@github.com:lu-bann/taiyi.git
+   ```
+
+2. Build the binary:
+   ```bash
+   cargo build --release # target binary: ./target/release/taiyi-boost
+   ```
+
+   The target binary will be located at `./target/release/taiyi-boost`.
+
+## Configuration
+
+Create a configuration file that will be shared by both `cb-signer` and `taiyi-boost`. Save this as `cb-config.toml`:
+<Accordion title="sample cb-config.toml">
+```bash
+# Chain spec id. Supported values: Mainnet, Holesky, Helder
+chain = "Helder"
+
+# Configuration for the PBS module
+[pbs]
+# Docker image to use for the PBS module.
+# OPTIONAL, DEFAULT: ghcr.io/commit-boost/pbs:latest
+docker_image = "ghcr.io/commit-boost/pbs:latest"
+# Whether to enable the PBS module to request signatures from the Signer module (not used in the default PBS image)
+# OPTIONAL, DEFAULT: false
+with_signer = true
+# Port to receive BuilderAPI calls from beacon node
+port = 18550
+# Whether to forward `status` calls to relays or skip and return 200
+# OPTIONAL, DEFAULT: true
+relay_check = true
+# Timeout in milliseconds for the `get_header` call to relays. Note that the CL has also a timeout (e.g. 1 second) so 
+# this should be lower than that, leaving some margin for overhead
+# OPTIONAL, DEFAULT: 950
+timeout_get_header_ms = 950
+# Timeout in milliseconds for the `submit_blinded_block` call to relays.
+# OPTIONAL, DEFAULT: 4000
+timeout_get_payload_ms = 4000
+# Timeout in milliseconds for the `register_validator` call to relays.
+# OPTIONAL, DEFAULT: 3000
+timeout_register_validator_ms = 3000
+# Whether to skip signature verification of headers against the relay pubkey
+# OPTIONAL, DEFAULT: false
+skip_sigverify = false
+# Minimum bid in ETH that will be accepted from `get_header`
+# OPTIONAL, DEFAULT: 0.0
+min_bid_eth = 0.0
+# List of URLs of relay monitors to send registrations to
+# OPTIONAL
+relay_monitors = []
+# How late in milliseconds in the slot is "late". This impacts the `get_header` requests, by shortening timeouts for `get_header` calls to 
+# relays and make sure a header is returned within this deadline. If the request from the CL comes later in the slot, then fetching headers is skipped
+# to force local building and miniminzing the risk of missed slots. See also the timing games section below
+# OPTIONAL, DEFAULT: 2000
+late_in_slot_time_ms = 2000
+# taiyi extra configs
+# sk: 0x1e1d4be3f20118889a7029f03b23d31c0c40c41d34438d673e56c904d2c4e57d
+# pk: 0xa7c828460fc5c8d24c60f9f30c8836659b60a610fe8b87b26a71e9b765a9d0cae16b1a963f65b3b7abe264cda187c113
+trusted_preconfer = "0xa7c828460fc5c8d24c60f9f30c8836659b60a610fe8b87b26a71e9b765a9d0cae16b1a963f65b3b7abe264cda187c113"
+beacon_node = "http://127.0.0.1:4000"
+chain_id = 7014190335
+
+# The PBS module needs one or more [[relays]] as defined below.
+[[relays]]
+# Relay ID to use in telemetry
+# OPTIONAL, DEFAULT: URL hostname
+id = "helix"
+# Relay URL in the format scheme://pubkey@host
+# url = "http://0xa0b249c563c0733e93d336c69abe61f6a2e19c480baab7897205179bc0ea2640dbfa5a5242dfe9750abc6840a004654a@135.181.95.177:4040"
+# change this to your helix server
+url = "http://0xadc0fe12e62c14a505ea1e655dbe4d36fa505ed57b634ba37912153d29edd45c5bc5a77764e68b98c53e3f6f8ce9fa3b@176.9.142.29:4040"
+# Headers to send with each request for this relay
+# OPTIONAL
+# headers = { X-MyCustomHeader = "MyCustomValue" }
+# Whether to enable timing games, as tuned by `target_first_request_ms` and `frequency_get_header_ms`.
+# These values should be carefully chosen for each relay, as each relay has different latency and timing games setups.
+# They should only be used by advanced users, and if mis-configured can result in unforeseen effects, e.g. fetching a lower header value, 
+# or getting a temporary IP ban.
+# 
+# EXAMPLES
+# Assuming: timeout_get_header_ms = 950, frequency_get_header_ms = 300, target_first_request_ms = 200, late_in_slot_time_ms = 2000
+# 
+# 1) CL request comes at 100ms in the slot (max timeout 1050ms in the slot), then:
+#   - sleep for 100ms
+#   - send request at 200ms with 850ms timeout
+#   - send request at 500ms with 550ms timeout
+#   - send request at 800ms with 250ms timeout
+# 2) CL request comes at 1500ms in the slot (max timeout 2000ms in the slot), then:
+#   - send request at 1500ms with 500ms timeout
+#   - send request at 1800ms with 200ms timeout
+# 3) CL request comes 2500ms in the slot then:
+#   - return 204 and force local build
+#
+# OPTIONAL, DEFAULT: false
+enable_timing_games = false
+# Target time in slot when to send the first header request
+# OPTIONAL
+target_first_request_ms = 200
+# Frequency in ms to send get_header requests
+# OPTIONAL
+frequency_get_header_ms = 300
+
+[signer]
+[signer.loader]
+keys_path = "<path-to>/keys"
+secrets_path = "<path-to>/secrets"
+
+# Configuration for how metrics should be collected and scraped
+[metrics]
+# Path to a `prometheus.yml` file to use in Prometheus. If using a custom config file, be sure to add a 
+# file discovery section as follows:
+# ```yml
+# file_sd_configs:
+#   - files:
+#       - /etc/prometheus/targets.json
+# ```
+# and use the `targets.json` file generated by `commit-boost init`
+prometheus_config = "./docker/prometheus.yml"
+# Whether to start Grafana with built-in dashboards
+# OPTIONAL, DEFAULT: true
+use_grafana = true
+
+# Configuration for how logs should be collected and stored
+# OPTIONAL
+# [logs]
+# Log rotation policy. Supported values: hourly, daily, never
+# OPTIONAL, DEFAULT: daily
+# rotation = "daily"
+# Path to the log directory
+# OPTIONAL, DEFAULT: /var/logs/commit-boost
+# log_dir_path = "./logs"
+# Log level. Supported values: trace, debug, info, warn, error
+# OPTIONAL, DEFAULT: debug to file, info to stdout
+# log_level = "debug"
+# Maximum number of log files to keep
+# OPTIONAL
+# max_log_files = 30
+```
+</Accordion>
+<Accordion title=".env.example">
+```bash
+export CB_JWTS="pbs=<your jwt>"
+export CB_SIGNER_PORT=8327 # you can change it
+export CB_SIGNER_URL=http://127.0.0.1:8327 # the same port with previous line
+export CB_SIGNER_JWT=<same jwt>
+export CB_CONFIG=<path-to>/cb-config.toml
+export CB_SIGNER_LOADER_KEYS_DIR=<path-to>/keys
+export CB_SIGNER_LOADER_SECRETS_DIR=<path-to>/secrets
+```
+</Accordion>
+## Run
+```bash
+<path-to>/commit-boost-signer
+<path-to>/taiyi-boost
+```
