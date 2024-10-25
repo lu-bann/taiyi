@@ -1,0 +1,92 @@
+---
+title: Taiyi Restaking Manager
+icon: 'people-roof'
+---
+
+## `TaiyiRestakingManager.sol`
+Manages validator registration and coordinates with EigenLayer Core for both Validator Service and Preconfirmation Service AVSs.
+
+### Key Responsibilities
+- Manages integration with restaking protocols (currently EigenLayer)
+- Entrypoint for validator registration and opt-in/out processes
+- Manages both PreconfirmerServiceManager and ValidatorServiceManager
+
+### Functions
+#### `registerValidator`
+```solidity
+function registerValidator(
+    address operator,
+    ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+) external
+```
+Registers a validator in the Taiyi protocol and calls the `ValidatorServiceManager.registerOperatorToAVS` function.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkey` | `BLS12381.G1Point` | The BLS public key of the validator |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+| `delegatee` | `address` | Address of the delegatee for preconfirmations |
+
+#### `deregisterValidator`
+```solidity
+function deregisterValidator(address operator) external
+```
+Deregisters a validator from the Taiyi protocol and calls the `ValidatorServiceManager.deregisterOperatorToAVS` function.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+#### `registerDelegatee`
+```solidity
+function registerDelegatee(address delegatee) external
+```
+Registers an operator in the Taiyi protocol and calls the `PreconfirmationServiceManager.registerOperatorToAVS` function.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `delegatee` | `address` | The address of the delegatee to register |
+| `delegateeSignature` | `ISignatureUtils.SignatureWithSaltAndExpiry` | The delegatee's signed registration data |
+
+#### `deregisterDelegatee`
+```solidity
+function deregisterDelegatee(address delegatee) external
+```
+Deregisters a delegatee from the Taiyi protocol and calls the `PreconfirmationServiceManager.deregisterOperatorToAVS` function.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `delegatee` | `address` | The address of the delegatee to deregister |
+
+#### `addRestakingProtocol`
+```solidity
+function addRestakingProtocol(address protocol) external
+```
+Adds a new restaking protocol integration.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `protocol` | `address` | The address of the restaking protocol to add |
+
+#### `removeRestakingProtocol`
+```solidity
+function removeRestakingProtocol(address protocol) external
+```
+Removes a restaking protocol integration.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `protocol` | `address` | The address of the restaking protocol to remove |
+
+#### `getSupportedRestakingProtocols`
+```solidity
+function getSupportedRestakingProtocols() external view returns (address[] memory)
+```
+Returns an array of supported restaking protocol addresses.
+Returns:
+| Type | Description |
+|------|-------------|
+| `address[]` | Array of supported restaking protocol addresses |

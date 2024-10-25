@@ -1,5 +1,5 @@
 ---
-title: AVS Contracts
+title: Overview
 description: An overview of the AVS contracts in Taiyi
 icon: 'map'
 ---
@@ -13,7 +13,7 @@ Taiyi implements two Active Validator Services (AVS) on EigenLayer:
 |---------|-------------------|----------------------|
 | Slashing Risk | No slashing risk from non-fulfillment of preconfirmations | Slashing risk from non-fulfillment of preconfirmations |
 | Operator Requirements | Can be anyone running ETH nodes, solo stakers, LST protocol operators, etc. | Needs to be sophisticated parties to price preconfirmations|
-| Delegation | Validators can delegate preconfirmation duties to preconf operators | Preconf operators handle preconfirmation tasks on behalf of validators |
+| Delegation | Validators can delegate preconfirmation duties to preconf operators | Preconf operators handle preconfirmation tasks on behalf of operators from Validator Service |
 | Profit Analysis | Validators get profit by being the opt-in validator for the slot assigned | Preconf operators get profit by performing the job for the opt-in validator |
 
 <Note>
@@ -47,14 +47,15 @@ graph TD
         style AVSDIRECTORY fill:#0000FF
     end
 
-    VALIDATORSERVICEOPERATOR -->|opts in| VALIDATORSERVICEMANAGER
-    PRECONFSERVICEOPERATOR -->|opts in| PRECONFIRMERSERVICEMANAGER
+    VALIDATORSERVICEOPERATOR -->|opts in| TAIYIRESTAKINGMANAGER
+    PRECONFSERVICEOPERATOR -->|opts in| TAIYIRESTAKINGMANAGER
     style VALIDATORSERVICEOPERATOR fill:#FF0000
     style PRECONFSERVICEOPERATOR fill:#00FF00
     TAIYIRESTAKINGMANAGER -->|manages| PRECONFIRMERSERVICEMANAGER
     TAIYIRESTAKINGMANAGER -->|manages| VALIDATORSERVICEMANAGER
 ```
 - The `TaiyiRestakingManager` manages both the `PreconfirmerServiceManager` and `ValidatorServiceManager`, coordinating their operations.
+- The `TaiyiRestakingManager` also is the entry point that can register operators in both the `PreconfirmerServiceManager` and `ValidatorServiceManager`.
 - Operators can opt into either the Validator AVS service, the Preconfirmer AVS service, or both services simultaneously.
 - Once opted in, the Validator Service operators are registered inside the `ProposerRegistry` (see diagram below) and do not need to put up collateral.
 - Preconfirmer operators, who are delegatees that opted-in validators can delegate their preconfirmation duties to, need to provide collateral to be slashed since they provide the service of preconfirmation and thus cover the economic security.

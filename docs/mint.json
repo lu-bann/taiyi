@@ -125,7 +125,9 @@
                   "group": "AVS Contracts",
                   "icon": "circle-nodes",
                   "pages": [
-                    "learn/architecture/on_chain_components/overview"
+                    "learn/architecture/on_chain_components/overview",
+                    "learn/architecture/on_chain_components/taiyi_restaking_manager",
+                    "learn/architecture/on_chain_components/taiyi_proposer_registry"
                   ]
                 },
                 "learn/architecture/on_chain_components/luban_core"
