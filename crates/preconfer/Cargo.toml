@@ -9,6 +9,7 @@ alloy-eips = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-genesis = { workspace = true }
 alloy-rpc-client = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
@@ -21,6 +22,7 @@ reth-evm = { workspace = true }
 reth-revm = { workspace = true }
 reth-db = { workspace = true }
 reth-chainspec = { workspace = true }
+reth-primitives = { workspace = true }
 reth-provider = { workspace = true }
 reth-payload-builder = { workspace = true }
 reth-node-types = { workspace = true }
@@ -37,11 +39,13 @@ parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+flume = "0.11.1"
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }

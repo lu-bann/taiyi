@@ -1,3 +1,4 @@
+mod chainspec_builder;
 mod constraint_client;
 mod contract;
 mod error;
@@ -7,7 +8,9 @@ mod preconf_api;
 mod preconf_pool;
 mod preconfer;
 mod pricer;
-mod validator;
 mod simulator;
+mod validator;
 
+pub use chainspec_builder::chainspec_builder;
 pub use preconf_api::spawn_service;
+pub use simulator::create_provider_factory;
