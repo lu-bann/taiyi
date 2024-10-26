@@ -8,7 +8,8 @@ use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
 use eyre::eyre;
-use taiyi_preconfer::{chainspec_builder, create_provider_factory, spawn_service};
+use taiyi_preconfer::{chainspec_builder, create_provider_factory, spawn_service, SimulationPool};
+use tokio_util::sync::CancellationToken;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
@@ -87,7 +88,7 @@ impl PreconferCommand {
         );
 
         // spawn simulation service
-        
+        let simulation_pool = SimulationPool::new(provider_factory, 1, CancellationToken::new());
 
         spawn_service(
             taiyi_core_contract_addr,

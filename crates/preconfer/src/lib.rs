@@ -14,3 +14,4 @@ mod validator;
 pub use chainspec_builder::chainspec_builder;
 pub use preconf_api::spawn_service;
 pub use simulator::create_provider_factory;
+pub use simulator::SimulationPool;

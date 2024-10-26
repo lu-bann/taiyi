@@ -91,3 +91,5 @@ futures-util = "0.3.31"
 lazy_static = "1.5.0"
 prometheus = "0.13.4"
 hex = "0.4.3"
+tokio-util = "0.7.12"
+

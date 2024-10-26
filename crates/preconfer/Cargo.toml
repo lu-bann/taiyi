@@ -46,7 +46,7 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 flume = "0.11.1"
-tokio-util = "0.7.12"
+tokio-util = { workspace = true }
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }

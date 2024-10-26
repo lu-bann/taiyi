@@ -6,7 +6,7 @@ use reth_payload_builder::database::CachedReads;
 use reth_provider::{providers::ProviderNodeTypes, ProviderFactory};
 use tokio_util::sync::CancellationToken;
 
-use super::CurrentSimCtxs;
+use super::{simulate::transact, state_cache::StateCacheDB, CurrentSimCtxs};
 
 pub fn run_sim_worker<N: ProviderNodeTypes + Clone + Send + 'static>(
     worker_id: usize,
@@ -33,10 +33,15 @@ pub fn run_sim_worker<N: ProviderNodeTypes + Clone + Send + 'static>(
             }
         };
 
-
         let mut cached_reads = CachedReads::default();
         while let Ok(task) = current_sim_ctx.requests.recv() {
-            let state_provider = provider_factory.history_by_block_hash(current_sim_ctx.block_ctx.attributes.parent).unwrap();
+            let state_provider = provider_factory
+                .history_by_block_hash(current_sim_ctx.block_ctx.attributes.parent)
+                .unwrap();
+            let mut state_cache_db =
+                StateCacheDB::new(Arc::new(state_provider)).with_cached_reads(cached_reads.clone());
+            let sim_outcome = transact(task.tx, &mut state_cache_db);
+            
         }
     }
 }
