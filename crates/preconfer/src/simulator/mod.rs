@@ -1,4 +1,5 @@
 mod reth_db_utils;
+mod sim_worker;
 mod simulate;
 mod state_cache;
 
@@ -7,16 +8,16 @@ use std::{collections::HashMap, sync::Arc};
 use parking_lot::Mutex;
 use reth_chainspec::ChainSpec;
 pub use reth_db_utils::create_provider_factory;
-use reth_node_types::NodeTypesWithDB;
+use reth_node_types::{NodeTypesWithDB};
 use reth_payload_builder::EthPayloadBuilderAttributes;
-use reth_provider::ProviderFactory;
+use reth_provider::{providers::ProviderNodeTypes, ProviderFactory};
 use reth_revm::primitives::{BlockEnv, CfgEnvWithHandlerCfg};
 use simulate::SimulationOutcome;
 use taiyi_primitives::PreconfTx;
 use tokio::{sync::mpsc, task::JoinHandle};
 
 #[derive(Debug)]
-pub struct SimulationPool<N: NodeTypesWithDB> {
+pub struct SimulationPool<N: ProviderNodeTypes> {
     provider_factory: ProviderFactory<N>,
     running_tasks: Arc<Mutex<Vec<JoinHandle<()>>>>,
     current_ctxs: Arc<Mutex<CurrentSimCtxs>>,
@@ -26,7 +27,7 @@ pub struct SimulationPool<N: NodeTypesWithDB> {
 /// All active SimulationContexts
 #[derive(Debug)]
 pub struct CurrentSimCtxs {
-    pub contexts: HashMap<u64, CurrentSimCtxs>,
+    pub contexts: HashMap<u64, SimulationContext>,
 }
 /// Struct representing the need of order simulation for a particular block.
 #[derive(Debug, Clone)]
