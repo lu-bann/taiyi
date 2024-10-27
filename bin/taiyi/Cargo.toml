@@ -6,7 +6,7 @@ edition = { workspace = true }
 [dependencies]
 clap = { workspace = true }
 eyre = { workspace = true }
-taiyi-cli = { workspace = true }
+taiyi-cmd = { workspace = true }
 tokio = { workspace = true }
 
 [[bin]]

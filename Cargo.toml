@@ -22,7 +22,7 @@ ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs",
 
 [workspace.dependencies]
 taiyi-preconfer = { path = "crates/preconfer" }
-taiyi-cli = { path = "crates/cli" }
+taiyi-cmd = { path = "crates/cli" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 
