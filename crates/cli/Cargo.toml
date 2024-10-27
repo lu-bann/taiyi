@@ -1,5 +1,5 @@
 [package]
-name = "taiyi-cli"
+name = "taiyi-cmd"
 version = { workspace = true }
 edition = { workspace = true }
 

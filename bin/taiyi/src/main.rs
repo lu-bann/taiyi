@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use taiyi_cli::{initialize_tracing_log, PreconferCommand};
+use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi", long_about = None)]
