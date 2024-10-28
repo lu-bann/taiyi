@@ -24,11 +24,11 @@ beacon-api-client = { workspace = true }
 blst = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
-futures = "0.3.30"
-mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs" }
+futures = { workspace = true }
+mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs", rev = "a75c5959e98a79031a89f8893c97528e8f726826" }
 parking_lot = { workspace = true }
 priority-queue = { workspace = true }
-reqwest = "0.12.4"
+reqwest = { workspace = true }
 serde = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
