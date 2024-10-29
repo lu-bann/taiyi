@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod reth_db_utils;
 mod sim_worker;
 mod simulate;

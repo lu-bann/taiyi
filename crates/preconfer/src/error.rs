@@ -116,3 +116,9 @@ pub enum PoolError {
     #[error("unknown error {0:?}")]
     UnknownError(String),
 }
+
+#[derive(Debug, Error)]
+pub enum SimulationError {
+    #[error("Simulation error: {0}")]
+    SimulationError(String),
+}

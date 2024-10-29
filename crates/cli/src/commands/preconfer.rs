@@ -88,7 +88,7 @@ impl PreconferCommand {
         );
 
         // spawn simulation service
-        let simulation_pool = SimulationPool::new(provider_factory, 1, CancellationToken::new());
+        let _simulation_pool = SimulationPool::new(provider_factory, 1, CancellationToken::new());
 
         spawn_service(
             taiyi_core_contract_addr,

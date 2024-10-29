@@ -1,13 +1,14 @@
 use reth_revm::{
-    primitives::{hex, BlockEnv, CfgEnv, Env, SpecId, TransactTo, TxEnv},
-    Database, DatabaseCommit, Evm, State,
+    primitives::{hex, BlockEnv, CfgEnv, EVMError, Env, ResultAndState, SpecId, TransactTo, TxEnv},
+    Evm,
 };
-use taiyi_primitives::{PreconfRequest, PreconfTx};
+use taiyi_primitives::PreconfTx;
 
 use super::state_cache::StateCacheDB;
+use crate::error::SimulationError;
 
 pub enum SimulationOutcome {
-    Success,
+    Success(ResultAndState),
     Failure,
 }
 struct PreconfTxWrapper;
@@ -24,7 +25,10 @@ impl PreconfTxWrapper {
     }
 }
 
-pub fn transact(preconf_tx: PreconfTx, state: &mut StateCacheDB) {
+pub fn transact(
+    preconf_tx: PreconfTx,
+    state: &mut StateCacheDB,
+) -> eyre::Result<SimulationOutcome, SimulationError> {
     let mut db = state.new_db_ref();
 
     let mut tx_env = TxEnv::default();
@@ -38,6 +42,10 @@ pub fn transact(preconf_tx: PreconfTx, state: &mut StateCacheDB) {
         .with_db(db.as_mut())
         .build();
 
-    let result_and_state = evm.transact().unwrap();
-    evm.context.evm.inner.db.commit(result_and_state.state);
+    match evm.transact() {
+        Ok(res) => Ok(SimulationOutcome::Success(res)),
+        Err(EVMError::Transaction(_)) => Ok(SimulationOutcome::Failure),
+        Err(e) => Err(SimulationError::SimulationError(e.to_string())),
+    }
+    // evm.context.evm.inner.db.commit(result_and_state.state);
 }

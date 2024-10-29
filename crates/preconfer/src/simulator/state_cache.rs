@@ -1,6 +1,7 @@
+#![allow(dead_code)]
 use std::sync::Arc;
 
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{Address, StorageKey, StorageValue, B256, U256};
 use reth_payload_builder::database::CachedReads;
 use reth_provider::{ProviderError, StateProviderBox};
 use reth_revm::{
@@ -33,6 +34,7 @@ impl StateCacheDB {
     pub fn owned_provider(self) -> Arc<StateProviderBox> {
         self.provider
     }
+    
     pub fn with_cached_reads(mut self, cached_reads: CachedReads) -> Self {
         self.cached_reads = cached_reads;
         self
@@ -68,6 +70,15 @@ impl StateCacheDB {
     pub fn code_hash(&mut self, address: Address) -> Result<B256, ProviderError> {
         let mut db = self.new_db_ref();
         Ok(db.as_mut().basic(address)?.map(|acc| acc.code_hash).unwrap_or_else(|| KECCAK_EMPTY))
+    }
+
+    pub fn storage(
+        &mut self,
+        address: Address,
+        storage_key: StorageKey,
+    ) -> Result<StorageValue, ProviderError> {
+        let mut db = self.new_db_ref();
+        Ok(db.as_mut().storage(address, storage_key.into())?)
     }
 }
 
