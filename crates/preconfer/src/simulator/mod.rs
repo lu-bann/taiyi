@@ -1,15 +1,12 @@
 #![allow(dead_code)]
 
-mod reth_db_utils;
 mod sim_worker;
 mod simulate;
-mod state_cache;
 
 use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::Mutex;
 use reth_chainspec::ChainSpec;
-pub use reth_db_utils::create_provider_factory;
 use reth_payload_builder::EthPayloadBuilderAttributes;
 use reth_provider::{providers::ProviderNodeTypes, ProviderFactory};
 use reth_revm::primitives::{BlockEnv, CfgEnvWithHandlerCfg};

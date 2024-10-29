@@ -4,8 +4,7 @@ use reth_revm::{
 };
 use taiyi_primitives::PreconfTx;
 
-use super::state_cache::StateCacheDB;
-use crate::error::SimulationError;
+use crate::{db::StateCacheDB, error::SimulationError};
 
 pub enum SimulationOutcome {
     Success(ResultAndState),

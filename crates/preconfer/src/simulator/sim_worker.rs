@@ -5,7 +5,8 @@ use reth_payload_builder::database::CachedReads;
 use reth_provider::{providers::ProviderNodeTypes, ProviderFactory};
 use tokio_util::sync::CancellationToken;
 
-use super::{simulate::transact, state_cache::StateCacheDB, CurrentSimCtxs};
+use super::{simulate::transact, CurrentSimCtxs};
+use crate::db::StateCacheDB;
 
 pub fn run_sim_worker<N: ProviderNodeTypes + Clone + Send + 'static>(
     _worker_id: usize,
