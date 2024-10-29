@@ -1,7 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{keccak256, U256};
+use alloy_primitives::{keccak256, Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -61,9 +61,10 @@ where
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
         provider: P,
+        owner: Address,
     ) -> Self {
         let slot = network_state.get_current_slot();
-        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+        let preconf_pool = PreconfPoolBuilder::new().build(slot, owner);
         Self {
             preconfer,
             constraint_client,
@@ -202,6 +203,7 @@ where
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
+        let current_slot = self.network_state.get_current_slot();
         let preconf_hash = preconf_request.hash(U256::from(chain_id));
         let preconfer_signature =
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
@@ -217,7 +219,11 @@ where
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await?;
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone()) {
+        match self.preconf_pool.request_inclusion(
+            preconf_request.clone(),
+            current_slot,
+            U256::from(chain_id),
+        ) {
             Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
                 let preconf_req_signature = self
                     .ecdsa_signer
@@ -255,12 +261,18 @@ where
             .preconf_pool
             .get_parked(&preconf_req_hash)
             .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
+        let current_slot = self.network_state.get_current_slot();
+        let chain_id = self.get_chain_id().await?;
         if preconf_request.preconf_tx.is_some() {
             return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
         }
         preconf_request.preconf_tx = Some(preconf_tx.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone()) {
+        match self.preconf_pool.request_inclusion(
+            preconf_request.clone(),
+            current_slot,
+            U256::from(chain_id),
+        ) {
             Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
                 let preconf_req_signature = self
                     .ecdsa_signer

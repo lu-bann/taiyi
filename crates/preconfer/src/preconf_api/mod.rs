@@ -33,6 +33,7 @@ pub async fn spawn_service(
     bls_private_key: SecretKey,
     ecdsa_signer: PrivateKeySigner,
     relay_url: Vec<String>,
+    owner: Address,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_client_url).await?;
@@ -82,6 +83,7 @@ pub async fn spawn_service(
                 bls_private_key,
                 ecdsa_signer,
                 provider.clone(),
+                owner,
             )
             .await;
 
@@ -114,6 +116,7 @@ pub async fn spawn_service(
                 bls_private_key,
                 ecdsa_signer,
                 provider.clone(),
+                owner,
             )
             .await;
 

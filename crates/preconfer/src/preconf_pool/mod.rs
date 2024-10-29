@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use alloy_primitives::{Address, U256};
 use parked::Parked;
 use parking_lot::RwLock;
 use pending::Pending;
@@ -25,12 +26,13 @@ impl PreconfPoolBuilder {
         Self
     }
 
-    pub fn build(self, slot: u64) -> Arc<PreconfPool> {
+    pub fn build(self, slot: u64, owner: Address) -> Arc<PreconfPool> {
         let validator = PreconfValidator::new(
             30_000_000,
             None,
             EnvKzgSettings::default(),
             DEFAULT_MAX_TX_INPUT_BYTES,
+            owner,
         );
         Arc::new(PreconfPool::new(slot, validator))
     }
@@ -58,9 +60,14 @@ impl PreconfPool {
         }
     }
 
-    pub fn request_inclusion(&self, preconf_req: PreconfRequest) -> Result<PoolState, PoolError> {
+    pub fn request_inclusion(
+        &self,
+        preconf_req: PreconfRequest,
+        current_slot: u64,
+        chain_id: U256,
+    ) -> Result<PoolState, PoolError> {
         // validate the preconf request
-        let validation_outcome = self.validator.validate(&preconf_req);
+        let validation_outcome = self.validate(&preconf_req, current_slot, chain_id)?;
 
         match validation_outcome {
             ValidationOutcome::Valid { simulate, preconf_hash } => {
@@ -81,6 +88,56 @@ impl PreconfPool {
                 Err(PoolError::InvalidPreconfTx(preconf_hash))
             }
             ValidationOutcome::Error => Err(PoolError::InvalidPreconfRequest),
+        }
+    }
+
+    pub fn validate(
+        &self,
+        preconf_req: &PreconfRequest,
+        current_slot: u64,
+        chain_id: U256,
+    ) -> eyre::Result<ValidationOutcome, PoolError> {
+        let preconf_hash = preconf_req.hash(chain_id);
+
+        // Check if the transaction is already in the pool
+        if self.get_pool(&preconf_hash).is_ok() {
+            return Err(PoolError::PreconfRequestAlreadyExist(preconf_hash));
+        }
+
+        // Check tip.to is set to owner of TaiyiCore contract
+        if preconf_req.tip_tx.to != self.validator.owner {
+            return Ok(ValidationOutcome::Error);
+        }
+
+        // Check for min pre pay
+        if let Some(min_pre_pay) = self.validator.minimum_prepay_fee {
+            if preconf_req.tip_tx.pre_pay.to::<u128>() < min_pre_pay {
+                return Ok(ValidationOutcome::Error);
+            }
+        }
+
+        // TODO: Check for Tip nonce
+
+        // Check if target slot is in the future
+        let target_slot = preconf_req.tip_tx.target_slot.to::<u64>();
+        if target_slot <= current_slot {
+            return Ok(ValidationOutcome::Error);
+        }
+
+        // check for preconf tx
+        if let Some(preconf_tx) = preconf_req.preconf_tx.as_ref() {
+            // Check for gas limit
+            if preconf_tx.call_gas_limit > preconf_req.tip_tx.gas_limit {
+                Ok(ValidationOutcome::Invalid(preconf_hash))
+            } else if target_slot == current_slot + 1 {
+                Ok(ValidationOutcome::Valid { simulate: true, preconf_hash })
+            } else {
+                Ok(ValidationOutcome::Valid { simulate: false, preconf_hash })
+            }
+
+            // TODO: check for preconf nonce
+        } else {
+            Ok(ValidationOutcome::ParkedValid(preconf_hash))
         }
     }
 

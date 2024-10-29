@@ -63,6 +63,10 @@ pub struct PreconferCommand {
     /// simulation threads
     #[clap(long = "simulation_threads")]
     pub simulation_threads: usize,
+
+    /// TaiyiCore contract owner address
+    #[clap(long = "owner")]
+    pub owner: String,
 }
 
 impl PreconferCommand {
@@ -102,6 +106,7 @@ impl PreconferCommand {
             bls_private_key,
             ecdsa_signer,
             self.relay_url.clone(),
+            self.owner.parse()?,
         )
         .await?;
 

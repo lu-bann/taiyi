@@ -1,20 +1,27 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use alloy_primitives::Address;
+use parking_lot::RwLock;
 use reth_revm::primitives::EnvKzgSettings;
+use reth_transaction_pool::error::PoolError;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
+
+use crate::preconf_pool::PreconfPoolInner;
 
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]
-pub(crate) struct PreconfValidator {
+pub struct PreconfValidator {
     /// The current max gas limit
-    block_gas_limit: u64,
+    pub block_gas_limit: u64,
     /// Minimum prepay fee to enforce for acceptance into the pool.
-    minimum_prepay_fee: Option<u128>,
+    pub minimum_prepay_fee: Option<u128>,
     /// Stores the setup and parameters needed for validating KZG proofs.
-    kzg_settings: EnvKzgSettings,
+    pub kzg_settings: EnvKzgSettings,
     /// Maximum size in bytes a single transaction can have in order to be accepted into the [`PreconfPool`].
-    max_tx_input_bytes: usize,
+    pub max_tx_input_bytes: usize,
+    /// TaiyiCore owner
+    pub owner: Address,
 }
 
 impl PreconfValidator {
@@ -24,13 +31,9 @@ impl PreconfValidator {
         minimum_prepay_fee: Option<u128>,
         kzg_settings: EnvKzgSettings,
         max_tx_input_bytes: usize,
+        owner: Address,
     ) -> Self {
-        Self { block_gas_limit, minimum_prepay_fee, kzg_settings, max_tx_input_bytes }
-    }
-
-    pub(crate) fn validate(&self, _preconf_req: &PreconfRequest) -> ValidationOutcome {
-        // Validate the transaction
-        todo!()
+        Self { block_gas_limit, minimum_prepay_fee, kzg_settings, max_tx_input_bytes, owner }
     }
 }
 
