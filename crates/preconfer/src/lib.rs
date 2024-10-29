@@ -10,6 +10,7 @@ mod preconfer;
 mod pricer;
 mod simulator;
 mod validator;
+mod storage_slots;
 
 pub use chainspec_builder::chainspec_builder;
 pub use preconf_api::spawn_service;
