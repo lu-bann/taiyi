@@ -27,6 +27,7 @@ reth-provider = { workspace = true }
 reth-payload-builder = { workspace = true }
 reth-node-types = { workspace = true }
 reth-node-ethereum = { workspace = true }
+reth-transaction-pool = { workspace = true }
 
 axum = { workspace = true }
 beacon-api-client = { workspace = true }

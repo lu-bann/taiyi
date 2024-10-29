@@ -4,8 +4,6 @@
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 
-pub(crate) mod constant;
-
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]
 pub(crate) struct PreconfValidator {

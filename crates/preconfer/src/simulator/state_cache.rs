@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::sync::Arc;
 
 use alloy_primitives::{Address, StorageKey, StorageValue, B256, U256};

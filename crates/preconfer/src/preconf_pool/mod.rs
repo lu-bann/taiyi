@@ -5,11 +5,12 @@ use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
+use reth_transaction_pool::validate::DEFAULT_MAX_TX_INPUT_BYTES;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::{
     error::PoolError,
-    validator::{constant::DEFAULT_MAX_TX_INPUT_BYTES, PreconfValidator, ValidationOutcome},
+    validator::{PreconfValidator, ValidationOutcome},
 };
 
 mod parked;
