@@ -30,15 +30,16 @@ mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs", rev = "a7
 parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 reqwest = { workspace = true }
+
 reth-chainspec = { workspace = true }
 reth-db = { workspace = true }
-
 reth-node-ethereum = { workspace = true }
 reth-node-types = { workspace = true }
 reth-payload-builder = { workspace = true }
 reth-provider = { workspace = true }
 reth-revm = { workspace = true }
 reth-transaction-pool = { workspace = true }
+
 serde = { workspace = true }
 serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
