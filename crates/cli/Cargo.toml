@@ -19,6 +19,6 @@ hex = "0.4.3"
 k256 = { workspace = true }
 taiyi-preconfer = { workspace = true }
 tiny-bip39 = "1"
-tokio-util = { workspace = true }
+# tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

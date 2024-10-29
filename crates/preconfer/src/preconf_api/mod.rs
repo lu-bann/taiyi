@@ -1,20 +1,28 @@
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+};
 
 use alloy_primitives::Address;
-use alloy_provider::{Provider, ProviderBuilder};
+use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use api::PreconfApiServer;
 use blst::min_pk::SecretKey;
-use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
+use ethereum_consensus::{
+    clock, deneb::Context, networks::Network, phase0::mainnet::SLOTS_PER_EPOCH,
+};
 use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
+    chainspec_builder,
     constraint_client::ConstraintClient,
+    create_provider_factory,
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     preconfer::Preconfer,
     pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
+    validator::ValidationJob,
 };
 
 mod api;
@@ -27,17 +35,17 @@ pub async fn spawn_service(
     execution_client_url: String,
     beacon_client_url: String,
     taiyi_service_url: Option<String>,
-    context: Context,
+    network: Network,
     preconfer_ip: IpAddr,
     preconfer_port: u16,
     bls_private_key: SecretKey,
     ecdsa_signer: PrivateKeySigner,
     relay_url: Vec<String>,
     owner: Address,
+    reth_data_dir: PathBuf,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_client_url).await?;
-    let chain_id = provider.get_chain_id().await?;
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, Vec::new());
     let network_state_cl = network_state.clone();
@@ -45,6 +53,15 @@ pub async fn spawn_service(
         ConstraintClient::new(relay_url.first().expect("relay_url is empty").clone())?;
 
     let bls_pk = bls_private_key.sk_to_pk();
+
+    let chain_spec = chainspec_builder(network.clone());
+    let chain_id = chain_spec.chain.id();
+    let provider_factory = create_provider_factory(&reth_data_dir, chain_spec);
+
+    // spawn validator
+    let _validation_job = ValidationJob::new(provider_factory.clone());
+
+    let context: Context = network.try_into()?;
 
     tokio::spawn(async move {
         if let Err(e) = run_cl_process(

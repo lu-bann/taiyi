@@ -3,11 +3,23 @@
 
 use alloy_primitives::Address;
 use parking_lot::RwLock;
+use reth_provider::{providers::ProviderNodeTypes, ProviderFactory};
 use reth_revm::primitives::EnvKzgSettings;
 use reth_transaction_pool::error::PoolError;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 
 use crate::preconf_pool::PreconfPoolInner;
+
+#[derive(Debug)]
+pub struct ValidationJob<N: ProviderNodeTypes> {
+    pub provider_factory: ProviderFactory<N>,
+}
+
+impl<N: ProviderNodeTypes + Clone + Send + 'static> ValidationJob<N> {
+    pub fn new(provider_factory: ProviderFactory<N>) -> Self {
+        Self { provider_factory }
+    }
+}
 
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]

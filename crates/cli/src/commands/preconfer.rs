@@ -6,10 +6,9 @@ use std::{
 use alloy_primitives::Address;
 use blst::min_pk::SecretKey;
 use clap::Parser;
-use ethereum_consensus::{deneb::Context, networks::Network};
+use ethereum_consensus::networks::Network;
 use eyre::eyre;
-use taiyi_preconfer::{chainspec_builder, create_provider_factory, spawn_service, SimulationPool};
-use tokio_util::sync::CancellationToken;
+use taiyi_preconfer::spawn_service;
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
@@ -72,9 +71,6 @@ pub struct PreconferCommand {
 impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
-        let chain_spec = chainspec_builder(network.clone());
-        let provider_factory = create_provider_factory(&self.reth_data_dir, chain_spec);
-        let context: Context = network.try_into()?;
 
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
         let taiyi_proposer_registry_contract_addr: Address =
@@ -91,22 +87,20 @@ impl PreconferCommand {
             )?)?,
         );
 
-        // spawn simulation service
-        let _simulation_pool = SimulationPool::new(provider_factory, 1, CancellationToken::new());
-
         spawn_service(
             taiyi_core_contract_addr,
             taiyi_proposer_registry_contract_addr,
             self.execution_client_url.clone(),
             self.beacon_client_url.clone(),
             self.taiyi_service_url.clone(),
-            context,
+            network,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
             bls_private_key,
             ecdsa_signer,
             self.relay_url.clone(),
             self.owner.parse()?,
+            self.reth_data_dir.clone(),
         )
         .await?;
 

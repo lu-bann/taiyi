@@ -117,6 +117,7 @@ impl PreconfPool {
         }
 
         // TODO: Check for Tip nonce
+        let _tip_nonce = preconf_req.tip_tx.nonce;
 
         // Check if target slot is in the future
         let target_slot = preconf_req.tip_tx.target_slot.to::<u64>();
