@@ -36,11 +36,10 @@ pub fn run_sim_worker<N: ProviderNodeTypes + Clone + Send + 'static>(
         while let Ok(task) = current_sim_ctx.requests.recv() {
             let state_provider = provider_factory
                 .history_by_block_hash(current_sim_ctx.block_ctx.attributes.parent)
-                .unwrap();
+                .expect("");
             let mut state_cache_db =
                 StateCacheDB::new(Arc::new(state_provider)).with_cached_reads(cached_reads.clone());
             let _sim_outcome = transact(task.tx, &mut state_cache_db);
-            
         }
     }
 }

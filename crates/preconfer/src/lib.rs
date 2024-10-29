@@ -9,10 +9,9 @@ mod preconf_pool;
 mod preconfer;
 mod pricer;
 mod simulator;
-mod validator;
 mod storage_slots;
+mod validator;
 
 pub use chainspec_builder::chainspec_builder;
 pub use preconf_api::spawn_service;
-pub use simulator::create_provider_factory;
-pub use simulator::SimulationPool;
+pub use simulator::{create_provider_factory, SimulationPool};

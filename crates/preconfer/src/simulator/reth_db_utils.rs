@@ -17,11 +17,11 @@ pub fn create_provider_factory(
 ) -> ProviderFactory<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>> {
     let reth_db_path = reth_datadir.join("db");
     let reth_static_files_path = reth_datadir.join("static_files");
-    let db = open_reth_db(&reth_db_path).unwrap();
+    let db = open_reth_db(&reth_db_path).expect("Failed to open reth db");
 
     ProviderFactory::<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>::new(
         db,
         chain_spec.clone(),
-        StaticFileProvider::read_only(reth_static_files_path.as_path(), false).unwrap(),
+        StaticFileProvider::read_only(reth_static_files_path.as_path(), false).expect(""),
     )
 }

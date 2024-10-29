@@ -33,7 +33,7 @@ impl StateCacheDB {
     pub fn owned_provider(self) -> Arc<StateProviderBox> {
         self.provider
     }
-    
+
     pub fn with_cached_reads(mut self, cached_reads: CachedReads) -> Self {
         self.cached_reads = cached_reads;
         self
@@ -47,7 +47,7 @@ impl StateCacheDB {
     pub fn new_db_ref(&mut self) -> StateCacheDBRef<impl Database<Error = ProviderError> + '_> {
         let state_provider = StateProviderDatabase::new(&self.provider);
         let cache_db = WrapDatabaseRef(self.cached_reads.as_db(state_provider));
-        let bundle_state = self.bundle_state.take().unwrap();
+        let bundle_state = self.bundle_state.take().expect("");
         let db = State::builder()
             .with_database(cache_db)
             .with_bundle_prestate(bundle_state)
@@ -77,7 +77,7 @@ impl StateCacheDB {
         storage_key: StorageKey,
     ) -> Result<StorageValue, ProviderError> {
         let mut db = self.new_db_ref();
-        Ok(db.as_mut().storage(address, storage_key.into())?)
+        Ok(db.as_mut().storage(address, storage_key.into()).unwrap_or_default())
     }
 }
 

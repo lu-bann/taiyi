@@ -1,7 +1,8 @@
-use ethereum_consensus::networks::Network;
-use alloy_genesis::Genesis;
-use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder, HOLESKY, MAINNET};
 use std::{fs::File, io::BufReader, sync::Arc};
+
+use alloy_genesis::Genesis;
+use ethereum_consensus::networks::Network;
+use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder, HOLESKY, MAINNET};
 
 pub fn chainspec_builder(network: Network) -> Arc<ChainSpec> {
     match network {

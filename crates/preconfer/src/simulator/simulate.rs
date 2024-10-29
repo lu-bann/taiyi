@@ -21,7 +21,7 @@ impl PreconfTxWrapper {
     fn fill_tx_env(&self, tx_env: &mut TxEnv, preconf_tx: PreconfTx) {
         tx_env.caller = preconf_tx.from;
         tx_env.transact_to = TransactTo::Call(preconf_tx.to);
-        tx_env.data = hex::decode(preconf_tx.call_data.clone()).unwrap().into();
+        tx_env.data = hex::decode(preconf_tx.call_data.clone()).expect("").into();
     }
 }
 

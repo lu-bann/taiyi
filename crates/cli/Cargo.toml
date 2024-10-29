@@ -11,8 +11,6 @@ alloy-provider = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 blst = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 
 clap = { workspace = true }
 ethereum-consensus = { workspace = true }
@@ -22,3 +20,5 @@ k256 = { workspace = true }
 taiyi-preconfer = { workspace = true }
 tiny-bip39 = "1"
 tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
