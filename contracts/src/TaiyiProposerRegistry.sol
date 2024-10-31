@@ -22,23 +22,22 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
      * @notice Registers a validator with the given BLS public key and stake
      * @param pubkey The BLS public key of the validator
      * @param signatureExpiry The expiry time of the signature
-     * @param signature The BLS signature proving control over the pubkey
      */
     function registerValidator(
         BLS12381.G1Point calldata pubkey,
         uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature,
+        // BLS12381.G2Point calldata signature,
         address delegatee
     )
         external
         payable
     {
         // Construct message to sign
-        bytes memory message = abi.encodePacked(ProposerStatus.OptIn, signatureExpiry, msg.sender);
+        // bytes memory message = abi.encodePacked(ProposerStatus.OptIn, signatureExpiry, msg.sender);
 
         // Verify BLS signature
         require(block.timestamp <= signatureExpiry, "Signature expired");
-        require(BLSSignatureChecker.verifySignature(message, signature, pubkey), "Invalid BLS signature");
+        // require(BLSSignatureChecker.verifySignature(message, signature, pubkey), "Invalid BLS signature");
 
         bytes32 pubKeyHash = _hashBLSPubKey(pubkey);
         require(validators[pubKeyHash].registrar == address(0), "Validator already registered");

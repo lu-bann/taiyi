@@ -60,11 +60,10 @@ interface IDelegationContract {
     /**
      * @notice Allows a validator to delegate preconfirmation duties to a preconfirmer
      * @param preconferElection The struct containing delegation details
-     * @param signature The BLS signature by the validator
      */
     function delegatePreconfDuty(
-        PreconferElection calldata preconferElection,
-        BLS12381.G2Point memory signature
+        PreconferElection calldata preconferElection
+        // BLS12381.G2Point memory signature
     )
         external;
 
@@ -80,9 +79,9 @@ interface IDelegationContract {
      * @param validatorPubKeyHash The hash of the validator's BLS public key
      */
     function revokeDelegation(
-        bytes32 validatorPubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
+        bytes32 validatorPubKeyHash
+        // uint256 signatureExpiry,
+        // BLS12381.G2Point calldata signature
     )
         external;
 }

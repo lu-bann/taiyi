@@ -55,29 +55,25 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
      * @param preconfirmer The address of the preconfirmer
      * @return True if registered, false otherwise
      */
-    function isRegisteredPreconfirmer(address preconfirmer) external view override returns (bool) {
+    function isRegisteredPreconfirmer(address preconfirmer) public view override returns (bool) {
         return registeredPreconfirmers[preconfirmer];
     }
 
     /**
      * @notice Allows a validator to delegate preconfirmation duties to a preconfirmer
      * @param preconferElection The struct containing delegation details
-     * @param signature The BLS signature by the validator
      */
-    function delegatePreconfDuty(
-        PreconferElection calldata preconferElection,
-        BLS12381.G2Point memory signature
-    )
+    function delegatePreconfDuty(PreconferElection calldata preconferElection)
+        // BLS12381.G2Point calldata signature
         external
     {
-        // Compute validator pubKeyHash
         bytes32 validatorPubKeyHash = _hashBLSPubKey(preconferElection.validatorPubkey);
 
-        // Retrieve validator information
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
-
         require(validator.status == IProposerRegistry.ProposerStatus.OptIn, "Validator not opted in");
+        require(isRegisteredPreconfirmer(preconferElection.preconferAddress), "Invalid preconfirmer");
+        require(validatorToPreconfirmer[validatorPubKeyHash] == address(0), "Validator already delegated");
 
         // Check cooldown period
         require(
@@ -89,10 +85,10 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         require(registeredPreconfirmers[preconferElection.preconferAddress], "Preconfirmer not registered");
 
         // Construct the message to be signed
-        bytes memory message = abi.encodePacked(preconferElection.preconferAddress);
+        // bytes memory message = abi.encodePacked(preconferElection.preconferAddress);
 
         // Verify BLS signature
-        require(verifySignature(message, signature, preconferElection.validatorPubkey), "Invalid BLS signature");
+        // require(verifySignature(message, signature, preconferElection.validatorPubkey), "Invalid BLS signature");
 
         // Update delegation mapping
         validatorToPreconfirmer[validatorPubKeyHash] = preconferElection.preconferAddress;
@@ -102,23 +98,21 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         emit ValidatorDelegated(validatorPubKeyHash, preconferElection.preconferAddress);
     }
 
-    function revokeDelegation(
-        bytes32 validatorPubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
-    )
+    function revokeDelegation(bytes32 validatorPubKeyHash)
+        // uint256 signatureExpiry
+        // BLS12381.G2Point calldata signature
         external
     {
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
         require(validatorToPreconfirmer[validatorPubKeyHash] != address(0), "No delegation to revoke");
-        require(block.timestamp <= signatureExpiry, "Signature expired");
+        // require(block.timestamp <= signatureExpiry, "Signature expired");
 
         // Construct message to sign (similar to how it's done in ProposerRegistry's initOptOut)
-        bytes memory message = abi.encodePacked(address(0), signatureExpiry);
+        // bytes memory message = abi.encodePacked(address(0), signatureExpiry);
 
         // Verify BLS signature
-        require(verifySignature(message, signature, validator.pubkey), "Invalid BLS signature");
+        // require(verifySignature(message, signature, validator.pubkey), "Invalid BLS signature");
 
         // Check cooldown period
         require(
@@ -151,5 +145,14 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     function _hashBLSPubKey(BLS12381.G1Point memory pubkey) internal pure returns (bytes32) {
         uint256[2] memory compressedPubKey = pubkey.compress();
         return keccak256(abi.encodePacked(compressedPubKey));
+    }
+
+    /**
+     * @notice Public wrapper for _hashBLSPubKey function
+     * @param pubkey The BLS public key to hash
+     * @return bytes32 Hash of the compressed BLS public key
+     */
+    function hashBLSPubKey(BLS12381.G1Point memory pubkey) public pure returns (bytes32) {
+        return _hashBLSPubKey(pubkey);
     }
 }
