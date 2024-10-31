@@ -29,7 +29,8 @@ contract TaiyiEscrowTest is Test {
 
         vm.deal(user, 100 ether);
 
-        core = new TaiyiCore(owner, 1_606_824_023);
+        // TODO: remove this address(0) with proposer registry address
+        core = new TaiyiCore(owner, 1_606_824_023, address(0));
     }
 
     function testDeposit() public {
