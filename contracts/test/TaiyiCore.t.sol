@@ -48,7 +48,9 @@ contract TaiyiCoreTest is Test {
         vm.deal(owner, 100 ether);
 
         vm.warp(genesisTimestamp);
-        taiyiCore = new TaiyiCore(owner, genesisTimestamp);
+
+        // TODO: remove this address(0) with proposer registry address
+        taiyiCore = new TaiyiCore(owner, genesisTimestamp, address(0));
     }
 
     function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {

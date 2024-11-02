@@ -8,17 +8,18 @@ import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
 import "../src/TaiyiEscrow.sol";
 import "../src/interfaces/ITaiyiCore.sol";
 
-contract DeployHelder is Script, Test {
+contract Deploy is Script, Test {
     function run() public {
         vm.startBroadcast();
 
-        // 	0x83c8c0B395850bA55c830451Cfaca4F2A667a983 is just dummy address for testing
-        TaiyiCore taiyiCore = new TaiyiCore(msg.sender, 1_718_967_600);
+        uint256 genesis_timestamp = vm.envUint("GENESIS_TIMESTAMP");
+        console.log("genesis timestamp: ", genesis_timestamp);
 
+        TaiyiProposerRegistry taiyiProposerRegistry = new TaiyiProposerRegistry();
+        emit log_address(address(taiyiProposerRegistry));
+
+        TaiyiCore taiyiCore = new TaiyiCore(msg.sender, genesis_timestamp, address(taiyiProposerRegistry));
         emit log_address(address(taiyiCore));
-
-        // ProposerRegistry taiyiProposerRegistry = new ProposerRegistry();
-        // emit log_address(address(taiyiProposerRegistry));
 
         vm.stopBroadcast();
     }
