@@ -18,18 +18,22 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
 
     //////// REGISTRATION ////////
 
+    function registerValidator(bytes calldata pubkey, address delegatee) external payable {
+        _registerValidator(pubkey, delegatee, msg.sender);
+    }
+
     /**
      * @notice Registers a validator with the given BLS public key and stake
      * @param pubkey The BLS public key of the validator
      */
-    function registerValidator(
+    function _registerValidator(
         bytes calldata pubkey,
         // uint256 signatureExpiry,
         // BLS12381.G2Point calldata signature,
-        address delegatee
+        address delegatee,
+        address sender
     )
-        external
-        payable
+        private
     {
         // Construct message to sign
         // bytes memory message = abi.encodePacked(ProposerStatus.OptIn, signatureExpiry, msg.sender);
@@ -55,7 +59,7 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
 
     function batchRegisterValidators(bytes[] calldata pubkeys, address[] calldata delegatees) external payable {
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            this.registerValidator(pubkeys[i], delegatees[i]);
+            _registerValidator(pubkeys[i], delegatees[i], msg.sender);
         }
     }
 

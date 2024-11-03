@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "./interfaces/IDelegationContract.sol";
 import "./interfaces/IProposerRegistry.sol";
 import { EnumerableMap } from "open-zeppelin/utils/structs/EnumerableMap.sol";
+import { Strings } from "open-zeppelin/utils/Strings.sol";
 import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 
@@ -59,11 +60,15 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         return registeredPreconfers[Preconfer];
     }
 
+    function delegatePreconfDuty(PreconferElection calldata preconferElection) external {
+        _delegatePreconfDuty(preconferElection, msg.sender);
+    }
+
     /**
      * @notice Allows a validator to delegate preconfirmation duties to a Preconfer
      * @param preconferElection The struct containing delegation details
      */
-    function delegatePreconfDuty(PreconferElection calldata preconferElection) external {
+    function _delegatePreconfDuty(PreconferElection calldata preconferElection, address sender) internal {
         bytes32 validatorPubKeyHash = hashBLSPubKey(preconferElection.validatorPubkey);
 
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
@@ -88,7 +93,12 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         // require(verifySignature(message, signature, preconferElection.validatorPubkey), "Invalid BLS signature");
 
         // Update delegation mapping
-        validatorToPreconfer[validatorPubKeyHash].preconferAddress = preconferElection.preconferAddress;
+        validatorToPreconfer[validatorPubKeyHash] = PreconferElection({
+            preconferAddress: preconferElection.preconferAddress,
+            validatorPubkey: preconferElection.validatorPubkey,
+            chainId: preconferElection.chainId,
+            preconferPubkey: preconferElection.preconferPubkey
+        });
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
         validator.delegatee = preconferElection.preconferAddress;
 
@@ -97,7 +107,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
 
     function batchDelegatePreconfDuty(PreconferElection[] calldata preconferElections) external {
         for (uint256 i = 0; i < preconferElections.length; i++) {
-            this.delegatePreconfDuty(preconferElections[i]);
+            _delegatePreconfDuty(preconferElections[i], msg.sender);
         }
     }
 
@@ -129,6 +139,16 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         validator.delegatee = address(0);
 
         emit DelegationRevoked(validatorPubKeyHash, Preconfer);
+    }
+
+    function getDelegatedPreconfer(bytes calldata validatorPubKey) external view returns (address) {
+        bytes32 validatorPubKeyHash = hashBLSPubKey(validatorPubKey);
+        return validatorToPreconfer[validatorPubKeyHash].preconferAddress;
+    }
+
+    function getPreconferElection(bytes calldata validatorPubKey) external view returns (PreconferElection memory) {
+        bytes32 validatorPubKeyHash = hashBLSPubKey(validatorPubKey);
+        return validatorToPreconfer[validatorPubKeyHash];
     }
 
     /**
