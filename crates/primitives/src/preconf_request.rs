@@ -168,6 +168,7 @@ mod tests {
             U256::from(21000),
             U256::from(1),
             Bytes::default(),
+            None,
         );
 
         let preconf_req = PreconfRequest {

@@ -72,6 +72,7 @@ async fn main() -> eyre::Result<()> {
         call_gas_limit: U256::from(1000000),
         nonce: preconf_nonce,
         signature: Default::default(),
+        permit_data: Default::default(),
     };
     let preconf_hash = preconf_tx.hash();
     let preconf_sig: Vec<u8> = signer.sign_hash_sync(&preconf_hash)?.into();

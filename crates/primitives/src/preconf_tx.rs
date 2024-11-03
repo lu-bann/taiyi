@@ -12,10 +12,12 @@ pub struct PreconfTx {
     pub call_gas_limit: U256, // Gas limit for the call
     pub nonce: U256,          // Transaction nonce which depends on the contract
     pub signature: Bytes,     // Transaction ECDSA signature bytes
+    pub permit_data: Option<PermitData>,
 }
 
 impl PreconfTx {
     // Constructor for PreconfTx
+    #![allow(clippy::too_many_arguments)]
     pub fn new(
         from: Address,
         to: Address,
@@ -24,8 +26,9 @@ impl PreconfTx {
         call_gas_limit: U256,
         nonce: U256,
         signature: Bytes,
+        permit_data: Option<PermitData>,
     ) -> Self {
-        PreconfTx { from, to, value, call_data, call_gas_limit, nonce, signature }
+        PreconfTx { from, to, value, call_data, call_gas_limit, nonce, signature, permit_data }
     }
 
     pub fn abi_encode(&self) -> Bytes {
@@ -41,6 +44,15 @@ impl PreconfTx {
     pub fn gas_limit(&self) -> U256 {
         self.call_gas_limit
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PermitData {
+    pub value: U256,
+    pub deadline: U256,
+    pub v: u8,
+    pub r: B256,
+    pub s: B256,
 }
 
 #[cfg(test)]
@@ -59,6 +71,7 @@ mod tests {
             U256::from(21000),
             U256::from(1),
             Bytes::default(),
+            None,
         );
 
         let hash = preconf_tx.hash();
@@ -78,6 +91,7 @@ mod tests {
             U256::from(21000),
             U256::from(1),
             Bytes::default(),
+            None,
         );
 
         let hash = preconf_tx.hash();
