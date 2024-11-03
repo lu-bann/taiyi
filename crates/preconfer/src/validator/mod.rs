@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use alloy_primitives::U256;
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
 
@@ -30,9 +31,15 @@ impl PreconfValidator {
         Self { block_gas_limit, minimum_prepay_fee, kzg_settings, max_tx_input_bytes }
     }
 
-    pub(crate) fn validate(&self, _preconf_req: &PreconfRequest) -> ValidationOutcome {
-        // Validate the transaction
-        todo!()
+    pub(crate) fn validate(
+        &self,
+        preconf_req: &PreconfRequest,
+        chain_id: u64,
+    ) -> ValidationOutcome {
+        ValidationOutcome::Valid {
+            simulate: true,
+            preconf_hash: preconf_req.hash(U256::from(chain_id)),
+        }
     }
 }
 

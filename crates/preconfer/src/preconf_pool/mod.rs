@@ -58,9 +58,13 @@ impl PreconfPool {
         }
     }
 
-    pub fn request_inclusion(&self, preconf_req: PreconfRequest) -> Result<PoolState, PoolError> {
+    pub fn request_inclusion(
+        &self,
+        preconf_req: PreconfRequest,
+        chain_id: u64,
+    ) -> Result<PoolState, PoolError> {
         // validate the preconf request
-        let validation_outcome = self.validator.validate(&preconf_req);
+        let validation_outcome = self.validator.validate(&preconf_req, chain_id);
 
         match validation_outcome {
             ValidationOutcome::Valid { simulate, preconf_hash } => {

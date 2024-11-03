@@ -199,6 +199,21 @@ where
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
+
+        // TODO: currently only reqs for the Ready sub-pool are accepted, change this later.
+        // Note: It is assumed that there're no other requests from the same sender in the same slot
+        // PreconfTx must be present
+        if preconf_request.preconf_tx.is_none() {
+            return Err(RpcError::UnknownError("PreconfTx must be present".to_string()));
+        }
+
+        // Target slot must be the next slot
+        if preconf_request.tip_tx.target_slot
+            != U256::from(self.network_state.get_current_slot() + 1)
+        {
+            return Err(RpcError::UnknownError("Target slot must be the next slot".to_string()));
+        }
+
         let preconf_hash = preconf_request.hash(U256::from(chain_id));
         let preconfer_signature =
             self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
@@ -214,7 +229,7 @@ where
             .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
             .await?;
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone()) {
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
             Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
                 let preconf_req_signature = self
                     .ecdsa_signer
@@ -248,6 +263,7 @@ where
         preconf_req_hash: PreconfHash,
         preconf_tx: PreconfTx,
     ) -> Result<PreconfResponse, RpcError> {
+        let chain_id = self.get_chain_id().await?;
         let mut preconf_request = self
             .preconf_pool
             .get_parked(&preconf_req_hash)
@@ -257,7 +273,7 @@ where
         }
         preconf_request.preconf_tx = Some(preconf_tx.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone()) {
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
             Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
                 let preconf_req_signature = self
                     .ecdsa_signer
