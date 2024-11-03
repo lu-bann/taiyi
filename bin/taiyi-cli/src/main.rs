@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
-use taiyi_cmd::{initialize_tracing_log, DelegateCommand, DepositCommand};
+use taiyi_cmd::{
+    initialize_tracing_log, BatchDelegateCommand, DelegateCommand, DepositCommand,
+    GetDelegatedPreconferCommand, RegisterPreconferCommand,
+};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi-cli", long_about = None)]
@@ -17,6 +20,15 @@ pub enum Commands {
 
     #[command(name = "delegate")]
     Delegate(DelegateCommand),
+
+    #[command(name = "batch-delegate")]
+    BatchDelegate(BatchDelegateCommand),
+
+    #[command(name = "get-delegated-preconfer")]
+    GetDelegatedPreconfer(GetDelegatedPreconferCommand),
+
+    #[command(name = "register-preconfer")]
+    RegisterPreconfer(RegisterPreconferCommand),
 }
 
 fn main() -> eyre::Result<()> {
@@ -29,5 +41,8 @@ fn main() -> eyre::Result<()> {
     match cli.command {
         Commands::Deposit(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::Delegate(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::BatchDelegate(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::GetDelegatedPreconfer(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::RegisterPreconfer(cmd) => runtime.block_on(async { cmd.execute().await }),
     }
 }
