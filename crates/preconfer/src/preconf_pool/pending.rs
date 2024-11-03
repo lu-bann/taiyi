@@ -28,7 +28,7 @@ impl Pending {
         self.by_hash.contains_key(key)
     }
 
-    pub fn on_new_slot(
+    pub fn remove_preconfs_for_slot(
         &mut self,
         slot: u64,
     ) -> Result<HashMap<PreconfHash, PreconfRequest>, PoolError> {
@@ -43,7 +43,7 @@ impl Pending {
             }
             Ok(preconfs)
         } else {
-            Err(PoolError::SlotNotReady(slot))
+            Err(PoolError::SlotNotFound(slot))
         }
     }
 }
