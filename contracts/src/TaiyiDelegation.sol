@@ -14,11 +14,11 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     // Reference to the TaiyiProposerRegistry
     IProposerRegistry public proposerRegistry;
 
-    // Mapping to track registered preconfirmers
-    mapping(address => bool) public registeredPreconfirmers;
+    // Mapping to track registered Preconfers
+    mapping(address => bool) public registeredPreconfers;
 
-    // Mapping from validator pubKeyHash to preconfirmer address
-    mapping(bytes32 => PreconferElection) public validatorToPreconfirmer;
+    // Mapping from validator pubKeyHash to Preconfer address
+    mapping(bytes32 => PreconferElection) public validatorToPreconfer;
 
     // Mapping to prevent frequent delegation changes (DDOS mitigation)
     mapping(bytes32 => uint256) public lastDelegationChangeTimestamp;
@@ -31,36 +31,36 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     }
 
     /**
-     * @notice Registers a preconfirmer to allow them to receive delegations
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Registers a Preconfer to allow them to receive delegations
+     * @param Preconfer The address of the Preconfer
      */
-    function registerPreconfirmer(address preconfirmer) external override {
-        require(!registeredPreconfirmers[preconfirmer], "Already registered");
-        registeredPreconfirmers[preconfirmer] = true;
-        emit PreconfirmerRegistered(preconfirmer);
+    function registerPreconfer(address Preconfer) external override {
+        require(!registeredPreconfers[Preconfer], "Already registered");
+        registeredPreconfers[Preconfer] = true;
+        emit PreconferRegistered(Preconfer);
     }
 
     /**
-     * @notice Deregisters a preconfirmer
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Deregisters a Preconfer
+     * @param Preconfer The address of the Preconfer
      */
-    function deregisterPreconfirmer(address preconfirmer) external override {
-        require(registeredPreconfirmers[preconfirmer], "Not registered");
-        registeredPreconfirmers[preconfirmer] = false;
-        emit PreconfirmerDeregistered(preconfirmer);
+    function deregisterPreconfer(address Preconfer) external override {
+        require(registeredPreconfers[Preconfer], "Not registered");
+        registeredPreconfers[Preconfer] = false;
+        emit PreconferDeregistered(Preconfer);
     }
 
     /**
-     * @notice Checks if a preconfirmer is registered
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Checks if a Preconfer is registered
+     * @param Preconfer The address of the Preconfer
      * @return True if registered, false otherwise
      */
-    function isRegisteredPreconfirmer(address preconfirmer) public view override returns (bool) {
-        return registeredPreconfirmers[preconfirmer];
+    function isRegisteredPreconfer(address Preconfer) public view override returns (bool) {
+        return registeredPreconfers[Preconfer];
     }
 
     /**
-     * @notice Allows a validator to delegate preconfirmation duties to a preconfirmer
+     * @notice Allows a validator to delegate preconfirmation duties to a Preconfer
      * @param preconferElection The struct containing delegation details
      */
     function delegatePreconfDuty(PreconferElection calldata preconferElection) external {
@@ -69,10 +69,8 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
         require(validator.status == IProposerRegistry.ProposerStatus.OptIn, "Validator not opted in");
-        require(isRegisteredPreconfirmer(preconferElection.preconferAddress), "Invalid preconfirmer");
-        require(
-            validatorToPreconfirmer[validatorPubKeyHash].preconferAddress == address(0), "Validator already delegated"
-        );
+        require(isRegisteredPreconfer(preconferElection.preconferAddress), "Invalid Preconfer");
+        require(validatorToPreconfer[validatorPubKeyHash].preconferAddress == address(0), "Validator already delegated");
 
         // Check cooldown period
         require(
@@ -80,8 +78,8 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
             "Delegation change cooldown active"
         );
 
-        // Verify that the preconfirmer is registered
-        require(registeredPreconfirmers[preconferElection.preconferAddress], "Preconfirmer not registered");
+        // Verify that the Preconfer is registered
+        require(registeredPreconfers[preconferElection.preconferAddress], "Preconfer not registered");
 
         // Construct the message to be signed
         // bytes memory message = abi.encodePacked(preconferElection.preconferAddress);
@@ -90,7 +88,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         // require(verifySignature(message, signature, preconferElection.validatorPubkey), "Invalid BLS signature");
 
         // Update delegation mapping
-        validatorToPreconfirmer[validatorPubKeyHash].preconferAddress = preconferElection.preconferAddress;
+        validatorToPreconfer[validatorPubKeyHash].preconferAddress = preconferElection.preconferAddress;
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
         validator.delegatee = preconferElection.preconferAddress;
 
@@ -110,7 +108,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     {
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
-        require(validatorToPreconfirmer[validatorPubKeyHash].preconferAddress != address(0), "No delegation to revoke");
+        require(validatorToPreconfer[validatorPubKeyHash].preconferAddress != address(0), "No delegation to revoke");
         // require(block.timestamp <= signatureExpiry, "Signature expired");
 
         // Construct message to sign (similar to how it's done in ProposerRegistry's initOptOut)
@@ -125,21 +123,21 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
             "Delegation change cooldown active"
         );
 
-        address preconfirmer = validatorToPreconfirmer[validatorPubKeyHash].preconferAddress;
-        validatorToPreconfirmer[validatorPubKeyHash].preconferAddress = address(0);
+        address Preconfer = validatorToPreconfer[validatorPubKeyHash].preconferAddress;
+        validatorToPreconfer[validatorPubKeyHash].preconferAddress = address(0);
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
         validator.delegatee = address(0);
 
-        emit DelegationRevoked(validatorPubKeyHash, preconfirmer);
+        emit DelegationRevoked(validatorPubKeyHash, Preconfer);
     }
 
     /**
-     * @notice Retrieves the delegated preconfirmer for a validator
+     * @notice Retrieves the delegated Preconfer for a validator
      * @param validatorPubKeyHash The hash of the validator's BLS public key
-     * @return The address of the delegated preconfirmer
+     * @return The address of the delegated Preconfer
      */
-    function getDelegatedPreconfirmer(bytes32 validatorPubKeyHash) external view override returns (address) {
-        return validatorToPreconfirmer[validatorPubKeyHash].preconferAddress;
+    function getDelegatedPreconfer(bytes32 validatorPubKeyHash) external view override returns (address) {
+        return validatorToPreconfer[validatorPubKeyHash].preconferAddress;
     }
 
     /**

@@ -5,30 +5,30 @@ import { BLS12381 } from "../libs/BLS12381.sol";
 
 interface IDelegationContract {
     /**
-     * @notice Event emitted when a preconfirmer is registered
-     * @param preconfirmer The address of the registered preconfirmer
+     * @notice Event emitted when a Preconfer is registered
+     * @param Preconfer The address of the registered Preconfer
      */
-    event PreconfirmerRegistered(address indexed preconfirmer);
+    event PreconferRegistered(address indexed Preconfer);
 
     /**
-     * @notice Event emitted when a validator delegates to a preconfirmer
+     * @notice Event emitted when a validator delegates to a Preconfer
      * @param validatorPubKeyHash The hash of the validator's BLS public key
-     * @param preconfirmer The address of the preconfirmer
+     * @param Preconfer The address of the Preconfer
      */
-    event ValidatorDelegated(bytes32 indexed validatorPubKeyHash, address indexed preconfirmer);
+    event ValidatorDelegated(bytes32 indexed validatorPubKeyHash, address indexed Preconfer);
 
     /**
-     * @notice Event emitted when a preconfirmer is deregistered
-     * @param preconfirmer The address of the deregistered preconfirmer
+     * @notice Event emitted when a Preconfer is deregistered
+     * @param Preconfer The address of the deregistered Preconfer
      */
-    event PreconfirmerDeregistered(address indexed preconfirmer);
+    event PreconferDeregistered(address indexed Preconfer);
 
     /**
      * @notice Event emitted when a delegation is revoked
      * @param validatorPubKeyHash The hash of the validator's BLS public key
-     * @param preconfirmer The address of the preconfirmer
+     * @param Preconfer The address of the Preconfer
      */
-    event DelegationRevoked(bytes32 indexed validatorPubKeyHash, address indexed preconfirmer);
+    event DelegationRevoked(bytes32 indexed validatorPubKeyHash, address indexed Preconfer);
 
     /**
      * @notice Struct representing the preconfer election details
@@ -41,26 +41,26 @@ interface IDelegationContract {
     }
 
     /**
-     * @notice Registers a preconfirmer to allow them to receive delegations
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Registers a Preconfer to allow them to receive delegations
+     * @param Preconfer The address of the Preconfer
      */
-    function registerPreconfirmer(address preconfirmer) external;
+    function registerPreconfer(address Preconfer) external;
 
     /**
-     * @notice Deregisters a preconfirmer
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Deregisters a Preconfer
+     * @param Preconfer The address of the Preconfer
      */
-    function deregisterPreconfirmer(address preconfirmer) external;
+    function deregisterPreconfer(address Preconfer) external;
 
     /**
-     * @notice Checks if a preconfirmer is registered
-     * @param preconfirmer The address of the preconfirmer
+     * @notice Checks if a Preconfer is registered
+     * @param Preconfer The address of the Preconfer
      * @return True if registered, false otherwise
      */
-    function isRegisteredPreconfirmer(address preconfirmer) external view returns (bool);
+    function isRegisteredPreconfer(address Preconfer) external view returns (bool);
 
     /**
-     * @notice Allows a validator to delegate preconfirmation duties to a preconfirmer
+     * @notice Allows a validator to delegate preconfirmation duties to a Preconfer
      * @param preconferElection The struct containing delegation details
      */
     function delegatePreconfDuty(PreconferElection calldata preconferElection)
@@ -68,11 +68,11 @@ interface IDelegationContract {
         external;
 
     /**
-     * @notice Retrieves the delegated preconfirmer for a validator
+     * @notice Retrieves the delegated Preconfer for a validator
      * @param validatorPubKeyHash The hash of the validator's BLS public key
-     * @return The address of the delegated preconfirmer
+     * @return The address of the delegated Preconfer
      */
-    function getDelegatedPreconfirmer(bytes32 validatorPubKeyHash) external view returns (address);
+    function getDelegatedPreconfer(bytes32 validatorPubKeyHash) external view returns (address);
 
     /**
      * @notice Allows a validator to revoke their delegation

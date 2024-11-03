@@ -10,7 +10,7 @@ contract TaiyiDelegationTest is Test {
     IProposerRegistry public mockRegistry;
 
     address constant registrar = address(0x456);
-    address constant preconfirmer = address(0x123);
+    address constant Preconfer = address(0x123);
     bytes32 constant mockValidatorPubKeyHash = bytes32(uint256(1));
 
     function setUp() public {
@@ -18,18 +18,18 @@ contract TaiyiDelegationTest is Test {
         delegation = new TaiyiDelegation(address(mockRegistry));
 
         vm.prank(address(this));
-        delegation.registerPreconfirmer(preconfirmer);
+        delegation.registerPreconfer(Preconfer);
     }
 
-    function testRegisterPreconfirmer() public {
-        address newPreconfirmer = address(0x789);
-        delegation.registerPreconfirmer(newPreconfirmer);
-        assertTrue(delegation.isRegisteredPreconfirmer(newPreconfirmer));
+    function testRegisterPreconfer() public {
+        address newPreconfer = address(0x789);
+        delegation.registerPreconfer(newPreconfer);
+        assertTrue(delegation.isRegisteredPreconfer(newPreconfer));
     }
 
-    function testDeregisterPreconfirmer() public {
-        delegation.deregisterPreconfirmer(preconfirmer);
-        assertFalse(delegation.isRegisteredPreconfirmer(preconfirmer));
+    function testDeregisterPreconfer() public {
+        delegation.deregisterPreconfer(Preconfer);
+        assertFalse(delegation.isRegisteredPreconfer(Preconfer));
     }
 
     function testDelegatePreconfDuty() public {
@@ -54,7 +54,7 @@ contract TaiyiDelegationTest is Test {
         // Create delegation request
         TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
             validatorPubkey: pubkey,
-            preconferAddress: preconfirmer,
+            preconferAddress: Preconfer,
             chainId: 1,
             preconferPubkey: pubkey
         });
@@ -64,7 +64,7 @@ contract TaiyiDelegationTest is Test {
         delegation.delegatePreconfDuty(election);
 
         // Verify delegation was recorded
-        assertEq(delegation.getDelegatedPreconfirmer(validatorHash), preconfirmer);
+        assertEq(delegation.getDelegatedPreconfer(validatorHash), Preconfer);
     }
 
     function testRevokeDelegation() public {
@@ -80,7 +80,7 @@ contract TaiyiDelegationTest is Test {
 
         TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
             validatorPubkey: pubkey,
-            preconferAddress: preconfirmer,
+            preconferAddress: Preconfer,
             chainId: 1,
             preconferPubkey: pubkey
         });
@@ -88,7 +88,7 @@ contract TaiyiDelegationTest is Test {
         vm.prank(registrar);
         delegation.delegatePreconfDuty(election);
 
-        assertEq(delegation.getDelegatedPreconfirmer(validatorHash), preconfirmer);
+        assertEq(delegation.getDelegatedPreconfer(validatorHash), Preconfer);
 
         vm.warp(block.timestamp + delegation.DELEGATION_CHANGE_COOLDOWN() + 1);
 
@@ -97,6 +97,6 @@ contract TaiyiDelegationTest is Test {
         delegation.revokeDelegation(validatorHash);
 
         // Verify delegation was revoked
-        assertEq(delegation.getDelegatedPreconfirmer(validatorHash), address(0));
+        assertEq(delegation.getDelegatedPreconfer(validatorHash), address(0));
     }
 }
