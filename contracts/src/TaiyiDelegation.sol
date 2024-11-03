@@ -18,7 +18,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     mapping(address => bool) public registeredPreconfirmers;
 
     // Mapping from validator pubKeyHash to preconfirmer address
-    mapping(bytes32 => address) public validatorToPreconfirmer;
+    mapping(bytes32 => PreconferElection) public validatorToPreconfirmer;
 
     // Mapping to prevent frequent delegation changes (DDOS mitigation)
     mapping(bytes32 => uint256) public lastDelegationChangeTimestamp;
@@ -63,17 +63,16 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
      * @notice Allows a validator to delegate preconfirmation duties to a preconfirmer
      * @param preconferElection The struct containing delegation details
      */
-    function delegatePreconfDuty(PreconferElection calldata preconferElection)
-        // BLS12381.G2Point calldata signature
-        external
-    {
-        bytes32 validatorPubKeyHash = _hashBLSPubKey(preconferElection.validatorPubkey);
+    function delegatePreconfDuty(PreconferElection calldata preconferElection) external {
+        bytes32 validatorPubKeyHash = hashBLSPubKey(preconferElection.validatorPubkey);
 
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
         require(validator.status == IProposerRegistry.ProposerStatus.OptIn, "Validator not opted in");
         require(isRegisteredPreconfirmer(preconferElection.preconferAddress), "Invalid preconfirmer");
-        require(validatorToPreconfirmer[validatorPubKeyHash] == address(0), "Validator already delegated");
+        require(
+            validatorToPreconfirmer[validatorPubKeyHash].preconferAddress == address(0), "Validator already delegated"
+        );
 
         // Check cooldown period
         require(
@@ -91,11 +90,17 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         // require(verifySignature(message, signature, preconferElection.validatorPubkey), "Invalid BLS signature");
 
         // Update delegation mapping
-        validatorToPreconfirmer[validatorPubKeyHash] = preconferElection.preconferAddress;
+        validatorToPreconfirmer[validatorPubKeyHash].preconferAddress = preconferElection.preconferAddress;
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
         validator.delegatee = preconferElection.preconferAddress;
 
         emit ValidatorDelegated(validatorPubKeyHash, preconferElection.preconferAddress);
+    }
+
+    function batchDelegatePreconfDuty(PreconferElection[] calldata preconferElections) external {
+        for (uint256 i = 0; i < preconferElections.length; i++) {
+            this.delegatePreconfDuty(preconferElections[i]);
+        }
     }
 
     function revokeDelegation(bytes32 validatorPubKeyHash)
@@ -105,7 +110,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
     {
         IProposerRegistry.Validator memory validator = proposerRegistry.getValidator(validatorPubKeyHash);
         require(validator.registrar == msg.sender, "Caller is not validator registrar");
-        require(validatorToPreconfirmer[validatorPubKeyHash] != address(0), "No delegation to revoke");
+        require(validatorToPreconfirmer[validatorPubKeyHash].preconferAddress != address(0), "No delegation to revoke");
         // require(block.timestamp <= signatureExpiry, "Signature expired");
 
         // Construct message to sign (similar to how it's done in ProposerRegistry's initOptOut)
@@ -120,8 +125,8 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
             "Delegation change cooldown active"
         );
 
-        address preconfirmer = validatorToPreconfirmer[validatorPubKeyHash];
-        validatorToPreconfirmer[validatorPubKeyHash] = address(0);
+        address preconfirmer = validatorToPreconfirmer[validatorPubKeyHash].preconferAddress;
+        validatorToPreconfirmer[validatorPubKeyHash].preconferAddress = address(0);
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
         validator.delegatee = address(0);
 
@@ -134,7 +139,7 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
      * @return The address of the delegated preconfirmer
      */
     function getDelegatedPreconfirmer(bytes32 validatorPubKeyHash) external view override returns (address) {
-        return validatorToPreconfirmer[validatorPubKeyHash];
+        return validatorToPreconfirmer[validatorPubKeyHash].preconferAddress;
     }
 
     /**
@@ -142,17 +147,8 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
      * @param pubkey The BLS public key
      * @return Hash of the compressed BLS public key
      */
-    function _hashBLSPubKey(BLS12381.G1Point memory pubkey) internal pure returns (bytes32) {
-        uint256[2] memory compressedPubKey = pubkey.compress();
-        return keccak256(abi.encodePacked(compressedPubKey));
-    }
-
-    /**
-     * @notice Public wrapper for _hashBLSPubKey function
-     * @param pubkey The BLS public key to hash
-     * @return bytes32 Hash of the compressed BLS public key
-     */
-    function hashBLSPubKey(BLS12381.G1Point memory pubkey) public pure returns (bytes32) {
-        return _hashBLSPubKey(pubkey);
+    function hashBLSPubKey(bytes memory pubkey) public pure returns (bytes32) {
+        // uint256[2] memory compressedPubKey = pubkey.compress();
+        return keccak256(pubkey);
     }
 }

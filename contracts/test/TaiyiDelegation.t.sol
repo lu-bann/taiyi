@@ -33,7 +33,7 @@ contract TaiyiDelegationTest is Test {
     }
 
     function testDelegatePreconfDuty() public {
-        BLS12381.G1Point memory pubkey = BLS12381.G1Point({ x: [uint256(0), uint256(0)], y: [uint256(0), uint256(0)] });
+        bytes memory pubkey = hex"8b91b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1";
 
         bytes32 validatorHash = delegation.hashBLSPubKey(pubkey);
 
@@ -41,7 +41,7 @@ contract TaiyiDelegationTest is Test {
         vm.prank(registrar);
         TaiyiProposerRegistry(address(mockRegistry)).registerValidator(
             pubkey,
-            block.timestamp + 1 days,
+            // block.timestamp + 1 days,
             // BLS12381.G2Point({
             //     x: [uint256(0), uint256(0)],
             //     x_I: [uint256(0), uint256(0)],
@@ -52,8 +52,12 @@ contract TaiyiDelegationTest is Test {
         );
 
         // Create delegation request
-        TaiyiDelegation.PreconferElection memory election =
-            IDelegationContract.PreconferElection({ validatorPubkey: pubkey, preconferAddress: preconfirmer });
+        TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
+            validatorPubkey: pubkey,
+            preconferAddress: preconfirmer,
+            chainId: 1,
+            preconferPubkey: pubkey
+        });
 
         // Execute delegation
         vm.prank(registrar);
@@ -65,17 +69,21 @@ contract TaiyiDelegationTest is Test {
 
     function testRevokeDelegation() public {
         // Setup validator in registry
-        BLS12381.G1Point memory pubkey = BLS12381.G1Point({ x: [uint256(0), uint256(0)], y: [uint256(0), uint256(0)] });
+        bytes memory pubkey = hex"8b91b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1";
 
         // Calculate hash using the same function as in TaiyiDelegation
         bytes32 validatorHash = delegation.hashBLSPubKey(pubkey);
 
         // Register validator in registry
         vm.prank(registrar);
-        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(pubkey, block.timestamp + 1 days, address(0));
+        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(pubkey, address(0));
 
-        TaiyiDelegation.PreconferElection memory election =
-            IDelegationContract.PreconferElection({ validatorPubkey: pubkey, preconferAddress: preconfirmer });
+        TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
+            validatorPubkey: pubkey,
+            preconferAddress: preconfirmer,
+            chainId: 1,
+            preconferPubkey: pubkey
+        });
 
         vm.prank(registrar);
         delegation.delegatePreconfDuty(election);

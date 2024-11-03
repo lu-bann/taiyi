@@ -21,11 +21,10 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
     /**
      * @notice Registers a validator with the given BLS public key and stake
      * @param pubkey The BLS public key of the validator
-     * @param signatureExpiry The expiry time of the signature
      */
     function registerValidator(
-        BLS12381.G1Point calldata pubkey,
-        uint256 signatureExpiry,
+        bytes calldata pubkey,
+        // uint256 signatureExpiry,
         // BLS12381.G2Point calldata signature,
         address delegatee
     )
@@ -36,7 +35,7 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
         // bytes memory message = abi.encodePacked(ProposerStatus.OptIn, signatureExpiry, msg.sender);
 
         // Verify BLS signature
-        require(block.timestamp <= signatureExpiry, "Signature expired");
+        // require(block.timestamp <= signatureExpiry, "Signature expired");
         // require(BLSSignatureChecker.verifySignature(message, signature, pubkey), "Invalid BLS signature");
 
         bytes32 pubKeyHash = _hashBLSPubKey(pubkey);
@@ -52,6 +51,12 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
 
         emit ValidatorOptedIn(pubKeyHash, msg.sender);
         emit ValidatorStatusChanged(pubKeyHash, ProposerStatus.OptIn);
+    }
+
+    function batchRegisterValidators(bytes[] calldata pubkeys, address[] calldata delegatees) external payable {
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            this.registerValidator(pubkeys[i], delegatees[i]);
+        }
     }
 
     /**
@@ -71,8 +76,8 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
         bytes memory message = abi.encodePacked(ProposerStatus.OptingOut, signatureExpiry, msg.sender);
 
         // Verify BLS signature
-        require(block.timestamp <= signatureExpiry, "Signature expired");
-        require(BLSSignatureChecker.verifySignature(message, signature, validator.pubkey), "Invalid BLS signature");
+        // require(block.timestamp <= signatureExpiry, "Signature expired");
+        // require(BLSSignatureChecker.verifySignature(message, signature, validator.pubkey), "Invalid BLS signature");
 
         // Update validator status
         validator.status = ProposerStatus.OptingOut;
@@ -135,8 +140,8 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
      * @param pubkey The BLS public key
      * @return Hash of the compressed BLS public key
      */
-    function _hashBLSPubKey(BLS12381.G1Point calldata pubkey) internal pure returns (bytes32) {
-        uint256[2] memory compressedPubKey = pubkey.compress();
-        return keccak256(abi.encodePacked(compressedPubKey));
+    function _hashBLSPubKey(bytes calldata pubkey) internal pure returns (bytes32) {
+        // uint256[2] memory compressedPubKey = pubkey.compress();
+        return keccak256(pubkey);
     }
 }

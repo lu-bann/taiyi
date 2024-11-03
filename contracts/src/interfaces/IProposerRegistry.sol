@@ -13,7 +13,7 @@ interface IProposerRegistry {
 
     // Validator struct containing all necessary information
     struct Validator {
-        BLS12381.G1Point pubkey;
+        bytes pubkey;
         ProposerStatus status;
         uint256 optOutTimestamp;
         address registrar;
@@ -28,11 +28,10 @@ interface IProposerRegistry {
     /**
      * @notice Registers a validator with the given BLS public key
      * @param pubkey The BLS public key of the validator
-     * @param signatureExpiry The expiry time of the signature
      */
     function registerValidator(
-        BLS12381.G1Point calldata pubkey,
-        uint256 signatureExpiry,
+        bytes calldata pubkey,
+        // uint256 signatureExpiry,
         // BLS12381.G2Point calldata signature,
         address delegatee
     )

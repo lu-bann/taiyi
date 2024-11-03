@@ -34,7 +34,9 @@ interface IDelegationContract {
      * @notice Struct representing the preconfer election details
      */
     struct PreconferElection {
-        BLS12381.G1Point validatorPubkey;
+        bytes validatorPubkey;
+        bytes preconferPubkey;
+        uint256 chainId;
         address preconferAddress;
     }
 
