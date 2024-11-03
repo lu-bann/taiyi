@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use taiyi_cmd::{initialize_tracing_log, DepositCommand};
+use taiyi_cmd::{initialize_tracing_log, DelegateCommand, DepositCommand};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi-cli", long_about = None)]
@@ -14,6 +14,9 @@ pub struct Cli {
 pub enum Commands {
     #[command(name = "user-deposit")]
     Deposit(DepositCommand),
+
+    #[command(name = "delegate")]
+    Delegate(DelegateCommand),
 }
 
 fn main() -> eyre::Result<()> {
@@ -25,5 +28,6 @@ fn main() -> eyre::Result<()> {
         .expect("tokio runtime build failed");
     match cli.command {
         Commands::Deposit(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::Delegate(cmd) => runtime.block_on(async { cmd.execute().await }),
     }
 }
