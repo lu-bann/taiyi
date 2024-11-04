@@ -128,9 +128,6 @@ where
                     warn!("sleep duration is negative, maybe your system time is not accurate");
                 }
 
-                // move all the pending preconf requests to the ready pool
-                self.preconf_pool.move_pending_to_ready(slot);
-
                 // get all the preconf requests from the ready pool
                 let preconf_requests = self.preconf_requests()?;
 

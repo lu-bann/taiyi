@@ -28,6 +28,7 @@ impl Pending {
         self.by_hash.contains_key(key)
     }
 
+    #[allow(dead_code)]
     pub fn remove_preconfs_for_slot(
         &mut self,
         slot: u64,

@@ -128,6 +128,7 @@ impl PreconfPool {
         }
     }
 
+    #[allow(dead_code)]
     pub fn move_pending_to_ready(&self, slot: u64) {
         self.pool_inner.write().move_pending_to_ready(slot);
     }
@@ -147,6 +148,7 @@ pub struct PreconfPoolInner {
 }
 
 impl PreconfPoolInner {
+    #[allow(dead_code)]
     pub fn move_pending_to_ready(&mut self, slot: u64) {
         let preconfs = match self.pending.remove_preconfs_for_slot(slot) {
             Ok(preconfs) => preconfs,
