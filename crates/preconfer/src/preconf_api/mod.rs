@@ -40,10 +40,8 @@ pub async fn spawn_service(
     let provider_cl = provider.clone();
     let network_state = NetworkState::new(0, Vec::new());
     let network_state_cl = network_state.clone();
-    let constraint_client = ConstraintClient::new(
-        context.clone(),
-        relay_url.first().expect("relay_url is empty").clone(),
-    )?;
+    let constraint_client =
+        ConstraintClient::new(relay_url.first().expect("relay_url is empty").clone())?;
 
     let bls_pk = bls_private_key.sk_to_pk();
 

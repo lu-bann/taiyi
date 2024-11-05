@@ -156,7 +156,10 @@ where
                     let mut i = 0;
 
                     'submit: while let Err(e) = constraint_client
-                        .send_set_constraints(signed_constraints_message.clone())
+                        .send_set_constraints(
+                            signed_constraints_message.clone(),
+                            slot_start_timestamp,
+                        )
                         .await
                     {
                         error!(err = ?e, "Error submitting constraints to relay, retrying...");
