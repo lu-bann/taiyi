@@ -157,6 +157,8 @@ impl PreconfState {
         }
     }
 
+    /// Send a preconf request to the preconfer
+    ///
     /// Expected forms
     ///     - PreconfRequest without transaction
     ///     - PreconfRequest with transaction
@@ -199,6 +201,10 @@ impl PreconfState {
                     self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
+                let commitment = ECDSASignature::from((
+                    commitment.to_k256().expect("Invalid signature"),
+                    commitment.recid(),
+                ));
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
@@ -255,6 +261,10 @@ impl PreconfState {
                     self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
+                let commitment = ECDSASignature::from((
+                    commitment.to_k256().expect("Invalid signature"),
+                    commitment.recid(),
+                ));
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Ok(PoolType::Parked) => Err(RpcError::UnknownError(

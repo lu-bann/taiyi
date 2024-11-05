@@ -30,34 +30,39 @@ axum = { version = "0.7.7", features = ["macros"] }
 axum-extra = { version = "0.9.4", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "546b32eec531e90eb0915521fe60739301b35513" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "546b32eec531e90eb0915521fe60739301b35513" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
 
 # alloy
 alloy-primitives = { version = "0.8.8", default-features = false }
-alloy-rpc-types-beacon = { version = "0.5.2", default-features = false }
-alloy-rpc-types = { version = "0.5.2", features = ["eth"], default-features = false }
-alloy-network = { version = "0.5.2", default-features = false }
-alloy-provider = { version = "0.5.2", features = ["reqwest"], default-features = false }
-alloy-signer = { version = "0.5.2", default-features = false }
-alloy-signer-local = { version = "0.5.2", features = ["mnemonic"] }
-alloy-transport = { version = "0.5.2" }
-alloy-contract = { version = "0.5.2" }
-alloy-eips = { version = "0.5.2", default-features = false }
-alloy-consensus = { version = "0.5.2", features = ["k256"] }
+alloy-rpc-types-beacon = { version = "0.5.4", default-features = false }
+alloy-rpc-types-engine = { version = "0.6.4", default-features = false }
+alloy-rpc-types = { version = "0.6.4", features = ["eth"], default-features = false }
+alloy-network = { version = "0.6.4", default-features = false }
+alloy-provider = { version = "0.6.4", features = ["reqwest"], default-features = false }
+alloy-signer = { version = "0.6.4", default-features = false }
+alloy-signer-local = { version = "0.6.4", features = ["mnemonic"] }
+alloy-transport = { version = "0.6.4" }
+alloy-contract = { version = "0.6.4" }
+alloy-eips = { version = "0.6.4", default-features = false }
+alloy-consensus = { version = "0.6.4", features = ["k256"] }
 alloy-rlp = "0.3.8"
 alloy-sol-types = "0.8.8"
-alloy-node-bindings = { version = "0.5.2", default-features = false }
-alloy-rpc-client = { version = "0.5.2", default-features = false }
+alloy-node-bindings = { version = "0.6.4", default-features = false }
+alloy-rpc-client = { version = "0.6.4", default-features = false }
+alloy-transport-http ={ version = "0.6.4", default-features = false }
+alloy-rpc-types-eth = { version = "0.6.4", default-features = false }
+alloy-rpc-types-trace = { version = "0.6.4", default-features = false }
 
 # reth
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
 
 clap = { version = "4.5.20", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
@@ -94,4 +99,4 @@ rustls = "0.23.15"
 tiny-bip39 = "1.0.0"
 zeroize = "1.8.1"
 uuid = { version = "1.11.0", features = ["serde"] }
-
+scc = "2.2.4"
