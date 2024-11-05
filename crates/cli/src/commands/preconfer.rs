@@ -5,7 +5,7 @@ use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
 use eyre::eyre;
-use taiyi_preconfer::spawn_service;
+use taiyi_preconfer::{metrics::preconfer::init_metrics, spawn_service};
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
@@ -51,6 +51,10 @@ pub struct PreconferCommand {
     /// taiyi service url. Internal usage for taiyi base fee predict module
     #[clap(long)]
     pub taiyi_service_url: Option<String>,
+
+    /// metrics port
+    #[clap(long)]
+    pub metrics_port: Option<u16>,
 }
 
 impl PreconferCommand {
@@ -70,6 +74,10 @@ impl PreconferCommand {
                 self.ecdsa_sk.strip_prefix("0x").unwrap_or(&self.ecdsa_sk),
             )?)?,
         );
+
+        if let Some(metrics_port) = self.metrics_port {
+            init_metrics(metrics_port)?;
+        }
 
         spawn_service(
             taiyi_core_contract_addr,
