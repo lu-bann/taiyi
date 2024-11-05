@@ -9,17 +9,15 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use ethereum_consensus::{
     builder::compute_builder_domain,
-    clock::{SlotStream, SystemTimeProvider},
     crypto::Signature,
     deneb::{compute_signing_root, Context},
 };
-use futures::StreamExt;
 use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
     PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
     SignedConstraintsMessage,
 };
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -104,8 +102,17 @@ where
         };
 
         async move {
+            // wait for 3 seconds to let the first network state slot to be initialized
+            // this is a temporary solution to let the first network state slot to be initialized
+            tokio::time::sleep(Duration::from_secs(3)).await;
+            let mut last_slot = self.network_state.get_current_slot();
             loop {
                 let slot = self.network_state.get_current_slot();
+                debug!("current slot: {slot}, last slot: {last_slot}");
+                if slot == last_slot {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
                 let slot_start_timestamp = genesis_time + (slot * self.context.seconds_per_slot);
                 let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
                     + SET_CONSTRAINTS_CUTOFF_NS
@@ -117,11 +124,15 @@ where
                         sleep_duration.try_into().expect("positive sleep duration"),
                     ))
                     .await;
+                } else {
+                    warn!("sleep duration is negative, maybe your system time is not accurate");
                 }
 
+                // get all the preconf requests from the ready pool
                 let preconf_requests = self.preconf_requests()?;
 
                 if preconf_requests.is_empty() {
+                    last_slot = slot;
                     continue;
                 } else {
                     let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
@@ -158,23 +169,9 @@ where
                     }
                 }
 
-                self.preconf_pool.slot_updated(slot + 1);
+                last_slot = slot;
             }
             Ok(())
-        }
-    }
-
-    pub fn spawn_orderpool_cleaner(
-        &self,
-        mut slot_stream: SlotStream<SystemTimeProvider>,
-    ) -> impl Future<Output = ()> {
-        let preconf_pool = self.preconf_pool.clone();
-        async move {
-            loop {
-                if let Some(slot) = slot_stream.next().await {
-                    preconf_pool.slot_updated(slot);
-                }
-            }
         }
     }
 

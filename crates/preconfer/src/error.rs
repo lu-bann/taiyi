@@ -107,8 +107,8 @@ pub enum PoolError {
     PreconfRequestNotFound(PreconfHash),
     #[error("preconf request {0:?} already exists")]
     PreconfRequestAlreadyExist(PreconfHash),
-    #[error("slot {0} not ready")]
-    SlotNotReady(u64),
+    #[error("preconf request for slot {0} not found")]
+    SlotNotFound(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
     InvalidPreconfTx(PreconfHash),
     #[error("Invalid preconf request")]

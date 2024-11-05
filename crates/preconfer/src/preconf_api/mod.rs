@@ -5,7 +5,7 @@ use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
 use api::PreconfApiServer;
 use blst::min_pk::SecretKey;
-use ethereum_consensus::{clock, deneb::Context, phase0::mainnet::SLOTS_PER_EPOCH};
+use ethereum_consensus::deneb::Context;
 use state::PreconfState;
 use tracing::{error, info};
 
@@ -60,14 +60,6 @@ pub async fn spawn_service(
         }
     });
 
-    let genesis_time = match context.genesis_time() {
-        Ok(genesis_time) => genesis_time,
-        Err(_) => context.min_genesis_time + context.genesis_delay,
-    };
-    let slot_stream =
-        clock::from_system_time(genesis_time, context.seconds_per_slot, SLOTS_PER_EPOCH)
-            .into_stream();
-
     info!("preconfer is on chain_id: {:?}", chain_id);
     match taiyi_service_url {
         Some(url) => {
@@ -91,9 +83,6 @@ pub async fn spawn_service(
             let server_handle = preconfapiserver.run(state.clone());
 
             tokio::select! {
-                _ = state.spawn_orderpool_cleaner(slot_stream) => {
-                    error!("Orderpool cleaner task exited.");
-                },
                 _ = state.spawn_constraint_submitter() => {
                     error!("Constraint submitter task exited.");
                 },
@@ -123,9 +112,6 @@ pub async fn spawn_service(
             let server_handle = preconfapiserver.run(state.clone());
 
             tokio::select! {
-                res = state.spawn_orderpool_cleaner(slot_stream) => {
-                    error!("Orderpool cleaner task exited. {:?}", res);
-                },
                 res = state.spawn_constraint_submitter() => {
                     error!("Constraint submitter task exited. {:?}", res);
                 },

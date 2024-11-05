@@ -6,6 +6,7 @@ use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::{PreconfHash, PreconfRequest};
+use tracing::{error, info};
 
 use crate::{
     error::PoolError,
@@ -127,8 +128,9 @@ impl PreconfPool {
         }
     }
 
-    pub fn slot_updated(&self, new_slot: u64) {
-        self.pool_inner.write().slot_updated(new_slot);
+    #[allow(dead_code)]
+    pub fn move_pending_to_ready(&self, slot: u64) {
+        self.pool_inner.write().move_pending_to_ready(slot);
     }
 }
 
@@ -146,14 +148,23 @@ pub struct PreconfPoolInner {
 }
 
 impl PreconfPoolInner {
-    pub fn slot_updated(&mut self, new_slot: u64) {
-        // Moves preconf requests from pending to ready pool for which target slot is new slot + 1
-        let preconfs =
-            self.pending.on_new_slot(new_slot + 1).expect("Failed to update pending pool");
+    #[allow(dead_code)]
+    pub fn move_pending_to_ready(&mut self, slot: u64) {
+        let preconfs = match self.pending.remove_preconfs_for_slot(slot) {
+            Ok(preconfs) => preconfs,
+            Err(PoolError::SlotNotFound(slot)) => {
+                info!("no preconf requests for slot {slot}");
+                return;
+            }
+            Err(e) => {
+                error!("failed to move pending to ready: {e}");
+                return;
+            }
+        };
         for (preconf_hash, preconf_request) in preconfs {
             self.ready.insert_order(preconf_hash, preconf_request);
         }
-        self.ready.update_slot(new_slot);
+        self.ready.update_slot(slot);
     }
 }
 

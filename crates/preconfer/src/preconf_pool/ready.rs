@@ -46,6 +46,7 @@ impl Ready {
         Ok(preconfs)
     }
 
+    #[allow(dead_code)]
     pub fn update_slot(&mut self, slot: u64) {
         self.slot = slot;
     }
