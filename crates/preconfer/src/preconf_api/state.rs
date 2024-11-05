@@ -202,7 +202,7 @@ where
         mut preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
         let chain_id = self.get_chain_id().await?;
-
+        let current_slot = self.network_state.get_current_slot();
         // TODO: currently only reqs for the Ready sub-pool are accepted, change this later.
         // Note: It is assumed that there're no other requests from the same sender in the same slot
         // PreconfTx must be present
@@ -211,9 +211,7 @@ where
         }
 
         // Target slot must be the next slot
-        if preconf_request.tip_tx.target_slot
-            != U256::from(self.network_state.get_current_slot() + 1)
-        {
+        if preconf_request.tip_tx.target_slot != U256::from(current_slot + 1) {
             return Err(RpcError::UnknownError("Target slot must be the next slot".to_string()));
         }
 
@@ -229,7 +227,11 @@ where
         )?;
 
         self.preconfer
-            .verify_escrow_balance_and_calc_fee(&preconf_request.tip_tx.from, &preconf_request)
+            .verify_escrow_balance_and_calc_fee(
+                &preconf_request.tip_tx.from,
+                &preconf_request,
+                current_slot,
+            )
             .await?;
 
         match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {

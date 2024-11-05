@@ -28,6 +28,7 @@ where
         &self,
         address: &Address,
         preconf_request: &PreconfRequest,
+        current_slot: u64,
     ) -> eyre::Result<(), RpcError> {
         let balance = self.taiyi_core_contract.balanceOf(*address).call().await?;
         let lock_block = self.taiyi_core_contract.lockBlockOf(*address).call().await?;
@@ -37,7 +38,7 @@ where
             ));
         }
 
-        let lookahead = preconf_request.target_slot().to::<u128>();
+        let lookahead = preconf_request.target_slot().to::<u64>() - current_slot;
         let predict_base_fee = self.pricer.price_preconf(lookahead).await?;
         let preconf_request_tip = preconf_request.tip();
 

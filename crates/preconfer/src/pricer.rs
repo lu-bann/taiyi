@@ -15,7 +15,7 @@ pub trait PreconfPricer {
     /// Simply scale up the current base fee by 10% per block
     fn price_preconf(
         &self,
-        block_lookahead: u128,
+        block_lookahead: u64,
     ) -> impl std::future::Future<Output = eyre::Result<u128, PricerError>> + Send
     where
         Self: std::marker::Sync,
