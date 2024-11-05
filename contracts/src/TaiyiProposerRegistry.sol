@@ -119,6 +119,11 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
         return validators[pubKeyHash].status;
     }
 
+    function getValidatorStatus(bytes calldata pubKey) external view returns (ProposerStatus) {
+        bytes32 pubKeyHash = _hashBLSPubKey(pubKey);
+        return validators[pubKeyHash].status;
+    }
+
     /**
      * @notice Returns the validator information for a given public key hash
      * @param pubKeyHash The hash of the validator's BLS public key

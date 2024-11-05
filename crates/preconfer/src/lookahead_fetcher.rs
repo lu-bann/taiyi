@@ -35,7 +35,7 @@ sol! {
     #[sol(rpc)]
     contract TaiyiProposerRegistry {
         #[derive(Debug)]
-        function getProposerStatus(bytes calldata blsPubKey) external view returns (ProposerStatus);
+        function getValidatorStatus(bytes calldata blsPubKey) external view returns (ProposerStatus);
     }
 }
 
@@ -49,13 +49,15 @@ pub struct SignedPreconferElection {
 #[derive(Debug, Default, Clone, SimpleSerialize, serde::Serialize, serde::Deserialize)]
 pub struct PreconferElection {
     /// Public key of the preconfer proposing for `slot`.
-    preconfer_pubkey: BlsPublicKey,
+    pub preconfer_pubkey: BlsPublicKey,
+    /// Proposer public key.
+    pub proposer_pubkey: BlsPublicKey,
     /// Slot this delegation is valid for.
-    slot_number: u64,
+    pub slot_number: u64,
     /// Chain ID of the chain this election is for.
-    chain_id: u64,
-    // The gas limit specified by the proposer that the preconfer must adhere to.
-    gas_limit: u64,
+    pub chain_id: u64,
+    /// The gas limit specified by the proposer that the preconfer must adhere to.
+    pub gas_limit: u64,
 }
 
 pub struct LookaheadFetcher<T, P> {
@@ -140,7 +142,7 @@ where
                 let pubkey = duty.public_key.clone();
                 let proposer_status = self
                     .taiyi_proposer_registry_contract
-                    .getProposerStatus(Bytes::from(pubkey.deref().to_vec()))
+                    .getValidatorStatus(Bytes::from(pubkey.deref().to_vec()))
                     .call()
                     .await?;
                 if let ProposerStatus::OptIn = proposer_status._0 {
