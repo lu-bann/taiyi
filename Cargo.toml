@@ -6,6 +6,7 @@ edition = "2021"
 
 [workspace]
 members = [
+    "bin/preconf-spammer",
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",

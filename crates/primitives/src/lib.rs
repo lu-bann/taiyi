@@ -16,9 +16,8 @@ pub use constraints::{
     Constraint, ConstraintsMessage, SignedConstraintsMessage, MAX_TRANSACTIONS_PER_BLOCK,
 };
 pub use preconf_hash::PreconfHash;
-#[allow(unused_imports)]
 pub use preconf_request::{PreconfRequest, TipTransaction};
 pub use preconf_response::PreconfResponse;
-pub use preconf_tx::PreconfTx;
+pub use preconf_tx::{PermitData, PreconfTx};
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;

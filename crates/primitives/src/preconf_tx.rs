@@ -51,8 +51,14 @@ pub struct PermitData {
     pub value: U256,
     pub deadline: U256,
     pub v: u8,
-    pub r: B256,
-    pub s: B256,
+    pub r: U256,
+    pub s: U256,
+}
+
+impl PermitData {
+    pub fn new(value: U256, deadline: U256, v: u8, r: U256, s: U256) -> Self {
+        PermitData { value, deadline, v, r, s }
+    }
 }
 
 #[cfg(test)]

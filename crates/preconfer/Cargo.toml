@@ -17,8 +17,6 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
-reth-revm = { workspace = true }
-
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
 blst = { workspace = true }
@@ -29,6 +27,8 @@ mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs", rev = "a7
 parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 reqwest = { workspace = true }
+
+reth-revm = { workspace = true }
 serde = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }

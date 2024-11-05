@@ -313,7 +313,6 @@ where
     pub async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError> {
         Ok(AvailableSlotResponse {
             current_slot: self.network_state.get_current_slot(),
-            current_epoch: self.network_state.get_current_epoch(),
             available_slots: self.network_state.get_proposer_duties(),
         })
     }
