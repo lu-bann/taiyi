@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use taiyi_cmd::{
-    initialize_tracing_log, BatchRegisterCommand, GetValidatorCommand, RegisterCommand,
+    initialize_tracing_log, BatchRegisterCommand, GetValidatorCommand, OffchainDelegateCommand,
+    RegisterCommand,
 };
 
 #[derive(Debug, Parser)]
@@ -22,6 +23,8 @@ pub enum Commands {
 
     #[command(name = "get-validator")]
     GetValidator(GetValidatorCommand),
+    #[command(name = "offchain-delegate")]
+    OffchainDelegate(OffchainDelegateCommand),
 }
 
 fn main() -> eyre::Result<()> {
@@ -35,5 +38,6 @@ fn main() -> eyre::Result<()> {
         Commands::Register(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::BatchRegister(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::GetValidator(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::OffchainDelegate(cmd) => runtime.block_on(async { cmd.execute().await }),
     }
 }

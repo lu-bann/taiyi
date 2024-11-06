@@ -1,5 +1,4 @@
 [workspace.package]
-name = "preconfer"
 version = "0.1.0"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,6 +9,7 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "crates/cli",
+    "crates/common",
     "crates/preconfer",
     "crates/primitives",
     "examples",
@@ -25,6 +25,7 @@ taiyi-preconfer = { path = "crates/preconfer" }
 taiyi-cmd = { path = "crates/cli" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
+taiyi-common = { path = "crates/common" }
 
 axum = { version = "0.7.7", features = ["macros"] }
 axum-extra = { version = "0.9.4", features = ["typed-header"] }
@@ -86,5 +87,12 @@ futures-util = "0.3.31"
 lazy_static = "1.5.0"
 prometheus = "0.13.4"
 hex = "0.4.3"
+lighthouse_eth2_keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", rev = "2e0eb6d1b8705bbda2ba56eb195d9cc7c6575e95" }
+tonic = "0.12.3"
+prost = "0.13.3"
+tonic-build = "0.12.3"
+rustls = "0.23.15"
+tiny-bip39 = "1.0.0"
+zeroize = "1.8.1"
 uuid = "1.11.0"
 
