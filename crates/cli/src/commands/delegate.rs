@@ -20,9 +20,9 @@ pub struct DelegateCommand {
     #[clap(long = "private_key")]
     pub private_key: String,
 
-    /// taiyi escrow contract address
+    /// taiyi core contract address
     #[clap(long = "taiyi_core_contract_addr")]
-    pub taiyi_escrow_contract_addr: String,
+    pub taiyi_core_contract_addr: String,
 
     /// taiyi proposer registry contract address
     #[clap(long = "taiyi_proposer_registry_contract_addr")]
@@ -82,7 +82,7 @@ impl DelegateCommand {
         let proposer_pubkey = Bytes::from_str(&self.proposer_pubkey)?;
         let preconfer_pubkey = Bytes::from_str(&self.preconfer_pubkey)?;
 
-        let proposer_dury = PreconferElection {
+        let preconfer_election = PreconferElection {
             validatorPubkey: proposer_pubkey.clone(),
             preconferPubkey: preconfer_pubkey.clone(),
             chainId: U256::from(chain_id),
@@ -107,7 +107,7 @@ impl DelegateCommand {
             receipt.block_number
         );
 
-        let tx = taiyi_core.delegatePreconfDuty(proposer_dury).into_transaction_request();
+        let tx = taiyi_core.delegatePreconfDuty(preconfer_election).into_transaction_request();
 
         let pending_tx = provider.send_transaction(tx).await?;
 

@@ -17,12 +17,12 @@ pub struct RegisterPreconferCommand {
     #[clap(long = "private_key")]
     pub private_key: String,
 
-    /// taiyi escrow contract address
+    /// taiyi core contract address
     #[clap(long = "taiyi_core_contract_addr")]
     pub taiyi_core_contract_addr: String,
 
-    #[clap(long = "register_address")]
-    pub register_address: String,
+    #[clap(long = "preconfer_address")]
+    pub preconfer_address: String,
 }
 
 sol! {

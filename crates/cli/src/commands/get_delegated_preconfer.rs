@@ -13,9 +13,9 @@ pub struct GetDelegatedPreconferCommand {
     #[clap(long = "rpc_url")]
     pub rpc_url: String,
 
-    /// taiyi escrow contract address
+    /// taiyi core contract address
     #[clap(long = "taiyi_core_contract_addr")]
-    pub taiyi_escrow_contract_addr: String,
+    pub taiyi_core_contract_addr: String,
 
     #[clap(long = "proposer_pubkey")]
     pub proposer_pubkey: String,

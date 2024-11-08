@@ -20,9 +20,9 @@ pub struct BatchDelegateCommand {
     #[clap(long = "private_key")]
     pub private_key: String,
 
-    /// taiyi escrow contract address
+    /// taiyi core contract address
     #[clap(long = "taiyi_core_contract_addr")]
-    pub taiyi_escrow_contract_addr: String,
+    pub taiyi_core_contract_addr: String,
 
     /// taiyi proposer registry contract address
     #[clap(long = "taiyi_proposer_registry_contract_addr")]
