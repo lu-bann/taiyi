@@ -37,6 +37,8 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+tree_hash = "0.6.0"
+tree_hash_derive = "0.6.0"
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
