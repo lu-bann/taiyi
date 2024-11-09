@@ -12,9 +12,7 @@ mod proposer_info;
 pub use available_slot::AvailableSlotResponse;
 pub use cancel_preconf::{CancelPreconfRequest, CancelPreconfResponse};
 pub use check_preconf_response::{PreconfStatus, PreconfStatusResponse};
-pub use constraints::{
-    Constraint, ConstraintsMessage, SignedConstraintsMessage, MAX_TRANSACTIONS_PER_BLOCK,
-};
+pub use constraints::{ConstraintsMessage, SignableBLS, SignedConstraints};
 pub use preconf_hash::PreconfHash;
 #[allow(unused_imports)]
 pub use preconf_request::{PreconfRequest, TipTransaction};
