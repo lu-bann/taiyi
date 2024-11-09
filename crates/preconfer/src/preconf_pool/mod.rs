@@ -1,11 +1,14 @@
+#![allow(dead_code)]
+
 use std::sync::Arc;
 
+use inclusion::Inclusion;
 use parked::Parked;
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
-use taiyi_primitives::{PreconfHash, PreconfRequest};
+use taiyi_primitives::{inclusion_request::InclusionRequest, PreconfHash, PreconfRequest};
 use tracing::{error, info};
 
 use crate::{
@@ -13,6 +16,7 @@ use crate::{
     validator::{constant::DEFAULT_MAX_TX_INPUT_BYTES, PreconfValidator, ValidationOutcome},
 };
 
+mod inclusion;
 mod parked;
 mod pending;
 mod ready;
@@ -53,8 +57,30 @@ impl PreconfPool {
                 parked: Parked::new(),
                 pending: Pending::new(),
                 ready: Ready::new(current_slot),
+                inclusion: Inclusion::new(),
             }),
             validator,
+        }
+    }
+
+    /// Requests the inclusion of a preconf request.
+    pub fn request_inclusion_v2(
+        &self,
+        inclusion_request: InclusionRequest,
+    ) -> Result<PoolState, PoolError> {
+        let slot = inclusion_request.slot;
+        self.insert_inclusion(slot, inclusion_request);
+        Ok(PoolState::Inclusion)
+    }
+
+    /// Returns all preconf requests that are ready to be executed in the next block.
+    pub fn inclusion_requests_for_slot(
+        &self,
+        slot: u64,
+    ) -> Result<Vec<InclusionRequest>, PoolError> {
+        match self.pool_inner.read().inclusion.get(&slot) {
+            Some(inclusion_requests) => Ok(inclusion_requests.clone()),
+            None => Err(PoolError::SlotNotFound(slot)),
         }
     }
 
@@ -91,6 +117,11 @@ impl PreconfPool {
     /// Returns all preconf requests that are ready to be executed in the next block.
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.pool_inner.write().ready.preconf_requests()
+    }
+
+    /// inserts a preconf request into the inclusion pool.
+    fn insert_inclusion(&self, slot: u64, inclusion_request: InclusionRequest) {
+        self.pool_inner.write().inclusion.insert(slot, inclusion_request);
     }
 
     /// Inserts a preconf request into the parked pool.
@@ -132,7 +163,6 @@ impl PreconfPool {
         }
     }
 
-    #[allow(dead_code)]
     pub fn move_pending_to_ready(&self, slot: u64) {
         self.pool_inner.write().move_pending_to_ready(slot);
     }
@@ -149,6 +179,8 @@ pub struct PreconfPoolInner {
     pending: Pending,
     /// Holds all preconf requests that are ready to be included in the next slot.
     ready: Ready,
+    /// Note: temporary pool to store inclusion requests
+    inclusion: Inclusion,
 }
 
 impl PreconfPoolInner {
@@ -177,6 +209,7 @@ pub enum PoolState {
     Parked,
     Pending,
     Ready,
+    Inclusion,
 }
 
 // #[cfg(test)]

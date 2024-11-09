@@ -8,7 +8,10 @@ use ethereum_consensus::{
     crypto::{PublicKey as BlsPublicKey, Signature},
     deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context, Transaction},
 };
-use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedConstraints};
+use taiyi_primitives::{
+    inclusion_request::InclusionRequest, ConstraintsMessage, PreconfRequest, SignableBLS,
+    SignedConstraints,
+};
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
@@ -41,6 +44,13 @@ pub mod core {
             }
 
             #[derive(Debug)]
+            struct InclusionTx {
+                address from;
+                address to;
+                bytes callData;
+            }
+
+            #[derive(Debug)]
             struct PreconfRequest {
                 TipTx tipTx;
                 PreconfTx preconfTx;
@@ -59,6 +69,8 @@ pub mod core {
                 function lockBlockOf(address user) public view returns (uint256);
                 #[derive(Debug)]
                 function balanceOf(address user) public view returns (uint256);
+                #[derive(Debug)]
+                function batchSettleRequestsV2(InclusionTx[] calldata inclusionReqs) external payable;
             }
     }
 }
@@ -126,7 +138,7 @@ pub fn compute_signing_root_custom(object_root: [u8; 32], signing_domain: [u8; 3
     signing_data.tree_hash_root().0
 }
 
-pub async fn preconf_reqs_to_constraints<T, P>(
+pub async fn _preconf_reqs_to_constraints<T, P>(
     preconf_reqs: Vec<PreconfRequest>,
     taiyi_core_address: Address,
     provider: P,
@@ -142,6 +154,7 @@ where
     let slot: u64 = preconf_reqs[0].tip_tx.target_slot.to();
     let chain_id = provider.get_chain_id().await?;
     let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
+
     let preconf_reqs: Vec<core::PreconfRequest> =
         preconf_reqs.into_iter().map(|req| req.into()).collect();
     let mut tx = contract.batchSettleRequests(preconf_reqs).into_transaction_request();
@@ -172,7 +185,73 @@ where
     let root = compute_signing_root_custom(digest.tree_hash_root().0, domain);
     let signature = bls_sk.sign(root.as_ref(), BLS_DST_SIG, &[]).to_bytes();
     let signature = Signature::try_from(signature.as_ref()).expect("signature error");
-    // let sig = bls_sk.si
+
+    let constraints: Vec<SignedConstraints> = vec![SignedConstraints { message, signature }];
+    Ok(constraints)
+}
+
+pub async fn inclusion_reqs_to_constraints<T, P>(
+    inclusion_reqs: Vec<InclusionRequest>,
+    taiyi_core_address: Address,
+    provider: P,
+    wallet: EthereumWallet,
+    bls_sk: &blst::min_pk::SecretKey,
+    context: &Context,
+) -> eyre::Result<Vec<SignedConstraints>>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone,
+{
+    let chain_id = provider.get_chain_id().await?;
+    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
+
+    let slot = inclusion_reqs.first().expect("slot is none").slot;
+
+    let mut inclusion_txs: Vec<core::InclusionTx> = Vec::new();
+    for incl_req in inclusion_reqs {
+        for full_tx in incl_req.txs {
+            let tx = full_tx.tx.into_transaction().transaction;
+            let incl_tx = core::InclusionTx {
+                from: full_tx.sender.expect("sender is none"),
+                to: *tx.kind().to().expect("to is none"),
+                callData: tx.input().clone(),
+            };
+            inclusion_txs.push(incl_tx);
+        }
+    }
+
+    let mut tx = contract.batchSettleRequestsV2(inclusion_txs).into_transaction_request();
+
+    let estimate_gas = provider.estimate_gas(&tx).await?;
+    let gas_limit = estimate_gas + 100000;
+    let Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas } =
+        provider.estimate_eip1559_fees(None).await?;
+    let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
+    tx.set_gas_limit(gas_limit);
+    tx.set_max_fee_per_gas(max_fee_per_gas);
+    tx.set_max_priority_fee_per_gas(max_priority_fee_per_gas);
+    tx.set_nonce(nonce);
+    tx.set_chain_id(ChainId::from(chain_id));
+
+    let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
+    let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
+    let tx_envelope_bl: Transaction<MAX_BYTES_PER_TRANSACTION> =
+        tx_envelope_ref.try_into().expect("bytelist");
+
+    let bls_pk = bls_sk.sk_to_pk().to_bytes();
+    let message = ConstraintsMessage {
+        pubkey: BlsPublicKey::try_from(bls_pk.as_ref()).expect("key error"),
+        slot,
+        top: true,
+        transactions: vec![tx_envelope_bl].try_into().expect("tx too big"),
+    };
+
+    let digest = message.digest();
+    let domain = compute_domain_custom(context, COMMIT_BOOST_DOMAIN);
+    let root = compute_signing_root_custom(digest.tree_hash_root().0, domain);
+    let signature = bls_sk.sign(root.as_ref(), BLS_DST_SIG, &[]).to_bytes();
+    let signature = Signature::try_from(signature.as_ref()).expect("signature error");
+
     let constraints: Vec<SignedConstraints> = vec![SignedConstraints { message, signature }];
     Ok(constraints)
 }
