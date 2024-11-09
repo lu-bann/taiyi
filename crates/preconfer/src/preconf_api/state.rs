@@ -3,21 +3,15 @@ use std::{future::Future, sync::Arc, time::Duration};
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::{keccak256, U256};
 use alloy_provider::Provider;
-use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
-use ethereum_consensus::{
-    builder::compute_builder_domain,
-    crypto::Signature,
-    deneb::{compute_signing_root, Context},
-};
+use ethereum_consensus::deneb::Context;
 use taiyi_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
-    PreconfHash, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
-    SignedConstraintsMessage,
+    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
+    PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -78,20 +72,20 @@ where
         self.preconf_pool.preconf_requests()
     }
 
-    async fn signed_constraints_message(
-        &self,
-        constraints_message: ConstraintsMessage,
-    ) -> Result<SignedConstraintsMessage, RpcError> {
-        let domain = compute_builder_domain(&self.context)
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-        let signing_root = compute_signing_root(&constraints_message, domain)
-            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
-        let signature = Signature::try_from(signature.as_ref())
-            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+    // async fn signed_constraints_message(
+    //     &self,
+    //     constraints_message: ConstraintsMessage,
+    // ) -> Result<SignedConstraintsMessage, RpcError> {
+    //     let domain = compute_builder_domain(&self.context)
+    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
+    //     let signing_root = compute_signing_root(&constraints_message, domain)
+    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+    //     let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
+    //     let signature = Signature::try_from(signature.as_ref())
+    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
-        Ok(SignedConstraintsMessage::new(constraints_message, signature))
-    }
+    //     Ok(SignedConstraintsMessage::new(constraints_message, signature))
+    // }
 
     #[allow(unreachable_code)]
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -136,22 +130,24 @@ where
                     continue;
                 } else {
                     let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                    let constraint_message = preconf_reqs_to_constraints(
+                    let signed_constraints_message = preconf_reqs_to_constraints(
                         preconf_requests,
                         self.preconfer.taiyi_core_contract_addr(),
                         self.provider.clone(),
                         wallet,
+                        &self.bls_sk,
+                        &self.context,
                     )
                     .await?;
-                    info!(
-                        "Sending {} constraints message with slot: {}",
-                        constraint_message.len(),
-                        constraint_message.slot
-                    );
-                    let signed_constraints_message = self
-                        .signed_constraints_message(constraint_message)
-                        .await
-                        .expect("signed constraints");
+                    // info!(
+                    //     "Sending {} constraints message with slot: {}",
+                    //     constraint_message.len(),
+                    //     constraint_message.slot
+                    // );
+                    // let signed_constraints_message = self
+                    //     .signed_constraints_message(constraint_message)
+                    //     .await
+                    //     .expect("signed constraints");
                     let max_retries = 5;
                     let mut i = 0;
 
