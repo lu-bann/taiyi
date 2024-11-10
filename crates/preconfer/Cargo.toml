@@ -17,8 +17,6 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
-reth-revm = { workspace = true }
-
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
 blst = { workspace = true }
@@ -31,7 +29,10 @@ parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 prometheus = { workspace = true }
 reqwest = { workspace = true }
+
+reth-revm = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }

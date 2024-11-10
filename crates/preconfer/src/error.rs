@@ -33,6 +33,10 @@ pub enum RpcError {
     PreconfRequestError(String),
     #[error("Signature error: {0:?}")]
     SignatureError(String),
+    #[error("Unknown method")]
+    UnknownMethod,
+    #[error("Malformed header")]
+    MalformedHeader,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

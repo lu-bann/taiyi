@@ -1,10 +1,12 @@
-use std::{fmt::Debug, net::SocketAddr, time::Instant};
+use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
 
 use alloy_network::Ethereum;
+use alloy_primitives::{Address, Signature};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::IntoResponse,
     routing::{delete, get, post},
     Json, Router,
@@ -12,11 +14,14 @@ use axum::{
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
-    PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
+    inclusion_request::InclusionRequest, AvailableSlotResponse, CancelPreconfRequest,
+    CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
+    PreconfTxRequest,
 };
 use tokio::net::TcpListener;
+use tracing::{error, info};
 
+use super::jsonrpc::{JsonPayload, JsonResponse};
 use crate::{
     error::RpcError,
     metrics::preconfer::{
@@ -27,10 +32,13 @@ use crate::{
     pricer::PreconfPricer,
 };
 
+const INCLUSION_REQUEST_PATH: &str = "/commitments/v1/inclusion_request";
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 const PRECONF_REQUEST_TX_PATH: &str = "/commitments/v1/preconf_request/tx";
 const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v1/preconf_request/:preconf_hash";
 const AVAILABLE_SLOT_PATH: &str = "/commitments/v1/slots";
+
+const REQUEST_INCLUSION_METHOD: &str = "luban_requestInclusion";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -54,6 +62,7 @@ impl PreconfApiServer {
         F: PreconfPricer + Clone + Send + Sync + 'static,
     {
         let app = Router::new()
+            .route(INCLUSION_REQUEST_PATH, post(inlusion_request))
             .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
             .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
             .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
@@ -73,6 +82,77 @@ impl PreconfApiServer {
             return Err(e.into());
         }
         Ok(())
+    }
+}
+
+pub async fn inlusion_request<T, P, F>(
+    headers: HeaderMap,
+    State(state): State<PreconfState<T, P, F>>,
+    Json(payload): Json<JsonPayload>,
+) -> Result<Json<JsonResponse>, RpcError>
+where
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Clone + Send + Sync + 'static,
+{
+    info!("Received new request");
+
+    // Extract the signer and signature from the headers
+    let (signer, signature) = {
+        let auth = headers
+            .get("x-luban-signature")
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+
+        // Remove the "0x" prefix
+        let auth = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+
+        let mut split = auth.split(':');
+
+        let address = split.next().ok_or(RpcError::MalformedHeader)?;
+        let address = Address::from_str(address).map_err(|_| RpcError::MalformedHeader)?;
+
+        let sig = split.next().ok_or(RpcError::MalformedHeader)?;
+        let sig = Signature::from_str(sig).expect("Failed to parse signature");
+
+        (address, sig)
+    };
+
+    match payload.method.as_str() {
+        REQUEST_INCLUSION_METHOD => {
+            let Some(request_json) = payload.params.first().cloned() else {
+                return Err(RpcError::UnknownError("Bad params".to_string()));
+            };
+
+            // Parse the inclusion request from the parameters
+            let mut inclusion_request: InclusionRequest = serde_json::from_value(request_json)
+                .map_err(|e| RpcError::UnknownError(e.to_string()))
+                .inspect_err(|e| error!("Failed to parse inclusion request: {:?}", e))?;
+
+            info!(?inclusion_request, "New inclusion request");
+
+            // Set the signature here for later processing
+            inclusion_request.set_signature(signature);
+
+            // Set the request signer
+            inclusion_request.set_signer(signer);
+
+            // info!(signer = ?recovered_signer, %digest, "New valid inclusion request received");
+            let inclusion_commitment = state.request_inclusion(inclusion_request).await?;
+
+            // Create the JSON-RPC response
+            let response = JsonResponse {
+                id: payload.id,
+                result: serde_json::to_value(inclusion_commitment)
+                    .expect("Failed to serialize response"),
+                ..Default::default()
+            };
+
+            Ok(Json(response))
+        }
+        other => {
+            error!("Unknown method: {}", other);
+            Err(RpcError::UnknownMethod)
+        }
     }
 }
 

@@ -8,14 +8,15 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use ethereum_consensus::deneb::Context;
 use taiyi_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
-    PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
+    commitment::InclusionCommitment, inclusion_request::InclusionRequest, AvailableSlotResponse,
+    CancelPreconfRequest, CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse,
+    PreconfStatus, PreconfStatusResponse, PreconfTx,
 };
 use tracing::{debug, error, warn};
 
 use crate::{
     constraint_client::ConstraintClient,
-    contract::preconf_reqs_to_constraints,
+    contract::inclusion_reqs_to_constraints,
     error::{PoolError, RpcError, ValidationError},
     network_state::NetworkState,
     preconf_pool::{PoolState, PreconfPool, PreconfPoolBuilder},
@@ -68,8 +69,15 @@ where
         }
     }
 
-    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
+    pub fn _preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.preconf_pool.preconf_requests()
+    }
+
+    pub fn inclusion_requests_for_slot(
+        &self,
+        slot: u64,
+    ) -> Result<Vec<InclusionRequest>, PoolError> {
+        self.preconf_pool.inclusion_requests_for_slot(slot)
     }
 
     // async fn signed_constraints_message(
@@ -122,16 +130,16 @@ where
                     warn!("sleep duration is negative, maybe your system time is not accurate");
                 }
 
-                // get all the preconf requests from the ready pool
-                let preconf_requests = self.preconf_requests()?;
+                // get inclusion requests for the next slot
+                let inclusion_requests = self.inclusion_requests_for_slot(slot + 1)?;
 
-                if preconf_requests.is_empty() {
+                if inclusion_requests.is_empty() {
                     last_slot = slot;
                     continue;
                 } else {
                     let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                    let signed_constraints_message = preconf_reqs_to_constraints(
-                        preconf_requests,
+                    let signed_constraints_message = inclusion_reqs_to_constraints(
+                        inclusion_requests,
                         self.preconfer.taiyi_core_contract_addr(),
                         self.provider.clone(),
                         wallet,
@@ -186,6 +194,37 @@ where
             .await
             .map_err(|e| RpcError::SignatureError(e.to_string()))?;
         Ok(signature)
+    }
+
+    /// request inclusion
+    pub async fn request_inclusion(
+        &self,
+        inclusion_request: InclusionRequest,
+    ) -> Result<InclusionCommitment, RpcError> {
+        let slot = inclusion_request.slot;
+
+        let _ = self.preconf_pool.request_inclusion_v2(inclusion_request.clone());
+        let txs = inclusion_request.clone().txs;
+        let message_digest = {
+            let mut data = Vec::new();
+            // First field is the concatenation of all the transaction hashes
+            data.extend_from_slice(
+                &txs.iter().map(|tx| tx.tx.hash().as_slice()).collect::<Vec<_>>().concat(),
+            );
+
+            // Second field is the little endian encoding of the target slot
+            data.extend_from_slice(&slot.to_le_bytes());
+            keccak256(data)
+        };
+        let preconfer_signature =
+            self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
+                RpcError::SignatureError(format!("Failed to sign inclusion commitment: {e:?}"))
+            })?;
+
+        Ok(InclusionCommitment {
+            request: inclusion_request.clone(),
+            signature: preconfer_signature,
+        })
     }
 
     /// Send a preconf request to the preconfer
@@ -248,7 +287,7 @@ where
             Ok(PoolState::Parked) => {
                 Ok(PreconfResponse::success(preconf_hash, preconfer_signature, None))
             }
-            Err(e) => Err(RpcError::PoolError(e)),
+            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
         }
     }
 
@@ -307,6 +346,7 @@ where
             PoolState::Parked => PreconfStatus::Pending,
             PoolState::Pending => PreconfStatus::Pending,
             PoolState::Ready => PreconfStatus::Accepted,
+            PoolState::Inclusion => PreconfStatus::Accepted,
         };
         Ok(PreconfStatusResponse { status })
     }

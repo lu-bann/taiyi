@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod api;
+mod jsonrpc;
 pub mod state;
 
 #[allow(clippy::too_many_arguments)]
