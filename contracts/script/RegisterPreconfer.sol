@@ -17,8 +17,6 @@ contract Deploy is Script, Test {
 
         TaiyiCore taiyiCore = TaiyiCore(taiyiCoreAddr);
 
-        taiyiCore.registerPreconfer(msg.sender);
-
         vm.stopBroadcast();
     }
 }
