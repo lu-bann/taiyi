@@ -47,6 +47,7 @@ pub mod core {
             struct InclusionTx {
                 address from;
                 address to;
+                uint256 value;
                 bytes callData;
             }
 
@@ -214,6 +215,7 @@ where
             let incl_tx = core::InclusionTx {
                 from: full_tx.sender.expect("sender is none"),
                 to: *tx.kind().to().expect("to is none"),
+                value: tx.value(),
                 callData: tx.input().clone(),
             };
             inclusion_txs.push(incl_tx);
