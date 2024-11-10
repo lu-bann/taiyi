@@ -73,13 +73,6 @@ where
         self.preconf_pool.preconf_requests()
     }
 
-    pub fn inclusion_requests_for_slot(
-        &self,
-        slot: u64,
-    ) -> Result<Vec<InclusionRequest>, PoolError> {
-        self.preconf_pool.inclusion_requests_for_slot(slot)
-    }
-
     // async fn signed_constraints_message(
     //     &self,
     //     constraints_message: ConstraintsMessage,
@@ -107,93 +100,75 @@ where
             // wait for 3 seconds to let the first network state slot to be initialized
             // this is a temporary solution to let the first network state slot to be initialized
             tokio::time::sleep(Duration::from_secs(3)).await;
-            let mut last_slot = self.network_state.get_current_slot();
             loop {
-                let slot = self.network_state.get_current_slot();
-                debug!("current slot: {slot}, last slot: {last_slot}");
-                if slot == last_slot {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
-                let slot_start_timestamp = genesis_time + (slot * self.context.seconds_per_slot);
-                let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
-                    + SET_CONSTRAINTS_CUTOFF_NS
-                    + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
-                let sleep_duration = submit_start_time
-                    - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
-                if sleep_duration.is_positive() {
-                    tokio::time::sleep(Duration::from_nanos(
-                        sleep_duration.try_into().expect("positive sleep duration"),
-                    ))
-                    .await;
-                } else {
-                    warn!("sleep duration is negative, maybe your system time is not accurate");
-                }
+                if let Some(next_slot) = self.preconf_pool.next_slot() {
+                    let slot = next_slot - 1;
+                    let slot_start_timestamp =
+                        genesis_time + (slot * self.context.seconds_per_slot);
+                    let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
+                        + SET_CONSTRAINTS_CUTOFF_NS
+                        + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
+                    let sleep_duration = submit_start_time
+                        - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
+                    if sleep_duration.is_positive() {
+                        tokio::time::sleep(Duration::from_nanos(
+                            sleep_duration.try_into().expect("positive sleep duration"),
+                        ))
+                        .await;
+                    } else {
+                        warn!("sleep duration is negative, maybe your system time is not accurate");
+                    }
 
-                // get inclusion requests for the next slot
-                let inclusion_requests = self.inclusion_requests_for_slot(slot + 1)?;
+                    // gets inclusion requests for the next slot and remove them from the pool
+                    let inclusion_requests =
+                        self.preconf_pool.inclusion_requests_for_slot(next_slot)?;
 
-                if inclusion_requests.is_empty() {
-                    last_slot = slot;
-                    continue;
-                } else {
-                    let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                    let signed_constraints_message = inclusion_reqs_to_constraints(
-                        inclusion_requests,
-                        self.preconfer.taiyi_core_contract_addr(),
-                        self.provider.clone(),
-                        wallet,
-                        &self.bls_sk,
-                        &self.context,
-                    )
-                    .await?;
-                    // info!(
-                    //     "Sending {} constraints message with slot: {}",
-                    //     constraint_message.len(),
-                    //     constraint_message.slot
-                    // );
-                    // let signed_constraints_message = self
-                    //     .signed_constraints_message(constraint_message)
-                    //     .await
-                    //     .expect("signed constraints");
-                    let max_retries = 5;
-                    let mut i = 0;
-
-                    'submit: while let Err(e) = constraint_client
-                        .send_set_constraints(
-                            signed_constraints_message.clone(),
-                            slot_start_timestamp,
+                    if inclusion_requests.is_empty() {
+                        continue;
+                    } else {
+                        let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
+                        let signed_constraints_message = inclusion_reqs_to_constraints(
+                            inclusion_requests,
+                            self.preconfer.taiyi_core_contract_addr(),
+                            self.provider.clone(),
+                            wallet,
+                            &self.bls_sk,
+                            &self.context,
                         )
-                        .await
-                    {
-                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                        i += 1;
-                        if i >= max_retries {
-                            error!("Max retries reached while submitting to MEV-Boost");
-                            break 'submit;
+                        .await?;
+                        // info!(
+                        //     "Sending {} constraints message with slot: {}",
+                        //     constraint_message.len(),
+                        //     constraint_message.slot
+                        // );
+                        // let signed_constraints_message = self
+                        //     .signed_constraints_message(constraint_message)
+                        //     .await
+                        //     .expect("signed constraints");
+                        let max_retries = 5;
+                        let mut i = 0;
+
+                        'submit: while let Err(e) = constraint_client
+                            .send_set_constraints(
+                                signed_constraints_message.clone(),
+                                slot_start_timestamp,
+                            )
+                            .await
+                        {
+                            error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                            i += 1;
+                            if i >= max_retries {
+                                error!("Max retries reached while submitting to MEV-Boost");
+                                break 'submit;
+                            }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                         }
-                        tokio::time::sleep(Duration::from_millis(100)).await;
+
                     }
                 }
-
-                last_slot = slot;
             }
             Ok(())
         }
-    }
-
-    pub async fn sign_tip_tx_signature(
-        &self,
-        tip_tx_signature: &ECDSASignature,
-    ) -> Result<ECDSASignature, RpcError> {
-        let message = tip_tx_signature.as_bytes().to_vec();
-        let message = keccak256(&message);
-        let signature = self
-            .ecdsa_signer
-            .sign_hash(&message)
-            .await
-            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        Ok(signature)
     }
 
     /// request inclusion
@@ -225,6 +200,20 @@ where
             request: inclusion_request.clone(),
             signature: preconfer_signature,
         })
+    }
+
+    pub async fn sign_tip_tx_signature(
+        &self,
+        tip_tx_signature: &ECDSASignature,
+    ) -> Result<ECDSASignature, RpcError> {
+        let message = tip_tx_signature.as_bytes().to_vec();
+        let message = keccak256(&message);
+        let signature = self
+            .ecdsa_signer
+            .sign_hash(&message)
+            .await
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+        Ok(signature)
     }
 
     /// Send a preconf request to the preconfer
