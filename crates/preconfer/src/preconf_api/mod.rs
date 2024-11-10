@@ -43,7 +43,7 @@ pub async fn spawn_service(
     // let bls_pk = bls_private_key.sk_to_pk();
 
     info!("preconfer is on chain_id: {:?}", chain_id);
-    
+
     let base_fee_fetcher = ExecutionClientFeePricer::new(provider.clone());
 
     let validator = Preconfer::new(provider.clone(), taiyi_core_contract_addr, base_fee_fetcher);
