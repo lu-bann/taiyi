@@ -20,6 +20,7 @@ contract TaiyiCore {
     struct InclusionTx {
         address from;
         address to;
+        uint256 value;
         bytes callData;
     }
 
@@ -29,10 +30,13 @@ contract TaiyiCore {
             bool success;
             if (inclusionReq.callData.length > 0) {
                 // Execute contract call with provided calldata
-                (success,) = payable(inclusionReq.to).call(inclusionReq.callData);
+                (success,) = payable(inclusionReq.to).call{ value: inclusionReq.value }(inclusionReq.callData);
             } else {
                 // Execute plain Ether transfer
-                (success,) = payable(inclusionReq.to).call("");
+                (success,) = payable(inclusionReq.to).call{ value: inclusionReq.value }("");
+            }
+            if (!success) {
+                revert("TaiyiCore: batchSettleRequestsV2: call failed");
             }
         }
     }
