@@ -12,13 +12,7 @@ contract Deploy is Script, Test {
     function run() public {
         vm.startBroadcast();
 
-        uint256 genesis_timestamp = vm.envUint("GENESIS_TIMESTAMP");
-        console.log("genesis timestamp: ", genesis_timestamp);
-
-        TaiyiProposerRegistry taiyiProposerRegistry = new TaiyiProposerRegistry();
-        emit log_address(address(taiyiProposerRegistry));
-
-        TaiyiCore taiyiCore = new TaiyiCore(msg.sender, genesis_timestamp, address(taiyiProposerRegistry));
+        TaiyiCore taiyiCore = new TaiyiCore();
         emit log_address(address(taiyiCore));
 
         vm.stopBroadcast();
