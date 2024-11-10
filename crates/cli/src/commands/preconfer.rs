@@ -20,10 +20,6 @@ pub struct PreconferCommand {
     #[clap(long = "execution_client_url")]
     pub execution_client_url: String,
 
-    /// consensus client rpc url
-    #[clap(long = "beacon_client_url")]
-    pub beacon_client_url: String,
-
     /// A BLS private key to use for signing
     #[clap(long = "bls_sk")]
     pub bls_sk: String,
@@ -72,7 +68,6 @@ impl PreconferCommand {
         spawn_service(
             taiyi_core_contract_addr,
             self.execution_client_url.clone(),
-            self.beacon_client_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,

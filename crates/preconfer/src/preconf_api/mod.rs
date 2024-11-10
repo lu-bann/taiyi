@@ -25,7 +25,6 @@ pub mod state;
 pub async fn spawn_service(
     taiyi_core_contract_addr: Address,
     execution_client_url: String,
-    beacon_client_url: String,
     context: Context,
     preconfer_ip: IpAddr,
     preconfer_port: u16,
