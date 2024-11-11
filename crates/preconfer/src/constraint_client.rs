@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 
+use eyre::Context;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
 
@@ -39,6 +40,10 @@ impl ConstraintClient {
                 .with_label_values(&[constraint.message.slot.to_string().as_str()])
                 .observe(slot_diff_time);
         }
+
+        let body = response.bytes().await.wrap_err("failed to parse response")?;
+        let body = String::from_utf8_lossy(&body);
+        tracing::info!("Submit constraint Response: {}", body);
 
         if code.is_success() {
             Ok(())
