@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
-use alloy_primitives::{Address, Bytes, Signature};
-use alloy_rlp::{Decodable, Encodable};
+use alloy_primitives::{Address, Signature};
+// use alloy_rlp::{Decodable, Encodable};
 use reth_primitives::PooledTransactionsElement;
 use serde::{de, ser::SerializeSeq, Deserialize, Serialize};
 
@@ -45,9 +45,7 @@ pub fn serialize_txs<S: serde::Serializer>(
 ) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_seq(Some(txs.len()))?;
     for tx in txs {
-        let mut buf = Vec::new();
-        tx.tx.encode(&mut buf);
-        let encoded: Bytes = buf.into();
+        let encoded = tx.tx.envelope_encoded();
         seq.serialize_element(&format!("0x{}", hex::encode(encoded)))?;
     }
     seq.end()
@@ -63,7 +61,7 @@ where
 
     for s in hex_strings {
         let data = hex::decode(s.trim_start_matches("0x")).map_err(de::Error::custom)?;
-        let tx = PooledTransactionsElement::decode(&mut data.as_slice())
+        let tx = PooledTransactionsElement::decode_enveloped(&mut data.as_slice())
             .map_err(de::Error::custom)
             .map(|tx| FullTransaction { tx, sender: None })?;
         txs.push(tx);
@@ -77,4 +75,27 @@ where
 pub struct FullTransaction {
     pub tx: PooledTransactionsElement,
     pub sender: Option<Address>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::inclusion_request::InclusionRequest;
+
+    #[test]
+    fn test_deserialize_inclusion_request() {
+        let json_req = r#"{
+            "slot": 10,
+            "txs": ["0x02f86c870c72dd9d5e883e4d0183408f2382520894d2e2adf7177b7a8afddbc12d1634cf23ea1a71020180c001a08556dcfea479b34675db3fe08e29486fe719c2b22f6b0c1741ecbbdce4575cc6a01cd48009ccafd6b9f1290bbe2ceea268f94101d1d322c787018423ebcbc87ab4"]
+        }"#;
+
+        let req: InclusionRequest = serde_json::from_str(json_req).unwrap();
+        assert_eq!(req.slot, 10);
+
+        let deser = serde_json::to_string(&req).unwrap();
+
+        assert_eq!(
+            deser.parse::<serde_json::Value>().unwrap(),
+            json_req.parse::<serde_json::Value>().unwrap()
+        );
+    }
 }

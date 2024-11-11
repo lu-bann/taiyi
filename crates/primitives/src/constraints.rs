@@ -39,9 +39,8 @@ impl SignableBLS for ConstraintsMessage {
             // this is needed to handle type 3 transactions.
             // FIXME: don't unwrap here and handle the error properly
             let tx_bytes = tx.to_vec();
-            let tx = TxEnvelope::fallback_decode(&mut tx_bytes.as_ref()).expect("tx decode error");
-
-            hasher.update(tx.tx_hash().as_slice());
+            let tx = TxEnvelope::decode_2718(&mut tx_bytes.as_ref()).expect("tx decode error");
+            hasher.update(tx.tx_hash());
         }
 
         hasher.finalize().into()

@@ -12,7 +12,7 @@ use taiyi_primitives::{
     CancelPreconfRequest, CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse,
     PreconfStatus, PreconfStatusResponse, PreconfTx,
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -94,26 +94,35 @@ where
         };
 
         async move {
-            // wait for 3 seconds to let the first network state slot to be initialized
-            // this is a temporary solution to let the first network state slot to be initialized
-            tokio::time::sleep(Duration::from_secs(3)).await;
             loop {
                 if let Some(next_slot) = self.preconf_pool.next_slot() {
+                    info!("Next slot in the preconf pool: {}", next_slot);
                     let slot = next_slot - 1;
                     let slot_start_timestamp =
-                        genesis_time + (slot * self.context.seconds_per_slot);
-                    let submit_start_time = slot_start_timestamp as i64 * 1_000_000_000
+                        (genesis_time + (slot * self.context.seconds_per_slot)) * 1_000_000_000;
+                    let submit_start_time = slot_start_timestamp as i64
                         + SET_CONSTRAINTS_CUTOFF_NS
                         + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
                     let sleep_duration = submit_start_time
                         - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
+                    info!(
+                        "Current time: {}, Slot start time: {}, Submit start time: {}",
+                        time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
+                        slot_start_timestamp,
+                        submit_start_time
+                    );
+                    info!("Sleep duration: {}", sleep_duration / 1_000_000_000);
                     if sleep_duration.is_positive() {
+                        info!("Sleeping for {} s until slot {} starts", sleep_duration, next_slot);
                         tokio::time::sleep(Duration::from_nanos(
                             sleep_duration.try_into().expect("positive sleep duration"),
                         ))
                         .await;
                     } else {
-                        warn!("sleep duration is negative, maybe your system time is not accurate");
+                        warn!("slot is in past, skipping");
+                        // remove inclusion requests for this slot
+                        let _ = self.preconf_pool.inclusion_requests_for_slot(next_slot)?;
+                        continue;
                     }
 
                     // gets inclusion requests for the next slot and remove them from the pool
@@ -146,7 +155,7 @@ where
                         let mut i = 0;
 
                         'submit: while let Err(e) = constraint_client
-                            .send_set_constraints(
+                            .submit_constraints(
                                 signed_constraints_message.clone(),
                                 slot_start_timestamp,
                             )
