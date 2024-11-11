@@ -73,13 +73,17 @@ impl PreconfPool {
         Ok(PoolState::Inclusion)
     }
 
-    /// Returns all preconf requests that are ready to be executed in the next block.
+    pub fn next_slot(&self) -> Option<u64> {
+        self.pool_inner.read().inclusion.by_slot.keys().next().cloned()
+    }
+
+    /// Returns all preconf requests that are ready to be executed in the next block and removes them from the pool.
     pub fn inclusion_requests_for_slot(
         &self,
         slot: u64,
     ) -> Result<Vec<InclusionRequest>, PoolError> {
-        match self.pool_inner.read().inclusion.get(&slot) {
-            Some(inclusion_requests) => Ok(inclusion_requests.clone()),
+        match self.pool_inner.write().inclusion.by_slot.remove(&slot) {
+            Some(inclusion_requests) => Ok(inclusion_requests),
             None => Err(PoolError::SlotNotFound(slot)),
         }
     }

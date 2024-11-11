@@ -4,7 +4,7 @@ use taiyi_primitives::inclusion_request::InclusionRequest;
 
 #[derive(Debug, Clone)]
 pub struct Inclusion {
-    by_slot: HashMap<u64, Vec<InclusionRequest>>,
+    pub by_slot: HashMap<u64, Vec<InclusionRequest>>,
 }
 
 impl Inclusion {

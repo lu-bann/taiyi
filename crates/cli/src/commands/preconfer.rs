@@ -20,10 +20,6 @@ pub struct PreconferCommand {
     #[clap(long = "execution_client_url")]
     pub execution_client_url: String,
 
-    /// consensus client rpc url
-    #[clap(long = "beacon_client_url")]
-    pub beacon_client_url: String,
-
     /// A BLS private key to use for signing
     #[clap(long = "bls_sk")]
     pub bls_sk: String,
@@ -44,14 +40,6 @@ pub struct PreconferCommand {
     #[clap(long = "taiyi_core_contract_addr")]
     pub taiyi_core_contract_addr: String,
 
-    /// taiyi proposer registry contract address
-    #[clap(long = "taiyi_proposer_registry_contract_addr")]
-    pub taiyi_proposer_registry_contract_addr: String,
-
-    /// taiyi service url. Internal usage for taiyi base fee predict module
-    #[clap(long)]
-    pub taiyi_service_url: Option<String>,
-
     /// metrics port
     #[clap(long)]
     pub metrics_port: Option<u16>,
@@ -62,8 +50,6 @@ impl PreconferCommand {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
-        let taiyi_proposer_registry_contract_addr: Address =
-            self.taiyi_proposer_registry_contract_addr.parse()?;
         let bls_private_key = SecretKey::from_bytes(&hex::decode(
             self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
         )?)
@@ -81,10 +67,7 @@ impl PreconferCommand {
 
         spawn_service(
             taiyi_core_contract_addr,
-            taiyi_proposer_registry_contract_addr,
             self.execution_client_url.clone(),
-            self.beacon_client_url.clone(),
-            self.taiyi_service_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,

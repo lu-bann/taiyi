@@ -55,19 +55,18 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run<T, P, F>(self, state: PreconfState<T, P, F>) -> eyre::Result<()>
+    pub async fn run<T, P>(self, state: PreconfState<T, P>) -> eyre::Result<()>
     where
         T: Transport + Clone + Send + Sync + 'static,
         P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-        F: PreconfPricer + Clone + Send + Sync + 'static,
     {
         let app = Router::new()
             .route(INCLUSION_REQUEST_PATH, post(inlusion_request))
-            .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
-            .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
-            .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
-            .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
-            .route(AVAILABLE_SLOT_PATH, get(get_slots))
+            // .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
+            // .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
+            // .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
+            // .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
+            // .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .with_state(state);
 
         let listener = match TcpListener::bind(&self.addr).await {
@@ -85,15 +84,14 @@ impl PreconfApiServer {
     }
 }
 
-pub async fn inlusion_request<T, P, F>(
+pub async fn inlusion_request<T, P>(
     headers: HeaderMap,
-    State(state): State<PreconfState<T, P, F>>,
+    State(state): State<PreconfState<T, P>>,
     Json(payload): Json<JsonPayload>,
 ) -> Result<Json<JsonResponse>, RpcError>
 where
     T: Transport + Clone + Send + Sync + 'static,
     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
 {
     info!("Received new request");
 
@@ -156,118 +154,118 @@ where
     }
 }
 
-pub async fn handle_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-    Json(preconf_request): Json<PreconfRequest>,
-) -> Result<Json<PreconfResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
-    let start_request = Instant::now();
-    match state.send_preconf_request(preconf_request).await {
-        Ok(response) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Err(e)
-        }
-    }
-}
+// pub async fn handle_preconf_request<T, P, F>(
+//     State(state): State<PreconfState<T, P, F>>,
+//     Json(preconf_request): Json<PreconfRequest>,
+// ) -> Result<Json<PreconfResponse>, RpcError>
+// where
+//     T: Transport + Clone + Send + Sync + 'static,
+//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+//     F: PreconfPricer + Clone + Send + Sync + 'static,
+// {
+//     let start_request = Instant::now();
+//     match state.send_preconf_request(preconf_request).await {
+//         Ok(response) => {
+//             let request_latency = start_request.elapsed();
+//             PRECONF_RESPONSE_DURATION
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
+//                 .observe(request_latency.as_secs_f64());
+//             PRECONF_REQUEST_RECEIVED
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
+//                 .inc();
+//             Ok(Json(response))
+//         }
+//         Err(e) => {
+//             let request_latency = start_request.elapsed();
+//             PRECONF_RESPONSE_DURATION
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
+//                 .observe(request_latency.as_secs_f64());
+//             PRECONF_REQUEST_RECEIVED
+//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
+//                 .inc();
+//             Err(e)
+//         }
+//     }
+// }
 
-pub async fn delete_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-    Json(cancel_request): Json<CancelPreconfRequest>,
-) -> Result<Json<CancelPreconfResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
-    match state.cancel_preconf_request(cancel_request).await {
-        Ok(response) => {
-            PRECONF_CANCEL_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            PRECONF_CANCEL_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Err(e.into())
-        }
-    }
-}
+// pub async fn delete_preconf_request<T, P, F>(
+//     State(state): State<PreconfState<T, P, F>>,
+//     Json(cancel_request): Json<CancelPreconfRequest>,
+// ) -> Result<Json<CancelPreconfResponse>, RpcError>
+// where
+//     T: Transport + Clone + Send + Sync + 'static,
+//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+//     F: PreconfPricer + Clone + Send + Sync + 'static,
+// {
+//     match state.cancel_preconf_request(cancel_request).await {
+//         Ok(response) => {
+//             PRECONF_CANCEL_RECEIVED
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
+//                 .inc();
+//             Ok(Json(response))
+//         }
+//         Err(e) => {
+//             PRECONF_CANCEL_RECEIVED
+//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
+//                 .inc();
+//             Err(e.into())
+//         }
+//     }
+// }
 
-pub async fn handle_preconf_request_tx<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-    Json(request): Json<PreconfTxRequest>,
-) -> Result<impl IntoResponse, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
-    let start_request = Instant::now();
-    match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
-        Ok(response) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_TX_PATH])
-                .inc();
-            Err(e)
-        }
-    }
-}
+// pub async fn handle_preconf_request_tx<T, P, F>(
+//     State(state): State<PreconfState<T, P, F>>,
+//     Json(request): Json<PreconfTxRequest>,
+// ) -> Result<impl IntoResponse, RpcError>
+// where
+//     T: Transport + Clone + Send + Sync + 'static,
+//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+//     F: PreconfPricer + Clone + Send + Sync + 'static,
+// {
+//     let start_request = Instant::now();
+//     match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
+//         Ok(response) => {
+//             let request_latency = start_request.elapsed();
+//             PRECONF_RESPONSE_DURATION
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
+//                 .observe(request_latency.as_secs_f64());
+//             PRECONF_TX_RECEIVED
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
+//                 .inc();
+//             Ok(Json(response))
+//         }
+//         Err(e) => {
+//             let request_latency = start_request.elapsed();
+//             PRECONF_RESPONSE_DURATION
+//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
+//                 .observe(request_latency.as_secs_f64());
+//             PRECONF_TX_RECEIVED
+//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_TX_PATH])
+//                 .inc();
+//             Err(e)
+//         }
+//     }
+// }
 
-pub async fn get_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-    Path(params): Path<GetPreconfRequestQuery>,
-) -> Result<Json<PreconfStatusResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
-    Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
-}
+// pub async fn get_preconf_request<T, P, F>(
+//     State(state): State<PreconfState<T, P, F>>,
+//     Path(params): Path<GetPreconfRequestQuery>,
+// ) -> Result<Json<PreconfStatusResponse>, RpcError>
+// where
+//     T: Transport + Clone + Send + Sync + 'static,
+//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+//     F: PreconfPricer + Clone + Send + Sync + 'static,
+// {
+//     Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
+// }
 
-pub async fn get_slots<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-) -> Result<Json<AvailableSlotResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
-    Ok(Json(state.available_slot().await?))
-}
+// pub async fn get_slots<T, P, F>(
+//     State(state): State<PreconfState<T, P, F>>,
+// ) -> Result<Json<AvailableSlotResponse>, RpcError>
+// where
+//     T: Transport + Clone + Send + Sync + 'static,
+//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
+//     F: PreconfPricer + Clone + Send + Sync + 'static,
+// {
+//     Ok(Json(state.available_slot().await?))
+// }
