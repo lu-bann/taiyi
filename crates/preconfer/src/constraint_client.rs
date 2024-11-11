@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 
+use eyre::Context;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
 
@@ -28,6 +29,10 @@ impl ConstraintClient {
 
         let response = self.client.post(url.clone()).json(&constraints).send().await?;
         let code = response.status();
+
+        let body = response.bytes().await.wrap_err("failed to parse response")?;
+        let body = String::from_utf8_lossy(&body);
+        tracing::info!("Submit constraint Response: {}", body);
 
         if code.is_success() {
             Ok(())
