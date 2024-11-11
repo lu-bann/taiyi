@@ -7,12 +7,13 @@ use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
-    response::IntoResponse,
+    response::{IntoResponse, Json},
     routing::{delete, get, post},
-    Json, Router,
+    Router,
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use taiyi_primitives::{
     inclusion_request::InclusionRequest, AvailableSlotResponse, CancelPreconfRequest,
     CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
@@ -33,11 +34,6 @@ use crate::{
 };
 
 const INCLUSION_REQUEST_PATH: &str = "/commitments/v1/inclusion_request";
-const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
-const PRECONF_REQUEST_TX_PATH: &str = "/commitments/v1/preconf_request/tx";
-const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v1/preconf_request/:preconf_hash";
-const AVAILABLE_SLOT_PATH: &str = "/commitments/v1/slots";
-
 const REQUEST_INCLUSION_METHOD: &str = "luban_requestInclusion";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,14 +58,10 @@ impl PreconfApiServer {
     {
         let app = Router::new()
             .route(INCLUSION_REQUEST_PATH, post(inlusion_request))
-            // .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
-            // .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
-            // .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
-            // .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
-            // .route(AVAILABLE_SLOT_PATH, get(get_slots))
+            .route("/health", get(health_check))
             .with_state(state);
 
-        info!("Starting rpc server on http://{}:{} ", self.addr.ip(), self.addr.port());
+        info!("Starting rpc server...");
         let listener = match TcpListener::bind(&self.addr).await {
             Ok(l) => l,
             Err(e) => {
@@ -77,10 +69,16 @@ impl PreconfApiServer {
                 return Err(e.into());
             }
         };
-        if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("Server error: {e:?}");
-            return Err(e.into());
-        }
+
+        info!("123###################4567");
+
+        tokio::spawn(async move {
+            if let Err(err) = axum::serve(listener, app).await {
+                error!(?err, "preconf API Server error");
+            }
+        });
+
+        info!("Started rpc server on http://{} ", self.addr);
         Ok(())
     }
 }
@@ -154,118 +152,7 @@ where
     }
 }
 
-// pub async fn handle_preconf_request<T, P, F>(
-//     State(state): State<PreconfState<T, P, F>>,
-//     Json(preconf_request): Json<PreconfRequest>,
-// ) -> Result<Json<PreconfResponse>, RpcError>
-// where
-//     T: Transport + Clone + Send + Sync + 'static,
-//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-//     F: PreconfPricer + Clone + Send + Sync + 'static,
-// {
-//     let start_request = Instant::now();
-//     match state.send_preconf_request(preconf_request).await {
-//         Ok(response) => {
-//             let request_latency = start_request.elapsed();
-//             PRECONF_RESPONSE_DURATION
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-//                 .observe(request_latency.as_secs_f64());
-//             PRECONF_REQUEST_RECEIVED
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-//                 .inc();
-//             Ok(Json(response))
-//         }
-//         Err(e) => {
-//             let request_latency = start_request.elapsed();
-//             PRECONF_RESPONSE_DURATION
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-//                 .observe(request_latency.as_secs_f64());
-//             PRECONF_REQUEST_RECEIVED
-//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-//                 .inc();
-//             Err(e)
-//         }
-//     }
-// }
-
-// pub async fn delete_preconf_request<T, P, F>(
-//     State(state): State<PreconfState<T, P, F>>,
-//     Json(cancel_request): Json<CancelPreconfRequest>,
-// ) -> Result<Json<CancelPreconfResponse>, RpcError>
-// where
-//     T: Transport + Clone + Send + Sync + 'static,
-//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-//     F: PreconfPricer + Clone + Send + Sync + 'static,
-// {
-//     match state.cancel_preconf_request(cancel_request).await {
-//         Ok(response) => {
-//             PRECONF_CANCEL_RECEIVED
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-//                 .inc();
-//             Ok(Json(response))
-//         }
-//         Err(e) => {
-//             PRECONF_CANCEL_RECEIVED
-//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-//                 .inc();
-//             Err(e.into())
-//         }
-//     }
-// }
-
-// pub async fn handle_preconf_request_tx<T, P, F>(
-//     State(state): State<PreconfState<T, P, F>>,
-//     Json(request): Json<PreconfTxRequest>,
-// ) -> Result<impl IntoResponse, RpcError>
-// where
-//     T: Transport + Clone + Send + Sync + 'static,
-//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-//     F: PreconfPricer + Clone + Send + Sync + 'static,
-// {
-//     let start_request = Instant::now();
-//     match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
-//         Ok(response) => {
-//             let request_latency = start_request.elapsed();
-//             PRECONF_RESPONSE_DURATION
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-//                 .observe(request_latency.as_secs_f64());
-//             PRECONF_TX_RECEIVED
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-//                 .inc();
-//             Ok(Json(response))
-//         }
-//         Err(e) => {
-//             let request_latency = start_request.elapsed();
-//             PRECONF_RESPONSE_DURATION
-//                 .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-//                 .observe(request_latency.as_secs_f64());
-//             PRECONF_TX_RECEIVED
-//                 .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_TX_PATH])
-//                 .inc();
-//             Err(e)
-//         }
-//     }
-// }
-
-// pub async fn get_preconf_request<T, P, F>(
-//     State(state): State<PreconfState<T, P, F>>,
-//     Path(params): Path<GetPreconfRequestQuery>,
-// ) -> Result<Json<PreconfStatusResponse>, RpcError>
-// where
-//     T: Transport + Clone + Send + Sync + 'static,
-//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-//     F: PreconfPricer + Clone + Send + Sync + 'static,
-// {
-//     Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
-// }
-
-// pub async fn get_slots<T, P, F>(
-//     State(state): State<PreconfState<T, P, F>>,
-// ) -> Result<Json<AvailableSlotResponse>, RpcError>
-// where
-//     T: Transport + Clone + Send + Sync + 'static,
-//     P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-//     F: PreconfPricer + Clone + Send + Sync + 'static,
-// {
-//     Ok(Json(state.available_slot().await?))
-// }
+// Health check endpoint
+pub async fn health_check() -> impl IntoResponse {
+    Json(json!({"status": "OK"}))
+}
