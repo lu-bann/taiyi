@@ -50,6 +50,7 @@ impl PreconferCommand {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
         let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
+
         let bls_private_key = SecretKey::from_bytes(&hex::decode(
             self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
         )?)

@@ -69,6 +69,7 @@ impl PreconfApiServer {
             // .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .with_state(state);
 
+        info!("Starting rpc server on http://{}:{} ", self.addr.ip(), self.addr.port());
         let listener = match TcpListener::bind(&self.addr).await {
             Ok(l) => l,
             Err(e) => {
@@ -134,7 +135,6 @@ where
             // Set the request signer
             inclusion_request.set_signer(signer);
 
-            // info!(signer = ?recovered_signer, %digest, "New valid inclusion request received");
             let inclusion_commitment = state.request_inclusion(inclusion_request).await?;
 
             // Create the JSON-RPC response
