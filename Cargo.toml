@@ -51,7 +51,7 @@ alloy-node-bindings = { version = "0.5.2", default-features = false }
 alloy-rpc-client = { version = "0.5.2", default-features = false }
 
 # reth
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.2" }
 reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }

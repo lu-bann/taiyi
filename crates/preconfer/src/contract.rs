@@ -76,6 +76,7 @@ pub mod core {
     }
 }
 pub use core::TaiyiCore::TaiyiCoreInstance;
+use std::str::FromStr;
 
 impl From<PreconfRequest> for core::PreconfRequest {
     fn from(req: PreconfRequest) -> Self {
@@ -211,12 +212,20 @@ where
     let mut inclusion_txs: Vec<core::InclusionTx> = Vec::new();
     for incl_req in inclusion_reqs {
         for full_tx in incl_req.txs {
-            let tx = full_tx.tx.into_transaction().transaction;
+            let signed_tx = full_tx.tx.into_transaction();
+            let tx = signed_tx.clone().transaction;
             let incl_tx = core::InclusionTx {
-                from: full_tx.sender.expect("sender is none"),
-                to: *tx.kind().to().expect("to is none"),
+                from: alloy_primitives::Address::from_str(
+                    signed_tx.recover_signer().unwrap().to_string().as_str(),
+                )
+                .expect("address error"),
+                // from: full_tx.sender.expect("sender is none"),
+                to: alloy_primitives::Address::from_str(
+                    tx.kind().to().expect("to is none").to_string().as_str(),
+                )
+                .expect("address error"),
                 value: tx.value(),
-                callData: tx.input().clone(),
+                callData: alloy_primitives::Bytes::from(tx.input().clone().to_vec()),
             };
             inclusion_txs.push(incl_tx);
         }
@@ -224,8 +233,8 @@ where
 
     let mut tx = contract.batchSettleRequestsV2(inclusion_txs).into_transaction_request();
 
-    let estimate_gas = provider.estimate_gas(&tx).await?;
-    let gas_limit = estimate_gas + 100000;
+    // let estimate_gas = provider.estimate_gas(&tx).await?;
+    let gas_limit = 21_000;
     let Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas } =
         provider.estimate_eip1559_fees(None).await?;
     let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
