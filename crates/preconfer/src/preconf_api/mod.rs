@@ -80,15 +80,13 @@ pub async fn spawn_service(
             // spawn preconfapi server
             let preconfapiserver =
                 PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
-            let server_handle = preconfapiserver.run(state.clone());
+            let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {
                 _ = state.spawn_constraint_submitter() => {
                     error!("Constraint submitter task exited.");
                 },
-                res = server_handle => {
-                    error!("PreconfApiServer task exited. {:?}", res);
-                }
+
             }
         }
         None => {
@@ -109,18 +107,15 @@ pub async fn spawn_service(
             // spawn preconfapi server
             let preconfapiserver =
                 PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
-            let server_handle = preconfapiserver.run(state.clone());
+            let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {
                 res = state.spawn_constraint_submitter() => {
                     error!("Constraint submitter task exited. {:?}", res);
                 },
-                res = server_handle => {
-                    error!("PreconfApiServer task exited. {:?}", res);
-                }
             }
         }
-    };
+    }
 
     Ok(())
 }

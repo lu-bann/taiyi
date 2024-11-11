@@ -5,17 +5,19 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
-    response::IntoResponse,
+    response::{IntoResponse, Json},
     routing::{delete, get, post},
-    Json, Router,
+    Router,
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use taiyi_primitives::{
     AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
     PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
 };
 use tokio::net::TcpListener;
+use tracing::{error, info};
 
 use crate::{
     error::RpcError,
@@ -59,8 +61,10 @@ impl PreconfApiServer {
             .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
             .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
+            .route("/health", get(health_check))
             .with_state(state);
 
+        info!("Starting rpc server...");
         let listener = match TcpListener::bind(&self.addr).await {
             Ok(l) => l,
             Err(e) => {
@@ -68,12 +72,21 @@ impl PreconfApiServer {
                 return Err(e.into());
             }
         };
-        if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("Server error: {e:?}");
-            return Err(e.into());
-        }
+
+        tokio::spawn(async move {
+            if let Err(err) = axum::serve(listener, app).await {
+                error!(?err, "preconf API Server error");
+            }
+        });
+
+        info!("Started rpc server on http://{} ", self.addr);
         Ok(())
     }
+}
+
+// Health check endpoint
+pub async fn health_check() -> impl IntoResponse {
+    Json(json!({"status": "OK"}))
 }
 
 pub async fn handle_preconf_request<T, P, F>(

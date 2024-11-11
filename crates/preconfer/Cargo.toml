@@ -32,6 +32,7 @@ priority-queue = { workspace = true }
 prometheus = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
