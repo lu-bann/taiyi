@@ -70,8 +70,6 @@ impl PreconfApiServer {
             }
         };
 
-        info!("123###################4567");
-
         tokio::spawn(async move {
             if let Err(err) = axum::serve(listener, app).await {
                 error!(?err, "preconf API Server error");
