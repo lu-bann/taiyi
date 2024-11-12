@@ -33,6 +33,7 @@ reqwest = { workspace = true }
 reth-revm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+ssz_rs = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -40,7 +41,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.6.0"
 tree_hash_derive = "0.6.0"
-ssz_rs = { workspace = true }
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
 mockito = "1.4.0"

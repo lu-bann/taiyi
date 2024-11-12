@@ -33,39 +33,24 @@ pub const SET_CONSTRAINTS_CUTOFF: u64 = 8;
 pub const SET_CONSTRAINTS_CUTOFF_DELTA: u64 = 1;
 
 #[derive(Clone)]
-pub struct PreconfState<T, P> {
+pub struct PreconfState {
     constraint_client: ConstraintClient,
     preconf_pool: Arc<PreconfPool>,
     context: Context,
     bls_sk: blst::min_pk::SecretKey,
     ecdsa_signer: PrivateKeySigner,
-    provider: P,
-    _marker: std::marker::PhantomData<T>,
 }
 
-impl<T, P> PreconfState<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
-{
+impl PreconfState {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         constraint_client: ConstraintClient,
         context: Context,
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
-        provider: P,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(0);
-        Self {
-            constraint_client,
-            preconf_pool,
-            context,
-            bls_sk,
-            ecdsa_signer,
-            provider,
-            _marker: std::marker::PhantomData,
-        }
+        Self { constraint_client, preconf_pool, context, bls_sk, ecdsa_signer }
     }
 
     pub fn _preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
@@ -116,7 +101,6 @@ where
                             let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
                             let signed_constraints_message = inclusion_reqs_to_constraints(
                                 inclusion_requests,
-                                self.provider.clone(),
                                 wallet,
                                 &self.bls_sk,
                                 &self.context,

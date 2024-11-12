@@ -51,11 +51,7 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run<T, P>(self, state: PreconfState<T, P>) -> eyre::Result<()>
-    where
-        T: Transport + Clone + Send + Sync + 'static,
-        P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    {
+    pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
         let app = Router::new()
             .route(INCLUSION_REQUEST_PATH, post(inlusion_request))
             .route("/health", get(health_check))
@@ -81,15 +77,11 @@ impl PreconfApiServer {
     }
 }
 
-pub async fn inlusion_request<T, P>(
+pub async fn inlusion_request(
     headers: HeaderMap,
-    State(state): State<PreconfState<T, P>>,
+    State(state): State<PreconfState>,
     Json(payload): Json<JsonPayload>,
-) -> Result<Json<JsonResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-{
+) -> Result<Json<JsonResponse>, RpcError> {
     info!("Received new request");
 
     // Extract the signer and signature from the headers

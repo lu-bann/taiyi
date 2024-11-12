@@ -193,19 +193,12 @@ where
     Ok(constraints)
 }
 
-pub async fn inclusion_reqs_to_constraints<T, P>(
+pub async fn inclusion_reqs_to_constraints(
     inclusion_reqs: Vec<InclusionRequest>,
-    provider: P,
     wallet: EthereumWallet,
     bls_sk: &blst::min_pk::SecretKey,
     context: &Context,
-) -> eyre::Result<Vec<SignedConstraints>>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    let chain_id = provider.get_chain_id().await?;
-
+) -> eyre::Result<Vec<SignedConstraints>> {
     let slot = inclusion_reqs.first().expect("slot is none").slot;
 
     let mut txs = Vec::new();

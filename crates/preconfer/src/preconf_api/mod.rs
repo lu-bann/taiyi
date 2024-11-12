@@ -25,7 +25,6 @@ pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    execution_client_url: String,
     context: Context,
     preconfer_ip: IpAddr,
     preconfer_port: u16,
@@ -36,17 +35,7 @@ pub async fn spawn_service(
     let constraint_client =
         ConstraintClient::new(relay_url.first().expect("relay_url is empty").clone())?;
 
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_client_url).await?;
-
-    let state = PreconfState::new(
-        constraint_client,
-        context,
-        bls_private_key,
-        ecdsa_signer,
-        provider.clone(),
-    )
-    .await;
+    let state = PreconfState::new(constraint_client, context, bls_private_key, ecdsa_signer).await;
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
