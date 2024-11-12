@@ -1,6 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use alloy_primitives::Address;
 use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
@@ -15,10 +14,6 @@ pub struct PreconferCommand {
     /// jsonrpc service port to listen on.
     #[clap(long = "taiyi_rpc_port", default_value_t = 5656)]
     pub taiyi_rpc_port: u16,
-
-    /// execution client rpc url
-    #[clap(long = "execution_client_url")]
-    pub execution_client_url: String,
 
     /// A BLS private key to use for signing
     #[clap(long = "bls_sk")]
@@ -36,10 +31,6 @@ pub struct PreconferCommand {
     #[clap(long = "relay_url")]
     pub relay_url: Vec<String>,
 
-    /// taiyi core contract address
-    #[clap(long = "taiyi_core_contract_addr")]
-    pub taiyi_core_contract_addr: String,
-
     /// metrics port
     #[clap(long)]
     pub metrics_port: Option<u16>,
@@ -49,7 +40,6 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
 
         let bls_private_key = SecretKey::from_bytes(&hex::decode(
             self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
@@ -67,8 +57,6 @@ impl PreconferCommand {
         }
 
         spawn_service(
-            taiyi_core_contract_addr,
-            self.execution_client_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,

@@ -1,8 +1,10 @@
 use std::time::SystemTime;
 
+use alloy_rpc_types::erc4337;
 use eyre::Context;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
+use tracing::{error, info};
 
 use crate::metrics::preconfer::{PRECONF_CONSTRAINTS_SENT_TIME, RELAY_STATUS_CODE};
 
@@ -23,7 +25,6 @@ impl ConstraintClient {
     pub async fn submit_constraints(
         &self,
         constraints: Vec<SignedConstraints>,
-        slot_start_timestamp: u64,
     ) -> eyre::Result<()> {
         let url = self.url.join("constraints/v1/builder/constraints")?;
 
@@ -32,11 +33,12 @@ impl ConstraintClient {
 
         let body = response.bytes().await.wrap_err("failed to parse response")?;
         let body = String::from_utf8_lossy(&body);
-        tracing::info!("Submit constraint Response: {}", body);
 
         if code.is_success() {
+            info!("Constraints submitted successfully");
             Ok(())
         } else {
+            error!("Failed to submit constraints {}", body);
             Err(eyre::eyre!("Failed to submit constraints"))
         }
     }
