@@ -25,7 +25,6 @@ pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    taiyi_core_contract_addr: Address,
     execution_client_url: String,
     context: Context,
     preconfer_ip: IpAddr,
@@ -45,7 +44,6 @@ pub async fn spawn_service(
         context,
         bls_private_key,
         ecdsa_signer,
-        taiyi_core_contract_addr,
         provider.clone(),
     )
     .await;

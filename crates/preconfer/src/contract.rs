@@ -7,6 +7,7 @@ use alloy_transport::Transport;
 use ethereum_consensus::{
     crypto::{PublicKey as BlsPublicKey, Signature},
     deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context, Transaction},
+    ssz::prelude::ByteList,
 };
 use taiyi_primitives::{
     inclusion_request::InclusionRequest, ConstraintsMessage, PreconfRequest, SignableBLS,
@@ -194,7 +195,6 @@ where
 
 pub async fn inclusion_reqs_to_constraints<T, P>(
     inclusion_reqs: Vec<InclusionRequest>,
-    taiyi_core_address: Address,
     provider: P,
     wallet: EthereumWallet,
     bls_sk: &blst::min_pk::SecretKey,
@@ -205,56 +205,27 @@ where
     P: Provider<T, Ethereum> + Clone,
 {
     let chain_id = provider.get_chain_id().await?;
-    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
 
     let slot = inclusion_reqs.first().expect("slot is none").slot;
 
-    let mut inclusion_txs: Vec<core::InclusionTx> = Vec::new();
+    let mut txs = Vec::new();
     for incl_req in inclusion_reqs {
         for full_tx in incl_req.txs {
-            let signed_tx = full_tx.tx.into_transaction();
-            let tx = signed_tx.clone().transaction;
-            let incl_tx = core::InclusionTx {
-                from: alloy_primitives::Address::from_str(
-                    signed_tx.recover_signer().unwrap().to_string().as_str(),
-                )
-                .expect("address error"),
-                // from: full_tx.sender.expect("sender is none"),
-                to: alloy_primitives::Address::from_str(
-                    tx.kind().to().expect("to is none").to_string().as_str(),
-                )
-                .expect("address error"),
-                value: tx.value(),
-                callData: alloy_primitives::Bytes::from(tx.input().clone().to_vec()),
-            };
-            inclusion_txs.push(incl_tx);
+            let mut tx_bytes = Vec::new();
+            full_tx.tx.encode_enveloped(&mut tx_bytes);
+            let tx_ref: &[u8] = tx_bytes.as_ref();
+            let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                tx_ref.try_into().expect("tx bytes too big");
+            txs.push(tx_bytes);
         }
     }
-
-    let mut tx = contract.batchSettleRequestsV2(inclusion_txs).into_transaction_request();
-
-    // let estimate_gas = provider.estimate_gas(&tx).await?;
-    let gas_limit = 21_000;
-    let Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas } =
-        provider.estimate_eip1559_fees(None).await?;
-    let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
-    tx.set_gas_limit(gas_limit);
-    tx.set_max_fee_per_gas(max_fee_per_gas);
-    tx.set_max_priority_fee_per_gas(max_priority_fee_per_gas);
-    tx.set_nonce(nonce);
-    tx.set_chain_id(ChainId::from(chain_id));
-
-    let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
-    let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
-    let tx_envelope_bl: Transaction<MAX_BYTES_PER_TRANSACTION> =
-        tx_envelope_ref.try_into().expect("bytelist");
 
     let bls_pk = bls_sk.sk_to_pk().to_bytes();
     let message = ConstraintsMessage {
         pubkey: BlsPublicKey::try_from(bls_pk.as_ref()).expect("key error"),
         slot,
         top: true,
-        transactions: vec![tx_envelope_bl].try_into().expect("tx too big"),
+        transactions: txs.try_into().expect("tx too big"),
     };
 
     let digest = message.digest();

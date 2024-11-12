@@ -6,7 +6,12 @@ use alloy_provider::Provider;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
-use ethereum_consensus::deneb::Context;
+use ethereum_consensus::{
+    altair::genesis,
+    clock::{from_system_time, Clock},
+    deneb::Context,
+};
+use futures::StreamExt;
 use taiyi_primitives::{
     commitment::InclusionCommitment, inclusion_request::InclusionRequest, AvailableSlotResponse,
     CancelPreconfRequest, CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse,
@@ -24,8 +29,8 @@ use crate::{
     pricer::PreconfPricer,
 };
 
-pub const SET_CONSTRAINTS_CUTOFF_NS: i64 = 8_000_000_000;
-pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
+pub const SET_CONSTRAINTS_CUTOFF: u64 = 8;
+pub const SET_CONSTRAINTS_CUTOFF_DELTA: u64 = 1;
 
 #[derive(Clone)]
 pub struct PreconfState<T, P> {
@@ -34,7 +39,6 @@ pub struct PreconfState<T, P> {
     context: Context,
     bls_sk: blst::min_pk::SecretKey,
     ecdsa_signer: PrivateKeySigner,
-    taiyi_core_contract_addr: Address,
     provider: P,
     _marker: std::marker::PhantomData<T>,
 }
@@ -50,7 +54,6 @@ where
         context: Context,
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
-        taiyi_core_contract_addr: Address,
         provider: P,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(0);
@@ -60,7 +63,6 @@ where
             context,
             bls_sk,
             ecdsa_signer,
-            taiyi_core_contract_addr,
             provider,
             _marker: std::marker::PhantomData,
         }
@@ -94,81 +96,54 @@ where
         };
 
         async move {
-            loop {
-                if let Some(next_slot) = self.preconf_pool.next_slot() {
-                    info!("Next slot in the preconf pool: {}", next_slot);
-                    let slot = next_slot - 1;
-                    let slot_start_timestamp =
-                        (genesis_time + (slot * self.context.seconds_per_slot)) * 1_000_000_000;
-                    let submit_start_time = slot_start_timestamp as i64
-                        + SET_CONSTRAINTS_CUTOFF_NS
-                        + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
-                    let sleep_duration = submit_start_time
-                        - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
-                    info!(
-                        "Current time: {}, Slot start time: {}, Submit start time: {}",
-                        time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
-                        slot_start_timestamp,
-                        submit_start_time
-                    );
-                    info!("Sleep duration: {}", sleep_duration / 1_000_000_000);
-                    if sleep_duration.is_positive() {
-                        info!("Sleeping for {} s until slot {} starts", sleep_duration, next_slot);
-                        tokio::time::sleep(Duration::from_nanos(
-                            sleep_duration.try_into().expect("positive sleep duration"),
-                        ))
-                        .await;
-                    } else {
-                        warn!("slot is in past, skipping");
-                        // remove inclusion requests for this slot
-                        let _ = self.preconf_pool.inclusion_requests_for_slot(next_slot)?;
-                        continue;
-                    }
+            let clock = from_system_time(
+                genesis_time,
+                self.context.seconds_per_slot,
+                self.context.slots_per_epoch,
+            );
+            let mut slot_stream = clock.into_stream();
+            while let Some(slot) = slot_stream.next().await {
+                info!("Current slot: {}", slot);
+                let next_slot = slot + 1;
 
-                    // gets inclusion requests for the next slot and remove them from the pool
-                    let inclusion_requests =
-                        self.preconf_pool.inclusion_requests_for_slot(next_slot)?;
-
-                    if inclusion_requests.is_empty() {
-                        continue;
-                    } else {
-                        let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                        let signed_constraints_message = inclusion_reqs_to_constraints(
-                            inclusion_requests,
-                            self.taiyi_core_contract_addr,
-                            self.provider.clone(),
-                            wallet,
-                            &self.bls_sk,
-                            &self.context,
-                        )
-                        .await?;
-                        // info!(
-                        //     "Sending {} constraints message with slot: {}",
-                        //     constraint_message.len(),
-                        //     constraint_message.slot
-                        // );
-                        // let signed_constraints_message = self
-                        //     .signed_constraints_message(constraint_message)
-                        //     .await
-                        //     .expect("signed constraints");
-                        let max_retries = 5;
-                        let mut i = 0;
-
-                        'submit: while let Err(e) = constraint_client
-                            .submit_constraints(
-                                signed_constraints_message.clone(),
-                                slot_start_timestamp,
+                // gets inclusion requests for the next slot and remove them from the pool
+                match self.preconf_pool.inclusion_requests_for_slot(next_slot) {
+                    Ok(inclusion_requests) => {
+                        if inclusion_requests.is_empty() {
+                            info!("No inclusion requests for slot {}, skipping", next_slot);
+                            continue;
+                        } else {
+                            let wallet = EthereumWallet::new(self.ecdsa_signer.clone());
+                            let signed_constraints_message = inclusion_reqs_to_constraints(
+                                inclusion_requests,
+                                self.provider.clone(),
+                                wallet,
+                                &self.bls_sk,
+                                &self.context,
                             )
-                            .await
-                        {
-                            error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                            i += 1;
-                            if i >= max_retries {
-                                error!("Max retries reached while submitting to MEV-Boost");
-                                break 'submit;
+                            .await?;
+                            let max_retries = 5;
+                            let mut i = 0;
+                            info!("Submitting constraints to MEV-Boost");
+                            'submit: while let Err(e) = constraint_client
+                                .submit_constraints(signed_constraints_message.clone())
+                                .await
+                            {
+                                error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                                i += 1;
+                                if i >= max_retries {
+                                    error!("Max retries reached while submitting to MEV-Boost");
+                                    break 'submit;
+                                }
+                                tokio::time::sleep(Duration::from_millis(100)).await;
                             }
-                            tokio::time::sleep(Duration::from_millis(100)).await;
                         }
+                    }
+                    Err(PoolError::SlotNotFound(slot)) => {
+                        info!("Slot {} not found", slot);
+                    }
+                    Err(e) => {
+                        error!("Error getting inclusion requests for slot {}: {:?}", next_slot, e);
                     }
                 }
             }
