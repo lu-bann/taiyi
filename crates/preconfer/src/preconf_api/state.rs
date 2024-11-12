@@ -106,20 +106,17 @@ impl PreconfState {
                                 &self.context,
                             )
                             .await?;
-                            let max_retries = 5;
-                            let mut i = 0;
                             info!("Submitting constraints to MEV-Boost");
-                            'submit: while let Err(e) = constraint_client
+                            match constraint_client
                                 .submit_constraints(signed_constraints_message.clone())
                                 .await
                             {
-                                error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                                i += 1;
-                                if i >= max_retries {
-                                    error!("Max retries reached while submitting to MEV-Boost");
-                                    break 'submit;
+                                Ok(_) => {
+                                    info!("Constraints submitted successfully");
                                 }
-                                tokio::time::sleep(Duration::from_millis(100)).await;
+                                Err(e) => {
+                                    error!("Failed to submit constraints: {:?}", e);
+                                }
                             }
                         }
                     }

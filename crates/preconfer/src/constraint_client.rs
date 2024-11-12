@@ -26,8 +26,8 @@ impl ConstraintClient {
         &self,
         constraints: Vec<SignedConstraints>,
     ) -> eyre::Result<()> {
-        let url = self.url.join("constraints/v1/builder/constraints")?;
-
+        let url = self.url.join("/constraints/v1/builder/constraints")?;
+        info!("Submitting constraints to {}", url);
         let response = self.client.post(url.clone()).json(&constraints).send().await?;
         let code = response.status();
 
@@ -38,7 +38,7 @@ impl ConstraintClient {
             info!("Constraints submitted successfully");
             Ok(())
         } else {
-            error!("Failed to submit constraints {}", body);
+            error!("Failed to submit constraints {} {}", body, code);
             Err(eyre::eyre!("Failed to submit constraints"))
         }
     }
