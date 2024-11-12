@@ -3,6 +3,7 @@ use std::time::SystemTime;
 use eyre::Context;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
+use tracing::{error, info};
 
 use crate::metrics::preconfer::{PRECONF_CONSTRAINTS_SENT_TIME, RELAY_STATUS_CODE};
 
@@ -43,11 +44,12 @@ impl ConstraintClient {
 
         let body = response.bytes().await.wrap_err("failed to parse response")?;
         let body = String::from_utf8_lossy(&body);
-        tracing::info!("Submit constraint Response: {}", body);
 
         if code.is_success() {
+            info!("Constraints submitted successfully");
             Ok(())
         } else {
+            error!("Failed to submit constraints {}", body);
             Err(eyre::eyre!("Failed to send constraints"))
         }
     }

@@ -1,8 +1,5 @@
 use std::{fmt::Debug, net::SocketAddr, time::Instant};
 
-use alloy_network::Ethereum;
-use alloy_provider::Provider;
-use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     response::{IntoResponse, Json},
@@ -26,7 +23,6 @@ use crate::{
         PRECONF_TX_RECEIVED,
     },
     preconf_api::PreconfState,
-    pricer::PreconfPricer,
 };
 
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
@@ -49,12 +45,8 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run<T, P, F>(self, state: PreconfState<T, P, F>) -> eyre::Result<()>
-    where
-        T: Transport + Clone + Send + Sync + 'static,
-        P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-        F: PreconfPricer + Clone + Send + Sync + 'static,
-    {
+    pub async fn run(self, state: PreconfState) -> eyre::Result<()>
+where {
         let app = Router::new()
             .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
             .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
@@ -89,15 +81,10 @@ pub async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "OK"}))
 }
 
-pub async fn handle_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
+pub async fn handle_preconf_request(
+    State(state): State<PreconfState>,
     Json(preconf_request): Json<PreconfRequest>,
-) -> Result<Json<PreconfResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
+) -> Result<Json<PreconfResponse>, RpcError> {
     let start_request = Instant::now();
     match state.send_preconf_request(preconf_request).await {
         Ok(response) => {
@@ -123,15 +110,10 @@ where
     }
 }
 
-pub async fn delete_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
+pub async fn delete_preconf_request(
+    State(state): State<PreconfState>,
     Json(cancel_request): Json<CancelPreconfRequest>,
-) -> Result<Json<CancelPreconfResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
+) -> Result<Json<CancelPreconfResponse>, RpcError> {
     match state.cancel_preconf_request(cancel_request).await {
         Ok(response) => {
             PRECONF_CANCEL_RECEIVED
@@ -148,15 +130,10 @@ where
     }
 }
 
-pub async fn handle_preconf_request_tx<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
+pub async fn handle_preconf_request_tx(
+    State(state): State<PreconfState>,
     Json(request): Json<PreconfTxRequest>,
-) -> Result<impl IntoResponse, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
+) -> Result<impl IntoResponse, RpcError> {
     let start_request = Instant::now();
     match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
         Ok(response) => {
@@ -182,25 +159,15 @@ where
     }
 }
 
-pub async fn get_preconf_request<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
+pub async fn get_preconf_request(
+    State(state): State<PreconfState>,
     Path(params): Path<GetPreconfRequestQuery>,
-) -> Result<Json<PreconfStatusResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
+) -> Result<Json<PreconfStatusResponse>, RpcError> {
     Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
 }
 
-pub async fn get_slots<T, P, F>(
-    State(state): State<PreconfState<T, P, F>>,
-) -> Result<Json<AvailableSlotResponse>, RpcError>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Clone + Send + Sync + 'static,
-{
+pub async fn get_slots(
+    State(state): State<PreconfState>,
+) -> Result<Json<AvailableSlotResponse>, RpcError> {
     Ok(Json(state.available_slot().await?))
 }

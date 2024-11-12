@@ -7,6 +7,7 @@ use alloy_transport::Transport;
 use ethereum_consensus::{
     crypto::{PublicKey as BlsPublicKey, Signature},
     deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context, Transaction},
+    ssz::prelude::ByteList,
 };
 use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedConstraints};
 use tree_hash::TreeHash;
@@ -62,7 +63,6 @@ pub mod core {
             }
     }
 }
-pub use core::TaiyiCore::TaiyiCoreInstance;
 
 impl From<PreconfRequest> for core::PreconfRequest {
     fn from(req: PreconfRequest) -> Self {
@@ -124,55 +124,4 @@ pub fn compute_signing_root_custom(object_root: [u8; 32], signing_domain: [u8; 3
 
     let signing_data = SigningData { object_root, signing_domain };
     signing_data.tree_hash_root().0
-}
-
-pub async fn preconf_reqs_to_constraints<T, P>(
-    preconf_reqs: Vec<PreconfRequest>,
-    taiyi_core_address: Address,
-    provider: P,
-    wallet: EthereumWallet,
-    bls_sk: &blst::min_pk::SecretKey,
-    context: &Context,
-) -> eyre::Result<Vec<SignedConstraints>>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    // FIXME: check all slots are the same
-    let slot: u64 = preconf_reqs[0].tip_tx.target_slot.to();
-    let chain_id = provider.get_chain_id().await?;
-    let contract = core::TaiyiCore::TaiyiCoreInstance::new(taiyi_core_address, provider.clone());
-    let preconf_reqs: Vec<core::PreconfRequest> =
-        preconf_reqs.into_iter().map(|req| req.into()).collect();
-    let mut tx = contract.batchSettleRequests(preconf_reqs).into_transaction_request();
-    let estimate_gas = provider.estimate_gas(&tx).await?;
-    let gas_limit = estimate_gas + 100000;
-    let Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas } =
-        provider.estimate_eip1559_fees(None).await?;
-    let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
-    tx.set_gas_limit(gas_limit);
-    tx.set_max_fee_per_gas(max_fee_per_gas);
-    tx.set_max_priority_fee_per_gas(max_priority_fee_per_gas);
-    tx.set_nonce(nonce);
-    tx.set_chain_id(ChainId::from(chain_id));
-
-    let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
-    let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
-    let tx_envelope_bl: Transaction<MAX_BYTES_PER_TRANSACTION> =
-        tx_envelope_ref.try_into().expect("bytelist");
-    let bls_pk = bls_sk.sk_to_pk().to_bytes();
-    let message = ConstraintsMessage {
-        pubkey: BlsPublicKey::try_from(bls_pk.as_ref()).expect("key error"),
-        slot,
-        top: true,
-        transactions: vec![tx_envelope_bl].try_into().expect("tx too big"),
-    };
-    let digest = message.digest();
-    let domain = compute_domain_custom(context, COMMIT_BOOST_DOMAIN);
-    let root = compute_signing_root_custom(digest.tree_hash_root().0, domain);
-    let signature = bls_sk.sign(root.as_ref(), BLS_DST_SIG, &[]).to_bytes();
-    let signature = Signature::try_from(signature.as_ref()).expect("signature error");
-    // let sig = bls_sk.si
-    let constraints: Vec<SignedConstraints> = vec![SignedConstraints { message, signature }];
-    Ok(constraints)
 }
