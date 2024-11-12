@@ -205,7 +205,7 @@ pub async fn inclusion_reqs_to_constraints(
     for incl_req in inclusion_reqs {
         for full_tx in incl_req.txs {
             let mut tx_bytes = Vec::new();
-            full_tx.tx.encode_enveloped(&mut tx_bytes);
+            full_tx.network_encode(&mut tx_bytes);
             let tx_ref: &[u8] = tx_bytes.as_ref();
             let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
                 tx_ref.try_into().expect("tx bytes too big");

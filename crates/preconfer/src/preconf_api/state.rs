@@ -145,7 +145,7 @@ impl PreconfState {
             let mut data = Vec::new();
             // First field is the concatenation of all the transaction hashes
             data.extend_from_slice(
-                &txs.iter().map(|tx| tx.tx.hash().as_slice()).collect::<Vec<_>>().concat(),
+                &txs.iter().map(|tx| tx.tx_hash().as_slice()).collect::<Vec<_>>().concat(),
             );
 
             // Second field is the little endian encoding of the target slot

@@ -44,7 +44,7 @@ alloy-signer-local = { version = "0.5.2", features = ["mnemonic"] }
 alloy-transport = { version = "0.5.2" }
 alloy-contract = { version = "0.5.2" }
 alloy-eips = { version = "0.5.2", default-features = false }
-alloy-consensus = { version = "0.5.2", default-features = false }
+alloy-consensus = { version = "0.5.2", default-features = false , features = ["serde"]}
 alloy-rlp = "0.3.8"
 alloy-sol-types = "0.8.8"
 alloy-node-bindings = { version = "0.5.2", default-features = false }

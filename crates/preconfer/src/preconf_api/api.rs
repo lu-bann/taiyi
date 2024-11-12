@@ -1,7 +1,9 @@
 use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
 
+use alloy_consensus::TxEnvelope;
+use alloy_eips::eip2718::Decodable2718;
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, Signature};
+use alloy_primitives::{Address, Bytes, Signature};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use axum::{
@@ -15,9 +17,9 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    inclusion_request::InclusionRequest, AvailableSlotResponse, CancelPreconfRequest,
-    CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
-    PreconfTxRequest,
+    inclusion_request::{InclusionPrimitive, InclusionRequest},
+    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
+    PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -111,9 +113,20 @@ pub async fn inlusion_request(
             };
 
             // Parse the inclusion request from the parameters
-            let mut inclusion_request: InclusionRequest = serde_json::from_value(request_json)
+            let InclusionPrimitive { slot, txs } = serde_json::from_value(request_json)
                 .map_err(|e| RpcError::UnknownError(e.to_string()))
                 .inspect_err(|e| error!("Failed to parse inclusion request: {:?}", e))?;
+
+            let mut inclusions = Vec::new();
+            for tx_bytes in txs.into_iter() {
+                let tx = TxEnvelope::network_decode(&mut tx_bytes.as_ref()).map_err(|e| {
+                    RpcError::UnknownError(format!("decode bytes from include error: {:?}", e))
+                })?;
+                inclusions.push(tx);
+            }
+
+            let mut inclusion_request =
+                InclusionRequest { slot, txs: inclusions, signature: None, signer: None };
 
             info!(?inclusion_request, "New inclusion request");
 

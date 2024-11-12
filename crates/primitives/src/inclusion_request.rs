@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
-use alloy_primitives::{Address, Signature};
+use alloy_consensus::TxEnvelope;
+use alloy_primitives::{Address, Bytes, Signature};
 // use alloy_rlp::{Decodable, Encodable};
 use reth_primitives::PooledTransactionsElement;
 use serde::{de, ser::SerializeSeq, Deserialize, Serialize};
@@ -10,8 +11,7 @@ pub struct InclusionRequest {
     /// The consensus slot number at which the transaction should be included.
     pub slot: u64,
     /// The transaction to be included.
-    #[serde(deserialize_with = "deserialize_txs", serialize_with = "serialize_txs")]
-    pub txs: Vec<FullTransaction>,
+    pub txs: Vec<TxEnvelope>,
     /// The signature over the "slot" and "tx" fields by the user.
     /// A valid signature is the only proof that the user actually requested
     /// this specific commitment to be included at the given slot.
@@ -21,6 +21,13 @@ pub struct InclusionRequest {
     pub signer: Option<Address>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InclusionPrimitive {
+    /// The consensus slot number at which the transaction should be included.
+    pub slot: u64,
+    /// The transaction to be included.
+    pub txs: Vec<Bytes>,
+}
 impl InclusionRequest {
     /// Returns the transaction signer.
     pub fn signer(&self) -> Option<Address> {
