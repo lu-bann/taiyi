@@ -4,7 +4,7 @@ use alloy_rpc_types::erc4337;
 use eyre::Context;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
-use tracing::{error, info};
+use tracing::{info, warn};
 
 use crate::metrics::preconfer::{PRECONF_CONSTRAINTS_SENT_TIME, RELAY_STATUS_CODE};
 
@@ -43,7 +43,7 @@ impl ConstraintClient {
             if code.is_success() {
                 info!("Constraints submitted successfully");
             } else {
-                error!("Failed to submit constraints {} {}", body, code);
+                warn!("Failed to submit constraints {} {}", body, code);
             }
         }
         Ok(())

@@ -56,6 +56,7 @@ impl PreconfApiServer {
     pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
         let app = Router::new()
             .route(INCLUSION_REQUEST_PATH, post(inlusion_request))
+            .route("/", post(inlusion_request))
             .route("/health", get(health_check))
             .with_state(state);
 
