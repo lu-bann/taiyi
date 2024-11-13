@@ -120,7 +120,7 @@ pub async fn inlusion_request(
 
             let mut inclusions = Vec::new();
             for tx_bytes in txs.into_iter() {
-                let tx = TxEnvelope::network_decode(&mut tx_bytes.as_ref()).map_err(|e| {
+                let tx = TxEnvelope::decode_2718(&mut tx_bytes.as_ref()).map_err(|e| {
                     RpcError::UnknownError(format!("decode bytes from include error: {:?}", e))
                 })?;
                 inclusions.push(tx);

@@ -107,9 +107,15 @@ impl PreconfState {
                             )
                             .await?;
                             info!("Submitting constraints to MEV-Boost");
-                            constraint_client
+                            match constraint_client
                                 .submit_constraints(signed_constraints_message.clone())
-                                .await?
+                                .await
+                            {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error!("Failed to submit constraints: {:?}", e);
+                                }
+                            }
                         }
                     }
                     Err(PoolError::SlotNotFound(slot)) => {
