@@ -32,8 +32,7 @@ pub async fn spawn_service(
     ecdsa_signer: PrivateKeySigner,
     relay_url: Vec<String>,
 ) -> eyre::Result<()> {
-    let constraint_client =
-        ConstraintClient::new(relay_url.first().expect("relay_url is empty").clone())?;
+    let constraint_client = ConstraintClient::new(relay_url.clone())?;
 
     let state = PreconfState::new(constraint_client, context, bls_private_key, ecdsa_signer).await;
 
