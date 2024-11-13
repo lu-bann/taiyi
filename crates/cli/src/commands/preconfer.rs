@@ -28,7 +28,7 @@ pub struct PreconferCommand {
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "relay_url")]
+    #[clap(long = "relay_url", value_delimiter = ',')]
     pub relay_url: Vec<String>,
 
     /// metrics port
