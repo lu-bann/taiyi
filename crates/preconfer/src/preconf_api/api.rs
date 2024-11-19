@@ -10,8 +10,8 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
-    PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
+    CancelPreconfRequest, CancelPreconfResponse, PreconfHash, PreconfRequest, PreconfResponse,
+    PreconfStatusResponse, PreconfTxRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -166,8 +166,7 @@ pub async fn get_preconf_request(
     Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
 }
 
-pub async fn get_slots(
-    State(state): State<PreconfState>,
-) -> Result<Json<AvailableSlotResponse>, RpcError> {
-    Ok(Json(state.available_slot().await?))
+/// Returns the slots for which there is a opted in validator for current epoch and next epoch
+pub async fn get_slots(State(state): State<PreconfState>) -> Result<Json<Vec<u64>>, RpcError> {
+    Ok(Json(state.get_slots().await?))
 }
