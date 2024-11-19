@@ -8,6 +8,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfHash;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum RpcError {
@@ -104,13 +105,13 @@ pub enum PoolError {
     #[error("Max gas limit reached for slot {0}: {1}")]
     MaxGasLimitReachedForSlot(u64, u64),
     #[error("preconf request {0:?} not found")]
-    PreconfRequestNotFound(PreconfHash),
+    PreconfRequestNotFound(Uuid),
     #[error("preconf request {0:?} already exists")]
     PreconfRequestAlreadyExist(PreconfHash),
     #[error("preconf request for slot {0} not found")]
     SlotNotFound(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
-    InvalidPreconfTx(PreconfHash),
+    InvalidPreconfTx(Uuid),
     #[error("Invalid preconf request")]
     InvalidPreconfRequest,
     #[error("unknown error {0:?}")]

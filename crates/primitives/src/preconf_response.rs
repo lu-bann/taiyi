@@ -1,7 +1,6 @@
 use alloy_primitives::Signature;
 use serde::{Deserialize, Serialize};
-
-use crate::PreconfHash;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponse {
@@ -12,23 +11,18 @@ pub struct PreconfResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponseData {
-    preconf_hash: PreconfHash,
-    preconfer_signature: Signature,
-    preconf_req_signature: Option<Signature>,
+    request_id: Uuid,
+    preconfer_signature: Option<Signature>,
 }
 
 impl PreconfResponse {
-    pub fn success(
-        preconf_hash: PreconfHash,
-        preconfer_signature: Signature,
-        preconf_req_signature: Option<Signature>,
-    ) -> Self {
+    pub fn success(request_id: Uuid, preconfer_signature: Option<Signature>) -> Self {
         Self {
             status: "success".to_string(),
             message:
                 "Your preconf request has been successfully received and is pending processing."
                     .to_string(),
-            data: PreconfResponseData { preconf_hash, preconfer_signature, preconf_req_signature },
+            data: PreconfResponseData { request_id, preconfer_signature },
         }
     }
 }

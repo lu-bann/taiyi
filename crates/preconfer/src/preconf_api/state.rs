@@ -1,7 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{keccak256, U256};
+use alloy_primitives::keccak256;
 use alloy_provider::Provider;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
@@ -17,6 +17,7 @@ use taiyi_primitives::{
     PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
 };
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use crate::{
     constraint_client::ConstraintClient,
@@ -175,58 +176,33 @@ impl PreconfState {
         Ok(signature)
     }
 
-    /// Send a preconf request to the preconfer
-    ///
     /// Expected forms
     ///     - PreconfRequest without PreconfTx
     ///     - PreconfRequest with PreconfTx
-    pub async fn send_preconf_request(
+    pub async fn request_preconf(
         &self,
-        mut preconf_request: PreconfRequest,
+        preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let chain_id = self.get_chain_id().await?;
-        let current_slot = self.network_state.get_current_slot();
-        // TODO: currently only reqs for the Ready sub-pool are accepted, change this later.
-        // Note: It is assumed that there're no other requests from the same sender in the same slot
-        // PreconfTx must be present
-        if preconf_request.preconf_tx.is_none() {
-            return Err(RpcError::UnknownError("PreconfTx must be present".to_string()));
-        }
+        // TODO: check for sender's collateral
+        // A sender must have enough collateral to cover for the penalty imposed by the preconfer on
+        // the sender if the sender fails to submit the preconf_tx
+        // self.preconfer
+        //     .verify_escrow_balance_and_calc_fee(
+        //         &preconf_request.tip_tx.from,
+        //         &preconf_request,
+        //         current_slot,
+        //     )
+        //     .await?;
 
-        // Target slot must be the next slot
-        if preconf_request.tip_tx.target_slot != U256::from(current_slot + 1) {
-            return Err(RpcError::UnknownError("Target slot must be the next slot".to_string()));
-        }
+        let request_id = Uuid::new_v4();
 
-        let preconf_hash = preconf_request.hash(U256::from(chain_id));
-        let preconfer_signature =
-            self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
-        preconf_request.preconfer_signature = Some(preconfer_signature);
-
-        let preconf_req_hash = preconf_request.preconf_req_hash(U256::from(chain_id)).ok_or(
-            RpcError::UnknownError(format!(
-                "Failed to get preconf req hash from {preconf_request:?}",
-            )),
-        )?;
-
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
             Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
-                let preconf_req_signature = self
-                    .ecdsa_signer
-                    .sign_hash(&preconf_req_hash)
-                    .await
-                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-                preconf_request.preconf_req_signature = Some(preconf_req_signature);
-
-                Ok(PreconfResponse::success(
-                    preconf_hash,
-                    preconfer_signature,
-                    Some(preconf_req_signature),
-                ))
+                // TODO provider preconfer signature
+                let preconfer_signature = None;
+                Ok(PreconfResponse::success(request_id, preconfer_signature))
             }
-            Ok(PoolState::Parked) => {
-                Ok(PreconfResponse::success(preconf_hash, preconfer_signature, None))
-            }
+            Ok(PoolState::Parked) => Ok(PreconfResponse::success(request_id, None)),
             Err(e) => Err(RpcError::PoolError(e)),
         }
     }
@@ -240,47 +216,49 @@ impl PreconfState {
 
     pub async fn send_preconf_tx_request(
         &self,
-        preconf_req_hash: PreconfHash,
-        preconf_tx: PreconfTx,
+        _preconf_req_hash: PreconfHash,
+        _preconf_tx: PreconfTx,
     ) -> Result<PreconfResponse, RpcError> {
-        let chain_id = self.get_chain_id().await?;
-        let mut preconf_request = self
-            .preconf_pool
-            .get_parked(&preconf_req_hash)
-            .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
-        if preconf_request.preconf_tx.is_some() {
-            return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
-        }
-        preconf_request.preconf_tx = Some(preconf_tx.clone());
+        todo!()
+        // let chain_id = self.get_chain_id().await?;
+        // let mut preconf_request = self
+        //     .preconf_pool
+        //     .get_parked(&preconf_req_hash)
+        //     .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
+        // if preconf_request.preconf_tx.is_some() {
+        //     return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
+        // }
+        // preconf_request.preconf_tx = Some(preconf_tx.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
-            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
-                let preconf_req_signature = self
-                    .ecdsa_signer
-                    .sign_hash(&preconf_req_hash)
-                    .await
-                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-                preconf_request.preconf_req_signature = Some(preconf_req_signature);
+        // match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
+        //     Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
+        //         let preconf_req_signature = self
+        //             .ecdsa_signer
+        //             .sign_hash(&preconf_req_hash)
+        //             .await
+        //             .map_err(|err| RpcError::SignatureError(err.to_string()))?;
+        //         preconf_request.preconf_req_signature = Some(preconf_req_signature);
 
-                Ok(PreconfResponse::success(
-                    preconf_req_hash,
-                    preconf_request.preconfer_signature.expect("preconfer signature"),
-                    Some(preconf_req_signature),
-                ))
-            }
-            Err(PoolError::InvalidPreconfTx(_)) => {
-                self.preconf_pool.delete_parked(&preconf_req_hash);
-                Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
-            }
-            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
-        }
+        //         Ok(PreconfResponse::success(
+        //             preconf_req_hash,
+        //             preconf_request.preconfer_signature.expect("preconfer signature"),
+        //             Some(preconf_req_signature),
+        //         ))
+        //     }
+        //     Err(PoolError::InvalidPreconfTx(_)) => {
+        //         self.preconf_pool.delete_parked(&preconf_req_hash);
+        //         self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
+        //         Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
+        //     }
+        //     _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
+        // }
     }
 
     pub async fn check_preconf_request_status(
         &self,
-        preconf_hash: PreconfHash,
+        request_id: Uuid,
     ) -> Result<PreconfStatusResponse, PoolError> {
-        let pool = self.preconf_pool.get_pool(&preconf_hash)?;
+        let pool = self.preconf_pool.get_pool(request_id)?;
         let status = match pool {
             PoolState::Parked => PreconfStatus::Pending,
             PoolState::Pending => PreconfStatus::Pending,

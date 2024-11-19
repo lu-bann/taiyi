@@ -15,6 +15,7 @@ use taiyi_primitives::{
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::{
     error::RpcError,
@@ -86,7 +87,7 @@ pub async fn handle_preconf_request(
     Json(preconf_request): Json<PreconfRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError> {
     let start_request = Instant::now();
-    match state.send_preconf_request(preconf_request).await {
+    match state.request_preconf(preconf_request).await {
         Ok(response) => {
             let request_latency = start_request.elapsed();
             PRECONF_RESPONSE_DURATION
@@ -161,9 +162,9 @@ pub async fn handle_preconf_request_tx(
 
 pub async fn get_preconf_request(
     State(state): State<PreconfState>,
-    Path(params): Path<GetPreconfRequestQuery>,
+    Path(params): Path<Uuid>,
 ) -> Result<Json<PreconfStatusResponse>, RpcError> {
-    Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
+    Ok(Json(state.check_preconf_request_status(params).await?))
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch

@@ -5,8 +5,9 @@ use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
-use taiyi_primitives::{PreconfHash, PreconfRequest};
+use taiyi_primitives::PreconfRequest;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::{
     error::PoolError,
@@ -60,79 +61,76 @@ impl PreconfPool {
 
     pub fn request_inclusion(
         &self,
-        preconf_req: PreconfRequest,
-        chain_id: u64,
+        preconf_request: PreconfRequest,
+        request_id: Uuid,
     ) -> Result<PoolState, PoolError> {
         // validate the preconf request
-        let validation_outcome = self.validator.validate(&preconf_req, chain_id);
+        let validation_outcome = self.validator.validate(&preconf_request);
 
         match validation_outcome {
-            ValidationOutcome::Valid { simulate, preconf_hash } => {
+            ValidationOutcome::Valid { simulate } => {
                 if simulate {
                     // TODO: send the transaction to the simulator
-                    self.insert_ready(preconf_hash, preconf_req);
+                    self.insert_ready(request_id, preconf_request);
                     Ok(PoolState::Ready)
                 } else {
-                    self.insert_pending(preconf_hash, preconf_req);
+                    self.insert_pending(request_id, preconf_request);
                     Ok(PoolState::Pending)
                 }
             }
-            ValidationOutcome::ParkedValid(preconf_hash) => {
-                self.insert_parked(preconf_hash, preconf_req);
+            ValidationOutcome::ParkedValid => {
+                self.insert_parked(request_id, preconf_request);
                 Ok(PoolState::Parked)
             }
-            ValidationOutcome::Invalid(preconf_hash) => {
-                Err(PoolError::InvalidPreconfTx(preconf_hash))
-            }
+            ValidationOutcome::Invalid => Err(PoolError::InvalidPreconfTx(request_id)),
             ValidationOutcome::Error => Err(PoolError::InvalidPreconfRequest),
         }
     }
 
     /// Returns all preconf requests that are ready to be executed in the next block.
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
-        self.pool_inner.write().ready.preconf_requests()
+        self.pool_inner.write().ready.fetch_preconf_requests()
     }
 
     /// Inserts a preconf request into the parked pool.
-    fn insert_parked(&self, preconf_hash: PreconfHash, preconf_request: PreconfRequest) {
-        self.pool_inner.write().parked.insert(preconf_hash, preconf_request);
+    fn insert_parked(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+        self.pool_inner.write().parked.insert(request_id, preconf_request);
     }
 
     /// Inserts a preconf request into the pending pool.
-    fn insert_pending(&self, preconf_hash: PreconfHash, preconf_request: PreconfRequest) {
-        self.pool_inner.write().pending.insert(preconf_hash, preconf_request);
+    fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+        self.pool_inner.write().pending.insert(request_id, preconf_request);
     }
 
     /// Inserts a preconf request into the ready pool.
-    fn insert_ready(&self, preconf_hash: PreconfHash, preconf_request: PreconfRequest) {
-        self.pool_inner.write().ready.insert_order(preconf_hash, preconf_request);
+    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+        self.pool_inner.write().ready.insert_order(request_id, preconf_request);
     }
 
     /// Returns a preconf request from the parked pool.
-    pub fn get_parked(&self, preconf_hash: &PreconfHash) -> Option<PreconfRequest> {
-        self.pool_inner.read().parked.get(preconf_hash)
+    pub fn get_parked(&self, request_id: Uuid) -> Option<PreconfRequest> {
+        self.pool_inner.read().parked.get(request_id)
     }
 
     /// Deletes a preconf request from the parked pool.
-    pub fn delete_parked(&self, preconf_hash: &PreconfHash) -> Option<PreconfRequest> {
-        self.pool_inner.write().parked.remove(preconf_hash)
+    pub fn delete_parked(&self, request_id: Uuid) -> Option<PreconfRequest> {
+        self.pool_inner.write().parked.remove(request_id)
     }
 
     /// Returns the pool where the preconf request is currently in.
-    pub fn get_pool(&self, preconf_hash: &PreconfHash) -> Result<PoolState, PoolError> {
+    pub fn get_pool(&self, request_id: Uuid) -> Result<PoolState, PoolError> {
         let pool_inner = self.pool_inner.read();
-        if pool_inner.parked.contains(preconf_hash) {
+        if pool_inner.parked.contains(request_id) {
             Ok(PoolState::Parked)
-        } else if pool_inner.pending.contains(preconf_hash) {
+        } else if pool_inner.pending.contains(request_id) {
             Ok(PoolState::Pending)
-        } else if pool_inner.ready.contains(preconf_hash) {
+        } else if pool_inner.ready.contains(request_id) {
             Ok(PoolState::Ready)
         } else {
-            Err(PoolError::PreconfRequestNotFound(*preconf_hash))
+            Err(PoolError::PreconfRequestNotFound(request_id))
         }
     }
 
-    #[allow(dead_code)]
     pub fn move_pending_to_ready(&self, slot: u64) {
         self.pool_inner.write().move_pending_to_ready(slot);
     }
@@ -152,7 +150,6 @@ pub struct PreconfPoolInner {
 }
 
 impl PreconfPoolInner {
-    #[allow(dead_code)]
     pub fn move_pending_to_ready(&mut self, slot: u64) {
         let preconfs = match self.pending.remove_preconfs_for_slot(slot) {
             Ok(preconfs) => preconfs,
@@ -178,21 +175,3 @@ pub enum PoolState {
     Pending,
     Ready,
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use alloy_node_bindings::Anvil;
-//     use alloy_primitives::{keccak256, U256, U64};
-//     use alloy_rpc_client::ClientBuilder;
-//     use alloy_signer::Signer;
-//     use alloy_signer_local::PrivateKeySigner;
-//     use taiyi_primitives::{PreconfRequest, TipTransaction};
-
-//     use super::*;
-
-//     // FIXME
-//     #[tokio::test]
-//     #[ignore]
-//     async fn test_validate() {
-//     }
-// }

@@ -1,9 +1,5 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
-use alloy_primitives::U256;
 use reth_revm::primitives::EnvKzgSettings;
-use taiyi_primitives::{PreconfHash, PreconfRequest};
+use taiyi_primitives::PreconfRequest;
 
 pub(crate) mod constant;
 
@@ -31,15 +27,8 @@ impl PreconfValidator {
         Self { block_gas_limit, minimum_prepay_fee, kzg_settings, max_tx_input_bytes }
     }
 
-    pub(crate) fn validate(
-        &self,
-        preconf_req: &PreconfRequest,
-        chain_id: u64,
-    ) -> ValidationOutcome {
-        ValidationOutcome::Valid {
-            simulate: true,
-            preconf_hash: preconf_req.hash(U256::from(chain_id)),
-        }
+    pub(crate) fn validate(&self, _preconf_req: &PreconfRequest) -> ValidationOutcome {
+        ValidationOutcome::Valid { simulate: true }
     }
 }
 
@@ -53,13 +42,12 @@ pub(crate) enum ValidationOutcome {
     Valid {
         /// Whether to propagate the transaction to the simulator.
         simulate: bool,
-        preconf_hash: PreconfHash,
     },
     /// Preconf request is considered to be valid enough to be included in [`Parked`] sub-pool.
-    ParkedValid(PreconfHash),
-    /// The transaction is considered invalid if it doesn't meet the requirements sent in [`TipTx`].
-    /// The preconfer must call exhaust() function to invalidate the soft-commitment.
-    Invalid(PreconfHash),
+    ParkedValid,
+    /// The transaction is considered invalid if it doesn't meet the requirements in [`BlockspaceAllocation`].
+    /// The preconfer must call exhaust() function to penalize the sender
+    Invalid,
     /// An error occurred while trying to validate the transaction
     Error,
 }

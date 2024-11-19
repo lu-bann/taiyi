@@ -14,8 +14,7 @@ pub use cancel_preconf::{CancelPreconfRequest, CancelPreconfResponse};
 pub use check_preconf_response::{PreconfStatus, PreconfStatusResponse};
 pub use constraints::{ConstraintsMessage, SignableBLS, SignedConstraints};
 pub use preconf_hash::PreconfHash;
-#[allow(unused_imports)]
-pub use preconf_request::{PreconfRequest, TipTransaction};
+pub use preconf_request::{BlockspaceAllocation, PreconfRequest};
 pub use preconf_response::PreconfResponse;
 pub use preconf_tx::PreconfTx;
 pub use preconf_tx_request::PreconfTxRequest;
