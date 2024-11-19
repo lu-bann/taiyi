@@ -12,16 +12,17 @@ use ethereum_consensus::{
     deneb::Context,
 };
 use futures::StreamExt;
+use reth_primitives::PooledTransactionsElement;
 use taiyi_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfHash, PreconfRequest,
-    PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
+    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfRequest,
+    PreconfResponse, PreconfStatus, PreconfStatusResponse,
 };
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::{
     constraint_client::ConstraintClient,
-    error::{PoolError, RpcError, ValidationError},
+    error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{PoolState, PreconfPool, PreconfPoolBuilder},
     pricer::PreconfPricer,
@@ -125,7 +126,7 @@ impl PreconfState {
                     last_slot = slot;
                     continue;
                 } else {
-                    let _wallet = EthereumWallet::new(self.ecdsa_signer.clone());
+                    let __wallet = EthereumWallet::new(self.ecdsa_signer.clone());
                     let signed_constraints_message = Vec::new();
                     // info!(
                     //     "Sending {} constraints message with slot: {}",
@@ -162,7 +163,7 @@ impl PreconfState {
         }
     }
 
-    pub async fn sign_tip_tx_signature(
+    pub async fn _sign_tip_tx_signature(
         &self,
         tip_tx_signature: &ECDSASignature,
     ) -> Result<ECDSASignature, RpcError> {
@@ -214,44 +215,34 @@ impl PreconfState {
         unimplemented!()
     }
 
-    pub async fn send_preconf_tx_request(
+    pub async fn preconf_transaction(
         &self,
-        _preconf_req_hash: PreconfHash,
-        _preconf_tx: PreconfTx,
+        request_id: Uuid,
+        transaction: PooledTransactionsElement,
     ) -> Result<PreconfResponse, RpcError> {
-        todo!()
-        // let chain_id = self.get_chain_id().await?;
-        // let mut preconf_request = self
-        //     .preconf_pool
-        //     .get_parked(&preconf_req_hash)
-        //     .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
-        // if preconf_request.preconf_tx.is_some() {
-        //     return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
-        // }
-        // preconf_request.preconf_tx = Some(preconf_tx.clone());
+        let mut preconf_request = self
+            .preconf_pool
+            .get_parked(request_id)
+            .ok_or(PoolError::PreconfRequestNotFound(request_id))?;
+        if preconf_request.transaction.is_some() {
+            return Err(RpcError::PreconfTxAlreadySet);
+        }
+        preconf_request.transaction = Some(transaction.clone());
 
-        // match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
-        //     Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
-        //         let preconf_req_signature = self
-        //             .ecdsa_signer
-        //             .sign_hash(&preconf_req_hash)
-        //             .await
-        //             .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-        //         preconf_request.preconf_req_signature = Some(preconf_req_signature);
-
-        //         Ok(PreconfResponse::success(
-        //             preconf_req_hash,
-        //             preconf_request.preconfer_signature.expect("preconfer signature"),
-        //             Some(preconf_req_signature),
-        //         ))
-        //     }
-        //     Err(PoolError::InvalidPreconfTx(_)) => {
-        //         self.preconf_pool.delete_parked(&preconf_req_hash);
-        //         self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
-        //         Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
-        //     }
-        //     _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
-        // }
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
+            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
+                // TODO provider preconfer signature
+                let preconfer_signature = None;
+                Ok(PreconfResponse::success(request_id, preconfer_signature))
+            }
+            Err(PoolError::InvalidPreconfTx(_)) => {
+                self.preconf_pool.delete_parked(request_id);
+                // TODO penalize the sender
+                // self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
+                Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
+            }
+            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
+        }
     }
 
     pub async fn check_preconf_request_status(
@@ -277,9 +268,5 @@ impl PreconfState {
             .filter(|slot| *slot > current_slot)
             .collect();
         Ok(available_slots)
-    }
-
-    async fn get_chain_id(&self) -> Result<u64, RpcError> {
-        Ok(1)
     }
 }

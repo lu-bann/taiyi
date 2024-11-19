@@ -13,7 +13,7 @@ use uuid::Uuid;
 #[derive(Debug, Error)]
 pub enum RpcError {
     #[error("preconf tx already set")]
-    PreconfTxAlreadySet(PreconfHash),
+    PreconfTxAlreadySet,
     #[error("Expected target slot {0}, got {1}")]
     SlotMismatch(u64, u64),
     #[error("unknown error {0:?}")]

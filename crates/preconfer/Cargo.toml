@@ -29,6 +29,8 @@ parking_lot = { workspace = true }
 prometheus = { workspace = true }
 reqwest = { workspace = true }
 
+reth-primitives = { workspace = true }
+
 reth-revm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -39,7 +41,6 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.6.0"
-tree_hash_derive = "0.6.0"
 uuid = { workspace = true }
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }

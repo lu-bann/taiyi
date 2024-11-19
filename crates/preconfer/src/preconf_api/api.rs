@@ -136,7 +136,7 @@ pub async fn handle_preconf_request_tx(
     Json(request): Json<PreconfTxRequest>,
 ) -> Result<impl IntoResponse, RpcError> {
     let start_request = Instant::now();
-    match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
+    match state.preconf_transaction(request.request_id, request.transaction).await {
         Ok(response) => {
             let request_latency = start_request.elapsed();
             PRECONF_RESPONSE_DURATION
