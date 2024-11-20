@@ -2,11 +2,18 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
 use alloy_primitives::{Address, Bytes, ChainId};
 use alloy_provider::{utils::Eip1559Estimation, Provider};
+use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_transport::Transport;
-use ethereum_consensus::ssz::prelude::{ByteList, List};
-use taiyi_primitives::{
-    Constraint, ConstraintsMessage, PreconfRequest, MAX_TRANSACTIONS_PER_BLOCK,
+use ethereum_consensus::{
+    crypto::{PublicKey as BlsPublicKey, Signature},
+    deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context, Transaction},
 };
+use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedConstraints};
+use tree_hash::TreeHash;
+use tree_hash_derive::TreeHash;
+
+pub const GENESIS_VALIDATORS_ROOT: [u8; 32] = [0; 32];
+pub const COMMIT_BOOST_DOMAIN: [u8; 4] = [109, 109, 111, 67];
 pub mod core {
     use alloy_sol_types::sol;
 
@@ -89,13 +96,44 @@ impl From<PreconfRequest> for core::PreconfRequest {
         }
     }
 }
+pub fn compute_domain_custom(chain: &Context, domain_mask: [u8; 4]) -> [u8; 32] {
+    #[derive(Debug, TreeHash)]
+    struct ForkData {
+        fork_version: [u8; 4],
+        genesis_validators_root: [u8; 32],
+    }
+
+    let mut domain = [0u8; 32];
+    domain[..4].copy_from_slice(&domain_mask);
+
+    let fork_version = chain.genesis_fork_version;
+    let fd = ForkData { fork_version, genesis_validators_root: GENESIS_VALIDATORS_ROOT };
+    let fork_data_root = fd.tree_hash_root().0;
+
+    domain[4..].copy_from_slice(&fork_data_root[..28]);
+
+    domain
+}
+
+pub fn compute_signing_root_custom(object_root: [u8; 32], signing_domain: [u8; 32]) -> [u8; 32] {
+    #[derive(Default, Debug, TreeHash)]
+    struct SigningData {
+        object_root: [u8; 32],
+        signing_domain: [u8; 32],
+    }
+
+    let signing_data = SigningData { object_root, signing_domain };
+    signing_data.tree_hash_root().0
+}
 
 pub async fn preconf_reqs_to_constraints<T, P>(
     preconf_reqs: Vec<PreconfRequest>,
     taiyi_core_address: Address,
     provider: P,
     wallet: EthereumWallet,
-) -> eyre::Result<ConstraintsMessage>
+    bls_sk: &blst::min_pk::SecretKey,
+    context: &Context,
+) -> eyre::Result<Vec<SignedConstraints>>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
@@ -120,11 +158,21 @@ where
 
     let tx_envelope: Vec<u8> = tx.build(&wallet).await.expect("build tx").encoded_2718();
     let tx_envelope_ref: &[u8] = tx_envelope.as_ref();
-    let constraint: List<Constraint, MAX_TRANSACTIONS_PER_BLOCK> = vec![Constraint {
-        tx: ByteList::<1_073_741_824usize>::try_from(tx_envelope_ref).expect("tx too big"),
-    }]
-    .try_into()
-    .expect("constraint");
-    let constraints = vec![constraint].try_into().expect("constraints");
-    Ok(ConstraintsMessage { slot, constraints })
+    let tx_envelope_bl: Transaction<MAX_BYTES_PER_TRANSACTION> =
+        tx_envelope_ref.try_into().expect("bytelist");
+    let bls_pk = bls_sk.sk_to_pk().to_bytes();
+    let message = ConstraintsMessage {
+        pubkey: BlsPublicKey::try_from(bls_pk.as_ref()).expect("key error"),
+        slot,
+        top: true,
+        transactions: vec![tx_envelope_bl].try_into().expect("tx too big"),
+    };
+    let digest = message.digest();
+    let domain = compute_domain_custom(context, COMMIT_BOOST_DOMAIN);
+    let root = compute_signing_root_custom(digest.tree_hash_root().0, domain);
+    let signature = bls_sk.sign(root.as_ref(), BLS_DST_SIG, &[]).to_bytes();
+    let signature = Signature::try_from(signature.as_ref()).expect("signature error");
+    // let sig = bls_sk.si
+    let constraints: Vec<SignedConstraints> = vec![SignedConstraints { message, signature }];
+    Ok(constraints)
 }
