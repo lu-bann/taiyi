@@ -8,6 +8,20 @@ use alloy_transport::Transport;
 
 use crate::error::PricerError;
 
+#[derive(Debug, Clone)]
+pub struct Pricer<F> {
+    pricer: F,
+}
+
+impl<F> Pricer<F>
+where
+    F: PreconfPricer + Sync,
+{
+    pub fn new(pricer: F) -> Self {
+        Self { pricer }
+    }
+}
+
 pub trait PreconfPricer {
     fn get_optimal_base_gas_fee(
         &self,

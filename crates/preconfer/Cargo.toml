@@ -17,8 +17,6 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
-reth-revm = { workspace = true }
-
 axum = { workspace = true }
 beacon-api-client = { workspace = true }
 blst = { workspace = true }
@@ -31,7 +29,11 @@ parking_lot = { workspace = true }
 priority-queue = { workspace = true }
 prometheus = { workspace = true }
 reqwest = { workspace = true }
+
+reth-revm = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+ssz_rs = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -39,7 +41,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.6.0"
 tree_hash_derive = "0.6.0"
-
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
 mockito = "1.4.0"

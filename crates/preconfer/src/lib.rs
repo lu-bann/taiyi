@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 mod constraint_client;
 mod contract;
 mod error;
@@ -6,7 +8,6 @@ pub mod metrics;
 mod network_state;
 mod preconf_api;
 mod preconf_pool;
-mod preconfer;
 mod pricer;
 mod rpc_state;
 mod validator;

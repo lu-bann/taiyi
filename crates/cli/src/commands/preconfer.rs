@@ -37,12 +37,8 @@ pub struct PreconferCommand {
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "relay_url")]
+    #[clap(long = "relay_url", value_delimiter = ',')]
     pub relay_url: Vec<String>,
-
-    /// taiyi core contract address
-    #[clap(long = "taiyi_core_contract_addr")]
-    pub taiyi_core_contract_addr: String,
 
     /// taiyi proposer registry contract address
     #[clap(long = "taiyi_proposer_registry_contract_addr")]
@@ -61,7 +57,6 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let taiyi_core_contract_addr: Address = self.taiyi_core_contract_addr.parse()?;
         let taiyi_proposer_registry_contract_addr: Address =
             self.taiyi_proposer_registry_contract_addr.parse()?;
         let bls_private_key = SecretKey::from_bytes(&hex::decode(
@@ -80,11 +75,9 @@ impl PreconferCommand {
         }
 
         spawn_service(
-            taiyi_core_contract_addr,
             taiyi_proposer_registry_contract_addr,
             self.execution_client_url.clone(),
             self.beacon_client_url.clone(),
-            self.taiyi_service_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
