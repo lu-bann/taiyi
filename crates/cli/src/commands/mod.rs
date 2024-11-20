@@ -1,6 +1,4 @@
-pub mod batch_delegate;
-pub mod delegate;
-pub mod deposit;
-pub mod get_delegated_preconfer;
+pub mod batch_register;
+pub mod get_validator;
 pub mod preconfer;
-pub mod register_preconfer;
+pub mod register;

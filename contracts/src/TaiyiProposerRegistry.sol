@@ -18,8 +18,8 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
 
     //////// REGISTRATION ////////
 
-    function registerValidator(bytes calldata pubkey, address delegatee) external payable {
-        _registerValidator(pubkey, delegatee, msg.sender);
+    function registerValidator(bytes calldata pubkey) external payable {
+        _registerValidator(pubkey, msg.sender);
     }
 
     /**
@@ -30,7 +30,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
         bytes calldata pubkey,
         // uint256 signatureExpiry,
         // BLS12381.G2Point calldata signature,
-        address delegatee,
         address sender
     )
         private
@@ -45,21 +44,16 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
         bytes32 pubKeyHash = _hashBLSPubKey(pubkey);
         require(validators[pubKeyHash].registrar == address(0), "Validator already registered");
 
-        validators[pubKeyHash] = Validator({
-            pubkey: pubkey,
-            registrar: msg.sender,
-            status: ProposerStatus.OptIn,
-            optOutTimestamp: 0,
-            delegatee: delegatee
-        });
+        validators[pubKeyHash] =
+            Validator({ pubkey: pubkey, registrar: msg.sender, status: ProposerStatus.OptIn, optOutTimestamp: 0 });
 
         emit ValidatorOptedIn(pubKeyHash, msg.sender);
         emit ValidatorStatusChanged(pubKeyHash, ProposerStatus.OptIn);
     }
 
-    function batchRegisterValidators(bytes[] calldata pubkeys, address[] calldata delegatees) external payable {
+    function batchRegisterValidators(bytes[] calldata pubkeys) external payable {
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            _registerValidator(pubkeys[i], delegatees[i], msg.sender);
+            _registerValidator(pubkeys[i], msg.sender);
         }
     }
 
@@ -131,15 +125,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker {
      */
     function getValidator(bytes32 pubKeyHash) public view returns (Validator memory) {
         return validators[pubKeyHash];
-    }
-
-    /**
-     * @notice Returns the delegatee address for a given validator
-     * @param pubKeyHash The hash of the validator's BLS public key
-     * @return The address of the delegatee, or address(0) if none
-     */
-    function getDelegatee(bytes32 pubKeyHash) external view returns (address) {
-        return validators[pubKeyHash].delegatee;
     }
 
     //////// HELPER ////////

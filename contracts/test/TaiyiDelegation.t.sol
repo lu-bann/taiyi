@@ -39,17 +39,7 @@ contract TaiyiDelegationTest is Test {
 
         // Register validator in registry
         vm.prank(registrar);
-        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(
-            pubkey,
-            // block.timestamp + 1 days,
-            // BLS12381.G2Point({
-            //     x: [uint256(0), uint256(0)],
-            //     x_I: [uint256(0), uint256(0)],
-            //     y: [uint256(0), uint256(0)],
-            //     y_I: [uint256(0), uint256(0)]
-            // }),
-            address(0)
-        );
+        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(pubkey);
 
         // Create delegation request
         TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
@@ -76,7 +66,7 @@ contract TaiyiDelegationTest is Test {
 
         // Register validator in registry
         vm.prank(registrar);
-        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(pubkey, address(0));
+        TaiyiProposerRegistry(address(mockRegistry)).registerValidator(pubkey);
 
         TaiyiDelegation.PreconferElection memory election = IDelegationContract.PreconferElection({
             validatorPubkey: pubkey,

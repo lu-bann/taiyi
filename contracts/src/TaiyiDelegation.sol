@@ -100,7 +100,6 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
             preconferPubkey: preconferElection.preconferPubkey
         });
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
-        validator.delegatee = preconferElection.preconferAddress;
 
         emit ValidatorDelegated(validatorPubKeyHash, preconferElection.preconferAddress);
     }
@@ -136,7 +135,6 @@ contract TaiyiDelegation is IDelegationContract, BLSSignatureChecker {
         address Preconfer = validatorToPreconfer[validatorPubKeyHash].preconferAddress;
         validatorToPreconfer[validatorPubKeyHash].preconferAddress = address(0);
         lastDelegationChangeTimestamp[validatorPubKeyHash] = block.timestamp;
-        validator.delegatee = address(0);
 
         emit DelegationRevoked(validatorPubKeyHash, Preconfer);
     }
