@@ -1,10 +1,10 @@
-use reth_primitives::PooledTransactionsElement;
+use alloy_consensus::TxEnvelope;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequest {
     pub allocation: BlockspaceAllocation,
-    pub transaction: Option<PooledTransactionsElement>,
+    pub transaction: Option<TxEnvelope>,
     pub target_slot: u64,
 }
 

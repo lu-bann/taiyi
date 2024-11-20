@@ -1,5 +1,6 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
+use alloy_consensus::TxEnvelope;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::keccak256;
 use alloy_provider::Provider;
@@ -42,7 +43,6 @@ pub struct PreconfState {
 }
 
 impl PreconfState {
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         network_state: NetworkState,
         constraint_client: ConstraintClient,
@@ -58,21 +58,6 @@ impl PreconfState {
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.preconf_pool.preconf_requests()
     }
-
-    // async fn signed_constraints_message(
-    //     &self,
-    //     constraints_message: ConstraintsMessage,
-    // ) -> Result<SignedConstraintsMessage, RpcError> {
-    //     let domain = compute_builder_domain(&self.context)
-    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    //     let signing_root = compute_signing_root(&constraints_message, domain)
-    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-    //     let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
-    //     let signature = Signature::try_from(signature.as_ref())
-    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-
-    //     Ok(SignedConstraintsMessage::new(constraints_message, signature))
-    // }
 
     #[allow(unreachable_code)]
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -150,7 +135,7 @@ impl PreconfState {
                         error!(err = ?e, "Error submitting constraints to relay, retrying...");
                         i += 1;
                         if i >= max_retries {
-                            error!("Max retries reached while submitting to MEV-Boost");
+                            error!("Max retries reached while submitting to relay");
                             break 'submit;
                         }
                         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -161,20 +146,6 @@ impl PreconfState {
             }
             Ok(())
         }
-    }
-
-    pub async fn _sign_tip_tx_signature(
-        &self,
-        tip_tx_signature: &ECDSASignature,
-    ) -> Result<ECDSASignature, RpcError> {
-        let message = tip_tx_signature.as_bytes().to_vec();
-        let message = keccak256(&message);
-        let signature = self
-            .ecdsa_signer
-            .sign_hash(&message)
-            .await
-            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        Ok(signature)
     }
 
     /// Expected forms
@@ -211,7 +182,7 @@ impl PreconfState {
     pub async fn preconf_transaction(
         &self,
         request_id: Uuid,
-        transaction: PooledTransactionsElement,
+        transaction: TxEnvelope,
     ) -> Result<PreconfResponse, RpcError> {
         let mut preconf_request = self
             .preconf_pool

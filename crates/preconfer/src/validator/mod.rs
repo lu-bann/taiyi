@@ -40,7 +40,7 @@ pub enum ValidationOutcome {
     /// Preconf request is considered to be valid enough to be included in [`Parked`] sub-pool.
     ParkedValid,
     /// The transaction is considered invalid if it doesn't meet the requirements in [`BlockspaceAllocation`].
-    /// The preconfer must call exhaust() function to penalize the sender
+    /// TODO: impose a penalty on sender
     Invalid,
     /// An error occurred while trying to validate the transaction
     Error,

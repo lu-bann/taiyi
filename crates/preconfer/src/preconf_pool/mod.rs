@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use alloy_consensus::Transaction;
 use alloy_primitives::Address;
 use parked::Parked;
 use parking_lot::RwLock;

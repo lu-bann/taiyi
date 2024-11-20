@@ -4,6 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+alloy-consensus = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-network = { workspace = true }
@@ -41,6 +42,7 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tree_hash = "0.6.0"
+tree_hash_derive = "0.6.0"
 uuid = { workspace = true }
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
