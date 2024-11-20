@@ -159,9 +159,28 @@ impl PreconfState {
 
         match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
-                // TODO provider preconfer signature
-                let preconfer_signature = None;
-                Ok(PreconfResponse::success(request_id, preconfer_signature))
+                let message_digest = {
+                    let mut data = Vec::new();
+                    // First field is the concatenation of the transaction hash
+                    data.extend_from_slice(
+                        preconf_request
+                            .transaction
+                            .expect("preconf tx not found")
+                            .tx_hash()
+                            .as_slice(),
+                    );
+
+                    // Second field is the little endian encoding of the target slot
+                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
+                    keccak256(data)
+                };
+                let preconfer_signature =
+                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!(
+                            "Failed to sign inclusion commitment: {e:?}"
+                        ))
+                    })?;
+                Ok(PreconfResponse::success(request_id, Some(preconfer_signature)))
             }
             Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
             Err(e) => Err(RpcError::PoolError(e)),
@@ -191,9 +210,28 @@ impl PreconfState {
 
         match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
-                // TODO provider preconfer signature
-                let preconfer_signature = None;
-                Ok(PreconfResponse::success(request_id, preconfer_signature))
+                let message_digest = {
+                    let mut data = Vec::new();
+                    // First field is the concatenation of the transaction hash
+                    data.extend_from_slice(
+                        preconf_request
+                            .transaction
+                            .expect("preconf tx not found")
+                            .tx_hash()
+                            .as_slice(),
+                    );
+
+                    // Second field is the little endian encoding of the target slot
+                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
+                    keccak256(data)
+                };
+                let preconfer_signature =
+                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!(
+                            "Failed to sign inclusion commitment: {e:?}"
+                        ))
+                    })?;
+                Ok(PreconfResponse::success(request_id, Some(preconfer_signature)))
             }
             Err(PoolError::InvalidPreconfTx(_)) => {
                 self.preconf_pool.delete_parked(request_id);
