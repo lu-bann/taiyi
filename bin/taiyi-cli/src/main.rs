@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use taiyi_cmd::{initialize_tracing_log, DepositCommand};
+use taiyi_cmd::{
+    initialize_tracing_log, BatchRegisterCommand, GetValidatorCommand, RegisterCommand,
+};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi-cli", long_about = None)]
@@ -12,8 +14,14 @@ pub struct Cli {
 /// Commands to be executed
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(name = "user-deposit")]
-    Deposit(DepositCommand),
+    #[command(name = "register-validator")]
+    Register(RegisterCommand),
+
+    #[command(name = "batch-register-validators")]
+    BatchRegister(BatchRegisterCommand),
+
+    #[command(name = "get-validator")]
+    GetValidator(GetValidatorCommand),
 }
 
 fn main() -> eyre::Result<()> {
@@ -24,6 +32,8 @@ fn main() -> eyre::Result<()> {
         .build()
         .expect("tokio runtime build failed");
     match cli.command {
-        Commands::Deposit(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::Register(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::BatchRegister(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::GetValidator(cmd) => runtime.block_on(async { cmd.execute().await }),
     }
 }

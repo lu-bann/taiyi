@@ -17,7 +17,6 @@ interface IProposerRegistry {
         ProposerStatus status;
         uint256 optOutTimestamp;
         address registrar;
-        address delegatee;
     }
 
     // Events
@@ -29,12 +28,9 @@ interface IProposerRegistry {
      * @notice Registers a validator with the given BLS public key
      * @param pubkey The BLS public key of the validator
      */
-    function registerValidator(
-        bytes calldata pubkey,
+    function registerValidator(bytes calldata pubkey)
         // uint256 signatureExpiry,
         // BLS12381.G2Point calldata signature,
-        address delegatee
-    )
         external
         payable;
 
