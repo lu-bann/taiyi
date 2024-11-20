@@ -22,7 +22,7 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::{
-    constraint_client::ConstraintClient,
+    constraint_client::{preconf_reqs_to_constraints, ConstraintClient},
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
@@ -111,17 +111,13 @@ impl PreconfState {
                     last_slot = slot;
                     continue;
                 } else {
-                    let __wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                    let signed_constraints_message = Vec::new();
-                    // info!(
-                    //     "Sending {} constraints message with slot: {}",
-                    //     constraint_message.len(),
-                    //     constraint_message.slot
-                    // );
-                    // let signed_constraints_message = self
-                    //     .signed_constraints_message(constraint_message)
-                    //     .await
-                    //     .expect("signed constraints");
+                    let signed_constraints_message = preconf_reqs_to_constraints(
+                        preconf_requests,
+                        &self.bls_sk,
+                        &self.context,
+                        slot + 1,
+                    )
+                    .await?;
                     let max_retries = 5;
                     let mut i = 0;
 
