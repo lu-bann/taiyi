@@ -24,7 +24,7 @@ use crate::{
     constraint_client::ConstraintClient,
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{PoolState, PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
     pricer::PreconfPricer,
 };
 
@@ -187,23 +187,16 @@ impl PreconfState {
         // TODO: check for sender's collateral
         // A sender must have enough collateral to cover for the penalty imposed by the preconfer on
         // the sender if the sender fails to submit the preconf_tx
-        // self.preconfer
-        //     .verify_escrow_balance_and_calc_fee(
-        //         &preconf_request.tip_tx.from,
-        //         &preconf_request,
-        //         current_slot,
-        //     )
-        //     .await?;
 
         let request_id = Uuid::new_v4();
 
         match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
-            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
+            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 // TODO provider preconfer signature
                 let preconfer_signature = None;
                 Ok(PreconfResponse::success(request_id, preconfer_signature))
             }
-            Ok(PoolState::Parked) => Ok(PreconfResponse::success(request_id, None)),
+            Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
             Err(e) => Err(RpcError::PoolError(e)),
         }
     }
@@ -230,7 +223,7 @@ impl PreconfState {
         preconf_request.transaction = Some(transaction.clone());
 
         match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
-            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
+            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 // TODO provider preconfer signature
                 let preconfer_signature = None;
                 Ok(PreconfResponse::success(request_id, preconfer_signature))
@@ -251,9 +244,9 @@ impl PreconfState {
     ) -> Result<PreconfStatusResponse, PoolError> {
         let pool = self.preconf_pool.get_pool(request_id)?;
         let status = match pool {
-            PoolState::Parked => PreconfStatus::Pending,
-            PoolState::Pending => PreconfStatus::Pending,
-            PoolState::Ready => PreconfStatus::Accepted,
+            PoolType::Parked => PreconfStatus::Pending,
+            PoolType::Pending => PreconfStatus::Pending,
+            PoolType::Ready => PreconfStatus::Accepted,
         };
         Ok(PreconfStatusResponse { status })
     }

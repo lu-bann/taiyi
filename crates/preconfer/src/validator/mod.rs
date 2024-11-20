@@ -1,39 +1,33 @@
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::PreconfRequest;
 
-pub(crate) mod constant;
-
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]
-pub(crate) struct PreconfValidator {
+pub struct PreconfValidator {
     /// The current max gas limit
-    block_gas_limit: u64,
-    /// Minimum prepay fee to enforce for acceptance into the pool.
-    minimum_prepay_fee: Option<u128>,
+    pub block_gas_limit: u64,
     /// Stores the setup and parameters needed for validating KZG proofs.
-    kzg_settings: EnvKzgSettings,
-    /// Maximum size in bytes a single transaction can have in order to be accepted into the [`PreconfPool`].
-    max_tx_input_bytes: usize,
+    pub kzg_settings: EnvKzgSettings,
+    /// Minimum base fee required for a transaction
+    pub min_base_fee: u128,
+    /// minimum priority fee required for a transaction
+    pub min_priority_fee: u128,
 }
 
 impl PreconfValidator {
     /// Create a new `TxValidator` instance.
-    pub fn new(
-        block_gas_limit: u64,
-        minimum_prepay_fee: Option<u128>,
-        kzg_settings: EnvKzgSettings,
-        max_tx_input_bytes: usize,
-    ) -> Self {
-        Self { block_gas_limit, minimum_prepay_fee, kzg_settings, max_tx_input_bytes }
-    }
-
-    pub(crate) fn validate(&self, _preconf_req: &PreconfRequest) -> ValidationOutcome {
-        ValidationOutcome::Valid { simulate: true }
+    pub fn new() -> Self {
+        Self {
+            block_gas_limit: 0,
+            kzg_settings: EnvKzgSettings::default(),
+            min_base_fee: 0,
+            min_priority_fee: 0,
+        }
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum ValidationOutcome {
+pub enum ValidationOutcome {
     /// The transaction is considered valid and can be inserted into the sub-pools.
     ///
     /// If simulate is true, the transaction should be sent for simulation against the latest
