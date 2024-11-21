@@ -1,3 +1,4 @@
+// codes are basically copied from https://github.com/chainbound/bolt/blob/89253d92b079adf0abf6c9279eeed1d5dc7a3aed/bolt-cli/src/common/dirk.rs
 use std::fs;
 
 use alloy_primitives::B256;
