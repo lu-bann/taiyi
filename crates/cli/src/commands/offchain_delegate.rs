@@ -145,13 +145,17 @@ pub struct SignedDelegation {
 pub struct DelegationMessage {
     action: u8,
     pub validator_pubkey: BlsPublicKey,
-    pub preconfer_pubkey: BlsPublicKey,
+    pub delegatee_pubkey: BlsPublicKey,
 }
 
 impl DelegationMessage {
     /// Create a new delegation message.
     pub fn new(validator_pubkey: BlsPublicKey, preconfer_pubkey: BlsPublicKey) -> Self {
-        Self { action: SignedMessageAction::Delegation as u8, validator_pubkey, preconfer_pubkey }
+        Self {
+            action: SignedMessageAction::Delegation as u8,
+            validator_pubkey,
+            delegatee_pubkey: preconfer_pubkey,
+        }
     }
 
     /// Compute the digest of the delegation message.
@@ -159,7 +163,7 @@ impl DelegationMessage {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
         hasher.update(self.validator_pubkey.to_vec());
-        hasher.update(self.preconfer_pubkey.to_vec());
+        hasher.update(self.delegatee_pubkey.to_vec());
 
         hasher.finalize().into()
     }
