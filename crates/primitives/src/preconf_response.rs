@@ -12,17 +12,17 @@ pub struct PreconfResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponseData {
     request_id: Uuid,
-    preconfer_signature: Option<Signature>,
+    commitment: Option<Signature>,
 }
 
 impl PreconfResponse {
-    pub fn success(request_id: Uuid, preconfer_signature: Option<Signature>) -> Self {
+    pub fn success(request_id: Uuid, commitment: Option<Signature>) -> Self {
         Self {
             status: "success".to_string(),
             message:
                 "Your preconf request has been successfully received and is pending processing."
                     .to_string(),
-            data: PreconfResponseData { request_id, preconfer_signature },
+            data: PreconfResponseData { request_id, commitment },
         }
     }
 }

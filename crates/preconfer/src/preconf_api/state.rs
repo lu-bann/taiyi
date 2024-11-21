@@ -174,13 +174,13 @@ impl PreconfState {
                     data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
                     keccak256(data)
                 };
-                let preconfer_signature =
+                let commitment =
                     self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!(
                             "Failed to sign inclusion commitment: {e:?}"
                         ))
                     })?;
-                Ok(PreconfResponse::success(request_id, Some(preconfer_signature)))
+                Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
             Err(e) => Err(RpcError::PoolError(e)),
@@ -225,13 +225,13 @@ impl PreconfState {
                     data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
                     keccak256(data)
                 };
-                let preconfer_signature =
+                let commitment =
                     self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!(
                             "Failed to sign inclusion commitment: {e:?}"
                         ))
                     })?;
-                Ok(PreconfResponse::success(request_id, Some(preconfer_signature)))
+                Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Err(PoolError::InvalidPreconfTx(_)) => {
                 self.preconf_pool.delete_parked(request_id);
