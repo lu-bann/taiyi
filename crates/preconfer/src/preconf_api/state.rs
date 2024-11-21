@@ -13,8 +13,8 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use taiyi_primitives::{
-    AvailableSlotResponse, CancelPreconfRequest, CancelPreconfResponse, PreconfHash,
-    PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
+    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfHash, PreconfRequest,
+    PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
 };
 use tracing::{debug, error, info, warn};
 
@@ -289,12 +289,16 @@ impl PreconfState {
         Ok(PreconfStatusResponse { status })
     }
 
-    pub async fn available_slot(&self) -> Result<AvailableSlotResponse, RpcError> {
-        Ok(AvailableSlotResponse {
-            current_slot: self.network_state.get_current_slot(),
-            current_epoch: self.network_state.get_current_epoch(),
-            available_slots: self.network_state.get_proposer_duties(),
-        })
+    pub async fn get_slots(&self) -> Result<Vec<u64>, RpcError> {
+        let current_slot = self.network_state.get_current_slot();
+        let available_slots = self
+            .network_state
+            .get_proposer_duties()
+            .iter()
+            .map(|duty| duty.slot)
+            .filter(|slot| *slot > current_slot)
+            .collect();
+        Ok(available_slots)
     }
 
     async fn get_chain_id(&self) -> Result<u64, RpcError> {
