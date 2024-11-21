@@ -157,7 +157,7 @@ impl PreconfState {
 
         let request_id = Uuid::new_v4();
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id).await {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 let message_digest = {
                     let mut data = Vec::new();
@@ -208,7 +208,7 @@ impl PreconfState {
         }
         preconf_request.transaction = Some(transaction.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id) {
+        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id).await {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 let message_digest = {
                     let mut data = Vec::new();

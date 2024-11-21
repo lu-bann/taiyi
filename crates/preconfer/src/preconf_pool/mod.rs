@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::Add, sync::Arc};
 
-use alloy_consensus::Transaction;
-use alloy_primitives::Address;
+use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_primitives::{Address, U256};
 use parked::Parked;
 use parking_lot::RwLock;
 use pending::Pending;
@@ -12,8 +12,8 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    error::PoolError,
-    rpc_state::AccountState,
+    error::{PoolError, ValidationError},
+    rpc_state::{get_account_state, AccountState},
     validator::{PreconfValidator, ValidationOutcome},
 };
 
@@ -61,71 +61,114 @@ impl PreconfPool {
         }
     }
 
-    pub fn request_inclusion(
+    pub async fn request_inclusion(
         &self,
         preconf_request: PreconfRequest,
         request_id: Uuid,
     ) -> Result<PoolType, PoolError> {
-        // validate the preconf request
-        let validation_outcome = self.validate(&preconf_request)?;
+        // Check if target slot is in the future
+        let target_slot = preconf_request.target_slot;
+        if target_slot <= self.pool_state.current_slot {
+            return Err(PoolError::TargetSlotInPast);
+        }
+        // check for preconf tx
+        if let Some(transaction) = &preconf_request.transaction {
+            let sender = transaction
+                .recover_signer()
+                .map_err(|err| ValidationError::CustomError(err.to_string()))?;
 
-        match validation_outcome {
-            ValidationOutcome::Valid { simulate } => {
-                if simulate {
-                    // TODO: send the transaction to the simulator
-                    self.insert_ready(request_id, preconf_request);
-                    Ok(PoolType::Ready)
-                } else {
-                    self.insert_pending(request_id, preconf_request);
-                    Ok(PoolType::Pending)
+            // fetch rpc state
+            let rpc_state =
+                get_account_state("rpc_todo".to_string(), sender).await.map_err(|_| {
+                    PoolError::Validation(ValidationError::AccountStateNotFound(sender))
+                })?;
+
+            // validate the preconf request
+            let validation_outcome = self.validate(rpc_state, sender, transaction)?;
+
+            match validation_outcome {
+                ValidationOutcome::Valid { simulate } => {
+                    if simulate {
+                        // TODO: send the transaction to the simulator
+                        self.insert_ready(request_id, preconf_request);
+                        Ok(PoolType::Ready)
+                    } else {
+                        self.insert_pending(request_id, preconf_request);
+                        Ok(PoolType::Pending)
+                    }
                 }
+                ValidationOutcome::Invalid => Err(PoolError::InvalidPreconfTx(request_id)),
+                _ => unimplemented!(),
             }
-            ValidationOutcome::ParkedValid => {
-                self.insert_parked(request_id, preconf_request);
-                Ok(PoolType::Parked)
-            }
-            ValidationOutcome::Invalid => Err(PoolError::InvalidPreconfTx(request_id)),
-            ValidationOutcome::Error => Err(PoolError::InvalidPreconfRequest),
+        } else {
+            // TODO: check if blockspace is available in the pool
+            self.insert_parked(request_id, preconf_request);
+            Ok(PoolType::Parked)
         }
     }
 
-    // TODO: check if blockspace is available in the pool
-    pub fn validate(
+    // NOTE: only checks account balance and nonce
+    fn validate(
         &self,
-        preconf_req: &PreconfRequest,
-    ) -> eyre::Result<ValidationOutcome, PoolError> {
-        // check for preconf tx
-        if let Some(transaction) = &preconf_req.transaction {
-            // Base fee check
-            if transaction.max_fee_per_gas() < self.validator.min_base_fee {
+        rpc_state: AccountState,
+        sender: Address,
+        transaction: &TxEnvelope,
+    ) -> eyre::Result<ValidationOutcome, ValidationError> {
+        // Base fee check
+        if transaction.max_fee_per_gas() < self.validator.min_base_fee {
+            return Ok(ValidationOutcome::Invalid);
+        }
+
+        // Priority fee check
+        if let Some(p_fee) = transaction.max_priority_fee_per_gas() {
+            if p_fee < self.validator.min_priority_fee {
                 return Ok(ValidationOutcome::Invalid);
             }
-
-            // Priority fee check
-            if let Some(p_fee) = transaction.max_priority_fee_per_gas() {
-                if p_fee < self.validator.min_priority_fee {
-                    return Ok(ValidationOutcome::Invalid);
-                }
-            }
-
-            // Check if sender has enough balance to cover transaction cost
-            // let cost = transaction.cost();
-
-            // Check sender nonce
-
-            // Check if target slot is in the future
-            let target_slot = preconf_req.target_slot;
-            if target_slot <= self.pool_state.current_slot {
-                return Ok(ValidationOutcome::Error);
-            }
-            if target_slot == self.pool_state.current_slot + 1 {
-                Ok(ValidationOutcome::Valid { simulate: true })
-            } else {
-                Ok(ValidationOutcome::Valid { simulate: false })
-            }
-        } else {
-            Ok(ValidationOutcome::ParkedValid)
         }
+
+        let pool_inner = self.pool_inner.read();
+        let account_state = match pool_inner.account_state.get(&sender) {
+            Some(a_s) => a_s,
+            None => &rpc_state,
+        };
+
+        let account_balance = account_state.balance.to::<u128>();
+        let account_nonce = account_state.nonce;
+        // Check if sender has enough balance to cover transaction cost
+        // For EIP-1559 transactions: `max_fee_per_gas * gas_limit + tx_value`.
+        let cost = transaction.max_fee_per_gas() * transaction.gas_limit() as u128
+            + transaction.value().to::<u128>();
+
+        if account_balance < cost {
+            return Err(ValidationError::LowBalance(cost - account_balance));
+        }
+
+        // Check nocne
+        // transaction nonce
+        let nonce = transaction.nonce();
+        if nonce > account_nonce {
+            return Err(ValidationError::NonceTooHigh(nonce, account_nonce));
+        }
+
+        // Apply state changes
+        {
+            self.pool_inner.write().account_state.insert(
+                sender,
+                AccountState {
+                    nonce: account_nonce + 1,
+                    balance: U256::from(account_balance - cost),
+                },
+            );
+        }
+
+        // TODO: uncomment this once we have simulator ready
+        // if target_slot == self.pool_state.current_slot + 1 {
+        //     Ok(ValidationOutcome::Valid { simulate: true })
+        // } else {
+        //     Ok(ValidationOutcome::Valid { simulate: false })
+        // }
+
+        Ok(ValidationOutcome::Valid { simulate: false })
     }
 
     /// Returns all preconf requests that are ready to be executed in the next block.
