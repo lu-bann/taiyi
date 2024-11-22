@@ -20,7 +20,7 @@ const RELAY_DELEGATE_PATH: &str = "/constraints/v1/builder/delegate";
 const RELAY_REVOKE_PATH: &str = "/constraints/v1/builder/revoke";
 
 #[derive(Debug, Parser)]
-pub struct OffchainDelegateCommand {
+pub struct DelegateCommand {
     /// Relay url
     #[clap(long, env = "RELAY_URL")]
     pub relay_url: Url,
@@ -28,8 +28,8 @@ pub struct OffchainDelegateCommand {
     #[clap(long, env = "RELAY_REQUEST_TIMEOUT", default_value = "30")]
     pub relay_request_timeout: u64,
     /// Preconfer BLS public key
-    #[clap(long, env = "PRECONFER_PUBKEY")]
-    pub preconfer_pubkey: String,
+    #[clap(long, env = "GATEWAY_PUBKEY")]
+    pub gateway_pubkey: String,
     /// Chain Network
     #[clap(long, env = "NETWORK", default_value = "mainnet")]
     pub network: Network,
@@ -48,11 +48,11 @@ pub enum Action {
     Revoke,
 }
 
-impl OffchainDelegateCommand {
+impl DelegateCommand {
     pub async fn execute(&self) -> Result<()> {
         let signed_messages = match &self.source {
             KeySource::SecretKeys { secret_keys } => {
-                let preconfer_pubkey = parse_bls_public_key(&self.preconfer_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
                     preconfer_pubkey,
@@ -65,7 +65,7 @@ impl OffchainDelegateCommand {
             }
             KeySource::LocalKeystore { opts } => {
                 let keystore_secret = KeystoreSecret::from_keystore_options(opts)?;
-                let preconfer_pubkey = parse_bls_public_key(&self.preconfer_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
                 let signed_messages = generate_from_keystore(
                     &opts.path,
                     keystore_secret,
@@ -81,7 +81,7 @@ impl OffchainDelegateCommand {
                 let mut dirk =
                     Dirk::connect(opts.url.clone(), opts.tls_credentials.clone()).await?;
 
-                let preconfer_pubkey = parse_bls_public_key(&self.preconfer_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
                 let signed_messages = generate_from_dirk(
                     &mut dirk,
                     preconfer_pubkey,
