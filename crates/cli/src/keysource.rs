@@ -8,15 +8,18 @@ use ethereum_consensus::{
 };
 use eyre::{bail, Result};
 use lighthouse_eth2_keystore::Keystore;
-use taiyi_common::{
-    dirk::{Dirk, DirkOpts},
-    keystore::{keystore_paths, KeystoreError, KeystoreSecret, LocalKeystoreOpts},
-    signing::{compute_commit_boost_signing_root, compute_domain_from_mask},
-};
 use tracing::{debug, warn};
 
-use crate::commands::offchain_delegate::{
-    Action, DelegationMessage, RevocationMessage, SignedDelegation, SignedMessage, SignedRevocation,
+use crate::{
+    commands::offchain_delegate::{
+        Action, DelegationMessage, RevocationMessage, SignedDelegation, SignedMessage,
+        SignedRevocation,
+    },
+    keys_management::{
+        dirk::{Dirk, DirkOpts},
+        keystore::{keystore_paths, KeystoreError, KeystoreSecret, LocalKeystoreOpts},
+        signing::{compute_commit_boost_signing_root, compute_domain_from_mask},
+    },
 };
 
 #[derive(Debug, Clone, Parser)]

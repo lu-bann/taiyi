@@ -8,7 +8,7 @@ use eyre::{bail, Context, Result};
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use tracing::debug;
 
-use crate::{
+use crate::keys_management::{
     pb::eth2_signer_api::{
         Account, AccountManagerClient, ListAccountsRequest, ListerClient, LockAccountRequest,
         ResponseState, SignRequest, SignRequestId, SignerClient, UnlockAccountRequest,

@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 /// Default password used for keystores in the test vectors.
 ///
 /// Reference: https://eips.ethereum.org/EIPS/eip-2335#test-cases
-pub const DEFAULT_KEYSTORE_PASSWORD: &str = r#"𝔱𝔢𝔰𝔱𝔭𝔞𝔰𝔰𝔴𝔬𝔯𝔡🔑"#;
+// pub const DEFAULT_KEYSTORE_PASSWORD: &str = r#"𝔱𝔢𝔰𝔱𝔭𝔞𝔰𝔰𝔴𝔬𝔯𝔡🔑"#;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeystoreError {

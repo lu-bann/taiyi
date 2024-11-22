@@ -12,6 +12,7 @@ alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 blst = { workspace = true }
+cb-common = { workspace = true }
 
 clap = { workspace = true }
 ethereum-consensus = { workspace = true }
@@ -19,10 +20,15 @@ eyre = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
 lighthouse_eth2_keystore = { workspace = true }
+prost = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-taiyi-common = { workspace = true }
 taiyi-preconfer = { workspace = true }
+thiserror = { workspace = true }
 tiny-bip39 = { workspace = true }
+tonic = { workspace = true, features = ["tls"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+zeroize = { workspace = true }
+[build-dependencies]
+tonic-build = { workspace = true }

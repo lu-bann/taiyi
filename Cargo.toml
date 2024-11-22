@@ -9,7 +9,6 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "crates/cli",
-    "crates/common",
     "crates/preconfer",
     "crates/primitives",
     "examples",
