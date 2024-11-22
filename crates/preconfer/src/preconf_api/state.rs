@@ -3,7 +3,6 @@ use std::{future::Future, sync::Arc, time::Duration};
 use alloy_consensus::TxEnvelope;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::keccak256;
-use alloy_provider::Provider;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
@@ -40,6 +39,7 @@ pub struct PreconfState {
     context: Context,
     bls_sk: blst::min_pk::SecretKey,
     ecdsa_signer: PrivateKeySigner,
+    rpc_url: String,
 }
 
 impl PreconfState {
@@ -49,10 +49,19 @@ impl PreconfState {
         context: Context,
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
+        rpc_url: String,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
-        Self { constraint_client, network_state, preconf_pool, context, bls_sk, ecdsa_signer }
+        Self {
+            constraint_client,
+            network_state,
+            preconf_pool,
+            context,
+            bls_sk,
+            ecdsa_signer,
+            rpc_url,
+        }
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
@@ -145,8 +154,8 @@ impl PreconfState {
     }
 
     /// Expected forms
-    ///     - PreconfRequest without PreconfTx
-    ///     - PreconfRequest with PreconfTx
+    ///     - PreconfRequest without transaction
+    ///     - PreconfRequest with transaction
     pub async fn request_preconf(
         &self,
         preconf_request: PreconfRequest,
@@ -157,7 +166,11 @@ impl PreconfState {
 
         let request_id = Uuid::new_v4();
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id).await {
+        match self
+            .preconf_pool
+            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .await
+        {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 let message_digest = {
                     let mut data = Vec::new();
@@ -208,7 +221,11 @@ impl PreconfState {
         }
         preconf_request.transaction = Some(transaction.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), request_id).await {
+        match self
+            .preconf_pool
+            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .await
+        {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
                 let message_digest = {
                     let mut data = Vec::new();

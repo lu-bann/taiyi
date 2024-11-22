@@ -1,3 +1,4 @@
+use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT;
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::PreconfRequest;
 
@@ -8,20 +9,17 @@ pub struct PreconfValidator {
     pub block_gas_limit: u64,
     /// Stores the setup and parameters needed for validating KZG proofs.
     pub kzg_settings: EnvKzgSettings,
-    /// Minimum base fee required for a transaction
-    pub min_base_fee: u128,
     /// minimum priority fee required for a transaction
     pub min_priority_fee: u128,
 }
 
 impl PreconfValidator {
     /// Create a new `TxValidator` instance.
-    pub fn new() -> Self {
+    pub fn new(min_priority_fee: u128) -> Self {
         Self {
-            block_gas_limit: 0,
+            block_gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
             kzg_settings: EnvKzgSettings::default(),
-            min_base_fee: 0,
-            min_priority_fee: 0,
+            min_priority_fee,
         }
     }
 }

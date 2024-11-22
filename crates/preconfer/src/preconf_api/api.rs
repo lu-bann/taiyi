@@ -1,5 +1,8 @@
 use std::{fmt::Debug, net::SocketAddr, time::Instant};
 
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     response::{IntoResponse, Json},
@@ -46,8 +49,7 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run(self, state: PreconfState) -> eyre::Result<()>
-where {
+    pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
         let app = Router::new()
             .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
             .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))

@@ -2,13 +2,14 @@ use std::{collections::HashMap, ops::Add, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_primitives::{Address, U256};
+use alloy_provider::utils::EIP1559_MIN_PRIORITY_FEE;
 use parked::Parked;
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::PreconfRequest;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -30,7 +31,7 @@ impl PreconfPoolBuilder {
     }
 
     pub fn build(self, slot: u64) -> Arc<PreconfPool> {
-        let validator = PreconfValidator::new();
+        let validator = PreconfValidator::new(EIP1559_MIN_PRIORITY_FEE);
         Arc::new(PreconfPool::new(slot, validator))
     }
 }
@@ -65,6 +66,7 @@ impl PreconfPool {
         &self,
         preconf_request: PreconfRequest,
         request_id: Uuid,
+        rpc_url: String,
     ) -> Result<PoolType, PoolError> {
         // Check if target slot is in the future
         let target_slot = preconf_request.target_slot;
@@ -78,10 +80,9 @@ impl PreconfPool {
                 .map_err(|err| ValidationError::CustomError(err.to_string()))?;
 
             // fetch rpc state
-            let rpc_state =
-                get_account_state("rpc_todo".to_string(), sender).await.map_err(|_| {
-                    PoolError::Validation(ValidationError::AccountStateNotFound(sender))
-                })?;
+            let rpc_state = get_account_state(rpc_url, sender).await.map_err(|_| {
+                PoolError::Validation(ValidationError::AccountStateNotFound(sender))
+            })?;
 
             // validate the preconf request
             let validation_outcome = self.validate(rpc_state, sender, transaction)?;
@@ -114,11 +115,6 @@ impl PreconfPool {
         sender: Address,
         transaction: &TxEnvelope,
     ) -> eyre::Result<ValidationOutcome, ValidationError> {
-        // Base fee check
-        if transaction.max_fee_per_gas() < self.validator.min_base_fee {
-            return Ok(ValidationOutcome::Invalid);
-        }
-
         // Priority fee check
         if let Some(p_fee) = transaction.max_priority_fee_per_gas() {
             if p_fee < self.validator.min_priority_fee {
@@ -126,8 +122,8 @@ impl PreconfPool {
             }
         }
 
-        let pool_inner = self.pool_inner.read();
-        let account_state = match pool_inner.account_state.get(&sender) {
+        let mut guard = self.pool_inner.write();
+        let account_state = match guard.account_state.get(&sender) {
             Some(a_s) => a_s,
             None => &rpc_state,
         };
@@ -147,19 +143,19 @@ impl PreconfPool {
         // transaction nonce
         let nonce = transaction.nonce();
         if nonce > account_nonce {
-            return Err(ValidationError::NonceTooHigh(nonce, account_nonce));
+            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
+        }
+
+        if nonce < account_nonce {
+            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
         // Apply state changes
-        {
-            self.pool_inner.write().account_state.insert(
-                sender,
-                AccountState {
-                    nonce: account_nonce + 1,
-                    balance: U256::from(account_balance - cost),
-                },
-            );
-        }
+        guard.account_state.insert(
+            sender,
+            AccountState { nonce: account_nonce + 1, balance: U256::from(account_balance - cost) },
+        );
+        drop(guard);
 
         // TODO: uncomment this once we have simulator ready
         // if target_slot == self.pool_state.current_slot + 1 {
@@ -267,4 +263,225 @@ pub enum PoolType {
 #[derive(Debug)]
 pub struct PoolState {
     current_slot: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use alloy_consensus::TxEnvelope;
+    use alloy_network::{EthereumWallet, TransactionBuilder};
+    use alloy_node_bindings::Anvil;
+    use alloy_primitives::{U256, U64};
+    use alloy_provider::{Provider, ProviderBuilder};
+    use alloy_rpc_types::TransactionRequest;
+    use alloy_signer_local::PrivateKeySigner;
+    use tokio::time::sleep;
+    use tracing::info;
+
+    use crate::{
+        preconf_pool::PreconfPoolBuilder, rpc_state::get_account_state,
+        validator::ValidationOutcome,
+    };
+
+    #[tokio::test]
+    async fn test_validate() -> eyre::Result<()> {
+        tracing_subscriber::fmt::init();
+
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let slot = provider.get_block_number().await?;
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+        let rpc_state = get_account_state(rpc_url, *sender).await.unwrap();
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(10))
+            .with_nonce(0)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+
+        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_low_balance_err() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let slot = provider.get_block_number().await?;
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+        let rpc_state = get_account_state(rpc_url, *sender).await.unwrap();
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(rpc_state.balance))
+            .with_nonce(0)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+
+        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_nonce_too_high() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let slot = provider.get_block_number().await?;
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+        let rpc_state = get_account_state(rpc_url, *sender).await.unwrap();
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(100))
+            .with_nonce(5)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+
+        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_nonce_too_low() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let slot = provider.get_block_number().await?;
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(10))
+            .with_nonce(0)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0);
+        let pending_tx = provider.send_transaction(transaction).await?;
+        info!("Pending transaction... {}", pending_tx.tx_hash());
+
+        // Wait for the transaction to be included and get the receipt.
+        let receipt = pending_tx.get_receipt().await?;
+
+        info!(
+            "Transaction included in block {}",
+            receipt.block_number.expect("Failed to get block number")
+        );
+        // wait for 2*block_time duration
+        sleep(Duration::from_secs(2)).await;
+
+        let rpc_state = get_account_state(rpc_url, *sender).await.unwrap();
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(100))
+            .with_nonce(0)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+
+        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_err());
+        Ok(())
+    }
 }
