@@ -103,8 +103,8 @@ pub enum PoolError {
     PreconfPoolIsEmpty,
     #[error("Max commitments reached for slot {0}: {1}")]
     MaxCommitmentsReachedForSlot(u64, usize),
-    #[error("Target slot is in past")]
-    TargetSlotInPast,
+    #[error("Target slot: {0}, current slot: {1}")]
+    TargetSlotInPast(u64, u64),
     #[error("Max gas limit reached for slot {0}: {1}")]
     MaxGasLimitReachedForSlot(u64, u64),
     #[error("preconf request {0:?} not found")]

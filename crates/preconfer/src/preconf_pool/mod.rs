@@ -68,10 +68,11 @@ impl PreconfPool {
         request_id: Uuid,
         rpc_url: String,
     ) -> Result<PoolType, PoolError> {
+        let current_slot = self.pool_state.current_slot;
         // Check if target slot is in the future
         let target_slot = preconf_request.target_slot;
-        if target_slot <= self.pool_state.current_slot {
-            return Err(PoolError::TargetSlotInPast);
+        if target_slot <= current_slot {
+            return Err(PoolError::TargetSlotInPast(target_slot, current_slot));
         }
         // check for preconf tx
         if let Some(transaction) = &preconf_request.transaction {
