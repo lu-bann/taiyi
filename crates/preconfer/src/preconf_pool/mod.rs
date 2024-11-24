@@ -252,7 +252,7 @@ impl PreconfPoolInner {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PoolType {
     Parked,
     Pending,
@@ -271,19 +271,51 @@ mod tests {
     use std::time::Duration;
 
     use alloy_consensus::TxEnvelope;
+    use alloy_eips::eip2718::Decodable2718;
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{U256, U64};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer_local::PrivateKeySigner;
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
     use tokio::time::sleep;
     use tracing::info;
+    use uuid::Uuid;
 
     use crate::{
-        preconf_pool::PreconfPoolBuilder, rpc_state::get_account_state,
+        preconf_pool::{parked::Parked, PoolType, PreconfPoolBuilder},
+        rpc_state::get_account_state,
         validator::ValidationOutcome,
     };
+
+    #[test]
+    fn test_add_remove_request() {
+        let preconf_pool = PreconfPoolBuilder::new().build(1);
+
+        let mut preconf = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: None,
+            target_slot: 1,
+        };
+
+        let request_id = Uuid::new_v4();
+        preconf_pool.insert_parked(request_id, preconf.clone());
+        assert!(preconf_pool.get_parked(request_id).is_some());
+        assert_eq!(preconf_pool.get_parked(request_id), Some(preconf.clone()));
+
+        // set transaction
+        let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
+        let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
+        preconf.transaction = Some(transaction);
+        preconf_pool.delete_parked(request_id);
+        assert_eq!(preconf_pool.get_parked(request_id), None);
+
+        // insert into pending
+        preconf_pool.insert_pending(request_id, preconf.clone());
+        assert!(preconf_pool.get_pool(request_id).is_ok());
+        assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Pending);
+    }
 
     #[tokio::test]
     async fn test_validate() -> eyre::Result<()> {
