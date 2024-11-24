@@ -32,3 +32,29 @@ impl Parked {
         self.by_hash.remove(&key)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
+    use uuid::Uuid;
+
+    use super::Parked;
+
+    #[test]
+    fn test_add_remove_request() {
+        let mut parked = Parked::new();
+        let preconf = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: None,
+            target_slot: 1,
+        };
+
+        let id = Uuid::new_v4();
+        parked.insert(id, preconf.clone());
+        assert!(parked.contains(id));
+        assert_eq!(parked.get(id), Some(preconf.clone()));
+
+        parked.remove(id);
+        assert_eq!(parked.get(id), None);
+    }
+}
