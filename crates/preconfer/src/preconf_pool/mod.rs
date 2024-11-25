@@ -173,6 +173,11 @@ impl PreconfPool {
         self.pool_inner.write().ready.fetch_preconf_requests()
     }
 
+    /// Returns preconf requests in pending pool.
+    pub fn pending_requests(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
+        self.pool_inner.read().pending.fetch_preconf_requests_for_slot(slot)
+    }
+
     /// Inserts a preconf request into the parked pool.
     fn insert_parked(&self, request_id: Uuid, preconf_request: PreconfRequest) {
         self.pool_inner.write().parked.insert(request_id, preconf_request);

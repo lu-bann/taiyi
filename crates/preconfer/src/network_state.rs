@@ -4,21 +4,27 @@ use std::sync::{
 };
 
 use alloy_eips::merge::EPOCH_SLOTS;
+use ethereum_consensus::deneb::Context;
 use parking_lot::RwLock;
-use taiyi_primitives::ProposerInfo;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone)]
 pub struct NetworkState {
+    context: Context,
     current_slot: Arc<AtomicU64>,
-    proposers: Arc<RwLock<Vec<ProposerInfo>>>,
+    available_slots: Arc<RwLock<Vec<u64>>>,
 }
 
 impl NetworkState {
-    pub fn new(current_slot: u64, proposers: Vec<ProposerInfo>) -> Self {
+    pub fn new(context: Context) -> Self {
         Self {
-            current_slot: Arc::new(AtomicU64::new(current_slot)),
-            proposers: Arc::new(RwLock::new(proposers)),
+            context,
+            current_slot: Arc::new(AtomicU64::default()),
+            available_slots: Arc::new(RwLock::new(vec![])),
         }
+    }
+
+    pub fn get_context(&self) -> Context {
+        self.context.clone()
     }
 
     pub fn get_current_epoch(&self) -> u64 {
@@ -29,19 +35,15 @@ impl NetworkState {
         self.current_slot.load(Ordering::Relaxed)
     }
 
-    pub fn get_proposer_duties(&self) -> Vec<ProposerInfo> {
-        self.proposers.read().clone()
-    }
-
     pub fn update_slot(&self, slot: u64) {
         self.current_slot.store(slot, Ordering::Relaxed);
     }
 
-    pub fn update_proposer_duties(&self, proposers: Vec<ProposerInfo>) {
-        *self.proposers.write() = proposers;
+    pub fn add_slot(&self, slot: u64) {
+        self.available_slots.write().push(slot);
     }
 
-    pub fn _proposer_duty_for_slot(&self, slot: u64) -> Option<ProposerInfo> {
-        self.proposers.read().iter().find(|duty| duty.slot == slot).cloned()
+    pub fn available_slots(&self) -> Vec<u64> {
+        self.available_slots.read().clone()
     }
 }
