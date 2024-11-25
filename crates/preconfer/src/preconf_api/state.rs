@@ -1,8 +1,8 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
+use alloy_consensus::TxEnvelope;
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{keccak256, U256};
-use alloy_provider::Provider;
+use alloy_primitives::keccak256;
 use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
@@ -12,17 +12,19 @@ use ethereum_consensus::{
     deneb::Context,
 };
 use futures::StreamExt;
+use reth_primitives::PooledTransactionsElement;
 use taiyi_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfHash, PreconfRequest,
-    PreconfResponse, PreconfStatus, PreconfStatusResponse, PreconfTx,
+    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfRequest,
+    PreconfResponse, PreconfStatus, PreconfStatusResponse,
 };
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use crate::{
-    constraint_client::ConstraintClient,
-    error::{PoolError, RpcError, ValidationError},
+    constraint_client::{preconf_reqs_to_constraints, ConstraintClient},
+    error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{PoolState, PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
     pricer::PreconfPricer,
 };
 
@@ -37,40 +39,34 @@ pub struct PreconfState {
     context: Context,
     bls_sk: blst::min_pk::SecretKey,
     ecdsa_signer: PrivateKeySigner,
+    rpc_url: String,
 }
 
 impl PreconfState {
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         network_state: NetworkState,
         constraint_client: ConstraintClient,
         context: Context,
         bls_sk: blst::min_pk::SecretKey,
         ecdsa_signer: PrivateKeySigner,
+        rpc_url: String,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
-        Self { constraint_client, network_state, preconf_pool, context, bls_sk, ecdsa_signer }
+        Self {
+            constraint_client,
+            network_state,
+            preconf_pool,
+            context,
+            bls_sk,
+            ecdsa_signer,
+            rpc_url,
+        }
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.preconf_pool.preconf_requests()
     }
-
-    // async fn signed_constraints_message(
-    //     &self,
-    //     constraints_message: ConstraintsMessage,
-    // ) -> Result<SignedConstraintsMessage, RpcError> {
-    //     let domain = compute_builder_domain(&self.context)
-    //         .map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    //     let signing_root = compute_signing_root(&constraints_message, domain)
-    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-    //     let signature = self.bls_sk.sign(&signing_root.0, BLS_DST_SIG, &[]).to_bytes();
-    //     let signature = Signature::try_from(signature.as_ref())
-    //         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-
-    //     Ok(SignedConstraintsMessage::new(constraints_message, signature))
-    // }
 
     #[allow(unreachable_code)]
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -124,17 +120,13 @@ impl PreconfState {
                     last_slot = slot;
                     continue;
                 } else {
-                    let _wallet = EthereumWallet::new(self.ecdsa_signer.clone());
-                    let signed_constraints_message = Vec::new();
-                    // info!(
-                    //     "Sending {} constraints message with slot: {}",
-                    //     constraint_message.len(),
-                    //     constraint_message.slot
-                    // );
-                    // let signed_constraints_message = self
-                    //     .signed_constraints_message(constraint_message)
-                    //     .await
-                    //     .expect("signed constraints");
+                    let signed_constraints_message = preconf_reqs_to_constraints(
+                        preconf_requests,
+                        &self.bls_sk,
+                        &self.context,
+                        slot + 1,
+                    )
+                    .await?;
                     let max_retries = 5;
                     let mut i = 0;
 
@@ -148,7 +140,7 @@ impl PreconfState {
                         error!(err = ?e, "Error submitting constraints to relay, retrying...");
                         i += 1;
                         if i >= max_retries {
-                            error!("Max retries reached while submitting to MEV-Boost");
+                            error!("Max retries reached while submitting to relay");
                             break 'submit;
                         }
                         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -161,72 +153,49 @@ impl PreconfState {
         }
     }
 
-    pub async fn sign_tip_tx_signature(
-        &self,
-        tip_tx_signature: &ECDSASignature,
-    ) -> Result<ECDSASignature, RpcError> {
-        let message = tip_tx_signature.as_bytes().to_vec();
-        let message = keccak256(&message);
-        let signature = self
-            .ecdsa_signer
-            .sign_hash(&message)
-            .await
-            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        Ok(signature)
-    }
-
-    /// Send a preconf request to the preconfer
-    ///
     /// Expected forms
-    ///     - PreconfRequest without PreconfTx
-    ///     - PreconfRequest with PreconfTx
-    pub async fn send_preconf_request(
+    ///     - PreconfRequest without transaction
+    ///     - PreconfRequest with transaction
+    pub async fn request_preconf(
         &self,
-        mut preconf_request: PreconfRequest,
+        preconf_request: PreconfRequest,
     ) -> Result<PreconfResponse, RpcError> {
-        let chain_id = self.get_chain_id().await?;
-        let current_slot = self.network_state.get_current_slot();
-        // TODO: currently only reqs for the Ready sub-pool are accepted, change this later.
-        // Note: It is assumed that there're no other requests from the same sender in the same slot
-        // PreconfTx must be present
-        if preconf_request.preconf_tx.is_none() {
-            return Err(RpcError::UnknownError("PreconfTx must be present".to_string()));
-        }
+        // TODO: check for sender's collateral
+        // A sender must have enough collateral to cover for the penalty imposed by the preconfer on
+        // the sender if the sender fails to submit the preconf_tx
 
-        // Target slot must be the next slot
-        if preconf_request.tip_tx.target_slot != U256::from(current_slot + 1) {
-            return Err(RpcError::UnknownError("Target slot must be the next slot".to_string()));
-        }
+        let request_id = Uuid::new_v4();
 
-        let preconf_hash = preconf_request.hash(U256::from(chain_id));
-        let preconfer_signature =
-            self.sign_tip_tx_signature(&preconf_request.tip_tx_signature).await?;
-        preconf_request.preconfer_signature = Some(preconfer_signature);
+        match self
+            .preconf_pool
+            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .await
+        {
+            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
+                let message_digest = {
+                    let mut data = Vec::new();
+                    // First field is the concatenation of the transaction hash
+                    data.extend_from_slice(
+                        preconf_request
+                            .transaction
+                            .expect("preconf tx not found")
+                            .tx_hash()
+                            .as_slice(),
+                    );
 
-        let preconf_req_hash = preconf_request.preconf_req_hash(U256::from(chain_id)).ok_or(
-            RpcError::UnknownError(format!(
-                "Failed to get preconf req hash from {preconf_request:?}",
-            )),
-        )?;
-
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
-            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
-                let preconf_req_signature = self
-                    .ecdsa_signer
-                    .sign_hash(&preconf_req_hash)
-                    .await
-                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-                preconf_request.preconf_req_signature = Some(preconf_req_signature);
-
-                Ok(PreconfResponse::success(
-                    preconf_hash,
-                    preconfer_signature,
-                    Some(preconf_req_signature),
-                ))
+                    // Second field is the little endian encoding of the target slot
+                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
+                    keccak256(data)
+                };
+                let commitment =
+                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!(
+                            "Failed to sign inclusion commitment: {e:?}"
+                        ))
+                    })?;
+                Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
-            Ok(PoolState::Parked) => {
-                Ok(PreconfResponse::success(preconf_hash, preconfer_signature, None))
-            }
+            Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
             Err(e) => Err(RpcError::PoolError(e)),
         }
     }
@@ -238,38 +207,53 @@ impl PreconfState {
         unimplemented!()
     }
 
-    pub async fn send_preconf_tx_request(
+    pub async fn preconf_transaction(
         &self,
-        preconf_req_hash: PreconfHash,
-        preconf_tx: PreconfTx,
+        request_id: Uuid,
+        transaction: TxEnvelope,
     ) -> Result<PreconfResponse, RpcError> {
-        let chain_id = self.get_chain_id().await?;
         let mut preconf_request = self
             .preconf_pool
-            .get_parked(&preconf_req_hash)
-            .ok_or(PoolError::PreconfRequestNotFound(preconf_req_hash))?;
-        if preconf_request.preconf_tx.is_some() {
-            return Err(RpcError::PreconfTxAlreadySet(preconf_req_hash));
+            .get_parked(request_id)
+            .ok_or(PoolError::PreconfRequestNotFound(request_id))?;
+        if preconf_request.transaction.is_some() {
+            return Err(RpcError::PreconfTxAlreadySet);
         }
-        preconf_request.preconf_tx = Some(preconf_tx.clone());
+        preconf_request.transaction = Some(transaction.clone());
 
-        match self.preconf_pool.request_inclusion(preconf_request.clone(), chain_id) {
-            Ok(PoolState::Ready) | Ok(PoolState::Pending) => {
-                let preconf_req_signature = self
-                    .ecdsa_signer
-                    .sign_hash(&preconf_req_hash)
-                    .await
-                    .map_err(|err| RpcError::SignatureError(err.to_string()))?;
-                preconf_request.preconf_req_signature = Some(preconf_req_signature);
+        match self
+            .preconf_pool
+            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .await
+        {
+            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
+                let message_digest = {
+                    let mut data = Vec::new();
+                    // First field is the concatenation of the transaction hash
+                    data.extend_from_slice(
+                        preconf_request
+                            .transaction
+                            .expect("preconf tx not found")
+                            .tx_hash()
+                            .as_slice(),
+                    );
 
-                Ok(PreconfResponse::success(
-                    preconf_req_hash,
-                    preconf_request.preconfer_signature.expect("preconfer signature"),
-                    Some(preconf_req_signature),
-                ))
+                    // Second field is the little endian encoding of the target slot
+                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
+                    keccak256(data)
+                };
+                let commitment =
+                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!(
+                            "Failed to sign inclusion commitment: {e:?}"
+                        ))
+                    })?;
+                Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Err(PoolError::InvalidPreconfTx(_)) => {
-                self.preconf_pool.delete_parked(&preconf_req_hash);
+                self.preconf_pool.delete_parked(request_id);
+                // TODO penalize the sender
+                // self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
                 Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
             }
             _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
@@ -278,13 +262,13 @@ impl PreconfState {
 
     pub async fn check_preconf_request_status(
         &self,
-        preconf_hash: PreconfHash,
+        request_id: Uuid,
     ) -> Result<PreconfStatusResponse, PoolError> {
-        let pool = self.preconf_pool.get_pool(&preconf_hash)?;
+        let pool = self.preconf_pool.get_pool(request_id)?;
         let status = match pool {
-            PoolState::Parked => PreconfStatus::Pending,
-            PoolState::Pending => PreconfStatus::Pending,
-            PoolState::Ready => PreconfStatus::Accepted,
+            PoolType::Parked => PreconfStatus::Pending,
+            PoolType::Pending => PreconfStatus::Pending,
+            PoolType::Ready => PreconfStatus::Accepted,
         };
         Ok(PreconfStatusResponse { status })
     }
@@ -299,9 +283,5 @@ impl PreconfState {
             .filter(|slot| *slot > current_slot)
             .collect();
         Ok(available_slots)
-    }
-
-    async fn get_chain_id(&self) -> Result<u64, RpcError> {
-        Ok(1)
     }
 }

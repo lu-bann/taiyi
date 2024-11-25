@@ -1,5 +1,8 @@
 use std::{fmt::Debug, net::SocketAddr, time::Instant};
 
+use alloy_network::Ethereum;
+use alloy_provider::Provider;
+use alloy_transport::Transport;
 use axum::{
     extract::{Path, State},
     response::{IntoResponse, Json},
@@ -15,6 +18,7 @@ use taiyi_primitives::{
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::{
     error::RpcError,
@@ -45,8 +49,7 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run(self, state: PreconfState) -> eyre::Result<()>
-where {
+    pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
         let app = Router::new()
             .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
             .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
@@ -86,7 +89,7 @@ pub async fn handle_preconf_request(
     Json(preconf_request): Json<PreconfRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError> {
     let start_request = Instant::now();
-    match state.send_preconf_request(preconf_request).await {
+    match state.request_preconf(preconf_request).await {
         Ok(response) => {
             let request_latency = start_request.elapsed();
             PRECONF_RESPONSE_DURATION
@@ -135,7 +138,7 @@ pub async fn handle_preconf_request_tx(
     Json(request): Json<PreconfTxRequest>,
 ) -> Result<impl IntoResponse, RpcError> {
     let start_request = Instant::now();
-    match state.send_preconf_tx_request(request.preconf_hash, request.tx).await {
+    match state.preconf_transaction(request.request_id, request.transaction).await {
         Ok(response) => {
             let request_latency = start_request.elapsed();
             PRECONF_RESPONSE_DURATION
@@ -161,9 +164,9 @@ pub async fn handle_preconf_request_tx(
 
 pub async fn get_preconf_request(
     State(state): State<PreconfState>,
-    Path(params): Path<GetPreconfRequestQuery>,
+    Path(params): Path<Uuid>,
 ) -> Result<Json<PreconfStatusResponse>, RpcError> {
-    Ok(Json(state.check_preconf_request_status(params.preconf_hash).await?))
+    Ok(Json(state.check_preconf_request_status(params).await?))
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch

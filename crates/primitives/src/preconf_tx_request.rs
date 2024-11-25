@@ -1,9 +1,9 @@
+use alloy_consensus::TxEnvelope;
 use serde::{Deserialize, Serialize};
-
-use crate::{PreconfHash, PreconfTx};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfTxRequest {
-    pub preconf_hash: PreconfHash,
-    pub tx: PreconfTx,
+    pub request_id: Uuid,
+    pub transaction: TxEnvelope,
 }

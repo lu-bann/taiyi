@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use alloy_contract::Error as AlloyContractError;
+use alloy_primitives::Address;
 use axum::{
     response::{IntoResponse, Response},
     Json,
@@ -8,11 +9,12 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfHash;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum RpcError {
     #[error("preconf tx already set")]
-    PreconfTxAlreadySet(PreconfHash),
+    PreconfTxAlreadySet,
     #[error("Expected target slot {0}, got {1}")]
     SlotMismatch(u64, u64),
     #[error("unknown error {0:?}")]
@@ -52,22 +54,23 @@ impl IntoResponse for RpcError {
 /// Possible commitment validation errors.
 #[derive(Debug, Error)]
 pub enum ValidationError {
-    /// The transaction nonce is too low.
     #[error("Transaction nonce too low. Expected {0}, got {1}")]
     NonceTooLow(u64, u64),
-    /// The transaction nonce is too high.
-    #[error("Transaction nonce too high")]
+    #[error("Transaction nonce too high. Expected {0}, got {1}")]
     NonceTooHigh(u64, u64),
-    /// The gas limit is too high.
     #[error("Gas limit too high")]
     GasLimitTooHigh,
-    /// TODO: Re-enable chainId check https://github.com/lu-bann/taiyi/issues/111s
-    /// The transaction chain ID does not match the expected chain ID.
-    // #[error("Chain ID mismatch")]
-    // ChainIdMismatch,
-    /// NOTE: this should not be exposed to the user.
+    #[error("Chain ID mismatch")]
+    ChainIdMismatch,
+    // NOTE: this should not be exposed to the user.
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Insufficient account balance, balance_diff: {0}")]
+    LowBalance(u128),
+    #[error("Failed to get account state for address: {0}")]
+    AccountStateNotFound(Address),
+    #[error("custom error {0:?}")]
+    CustomError(String),
 }
 
 #[allow(dead_code)]
@@ -93,24 +96,25 @@ pub enum PricerError {
 
 #[derive(Debug, Error)]
 pub enum PoolError {
-    #[error("Order pool is empty")]
-    OrderPoolIsEmpty,
-    #[error("Prioritized Orderpool not initialized")]
-    PrioritizedOrderPoolNotInitialized,
+    /// Request validation failed.
+    #[error("Validation failed: {0}")]
+    Validation(#[from] ValidationError),
+    #[error("Preconf pool is empty")]
+    PreconfPoolIsEmpty,
     #[error("Max commitments reached for slot {0}: {1}")]
     MaxCommitmentsReachedForSlot(u64, usize),
-    #[error("Preconf request slot {0} is too old, current slot is {1}")]
-    PreconfRequestSlotTooOld(u64, u64),
+    #[error("Target slot: {0}, current slot: {1}")]
+    TargetSlotInPast(u64, u64),
     #[error("Max gas limit reached for slot {0}: {1}")]
     MaxGasLimitReachedForSlot(u64, u64),
     #[error("preconf request {0:?} not found")]
-    PreconfRequestNotFound(PreconfHash),
+    PreconfRequestNotFound(Uuid),
     #[error("preconf request {0:?} already exists")]
     PreconfRequestAlreadyExist(PreconfHash),
     #[error("preconf request for slot {0} not found")]
     SlotNotFound(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
-    InvalidPreconfTx(PreconfHash),
+    InvalidPreconfTx(Uuid),
     #[error("Invalid preconf request")]
     InvalidPreconfRequest,
     #[error("unknown error {0:?}")]
