@@ -19,13 +19,10 @@ use reqwest::Url;
 use taiyi_primitives::ProposerInfo;
 use tracing::{debug, info};
 
-use crate::{clients::relay_client::RelayClient, network_state::NetworkState};
-
-/// The action type for a delegation message.
-pub const DELEGATION_ACTION: u8 = 0;
-
-/// The action type for a revocation message.
-pub const REVOCATION_ACTION: u8 = 1;
+use crate::{
+    clients::relay_client::{RelayClient, DELEGATION_ACTION},
+    network_state::NetworkState,
+};
 
 pub struct LookaheadFetcher {
     beacon_client: Client,
@@ -55,12 +52,13 @@ impl LookaheadFetcher {
         let head = self.beacon_client.get_beacon_block(BlockId::Head).await?;
         let slot = head.message().slot();
         let epoch = slot / 32;
-        self.update_proposer_duties(epoch).await?;
+        self.add_slot(epoch).await?;
         self.network_state.update_slot(slot);
         Ok(())
     }
 
-    async fn update_proposer_duties(&mut self, epoch: u64) -> eyre::Result<()> {
+    /// Add the slot to the network state if the slot is delegated to the gateway
+    async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
         for slot in (epoch * 32)..((epoch + 1) * 32) {
             let signed_delegation = self.relay_client.get_delegations(slot).await?;
@@ -96,7 +94,7 @@ impl LookaheadFetcher {
             assert!((epoch != current_epoch) == event.epoch_transition, "Invalid epoch");
             if epoch != current_epoch {
                 info!("Epoch changed from {} to {}", current_epoch, epoch);
-                self.update_proposer_duties(epoch).await?;
+                self.add_slot(epoch).await?;
             }
             self.network_state.update_slot(slot);
             info!("Current slot: {}", slot);

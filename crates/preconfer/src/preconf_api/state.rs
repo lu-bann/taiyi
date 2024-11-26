@@ -125,7 +125,10 @@ impl PreconfState {
                             }
                         }
                     }
-                    Err(_) => continue,
+                    Err(_) => {
+                        debug!("No requests found for slot: {}", next_slot);
+                        continue;
+                    }
                 }
             }
         });
