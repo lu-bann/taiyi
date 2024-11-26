@@ -1,4 +1,4 @@
-use alloy_primitives::{hex, B256};
+use alloy_primitives::{hex, Address, B256};
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::{Signature, Signer};
 use alloy_signer_local::PrivateKeySigner;
@@ -46,6 +46,10 @@ impl SignerClient {
 
     pub fn bls_pubkey(&self) -> PublicKey {
         self.bls.sk_to_pk()
+    }
+
+    pub fn ecdsa_address(&self) -> Address {
+        self.ecdsa.address()
     }
 }
 

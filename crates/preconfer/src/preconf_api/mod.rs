@@ -17,7 +17,7 @@ use crate::{
     pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
 };
 
-mod api;
+pub mod api;
 pub mod state;
 
 #[allow(clippy::too_many_arguments)]
