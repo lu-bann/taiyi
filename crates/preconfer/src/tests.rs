@@ -23,13 +23,13 @@ mod tests {
         clients::{relay_client::RelayClient, signer_client::SignerClient},
         network_state::NetworkState,
         preconf_api::{
-            api::{PreconfApiServer, PRECONF_REQUEST_PATH},
+            api::{PreconfApiServer, PRECONF_REQUEST_PATH, PRECONF_REQUEST_TX_PATH},
             state::PreconfState,
         },
     };
 
     #[tokio::test]
-    async fn spawn_preconf_api_server() -> eyre::Result<()> {
+    async fn test_preconf_api_server() -> eyre::Result<()> {
         let context = Context::for_mainnet();
         let network_state = NetworkState::new(context.clone());
         let relay_client = RelayClient::new(vec![]);
@@ -61,11 +61,6 @@ mod tests {
         let wallet = EthereumWallet::from(signer);
 
         let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
         let transaction = TransactionRequest::default()
             .with_from(*sender)
             .with_value(U256::from(1000))
@@ -78,17 +73,18 @@ mod tests {
             .build(&wallet)
             .await?;
 
-        info!("Transaction built: {:?}", transaction);
-
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
-            transaction: Some(transaction),
+            transaction: Some(transaction.clone()),
             target_slot: 5,
         };
         let request_endpoint =
             Url::parse(&server_endpoint).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
-        let response =
-            reqwest::Client::new().post(request_endpoint).json(&preconf_request).send().await?;
+        let response = reqwest::Client::new()
+            .post(request_endpoint.clone())
+            .json(&preconf_request)
+            .send()
+            .await?;
 
         assert_eq!(response.status(), 200);
         let preconf_response: PreconfResponse = response.json().await?;
@@ -111,6 +107,45 @@ mod tests {
         // let message = Message::from_digest(*message);
         // let is_valid = ecda_sig.verify(&message, &EcdsaPublicKey::from_str(&ecdsa_pubkey)?).is_ok();
         // assert!(is_valid);
+
+        // Test sending a allocation request without a transaction and then sending a transaction with the request_id
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: None,
+            target_slot: 5,
+        };
+
+        let response = reqwest::Client::new()
+            .post(request_endpoint.clone())
+            .json(&preconf_request)
+            .send()
+            .await?;
+
+        assert_eq!(response.status(), 200);
+        let preconf_response: PreconfResponse = response.json().await?;
+        assert_eq!(preconf_response.data.commitment, None);
+
+        let request_id = preconf_response.data.request_id;
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(1000))
+            .with_nonce(1)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+        let preconf_tx_rq = taiyi_primitives::PreconfTxRequest { request_id, transaction };
+        let send_transaction_endpoint =
+            Url::parse(&server_endpoint).unwrap().join(PRECONF_REQUEST_TX_PATH).unwrap();
+        let response = reqwest::Client::new()
+            .post(send_transaction_endpoint)
+            .json(&preconf_tx_rq)
+            .send()
+            .await?;
+        assert_eq!(response.status(), 200);
 
         Ok(())
     }

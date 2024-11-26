@@ -57,7 +57,7 @@ impl LookaheadFetcher {
         Ok(())
     }
 
-    /// Add the slot to the network state if the slot is delegated to the gateway
+    /// Add slots from the epoch if the slot is delegated to the gateway
     async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
         for slot in (epoch * 32)..((epoch + 1) * 32) {
@@ -69,6 +69,9 @@ impl LookaheadFetcher {
                 self.network_state.add_slot(slot);
             }
         }
+
+        // clear old slots
+        self.network_state.clear_slots(epoch);
 
         Ok(())
     }

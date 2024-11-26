@@ -46,4 +46,10 @@ impl NetworkState {
     pub fn available_slots(&self) -> Vec<u64> {
         self.available_slots.read().clone()
     }
+
+    /// Removes the slots which are older than epoch head slot
+    pub fn clear_slots(&self, epoch: u64) {
+        let mut available_slots = self.available_slots.write();
+        available_slots.retain(|&slot| slot >= epoch * EPOCH_SLOTS);
+    }
 }

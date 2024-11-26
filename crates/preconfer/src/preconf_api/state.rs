@@ -227,13 +227,16 @@ impl PreconfState {
                     })?;
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
+            Ok(PoolType::Parked) => Err(RpcError::UnknownError(
+                "Preconf request shouldn't be in Parked subpool".to_string(),
+            )),
             Err(PoolError::InvalidPreconfTx(_)) => {
                 self.preconf_pool.delete_parked(request_id);
                 // TODO penalize the sender
                 // self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
                 Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
             }
-            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
+            Err(e) => Err(RpcError::PoolError(e)),
         }
     }
 
