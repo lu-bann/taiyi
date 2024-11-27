@@ -1,10 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use alloy_primitives::Address;
-use blst::min_pk::SecretKey;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use eyre::eyre;
 use taiyi_preconfer::{metrics::preconfer::init_metrics, spawn_service};
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
@@ -40,10 +37,6 @@ pub struct PreconferCommand {
     #[clap(long = "relay_url", value_delimiter = ',')]
     pub relay_url: Vec<String>,
 
-    /// taiyi proposer registry contract address
-    #[clap(long = "taiyi_proposer_registry_contract_addr")]
-    pub taiyi_proposer_registry_contract_addr: String,
-
     /// taiyi service url. Internal usage for taiyi base fee predict module
     #[clap(long)]
     pub taiyi_service_url: Option<String>,
@@ -57,33 +50,22 @@ impl PreconferCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;
-        let taiyi_proposer_registry_contract_addr: Address =
-            self.taiyi_proposer_registry_contract_addr.parse()?;
-        let bls_private_key = SecretKey::from_bytes(&hex::decode(
-            self.bls_sk.strip_prefix("0x").unwrap_or(&self.bls_sk),
-        )?)
-        .map_err(|e| eyre!("Failed decoding preconfer private key: {:?}", e))?;
-
-        let ecdsa_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
-            k256::ecdsa::SigningKey::from_slice(&hex::decode(
-                self.ecdsa_sk.strip_prefix("0x").unwrap_or(&self.ecdsa_sk),
-            )?)?,
-        );
 
         if let Some(metrics_port) = self.metrics_port {
             init_metrics(metrics_port)?;
         }
 
+        let relay_url = self.relay_url.iter().map(|url| url.parse().expect("relay urls")).collect();
+
         spawn_service(
-            taiyi_proposer_registry_contract_addr,
             self.execution_client_url.clone(),
             self.beacon_client_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
-            bls_private_key,
-            ecdsa_signer,
-            self.relay_url.clone(),
+            self.bls_sk.clone(),
+            self.ecdsa_sk.clone(),
+            relay_url,
         )
         .await?;
 

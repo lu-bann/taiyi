@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_consensus::TxEnvelope;
+use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::keccak256;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -9,19 +10,21 @@ use alloy_transport::Transport;
 use ethereum_consensus::{
     altair::genesis,
     clock::{from_system_time, Clock},
-    deneb::Context,
+    deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context},
+    primitives::BlsPublicKey,
+    ssz::prelude::ByteList,
 };
 use futures::StreamExt;
 use reth_primitives::PooledTransactionsElement;
 use taiyi_primitives::{
     CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfRequest,
-    PreconfResponse, PreconfStatus, PreconfStatusResponse,
+    PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints,
 };
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::{
-    constraint_client::{preconf_reqs_to_constraints, ConstraintClient},
+    clients::{relay_client::RelayClient, signer_client::SignerClient},
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
@@ -33,124 +36,102 @@ pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
 
 #[derive(Clone)]
 pub struct PreconfState {
-    constraint_client: ConstraintClient,
+    relay_client: RelayClient,
     network_state: NetworkState,
     preconf_pool: Arc<PreconfPool>,
-    context: Context,
-    bls_sk: blst::min_pk::SecretKey,
-    ecdsa_signer: PrivateKeySigner,
+    signer_client: SignerClient,
     rpc_url: String,
 }
 
 impl PreconfState {
-    pub async fn new(
+    pub fn new(
         network_state: NetworkState,
-        constraint_client: ConstraintClient,
-        context: Context,
-        bls_sk: blst::min_pk::SecretKey,
-        ecdsa_signer: PrivateKeySigner,
+        relay_client: RelayClient,
+        signer_client: SignerClient,
         rpc_url: String,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
-        Self {
-            constraint_client,
-            network_state,
-            preconf_pool,
-            context,
-            bls_sk,
-            ecdsa_signer,
-            rpc_url,
-        }
+
+        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url }
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.preconf_pool.preconf_requests()
     }
 
-    #[allow(unreachable_code)]
-    pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
-        let constraint_client = self.constraint_client.clone();
-        let genesis_time = match self.context.genesis_time() {
+    pub fn spawn_constraint_submitter(self) {
+        let relay_client = self.relay_client.clone();
+        let context = self.network_state.get_context();
+        let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,
-            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
+            Err(_) => context.min_genesis_time + context.genesis_delay,
         };
 
-        async move {
-            // wait for 3 seconds to let the first network state slot to be initialized
-            // this is a temporary solution to let the first network state slot to be initialized
-            tokio::time::sleep(Duration::from_secs(3)).await;
-            let mut last_slot = self.network_state.get_current_slot();
-            loop {
-                let slot = self.network_state.get_current_slot();
-                debug!("current slot: {slot}, last slot: {last_slot}");
-                if slot == last_slot {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
-                let slot_start_timestamp =
-                    (genesis_time + (slot * self.context.seconds_per_slot)) * 1_000_000_000;
-                let submit_start_time = slot_start_timestamp as i64
-                    + SET_CONSTRAINTS_CUTOFF_NS
-                    + SET_CONSTRAINTS_CUTOFF_NS_DELTA;
-                let sleep_duration = submit_start_time
-                    - time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64;
-                info!(
-                    "Current time: {}, Slot start time: {}, Submit start time: {}",
-                    time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
-                    slot_start_timestamp,
-                    submit_start_time
-                );
-                info!("Sleep duration: {}", sleep_duration / 1_000_000_000);
-                if sleep_duration.is_positive() {
-                    info!("Sleeping for {} s until slot {} starts", sleep_duration, slot + 1);
-                    tokio::time::sleep(Duration::from_nanos(
-                        sleep_duration.try_into().expect("positive sleep duration"),
-                    ))
-                    .await;
-                } else {
-                    warn!("slot is in past, skipping");
-                    continue;
-                }
+        tokio::spawn(async move {
+            let clock =
+                from_system_time(genesis_time, context.seconds_per_slot, context.slots_per_epoch);
+            let mut slot_stream = clock.into_stream();
+            while let Some(slot) = slot_stream.next().await {
+                info!("Current slot: {}", slot);
+                let next_slot = slot + 1;
 
-                // get all the preconf requests from the ready pool
-                let preconf_requests = self.preconf_requests()?;
-
-                if preconf_requests.is_empty() {
-                    last_slot = slot;
-                    continue;
-                } else {
-                    let signed_constraints_message = preconf_reqs_to_constraints(
-                        preconf_requests,
-                        &self.bls_sk,
-                        &self.context,
-                        slot + 1,
-                    )
-                    .await?;
-                    let max_retries = 5;
-                    let mut i = 0;
-
-                    'submit: while let Err(e) = constraint_client
-                        .send_set_constraints(
-                            signed_constraints_message.clone(),
-                            slot_start_timestamp,
-                        )
-                        .await
-                    {
-                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                        i += 1;
-                        if i >= max_retries {
-                            error!("Max retries reached while submitting to relay");
-                            break 'submit;
+                match self.preconf_pool.pending_requests(next_slot) {
+                    Ok(preconf_requests) => {
+                        if preconf_requests.is_empty() {
+                            continue;
                         }
-                        tokio::time::sleep(Duration::from_millis(100)).await;
+                        let mut txs = Vec::new();
+                        for preconf_req in preconf_requests {
+                            if let Some(tx) = preconf_req.transaction {
+                                let mut tx_bytes = Vec::new();
+                                tx.encode_2718(&mut tx_bytes);
+                                let tx_ref: &[u8] = tx_bytes.as_ref();
+                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                                    tx_ref.try_into().expect("tx bytes too big");
+                                txs.push(tx_bytes);
+                            }
+                        }
+
+                        let bls_pk = self.signer_client.bls_pubkey();
+                        let message = ConstraintsMessage {
+                            pubkey: BlsPublicKey::try_from(bls_pk.to_bytes().as_ref())
+                                .expect("key error"),
+                            slot,
+                            top: true,
+                            transactions: txs.try_into().expect("tx too big"),
+                        };
+                        let digest = message.digest();
+                        if let Ok(signature) =
+                            self.signer_client.sign_with_bls(context.clone(), digest)
+                        {
+                            let signed_constraints_message =
+                                vec![SignedConstraints { message, signature }];
+
+                            let max_retries = 5;
+                            let mut i = 0;
+
+                            'submit: while let Err(e) = relay_client
+                                .set_constraints(signed_constraints_message.clone())
+                                .await
+                            {
+                                error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                                i += 1;
+                                if i >= max_retries {
+                                    error!("Max retries reached while submitting to relay");
+                                    break 'submit;
+                                }
+                                tokio::time::sleep(Duration::from_millis(100)).await;
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        debug!("No requests found for slot: {}", next_slot);
+                        continue;
                     }
                 }
-
-                last_slot = slot;
             }
-            Ok(())
-        }
+        });
     }
 
     /// Expected forms
@@ -188,10 +169,8 @@ impl PreconfState {
                     keccak256(data)
                 };
                 let commitment =
-                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
-                        RpcError::SignatureError(format!(
-                            "Failed to sign inclusion commitment: {e:?}"
-                        ))
+                    self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
@@ -243,20 +222,21 @@ impl PreconfState {
                     keccak256(data)
                 };
                 let commitment =
-                    self.ecdsa_signer.sign_hash(&message_digest).await.map_err(|e| {
-                        RpcError::SignatureError(format!(
-                            "Failed to sign inclusion commitment: {e:?}"
-                        ))
+                    self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
+                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
+            Ok(PoolType::Parked) => Err(RpcError::UnknownError(
+                "Preconf request shouldn't be in Parked subpool".to_string(),
+            )),
             Err(PoolError::InvalidPreconfTx(_)) => {
                 self.preconf_pool.delete_parked(request_id);
                 // TODO penalize the sender
                 // self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
                 Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
             }
-            _ => Err(RpcError::UnknownError("Invalid pool state".to_string())),
+            Err(e) => Err(RpcError::PoolError(e)),
         }
     }
 
@@ -277,9 +257,8 @@ impl PreconfState {
         let current_slot = self.network_state.get_current_slot();
         let available_slots = self
             .network_state
-            .get_proposer_duties()
-            .iter()
-            .map(|duty| duty.slot)
+            .available_slots()
+            .into_iter()
             .filter(|slot| *slot > current_slot)
             .collect();
         Ok(available_slots)

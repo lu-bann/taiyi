@@ -4,15 +4,15 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponse {
-    status: String,
-    message: String,
-    data: PreconfResponseData,
+    pub status: String,
+    pub message: String,
+    pub data: PreconfResponseData,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponseData {
-    request_id: Uuid,
-    commitment: Option<Signature>,
+    pub request_id: Uuid,
+    pub commitment: Option<Signature>,
 }
 
 impl PreconfResponse {

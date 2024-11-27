@@ -47,6 +47,25 @@ impl Pending {
             Err(PoolError::SlotNotFound(slot))
         }
     }
+
+    pub fn fetch_preconf_requests_for_slot(
+        &self,
+        slot: u64,
+    ) -> Result<Vec<PreconfRequest>, PoolError> {
+        if let Some(reqs) = self.reqs_by_slot.get(&slot) {
+            let mut preconfs = Vec::new();
+            for req_id in reqs {
+                let preconf_request = match self.by_id.get(req_id) {
+                    Some(req) => req.clone(),
+                    None => return Err(PoolError::PreconfRequestNotFound(*req_id)),
+                };
+                preconfs.push(preconf_request);
+            }
+            Ok(preconfs)
+        } else {
+            Err(PoolError::SlotNotFound(slot))
+        }
+    }
 }
 
 #[cfg(test)]

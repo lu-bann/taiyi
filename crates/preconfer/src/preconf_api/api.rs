@@ -29,10 +29,10 @@ use crate::{
     preconf_api::PreconfState,
 };
 
-const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
-const PRECONF_REQUEST_TX_PATH: &str = "/commitments/v1/preconf_request/tx";
-const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v1/preconf_request/:preconf_hash";
-const AVAILABLE_SLOT_PATH: &str = "/commitments/v1/slots";
+pub const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
+pub const PRECONF_REQUEST_TX_PATH: &str = "/commitments/v1/preconf_request/tx";
+pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v1/preconf_request/:preconf_hash";
+pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v1/slots";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -76,6 +76,10 @@ impl PreconfApiServer {
 
         info!("Started rpc server on http://{} ", self.addr);
         Ok(())
+    }
+
+    pub fn endpoint(&self) -> String {
+        format!("http://{}", self.addr)
     }
 }
 
