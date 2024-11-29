@@ -61,12 +61,15 @@ impl LookaheadFetcher {
     async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
         for slot in (epoch * 32)..((epoch + 1) * 32) {
-            let signed_delegation = self.relay_client.get_delegations(slot).await?;
-            let delegation_message = signed_delegation.message;
-            if delegation_message.action == DELEGATION_ACTION
-                && delegation_message.delegatee_pubkey == self.gateway_pubkey
-            {
-                self.network_state.add_slot(slot);
+            let signed_delegations = self.relay_client.get_delegations(slot).await?;
+            for signed_delegation in signed_delegations {
+                let delegation_message = signed_delegation.message;
+                if delegation_message.action == DELEGATION_ACTION
+                    && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                {
+                    info!("Delegation to gateway found for slot: {}", slot);
+                    self.network_state.add_slot(slot);
+                }
             }
         }
 

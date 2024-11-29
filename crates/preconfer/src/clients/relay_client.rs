@@ -41,14 +41,14 @@ impl RelayClient {
         Self { client: reqwest::Client::new(), urls: relay_urls }
     }
 
-    pub async fn get_delegations(&self, slot: u64) -> eyre::Result<SignedDelegation> {
+    pub async fn get_delegations(&self, slot: u64) -> eyre::Result<Vec<SignedDelegation>> {
         let url = self
             .urls
             .first()
             .expect("relay")
             .join(format!("{PATH_BUILDER_API}{PATH_BUILDER_DELEGATIONS}").as_str())?;
         let response = self.client.get(url).query(&[("slot", slot)]).send().await?;
-        let delegation = response.json::<SignedDelegation>().await?;
+        let delegation = response.json::<Vec<SignedDelegation>>().await?;
         Ok(delegation)
     }
 
