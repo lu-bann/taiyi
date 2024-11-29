@@ -60,7 +60,7 @@ impl PreconfState {
         self.preconf_pool.preconf_requests()
     }
 
-    pub fn spawn_constraint_submitter(self) {
+    pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
         let relay_client = self.relay_client.clone();
         let context = self.network_state.get_context();
         let genesis_time = match context.genesis_time() {
@@ -68,7 +68,7 @@ impl PreconfState {
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
 
-        tokio::spawn(async move {
+        async move {
             let clock =
                 from_system_time(genesis_time, context.seconds_per_slot, context.slots_per_epoch);
             let mut slot_stream = clock.into_stream();
@@ -131,7 +131,8 @@ impl PreconfState {
                     }
                 }
             }
-        });
+            Ok(())
+        }
     }
 
     /// Expected forms
