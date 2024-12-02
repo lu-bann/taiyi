@@ -74,6 +74,8 @@ impl PreconfState {
             let mut slot_stream = clock.into_stream();
             while let Some(slot) = slot_stream.next().await {
                 info!("Current slot: {}", slot);
+                // FIXME: submit the constraints for the next slot
+                // ideally we should submit the constraints for the current slot
                 let next_slot = slot + 1;
 
                 match self.preconf_pool.pending_requests(next_slot) {
@@ -92,7 +94,7 @@ impl PreconfState {
                                 txs.push(tx_bytes);
                             }
                         }
-
+                        let txs_len = txs.len();
                         let bls_pk = self.signer_client.bls_pubkey();
                         let message = ConstraintsMessage {
                             pubkey: BlsPublicKey::try_from(bls_pk.to_bytes().as_ref())
@@ -111,6 +113,7 @@ impl PreconfState {
                             let max_retries = 5;
                             let mut i = 0;
 
+                            info!("Submitting {txs_len} constraints to relay");
                             'submit: while let Err(e) = relay_client
                                 .set_constraints(signed_constraints_message.clone())
                                 .await
@@ -260,7 +263,8 @@ impl PreconfState {
             .network_state
             .available_slots()
             .into_iter()
-            .filter(|slot| *slot > current_slot)
+            // FIXME: currently we would submit constraint for the next slot straight
+            .filter(|slot| *slot > current_slot + 1)
             .collect();
         Ok(available_slots)
     }

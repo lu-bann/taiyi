@@ -112,8 +112,8 @@ impl PreconfPool {
     // NOTE: only checks account balance and nonce
     fn validate(
         &self,
-        rpc_state: AccountState,
-        sender: Address,
+        _rpc_state: AccountState,
+        _sender: Address,
         transaction: &TxEnvelope,
     ) -> eyre::Result<ValidationOutcome, ValidationError> {
         // Priority fee check
@@ -123,40 +123,40 @@ impl PreconfPool {
             }
         }
 
-        let mut guard = self.pool_inner.write();
-        let account_state = match guard.account_state.get(&sender) {
-            Some(a_s) => a_s,
-            None => &rpc_state,
-        };
+        // let mut guard = self.pool_inner.write();
+        // let account_state = match guard.account_state.get(&sender) {
+        //     Some(a_s) => a_s,
+        //     None => &rpc_state,
+        // };
 
-        let account_balance = account_state.balance.to::<u128>();
-        let account_nonce = account_state.nonce;
+        // let account_balance = account_state.balance.to::<u128>();
+        // let account_nonce = account_state.nonce;
         // Check if sender has enough balance to cover transaction cost
         // For EIP-1559 transactions: `max_fee_per_gas * gas_limit + tx_value`.
-        let cost = transaction.max_fee_per_gas() * transaction.gas_limit() as u128
-            + transaction.value().to::<u128>();
+        // let cost = transaction.max_fee_per_gas() * transaction.gas_limit() as u128
+        //     + transaction.value().to::<u128>();
 
-        if account_balance < cost {
-            return Err(ValidationError::LowBalance(cost - account_balance));
-        }
+        // if account_balance < cost {
+        //     return Err(ValidationError::LowBalance(cost - account_balance));
+        // }
 
         // Check nocne
         // transaction nonce
-        let nonce = transaction.nonce();
-        if nonce > account_nonce {
-            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
-        }
+        // let nonce = transaction.nonce();
+        // if nonce > account_nonce {
+        //     return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
+        // }
 
-        if nonce < account_nonce {
-            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
-        }
+        // if nonce < account_nonce {
+        //     return Err(ValidationError::NonceTooLow(account_nonce, nonce));
+        // }
 
         // Apply state changes
-        guard.account_state.insert(
-            sender,
-            AccountState { nonce: account_nonce + 1, balance: U256::from(account_balance - cost) },
-        );
-        drop(guard);
+        // guard.account_state.insert(
+        //     sender,
+        //     AccountState { nonce: account_nonce + 1, balance: U256::from(account_balance - cost) },
+        // );
+        // drop(guard);
 
         // TODO: uncomment this once we have simulator ready
         // if target_slot == self.pool_state.current_slot + 1 {
