@@ -1,4 +1,8 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
@@ -31,8 +35,7 @@ use crate::{
     pricer::PreconfPricer,
 };
 
-pub const SET_CONSTRAINTS_CUTOFF_NS: i64 = 8_000_000_000;
-pub const SET_CONSTRAINTS_CUTOFF_NS_DELTA: i64 = -1_000_000_000;
+pub const SET_CONSTRAINTS_CUTOFF_S: u64 = 8;
 
 #[derive(Clone)]
 pub struct PreconfState {
@@ -41,6 +44,7 @@ pub struct PreconfState {
     preconf_pool: Arc<PreconfPool>,
     signer_client: SignerClient,
     rpc_url: String,
+    context: Context,
 }
 
 impl PreconfState {
@@ -49,15 +53,24 @@ impl PreconfState {
         relay_client: RelayClient,
         signer_client: SignerClient,
         rpc_url: String,
+        context: Context,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
 
-        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url }
+        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url, context }
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
         self.preconf_pool.preconf_requests()
+    }
+
+    fn deadline_of_slot(&self, slot: u64) -> u64 {
+        let genesis_time = match self.context.genesis_time() {
+            Ok(genesis_time) => genesis_time,
+            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
+        };
+        genesis_time + (slot * self.context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -151,6 +164,10 @@ impl PreconfState {
         // the sender if the sender fails to submit the preconf_tx
 
         let request_id = Uuid::new_v4();
+
+        if self.is_exceed_deadline(preconf_request.target_slot) {
+            return Err(RpcError::ExceedDeadline(preconf_request.target_slot));
+        }
 
         match self
             .preconf_pool
@@ -260,13 +277,21 @@ impl PreconfState {
 
     pub async fn get_slots(&self) -> Result<Vec<u64>, RpcError> {
         let current_slot = self.network_state.get_current_slot();
+
+        let slot_diff = if self.is_exceed_deadline(current_slot) { 2 } else { 1 };
         let available_slots = self
             .network_state
             .available_slots()
             .into_iter()
-            // FIXME: currently we would submit constraint for the next slot straight
-            .filter(|slot| *slot > current_slot + 1)
+            .filter(|slot| *slot > current_slot + slot_diff)
             .collect();
         Ok(available_slots)
+    }
+
+    fn is_exceed_deadline(&self, slot: u64) -> bool {
+        let utc_timestamp =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
+        let deadline = self.deadline_of_slot(slot);
+        utc_timestamp > deadline
     }
 }

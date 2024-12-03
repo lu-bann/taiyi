@@ -52,8 +52,13 @@ pub async fn spawn_service(
 
     info!("preconfer is on chain_id: {:?}", chain_id);
 
-    let state =
-        PreconfState::new(network_state, relay_client, signer_client, execution_client_url.clone());
+    let state = PreconfState::new(
+        network_state,
+        relay_client,
+        signer_client,
+        execution_client_url.clone(),
+        context,
+    );
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));

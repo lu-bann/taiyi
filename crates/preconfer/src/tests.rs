@@ -4,6 +4,7 @@ mod tests {
     use std::{
         net::{IpAddr, Ipv4Addr, SocketAddr},
         str::FromStr,
+        time::{SystemTime, UNIX_EPOCH},
     };
 
     use alloy_network::{EthereumWallet, TransactionBuilder};
@@ -46,8 +47,14 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
 
-        let state =
-            PreconfState::new(network_state, relay_client, signer_client.clone(), rpc_url.clone());
+        let state = PreconfState::new(
+            network_state,
+            relay_client,
+            signer_client.clone(),
+            rpc_url.clone(),
+            context.clone(),
+        );
+        let genesis_time = context.genesis_time().unwrap();
 
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
@@ -73,10 +80,15 @@ mod tests {
             .build(&wallet)
             .await?;
 
+        let current_time =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+
+        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 1;
+
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
             transaction: Some(transaction.clone()),
-            target_slot: 5,
+            target_slot,
         };
         let request_endpoint =
             Url::parse(&server_endpoint).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
@@ -85,9 +97,11 @@ mod tests {
             .json(&preconf_request)
             .send()
             .await?;
-
-        assert_eq!(response.status(), 200);
-        let preconf_response: PreconfResponse = response.json().await?;
+        let status = response.status();
+        let body = response.bytes().await?;
+        println!("body: {:?}", body);
+        assert_eq!(status, 200);
+        let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
 
         let message = {
             let mut data = Vec::new();
@@ -112,7 +126,7 @@ mod tests {
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
             transaction: None,
-            target_slot: 5,
+            target_slot,
         };
 
         let response = reqwest::Client::new()
