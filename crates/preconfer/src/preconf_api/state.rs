@@ -133,6 +133,7 @@ impl PreconfState {
                         continue;
                     }
                 }
+                self.preconf_pool.remove_account_state(next_slot);
             }
             Ok(())
         }

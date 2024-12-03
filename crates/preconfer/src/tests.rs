@@ -145,7 +145,11 @@ mod tests {
             .json(&preconf_tx_rq)
             .send()
             .await?;
-        assert_eq!(response.status(), 200);
+        let status = response.status();
+        let body = response.text().await?;
+        println!("status: {}", status);
+        println!("body: {}", body);
+        assert_eq!(status, 200);
 
         Ok(())
     }
