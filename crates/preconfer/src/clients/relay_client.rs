@@ -5,7 +5,7 @@ use ethereum_consensus::{
 use eyre::Context as _;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{PATH_BUILDER_API, PATH_BUILDER_DELEGATIONS};
 
@@ -63,7 +63,7 @@ impl RelayClient {
         let body = String::from_utf8_lossy(&body);
 
         if code.is_success() {
-            info!("Constraints submitted successfully");
+            debug!("Constraints submitted successfully");
         } else {
             error!("Failed to submit constraints {} {}", body, code);
         }

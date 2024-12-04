@@ -86,7 +86,7 @@ impl PreconfPool {
             })?;
 
             // validate the preconf request
-            let validation_outcome = self.validate(rpc_state, sender, transaction)?;
+            let validation_outcome = self.validate(rpc_state, sender, target_slot, transaction)?;
 
             match validation_outcome {
                 ValidationOutcome::Valid { simulate } => {
@@ -114,6 +114,7 @@ impl PreconfPool {
         &self,
         rpc_state: AccountState,
         sender: Address,
+        slot: u64,
         transaction: &TxEnvelope,
     ) -> eyre::Result<ValidationOutcome, ValidationError> {
         // Priority fee check
@@ -123,10 +124,9 @@ impl PreconfPool {
             }
         }
 
-        let mut guard = self.pool_inner.write();
-        let account_state = match guard.account_state.get(&sender) {
+        let account_state = match self.get_account_state(sender, slot) {
             Some(a_s) => a_s,
-            None => &rpc_state,
+            None => rpc_state,
         };
 
         let account_balance = account_state.balance.to::<u128>();
@@ -152,11 +152,11 @@ impl PreconfPool {
         }
 
         // Apply state changes
-        guard.account_state.insert(
+        self.insert_account_state(
             sender,
+            slot,
             AccountState { nonce: account_nonce + 1, balance: U256::from(account_balance - cost) },
         );
-        drop(guard);
 
         // TODO: uncomment this once we have simulator ready
         // if target_slot == self.pool_state.current_slot + 1 {
@@ -166,6 +166,21 @@ impl PreconfPool {
         // }
 
         Ok(ValidationOutcome::Valid { simulate: false })
+    }
+
+    fn insert_account_state(&self, sender: Address, slot: u64, account_state: AccountState) {
+        let mut guard = self.pool_inner.write();
+        guard.account_state.entry(slot).or_default().insert(sender, account_state);
+    }
+
+    fn get_account_state(&self, sender: Address, slot: u64) -> Option<AccountState> {
+        let guard = self.pool_inner.read();
+        guard.account_state.get(&slot).and_then(|s| s.get(&sender)).cloned()
+    }
+
+    pub fn remove_account_state(&self, slot: u64) {
+        let mut guard = self.pool_inner.write();
+        guard.account_state.remove(&slot);
     }
 
     /// Returns all preconf requests that are ready to be executed in the next block.
@@ -234,7 +249,7 @@ pub struct PreconfPoolInner {
     /// Holds all preconf requests that are ready to be included in the next slot.
     ready: Ready,
     /// intermediate account state
-    account_state: HashMap<Address, AccountState>,
+    account_state: HashMap<u64, HashMap<Address, AccountState>>,
 }
 
 impl PreconfPoolInner {
@@ -254,6 +269,10 @@ impl PreconfPoolInner {
             self.ready.insert_order(preconf_hash, preconf_request);
         }
         self.ready.update_slot(slot);
+    }
+
+    pub fn remove_account_state(&mut self, slot: u64) {
+        self.account_state.remove(&slot);
     }
 }
 
@@ -360,8 +379,8 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-
-        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        let slot = provider.get_block_number().await?;
+        let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -404,8 +423,9 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+        let slot = provider.get_block_number().await?;
+        let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
 
-        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
@@ -448,8 +468,8 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-
-        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        let slot = provider.get_block_number().await?;
+        let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
@@ -515,8 +535,8 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-
-        let validation_result = preconf_pool.validate(rpc_state, *sender, &transaction);
+        let slot = provider.get_block_number().await?;
+        let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
