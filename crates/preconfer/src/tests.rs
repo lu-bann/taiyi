@@ -78,7 +78,7 @@ mod tests {
         let current_time =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
 
-        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 1;
+        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 2;
 
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
