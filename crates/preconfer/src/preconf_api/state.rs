@@ -36,6 +36,7 @@ use crate::{
 };
 
 pub const SET_CONSTRAINTS_CUTOFF_S: u64 = 8;
+pub const SET_CONSTRAINTS_CUTOFF_DELTA_S: u64 = 1;
 
 #[derive(Clone)]
 pub struct PreconfState {
@@ -44,7 +45,6 @@ pub struct PreconfState {
     preconf_pool: Arc<PreconfPool>,
     signer_client: SignerClient,
     rpc_url: String,
-    context: Context,
 }
 
 impl PreconfState {
@@ -53,12 +53,11 @@ impl PreconfState {
         relay_client: RelayClient,
         signer_client: SignerClient,
         rpc_url: String,
-        context: Context,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
 
-        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url, context }
+        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url }
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
@@ -66,11 +65,13 @@ impl PreconfState {
     }
 
     fn deadline_of_slot(&self, slot: u64) -> u64 {
-        let genesis_time = match self.context.genesis_time() {
+        let context = self.network_state.get_context();
+        let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,
-            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
+            Err(_) => context.min_genesis_time + context.genesis_delay,
         };
-        genesis_time + (slot * self.context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
+        genesis_time + ((slot - 1) * context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
+            - SET_CONSTRAINTS_CUTOFF_DELTA_S
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -86,11 +87,15 @@ impl PreconfState {
                 from_system_time(genesis_time, context.seconds_per_slot, context.slots_per_epoch);
             let mut slot_stream = clock.into_stream();
             while let Some(slot) = slot_stream.next().await {
-                info!("Current slot: {}", slot);
-                // FIXME: submit the constraints for the next slot
-                // ideally we should submit the constraints for the current slot
                 let next_slot = slot + 1;
 
+                let submit_constraint_deadline_duration = self.deadline_of_slot(next_slot)
+                    - SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("Time went backwards")
+                        .as_secs();
+                tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
+                info!("Submitting constraints for slot {}", next_slot);
                 match self.preconf_pool.pending_requests(next_slot) {
                     Ok(preconf_requests) => {
                         if preconf_requests.is_empty() {
@@ -220,6 +225,9 @@ impl PreconfState {
         if preconf_request.transaction.is_some() {
             return Err(RpcError::PreconfTxAlreadySet);
         }
+        if self.is_exceed_deadline(preconf_request.target_slot) {
+            return Err(RpcError::ExceedDeadline(preconf_request.target_slot));
+        }
         preconf_request.transaction = Some(transaction.clone());
 
         match self
@@ -278,7 +286,7 @@ impl PreconfState {
     pub async fn get_slots(&self) -> Result<Vec<u64>, RpcError> {
         let current_slot = self.network_state.get_current_slot();
 
-        let slot_diff = if self.is_exceed_deadline(current_slot) { 2 } else { 1 };
+        let slot_diff = if self.is_exceed_deadline(current_slot) { 1 } else { 0 };
         let available_slots = self
             .network_state
             .available_slots()

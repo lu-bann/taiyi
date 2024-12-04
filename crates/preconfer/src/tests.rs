@@ -47,13 +47,8 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
 
-        let state = PreconfState::new(
-            network_state,
-            relay_client,
-            signer_client.clone(),
-            rpc_url.clone(),
-            context.clone(),
-        );
+        let state =
+            PreconfState::new(network_state, relay_client, signer_client.clone(), rpc_url.clone());
         let genesis_time = context.genesis_time().unwrap();
 
         let preconfapiserver =
