@@ -1,6 +1,6 @@
 use alloy_primitives::{hex, Address, B256};
 use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
-use alloy_signer::{Signature, Signer};
+use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use blst::min_pk::{PublicKey, SecretKey};
 use ethereum_consensus::{deneb::Context, primitives::BlsSignature};
@@ -32,8 +32,9 @@ impl SignerClient {
         Ok(Self { bls, ecdsa })
     }
 
-    pub async fn sign_with_ecdsa(&self, hash: B256) -> eyre::Result<Signature> {
-        Ok(self.ecdsa.sign_hash(&hash).await?)
+    pub async fn sign_with_ecdsa(&self, hash: B256) -> eyre::Result<ECDSASignature> {
+        let sig = self.ecdsa.sign_hash(&hash).await?;
+        Ok(ECDSASignature::from((sig.to_k256().expect("Invalid signature"), sig.recid())))
     }
 
     pub fn sign_with_bls(&self, context: Context, digest: [u8; 32]) -> eyre::Result<BlsSignature> {
