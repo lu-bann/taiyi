@@ -97,7 +97,7 @@ impl LocalBlockBuilder {
         }
     }
 
-    /// The local block builder if modified from bolt's implementation.
+    /// The local block builder is modified from bolt's implementation.
     /// refer to: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs#L112
     pub async fn build_local_payload(
         &self,
