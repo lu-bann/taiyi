@@ -1,10 +1,6 @@
-#![allow(unused)]
 use std::sync::Arc;
 
-use alloy_consensus::{
-    Header, Signed, Transaction, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
-    EMPTY_OMMER_ROOT_HASH,
-};
+use alloy_consensus::{Header, Transaction, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
 use alloy_eips::{
     calc_excess_blob_gas, calc_next_block_base_fee,
     eip1559::BaseFeeParams,
@@ -26,12 +22,7 @@ use cb_common::{
     },
     signer::BlsSecretKey,
 };
-use ethereum_consensus::{
-    crypto::{KzgCommitment, KzgProof, PublicKey},
-    deneb::{compute_domain, mainnet::Blob, BlobsBundle, Context, DomainType, Root},
-    serde::as_str,
-    ssz::prelude::ByteVector,
-};
+use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
 use eyre::Result;
 use hex::FromHex;
 use reqwest::Url;
@@ -43,8 +34,7 @@ use tree_hash::TreeHash;
 use crate::{
     engine::{EngineApiHint, EngineClient},
     types::{
-        call_log_frame_to_log, call_log_frams_to_logs, to_alloy_execution_payload,
-        to_alloy_withdrawal, to_blobs_bundle, to_cb_execution_payload,
+        to_alloy_execution_payload, to_alloy_withdrawal, to_blobs_bundle, to_cb_execution_payload,
         to_cb_execution_payload_header, tx_envelope_to_signed,
     },
     utils::compute_signing_root,

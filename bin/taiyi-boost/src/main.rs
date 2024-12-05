@@ -1,4 +1,3 @@
-#![allow(unused_must_use)]
 use builder::{SidecarBuilderApi, SidecarBuilderState};
 use commit_boost::prelude::*;
 use eyre::Result;

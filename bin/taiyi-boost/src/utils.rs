@@ -1,26 +1,15 @@
-#![allow(unused)]
-use std::{
-    env,
-    time::{SystemTime, SystemTimeError, UNIX_EPOCH},
-};
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
-use alloy_network::TransactionBuilder;
-use alloy_primitives::{address, Address, U256};
-use alloy_rpc_types_beacon::BlsSignature;
-use alloy_rpc_types_eth::TransactionRequest;
-use cb_common::signer::BlsSecretKey;
-use ethereum_consensus::{networks::Network, ssz::prelude::HashTreeRoot};
 use eyre::Result;
-use reqwest::Url;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
-use crate::types::{BlsSecretKeyWrapper, ExtraConfig, JwtSecretWrapper};
-
+#[allow(unused)]
 pub fn get_nanos_timestamp() -> Result<u64, SystemTimeError> {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64)
 }
 
+#[allow(unused)]
 pub fn get_now_timestamp() -> Result<u64, SystemTimeError> {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs())
 }
@@ -41,7 +30,19 @@ pub fn compute_signing_root(object_root: [u8; 32], signing_domain: [u8; 32]) -> 
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use std::env;
+
+    use alloy_network::TransactionBuilder;
+    use alloy_primitives::{address, Address, U256};
+    use alloy_rpc_types_eth::TransactionRequest;
+    use ethereum_consensus::networks::Network;
+    use reqwest::Url;
+
     use super::*;
+    use crate::{
+        types::{BlsSecretKeyWrapper, JwtSecretWrapper},
+        ExtraConfig,
+    };
     pub fn get_test_config() -> Result<ExtraConfig> {
         let engine_api = env::var("TAIYI_ENGINE_API").expect("Fail to read env TAIYI_ENGINE_API");
         let execution_api =
