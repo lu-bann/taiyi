@@ -61,19 +61,43 @@ impl ConstraintsCache {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use alloy_eips::eip2718::{Decodable2718, Encodable2718};
+    use alloy_network::{EthereumWallet, TransactionBuilder};
+    use alloy_primitives::{Address, Bytes};
+    use alloy_rpc_types_beacon::BlsPublicKey;
+    use alloy_signer::k256::ecdsa::SigningKey;
+    use alloy_signer_local::PrivateKeySigner;
 
-    #[test]
-    fn test_constraints_cache() {
+    use super::*;
+    use crate::utils::gen_test_tx_request;
+
+    #[tokio::test]
+    async fn test_constraints_cache() -> eyre::Result<()> {
+        let raw_sk = "0x84286521b97e7c10916857c307553e30a9defd100e893e96fc8aad42336a4ab3";
+        let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(&raw_sk);
+
+        let sk = SigningKey::from_slice(hex::decode(hex_sk)?.as_slice())?;
+        let signer = PrivateKeySigner::from_signing_key(sk.clone());
+        let wallet = EthereumWallet::from(signer);
+        let sender = Address::from_private_key(&sk);
+        let tx = gen_test_tx_request(sender, 1, Some(1));
+        let tx_signed = tx.build(&wallet).await?;
+        let raw_encoded = tx_signed.encoded_2718();
+        let tx_bytes: Bytes = Bytes::from(raw_encoded.as_slice().to_vec());
         let cache = ConstraintsCache::new();
-        let dup_txs = vec![Transaction::default(), Transaction::default()];
-        let constraints = ConstraintsMessage { slot: 1, tx: dup_txs.clone() };
+        let dup_txs = vec![tx_bytes.clone(), tx_bytes];
+        let constraints = ConstraintsMessage {
+            pubkey: BlsPublicKey::default(),
+            slot: 1,
+            top: false,
+            transactions: dup_txs,
+        };
         cache.insert(constraints.clone());
-        let unique_txs = vec![Transaction::default()];
-        assert_eq!(cache.get(1), Some(unique_txs.clone()));
+        assert_eq!(cache.get(1).unwrap().len(), 1);
         cache.prune(1);
-        assert_eq!(cache.get(1), Some(unique_txs));
+        assert_eq!(cache.get(1).unwrap().len(), 1);
         cache.prune(2);
         assert_eq!(cache.get(1), None);
+        Ok(())
     }
 }

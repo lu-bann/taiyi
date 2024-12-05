@@ -77,6 +77,8 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
     ) -> Result<Option<GetHeaderResponse>> {
         match get_header(params, req_headers, state.clone()).await {
             Ok(Some(response)) => {
+                let mut local_payload = state.data.local_payload.lock();
+                *local_payload = None;
                 return Ok(Some(response));
             }
             Err(err) => {
@@ -114,7 +116,15 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                                     );
                                     continue;
                                 }
-                                state.data.constraints.insert(constraints[0].message.clone());
+                                if let Err(err) =
+                                    state.data.constraints.insert(constraints[0].message.clone())
+                                {
+                                    warn!(
+                                        "failed to insert constraints, slot: {}, error: {}",
+                                        params.slot, err
+                                    );
+                                    continue;
+                                }
                             }
                             Err(err) => {
                                 warn!("failed to parse constraints from response, url: {}, slot: {}, error: {}", builder_constraints_url.to_string(), params.slot, err);
