@@ -1,18 +1,21 @@
 #![allow(unused)]
 use std::collections::HashSet;
 
-use ethereum_consensus::deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Transaction};
+use alloy_consensus::TxEnvelope;
+use alloy_eips::eip2718::Decodable2718;
+use ethereum_consensus::{
+    deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Transaction},
+    primitives::{BlsPublicKey, BlsSignature},
+    ssz::prelude::*,
+};
+use eyre::Result;
 use scc::HashMap;
 
-#[derive(Clone, Default, Debug)]
-pub struct ConstraintsMessage {
-    pub slot: u64,
-    pub tx: Vec<Transaction<MAX_BYTES_PER_TRANSACTION>>,
-}
+use crate::types::ConstraintsMessage;
 
 #[derive(Clone, Default, Debug)]
 pub struct ConstraintsCache {
-    pub constraints: HashMap<u64, Vec<Transaction<MAX_BYTES_PER_TRANSACTION>>>,
+    pub constraints: HashMap<u64, Vec<TxEnvelope>>,
 }
 
 impl ConstraintsCache {
@@ -24,18 +27,25 @@ impl ConstraintsCache {
         let mut seen = HashSet::new();
         let mut unique = Vec::new();
 
-        for tx in constraints.tx {
+        for tx in constraints.transactions.clone() {
             if seen.insert(tx.to_string()) {
                 unique.push(tx);
             }
         }
-
-        ConstraintsMessage { slot: constraints.slot, tx: unique }
+        let mut constraints = constraints.clone();
+        constraints.transactions = unique;
+        constraints
     }
 
-    pub fn insert(&self, constraints: ConstraintsMessage) {
+    pub fn insert(&self, constraints: ConstraintsMessage) -> Result<()> {
         let constraints = self.remove_duplicate(constraints);
-        self.constraints.insert(constraints.slot, constraints.tx);
+        let txs: Vec<TxEnvelope> = constraints
+            .transactions
+            .iter()
+            .map(|bytes| TxEnvelope::decode_2718(&mut bytes.as_ref()))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.constraints.insert(constraints.slot, txs);
+        Ok(())
     }
 
     // remove all constraints before the given slot.
@@ -44,7 +54,7 @@ impl ConstraintsCache {
     }
 
     // Get total constraints for the given slot.
-    pub fn get(&self, slot: u64) -> Option<Vec<Transaction<MAX_BYTES_PER_TRANSACTION>>> {
+    pub fn get(&self, slot: u64) -> Option<Vec<TxEnvelope>> {
         self.constraints.get(&slot).map(|x| x.get().clone())
     }
 }

@@ -17,7 +17,8 @@ members = [
 resolver = "2"
 
 [workspace.metadata.cargo-machete]
-ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs", "alloy-rpc-client"]
+ignored = ["alloy-contract", "tiny-bip39", "derive_more", "tree_hash", "ssz_rs", "alloy-rpc-client", 
+"ethereum_ssz", "ethereum_ssz_derive"]
 
 [workspace.dependencies]
 taiyi-preconfer = { path = "crates/preconfer" }
@@ -30,9 +31,9 @@ axum = { version = "0.7.7", features = ["macros"] }
 axum-extra = { version = "0.9.4", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "75e8129382da9400d954fd346d8e2ea1fb0cb822" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
 
 # alloy
 alloy-primitives = { version = "0.8.8", default-features = false }
@@ -100,3 +101,6 @@ tiny-bip39 = "1.0.0"
 zeroize = "1.8.1"
 uuid = { version = "1.11.0", features = ["serde"] }
 scc = "2.2.4"
+ethereum_ssz = "0.8.1"
+ethereum_ssz_derive = "0.8.0"
+ssz_types = "0.8"

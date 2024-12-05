@@ -6,10 +6,14 @@ use std::{
 
 use alloy_network::TransactionBuilder;
 use alloy_primitives::{address, Address, U256};
+use alloy_rpc_types_beacon::BlsSignature;
 use alloy_rpc_types_eth::TransactionRequest;
-use ethereum_consensus::networks::Network;
+use cb_common::signer::BlsSecretKey;
+use ethereum_consensus::{networks::Network, ssz::prelude::HashTreeRoot};
 use eyre::Result;
 use reqwest::Url;
+use tree_hash::TreeHash;
+use tree_hash_derive::TreeHash;
 
 use crate::types::{BlsSecretKeyWrapper, ExtraConfig, JwtSecretWrapper};
 
@@ -55,4 +59,18 @@ pub fn gen_test_tx_request(
         .with_gas_limit(21_000)
         .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
         .with_max_fee_per_gas(20_000_000_000)
+}
+
+/// Helper struct to compute the signing root for a given object
+/// root and signing domain as defined in the Ethereum 2.0 specification.
+#[derive(Default, Debug, TreeHash)]
+struct SigningData {
+    object_root: [u8; 32],
+    signing_domain: [u8; 32],
+}
+
+/// Compute the signing root for a given object root and signing domain.
+pub fn compute_signing_root(object_root: [u8; 32], signing_domain: [u8; 32]) -> [u8; 32] {
+    let signing_data = SigningData { object_root, signing_domain };
+    signing_data.tree_hash_root().0
 }

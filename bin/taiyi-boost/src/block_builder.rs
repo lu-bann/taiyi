@@ -1,7 +1,10 @@
 #![allow(unused)]
 use std::sync::Arc;
 
-use alloy_consensus::{Header, Transaction, EMPTY_OMMER_ROOT_HASH};
+use alloy_consensus::{
+    Header, Signed, Transaction, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
+    EMPTY_OMMER_ROOT_HASH,
+};
 use alloy_eips::{
     calc_excess_blob_gas, calc_next_block_base_fee,
     eip1559::BaseFeeParams,
@@ -11,22 +14,47 @@ use alloy_eips::{
 use alloy_network::primitives::BlockTransactionsKind;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use alloy_rpc_types_eth::Block;
 use alloy_transport_http::{reqwest::Client, Http};
 use beacon_api_client::{mainnet::Client as BeaconClient, BlockId as BLBlockId, StateId};
-use ethereum_consensus::deneb::Context;
+use cb_common::{
+    pbs::{
+        DenebSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessage, KzgCommitments,
+        PayloadAndBlobs, SignedExecutionPayloadHeader,
+    },
+    signer::BlsSecretKey,
+};
+use ethereum_consensus::{
+    crypto::{KzgCommitment, KzgProof, PublicKey},
+    deneb::{compute_domain, mainnet::Blob, BlobsBundle, Context, DomainType, Root},
+    serde::as_str,
+    ssz::prelude::ByteVector,
+};
 use eyre::Result;
 use hex::FromHex;
 use reqwest::Url;
 use reth_primitives::{proofs, BlockBody, SealedBlock, SealedHeader, TransactionSigned};
 use serde_json::Value;
 use tracing::trace;
+use tree_hash::TreeHash;
 
 use crate::{
     engine::{EngineApiHint, EngineClient},
-    types::{to_alloy_execution_payload, to_alloy_withdrawal},
+    types::{
+        call_log_frame_to_log, call_log_frams_to_logs, to_alloy_execution_payload,
+        to_alloy_withdrawal, to_blobs_bundle, to_cb_execution_payload,
+        to_cb_execution_payload_header, tx_envelope_to_signed,
+    },
+    utils::compute_signing_root,
 };
+
+#[derive(Debug, Clone)]
+pub struct SignedPayloadResponse {
+    pub header: SignedExecutionPayloadHeader,
+    pub payload: PayloadAndBlobs,
+}
 
 // "Local built by Taiyi"
 const DEFAULT_EXTRA_DATA: [u8; 20] = [
@@ -42,6 +70,7 @@ pub struct LocalBlockBuilder {
     execution_api_client: Arc<RootProvider<Http<Client>>>,
     fee_recipient: Address,
     extra_data: Bytes,
+    bls_secret_key: BlsSecretKey,
 }
 
 impl LocalBlockBuilder {
@@ -52,6 +81,7 @@ impl LocalBlockBuilder {
         execution_api: Url,
         jwt_secret: JwtSecret,
         fee_recipient: Address,
+        bls_secret_key: BlsSecretKey,
     ) -> Self {
         let beacon_api_client = BeaconClient::new(beacon_api);
         let engine_api_client = EngineClient::new(engine_api, jwt_secret);
@@ -63,6 +93,7 @@ impl LocalBlockBuilder {
             execution_api_client: Arc::new(provider),
             fee_recipient,
             extra_data: DEFAULT_EXTRA_DATA.into(),
+            bls_secret_key,
         }
     }
 
@@ -193,6 +224,56 @@ impl LocalBlockBuilder {
             .collect::<Vec<_>>())
     }
 
+    pub async fn build_signed_payload_response(
+        &self,
+        target_slot: u64,
+        transactions: &[TxEnvelope],
+    ) -> Result<SignedPayloadResponse> {
+        let signed_transactions: Vec<TransactionSigned> =
+            transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
+        let blobs_bundle = to_blobs_bundle(transactions);
+        let kzg_commitments = blobs_bundle.clone().unwrap_or_default().commitments.clone();
+        let block = self.build_local_payload(target_slot, &signed_transactions).await?;
+        let value = U256::from(100_000_000_000_000_000_000u128);
+        let execution_payload = to_cb_execution_payload(&block);
+        let payload_and_blobs = PayloadAndBlobs { execution_payload, blobs_bundle };
+        let execution_payload_header = to_cb_execution_payload_header(&block);
+
+        let signed_bid = self.create_signed_execution_payload_header(
+            value,
+            execution_payload_header,
+            kzg_commitments,
+        )?;
+
+        Ok(SignedPayloadResponse { header: signed_bid, payload: payload_and_blobs })
+    }
+
+    pub fn create_signed_execution_payload_header(
+        &self,
+        value: U256,
+        header: ExecutionPayloadHeader<DenebSpec>,
+        blob_kzg_commitments: KzgCommitments<DenebSpec>,
+    ) -> Result<SignedExecutionPayloadHeader> {
+        let consensus_pubkey = self.bls_secret_key.sk_to_pk().to_bytes();
+        let pubkey = BlsPublicKey::from(consensus_pubkey);
+        let message = ExecutionPayloadHeaderMessage { header, blob_kzg_commitments, value, pubkey };
+        // Note: the application builder domain specs require the genesis_validators_root
+        // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
+        // same rule.
+        let root = Root::default();
+        let domain = compute_domain(
+            DomainType::ApplicationBuilder,
+            Some(self.context.genesis_fork_version),
+            Some(root),
+            &self.context,
+        )
+        .expect("Failed to compute domain");
+        let object_root = message.tree_hash_root().0;
+        let signing_root = compute_signing_root(object_root, domain);
+        let signature = self.bls_secret_key.sign(&signing_root, BLS_DST_SIG, &[]).to_bytes();
+        Ok(SignedExecutionPayloadHeader { message, signature: signature.into() })
+    }
+
     /// Fetch the previous RANDAO value from the beacon chain.
     ///
     /// NOTE: for some reason, using the ApiResult from `beacon_api_client` doesn't work, so
@@ -315,6 +396,7 @@ mod test {
             config.execution_api.clone(),
             config.engine_jwt.0,
             config.fee_recipient,
+            config.builder_private_key.0,
         )
         .await;
 
