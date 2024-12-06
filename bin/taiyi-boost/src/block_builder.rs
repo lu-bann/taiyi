@@ -99,7 +99,6 @@ impl LocalBlockBuilder {
         }
     }
 
-
     /// Build a local payload for the given target slot and transactions in case relays fail to
     /// provide a payload that meets the commitment requirements.
     pub async fn build_local_payload(
