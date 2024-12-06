@@ -358,7 +358,7 @@ struct Hints {
     pub block_hash: Option<B256>,
 }
 
-#[allow(unused)]
+#[cfg(test)]
 mod test {
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
     use alloy_network::{EthereumWallet, TransactionBuilder};
@@ -366,7 +366,10 @@ mod test {
     use alloy_signer_local::PrivateKeySigner;
 
     use super::*;
-    use crate::utils::{gen_test_tx_request, get_now_timestamp, get_test_config};
+    use crate::utils::{
+        get_now_timestamp,
+        tests::{gen_test_tx_request, get_test_config},
+    };
 
     #[test]
     fn local_extra_data() {

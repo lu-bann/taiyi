@@ -69,7 +69,7 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
 
     use super::*;
-    use crate::utils::gen_test_tx_request;
+    use crate::utils::tests::gen_test_tx_request;
 
     #[tokio::test]
     async fn test_constraints_cache() -> eyre::Result<()> {
