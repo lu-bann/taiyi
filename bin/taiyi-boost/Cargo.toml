@@ -25,11 +25,14 @@ cb-pbs = { workspace = true }
 commit-boost = { workspace = true }
 const-hex = "1.13.2"
 ethereum-consensus = { workspace = true }
+ethereum_ssz = { workspace = true }
+ethereum_ssz_derive = { workspace = true }
 eyre = { workspace = true }
 futures = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
 lazy_static = { workspace = true }
+parking_lot = { workspace = true }
 prometheus = { workspace = true }
 regex = "1.11.1"
 reqwest = { workspace = true, features = ["json"] }
@@ -37,6 +40,7 @@ reth-primitives = { workspace = true }
 scc = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+ssz_types = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tree_hash = { workspace = true }

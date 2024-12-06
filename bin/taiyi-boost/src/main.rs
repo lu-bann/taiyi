@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>()?;
     let _guard = initialize_pbs_tracing_log()?;
 
-    let sidecar_state = SidecarBuilderState::from_config(&extra);
+    let sidecar_state = SidecarBuilderState::new(&extra).await;
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state);
 
     metrics::init_metrics()?;
