@@ -44,6 +44,8 @@ pub struct LocalBlockBuilder {
     extra_data: Bytes,
 }
 
+// The local block builder was based on bolt's implementation.
+// See: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs
 impl LocalBlockBuilder {
     pub async fn new(
         context: Context,
@@ -66,8 +68,8 @@ impl LocalBlockBuilder {
         }
     }
 
-    /// The local block builder if modified from bolt's implementation.
-    /// refer to: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs#L112
+    /// Build a local payload for the given target slot and transactions in case relays fail to
+    /// provide a payload that meets the commitment requirements.
     pub async fn build_local_payload(
         &self,
         target_slot: u64,
