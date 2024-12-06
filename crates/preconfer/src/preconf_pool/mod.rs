@@ -1,6 +1,7 @@
 use std::{collections::HashMap, ops::Add, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
 use alloy_primitives::{Address, U256};
 use alloy_provider::utils::EIP1559_MIN_PRIORITY_FEE;
 use parked::Parked;
@@ -8,6 +9,7 @@ use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reth_revm::primitives::EnvKzgSettings;
+use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfRequest;
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -21,6 +23,8 @@ use crate::{
 mod parked;
 mod pending;
 mod ready;
+
+const MAX_CONSTRAINTS_PER_BLOCK: u32 = 256;
 
 #[derive(Debug)]
 pub struct PreconfPoolBuilder;
@@ -56,6 +60,7 @@ impl PreconfPool {
                 pending: Pending::new(),
                 ready: Ready::new(current_slot),
                 account_state: HashMap::new(),
+                blockspace_issued: HashMap::new(),
             }),
             validator,
             pool_state: PoolState { current_slot },
@@ -74,6 +79,26 @@ impl PreconfPool {
         if target_slot <= current_slot {
             return Err(PoolError::TargetSlotInPast(target_slot, current_slot));
         }
+
+        // check if we can accomodate the request in the pool
+        let mut blockspace_avail = self.blockspace_available(target_slot);
+        if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit {
+            return Err(PoolError::InsufficientGasLimit(
+                preconf_request.allocation.gas_limit,
+                blockspace_avail.gas_limit,
+            ));
+        }
+        if blockspace_avail.blobs < preconf_request.allocation.blobs {
+            return Err(PoolError::InsufficientBlobs(
+                preconf_request.allocation.blobs,
+                blockspace_avail.blobs,
+            ));
+        }
+        // calculate diffs and update blockspace
+        blockspace_avail.gas_limit -= preconf_request.allocation.gas_limit;
+        blockspace_avail.blobs -= preconf_request.allocation.blobs;
+        blockspace_avail.num_of_constraints -= 1;
+
         // check for preconf tx
         if let Some(transaction) = &preconf_request.transaction {
             let sender = transaction
@@ -90,6 +115,7 @@ impl PreconfPool {
 
             match validation_outcome {
                 ValidationOutcome::Valid { simulate } => {
+                    self.pool_inner.write().blockspace_issued.insert(target_slot, blockspace_avail);
                     if simulate {
                         // TODO: send the transaction to the simulator
                         self.insert_ready(request_id, preconf_request);
@@ -103,7 +129,7 @@ impl PreconfPool {
                 _ => unimplemented!(),
             }
         } else {
-            // TODO: check if blockspace is available in the pool
+            self.pool_inner.write().blockspace_issued.insert(target_slot, blockspace_avail);
             self.insert_parked(request_id, preconf_request);
             Ok(PoolType::Parked)
         }
@@ -235,6 +261,10 @@ impl PreconfPool {
     pub fn move_pending_to_ready(&self, slot: u64) {
         self.pool_inner.write().move_pending_to_ready(slot);
     }
+
+    pub fn blockspace_available(&self, slot: u64) -> BlockspaceAvailable {
+        self.pool_inner.read().blockspace_issued.get(&slot).cloned().unwrap_or_default()
+    }
 }
 
 #[derive(Debug)]
@@ -250,6 +280,8 @@ pub struct PreconfPoolInner {
     ready: Ready,
     /// intermediate account state
     account_state: HashMap<u64, HashMap<Address, AccountState>>,
+    /// Blockspace issued for every slot is tracked here.
+    blockspace_issued: HashMap<u64, BlockspaceAvailable>,
 }
 
 impl PreconfPoolInner {
@@ -276,6 +308,23 @@ impl PreconfPoolInner {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BlockspaceAvailable {
+    gas_limit: u64,
+    blobs: usize,
+    num_of_constraints: u32,
+}
+
+impl Default for BlockspaceAvailable {
+    fn default() -> Self {
+        Self {
+            gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
+            blobs: MAX_BLOBS_PER_BLOCK,
+            num_of_constraints: MAX_CONSTRAINTS_PER_BLOCK,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolType {
     Parked,
@@ -295,7 +344,7 @@ mod tests {
     use std::time::Duration;
 
     use alloy_consensus::TxEnvelope;
-    use alloy_eips::eip2718::Decodable2718;
+    use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip2718::Decodable2718};
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{U256, U64};
@@ -308,6 +357,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
+        error::PoolError,
         preconf_pool::{parked::Parked, PoolType, PreconfPoolBuilder},
         rpc_state::get_account_state,
         validator::ValidationOutcome,
@@ -540,6 +590,78 @@ mod tests {
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_blockspace_not_available() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let slot = provider.get_block_number().await?;
+        let preconf_pool = PreconfPoolBuilder::new().build(slot);
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(10))
+            .with_nonce(0)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+        let slot = provider.get_block_number().await?;
+
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation { gas_limit: ETHEREUM_BLOCK_GAS_LIMIT, blobs: 1 },
+            transaction: Some(transaction.clone()),
+            target_slot: slot + 1,
+        };
+
+        let request_id = Uuid::new_v4();
+        let res =
+            preconf_pool.request_inclusion(preconf_request, request_id, rpc_url.clone()).await;
+        assert!(res.is_ok());
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_value(U256::from(10))
+            .with_nonce(1)
+            .with_gas_limit(21_0000)
+            .with_to(*receiver)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .build(&wallet)
+            .await?;
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation { gas_limit: ETHEREUM_BLOCK_GAS_LIMIT, blobs: 1 },
+            transaction: Some(transaction.clone()),
+            target_slot: slot + 1,
+        };
+        let request_id = Uuid::new_v4();
+
+        let res = preconf_pool.request_inclusion(preconf_request, request_id, rpc_url).await;
+        assert_eq!(res, Err(PoolError::InsufficientGasLimit(ETHEREUM_BLOCK_GAS_LIMIT, 0)));
+
         Ok(())
     }
 }

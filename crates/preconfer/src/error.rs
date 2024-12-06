@@ -42,7 +42,7 @@ impl IntoResponse for RpcError {
 }
 
 /// Possible commitment validation errors.
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Error)]
 pub enum ValidationError {
     #[error("Transaction nonce too low. Expected {0}, got {1}")]
     NonceTooLow(u64, u64),
@@ -84,7 +84,7 @@ pub enum PricerError {
     Custom(String),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Error)]
 pub enum PoolError {
     /// Request validation failed.
     #[error("Validation failed: {0}")]
@@ -97,4 +97,8 @@ pub enum PoolError {
     SlotNotFound(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
     InvalidPreconfTx(Uuid),
+    #[error("requested gas limit {0} exceeds max available gas limit {1}")]
+    InsufficientGasLimit(u64, u64),
+    #[error("requested blobs {0} exceeds max available blobs {1}")]
+    InsufficientBlobs(usize, usize),
 }
