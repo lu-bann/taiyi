@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::{
     fmt::{self, Debug},
     ops::Deref,
@@ -10,36 +9,33 @@ use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Result, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
 };
-use alloy_primitives::{Address, Bloom, Bytes, Log, LogData, B256, U256};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_rpc_types_engine::{
     ExecutionPayload as AlloyExecutionPayload, ExecutionPayloadV1, ExecutionPayloadV2,
     ExecutionPayloadV3, JwtError, JwtSecret,
 };
-use alloy_rpc_types_trace::geth::CallLogFrame;
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use blst::min_pk::SecretKey as BlsSecretKey;
 use cb_common::pbs::{
     Blob, BlobsBundle, DenebSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
-    KzgCommitments, KzgProof, KzgProofs, Transactions, Withdrawal as cbWithdrawal,
+    KzgProof, Transactions, Withdrawal as cbWithdrawal,
 };
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction as ConsensusTransaction,
     deneb::{
         mainnet::{Withdrawal as ConsensusWithdrawal, MAX_WITHDRAWALS_PER_PAYLOAD},
         minimal::MAX_TRANSACTIONS_PER_PAYLOAD,
-        spec, ExecutionAddress, ExecutionPayload as DenebExecutionPayload,
+        ExecutionAddress,
     },
     networks::Network,
-    ssz::prelude::{ssz_rs, ByteList, ByteVector, HashTreeRoot, List},
-    types::mainnet::ExecutionPayload as ConsensusExecutionPayload,
+    ssz::prelude::{HashTreeRoot, List},
 };
 use reqwest::Url;
 use reth_primitives::{SealedBlock, Transaction, TransactionSigned};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
-use tree_hash_derive::TreeHash;
 
 pub const BUILDER_CONSTRAINTS_PATH: &str = "/constraints";
 
@@ -127,23 +123,6 @@ impl fmt::Display for BlsSecretKeyWrapper {
     }
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, TreeHash)]
-pub struct ElectPreconferRequest {
-    pub preconfer_pubkey: BlsPublicKey,
-    pub slot_number: u64,
-    pub chain_id: u64,
-    pub gas_limit: u64,
-}
-
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize)]
-pub struct SignedRequest<T>
-where
-    T: Debug + Default + Clone + Eq + PartialEq + Serialize,
-{
-    pub message: T,
-    pub signature: BlsSignature,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct SignedConstraints {
     pub message: ConstraintsMessage,
@@ -158,6 +137,7 @@ pub struct ConstraintsMessage {
     pub transactions: Vec<Bytes>,
 }
 
+#[allow(unused)]
 impl ConstraintsMessage {
     /// Returns the digest of this message.
     pub fn digest(&self) -> Eip2718Result<[u8; 32]> {
@@ -230,18 +210,6 @@ pub(crate) fn to_alloy_execution_payload(
     })
 }
 
-pub fn call_log_frame_to_log(log_frame: CallLogFrame) -> Option<Log> {
-    let address = log_frame.address?;
-    let topics = log_frame.topics?;
-    let data = log_frame.data?;
-
-    LogData::new(topics, data).map(|data| Log { address, data })
-}
-
-pub fn call_log_frams_to_logs(log_frames: Vec<CallLogFrame>) -> Vec<Log> {
-    log_frames.into_iter().filter_map(call_log_frame_to_log).collect()
-}
-
 pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
     let (transaction, signature, hash) = match tx {
         TxEnvelope::Legacy(tx) => {
@@ -282,15 +250,19 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebS
             BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
             |mut acc, sidecar| {
                 for commitment in sidecar.commitments.iter() {
-                    acc.commitments.push(KzgCommitment(
-                        commitment.as_slice().try_into().expect("invalid commitment"),
-                    ));
+                    acc.commitments
+                        .push(KzgCommitment(
+                            commitment.as_slice().try_into().expect("invalid commitment"),
+                        ))
+                        .ok();
                 }
                 for proof in sidecar.proofs.iter() {
-                    acc.proofs.push(KzgProof(proof.as_slice().try_into().expect("invalid proof")));
+                    acc.proofs
+                        .push(KzgProof(proof.as_slice().try_into().expect("invalid proof")))
+                        .ok();
                 }
                 for blob in sidecar.blobs.iter() {
-                    acc.blobs.push(Blob::<DenebSpec>::from(blob.as_slice().to_vec()));
+                    acc.blobs.push(Blob::<DenebSpec>::from(blob.as_slice().to_vec())).ok();
                 }
                 acc
             },

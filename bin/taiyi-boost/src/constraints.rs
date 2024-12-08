@@ -1,13 +1,7 @@
-#![allow(unused)]
 use std::collections::HashSet;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Decodable2718;
-use ethereum_consensus::{
-    deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Transaction},
-    primitives::{BlsPublicKey, BlsSignature},
-    ssz::prelude::*,
-};
 use eyre::Result;
 use scc::HashMap;
 
@@ -44,7 +38,9 @@ impl ConstraintsCache {
             .iter()
             .map(|bytes| TxEnvelope::decode_2718(&mut bytes.as_ref()))
             .collect::<Result<Vec<_>, _>>()?;
-        self.constraints.insert(constraints.slot, txs);
+        self.constraints
+            .insert(constraints.slot, txs)
+            .map_err(|_| eyre::eyre!("Failed to insert"))?;
         Ok(())
     }
 
@@ -61,7 +57,7 @@ impl ConstraintsCache {
 
 #[cfg(test)]
 mod tests {
-    use alloy_eips::eip2718::{Decodable2718, Encodable2718};
+    use alloy_eips::eip2718::Encodable2718;
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_primitives::{Address, Bytes};
     use alloy_rpc_types_beacon::BlsPublicKey;
@@ -92,7 +88,7 @@ mod tests {
             top: false,
             transactions: dup_txs,
         };
-        cache.insert(constraints.clone());
+        cache.insert(constraints.clone()).ok();
         assert_eq!(cache.get(1).unwrap().len(), 1);
         cache.prune(1);
         assert_eq!(cache.get(1).unwrap().len(), 1);
