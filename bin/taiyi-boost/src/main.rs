@@ -1,16 +1,17 @@
 use builder::{SidecarBuilderApi, SidecarBuilderState};
 use commit_boost::prelude::*;
 use eyre::Result;
+use types::ExtraConfig;
 
 mod block_builder;
 mod builder;
 mod constraints;
 mod engine;
+mod error;
 mod metrics;
+mod proofs;
 mod types;
 mod utils;
-
-use types::ExtraConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {

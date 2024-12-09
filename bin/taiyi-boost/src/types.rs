@@ -4,22 +4,24 @@ use std::{
     path::Path,
 };
 
-use alloy_consensus::{TxEip4844Variant, TxEnvelope};
+use alloy_consensus::{Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
 use alloy_eips::{
-    eip2718::{Decodable2718, Eip2718Result, Encodable2718},
+    eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
 };
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_rpc_types_engine::{
     ExecutionPayload as AlloyExecutionPayload, ExecutionPayloadV1, ExecutionPayloadV2,
     ExecutionPayloadV3, JwtError, JwtSecret,
 };
 use alloy_signer::k256::sha2::{Digest, Sha256};
+use axum::http::HeaderMap;
 use blst::min_pk::SecretKey as BlsSecretKey;
 use cb_common::pbs::{
-    Blob, BlobsBundle, DenebSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
-    KzgProof, Transactions, Withdrawal as cbWithdrawal,
+    Blob, BlobsBundle, DenebSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
+    KzgProof, SignedExecutionPayloadHeader, Transaction as cbTransaction, Transactions,
+    VersionedResponse, Withdrawal as cbWithdrawal,
 };
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction as ConsensusTransaction,
@@ -36,8 +38,12 @@ use reth_primitives::{SealedBlock, Transaction, TransactionSigned};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
+use tree_hash::TreeHash;
 
 pub const BUILDER_CONSTRAINTS_PATH: &str = "/constraints";
+
+/// A hash tree root.
+pub type AlloyHashTreeRoot = tree_hash::Hash256;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
@@ -153,6 +159,121 @@ impl ConstraintsMessage {
 
         Ok(hasher.finalize().into())
     }
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct ConstraintsData {
+    pub transactions: Vec<TxEnvelope>,
+    pub proof_data: Vec<(TxHash, AlloyHashTreeRoot)>,
+}
+
+impl TryFrom<ConstraintsMessage> for ConstraintsData {
+    type Error = Eip2718Error;
+
+    fn try_from(message: ConstraintsMessage) -> Result<Self, Self::Error> {
+        let transactions: Vec<TxEnvelope> = message
+            .transactions
+            .iter()
+            .map(|bytes| TxEnvelope::decode_2718(&mut bytes.as_ref()))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let proof_data = message
+            .transactions
+            .iter()
+            .map(calculate_tx_proof_data)
+            .collect::<Result<Vec<_>, Eip2718Error>>()?;
+
+        Ok(Self { transactions, proof_data })
+    }
+}
+
+/// Takes a raw EIP-2718 RLP-encoded transaction and calculates its proof data, consisting of its
+/// hash and the hash tree root of the transaction. For type 3 transactions, the hash tree root of
+/// the inner transaction is computed without blob sidecar.
+fn calculate_tx_proof_data(raw_tx: &Bytes) -> Result<(TxHash, AlloyHashTreeRoot), Eip2718Error> {
+    let Some(is_type_3) = raw_tx.first().map(|type_id| type_id == &0x03) else {
+        return Err(Eip2718Error::RlpError(alloy_rlp::Error::Custom("empty RLP bytes")));
+    };
+
+    // For blob transactions (type 3), we need to make sure to strip out the blob sidecar when
+    // calculating both the transaction hash and the hash tree root
+    if !is_type_3 {
+        let tx_hash = keccak256(raw_tx);
+        return Ok((tx_hash, hash_tree_root_raw_tx(raw_tx.to_vec())));
+    }
+
+    let envelope = TxEnvelope::decode_2718(&mut raw_tx.as_ref())?;
+    let TxEnvelope::Eip4844(signed_tx) = envelope else {
+        unreachable!("we have already checked it is not a type 3 transaction")
+    };
+    let (tx, signature, tx_hash) = signed_tx.into_parts();
+    match tx {
+        TxEip4844Variant::TxEip4844(_) => {
+            // We have the type 3 variant without sidecar, we can safely compute the hash tree root
+            // of the transaction from the raw RLP bytes.
+            Ok((tx_hash, hash_tree_root_raw_tx(raw_tx.to_vec())))
+        }
+        TxEip4844Variant::TxEip4844WithSidecar(TxEip4844WithSidecar { tx, .. }) => {
+            // We strip out the sidecar and compute the hash tree root the transaction
+            let signed = Signed::new_unchecked(tx, signature, tx_hash);
+            let new_envelope = TxEnvelope::from(signed);
+            let mut buf = Vec::new();
+            new_envelope.encode_2718(&mut buf);
+
+            Ok((tx_hash, hash_tree_root_raw_tx(buf)))
+        }
+    }
+}
+
+fn hash_tree_root_raw_tx(raw_tx: Vec<u8>) -> AlloyHashTreeRoot {
+    let tx = cbTransaction::<<DenebSpec as EthSpec>::MaxBytesPerTransaction>::from(raw_tx);
+    TreeHash::tree_hash_root(&tx)
+}
+
+/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
+pub type GetHeaderWithProofsResponse = VersionedResponse<SignedExecutionPayloadHeaderWithProofs>;
+
+/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct SignedExecutionPayloadHeaderWithProofs {
+    #[serde(flatten)]
+    pub header: SignedExecutionPayloadHeader,
+    #[serde(default)]
+    pub proofs: InclusionProofs,
+}
+
+/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct InclusionProofs {
+    /// The transaction hashes these inclusion proofs are for. The hash tree roots of
+    /// these transactions are the leaves of the transactions tree.
+    pub transaction_hashes: Vec<TxHash>,
+    /// The generalized indexes of the nodes in the transactions tree.
+    pub generalized_indexes: Vec<usize>,
+    /// The proof hashes for the transactions tree.
+    pub merkle_hashes: Vec<B256>,
+}
+
+impl InclusionProofs {
+    /// Returns the total number of leaves in the tree.
+    pub fn total_leaves(&self) -> usize {
+        self.transaction_hashes.len()
+    }
+}
+
+impl Deref for SignedExecutionPayloadHeaderWithProofs {
+    type Target = SignedExecutionPayloadHeader;
+
+    fn deref(&self) -> &Self::Target {
+        &self.header
+    }
+}
+
+#[derive(Debug)]
+pub struct RequestConfig {
+    pub url: Url,
+    pub timeout_ms: u64,
+    pub headers: HeaderMap,
 }
 
 pub fn to_alloy_withdrawal(value: ethereum_consensus::deneb::Withdrawal) -> Withdrawal {
