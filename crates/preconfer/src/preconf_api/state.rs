@@ -7,8 +7,8 @@ use std::{
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::keccak256;
-use alloy_signer::{Signature as ECDSASignature, Signer};
+use alloy_primitives::{keccak256, PrimitiveSignature};
+use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use ethereum_consensus::{
@@ -202,10 +202,6 @@ impl PreconfState {
                     self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                let commitment = ECDSASignature::from((
-                    commitment.to_k256().expect("Invalid signature"),
-                    commitment.recid(),
-                ));
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
@@ -262,10 +258,6 @@ impl PreconfState {
                     self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                let commitment = ECDSASignature::from((
-                    commitment.to_k256().expect("Invalid signature"),
-                    commitment.recid(),
-                ));
                 Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Ok(PoolType::Parked) => Err(RpcError::UnknownError(
