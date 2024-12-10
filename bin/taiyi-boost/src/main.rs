@@ -7,7 +7,6 @@ mod block_builder;
 mod builder;
 mod constraints;
 mod engine;
-mod error;
 mod metrics;
 mod proofs;
 mod types;

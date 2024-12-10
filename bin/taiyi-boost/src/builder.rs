@@ -10,9 +10,6 @@ use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, HeaderValue},
-    response::IntoResponse,
-    routing::get,
-    Router,
 };
 use cb_common::{
     config::PbsConfig,
@@ -27,7 +24,7 @@ use cb_common::{
     types::Chain,
     utils::{get_user_agent_with_version, ms_into_slot},
 };
-use cb_pbs::{get_header, register_validator, submit_block, TIMEOUT_ERROR_CODE};
+use cb_pbs::{register_validator, submit_block};
 use commit_boost::prelude::*;
 use ethereum_consensus::deneb::Context;
 use eyre::Result;
@@ -40,16 +37,12 @@ use tracing::{debug, error, info, warn};
 use crate::{
     block_builder::{LocalBlockBuilder, SignedPayloadResponse},
     constraints::ConstraintsCache,
-    error::PbsClientError,
     proofs::verify_multiproofs,
     types::{
         ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints,
         SignedExecutionPayloadHeaderWithProofs, BUILDER_CONSTRAINTS_PATH,
     },
 };
-
-const GET_HEADER_WITH_PROOFS_PATH: &str =
-    "/eth/v1/builder/header_with_proofs/:slot/:parent_hash/:pubkey";
 
 #[allow(unused)]
 #[derive(Clone)]
@@ -106,17 +99,26 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         req_headers: HeaderMap,
         state: PbsState<SidecarBuilderState>,
     ) -> Result<Option<GetHeaderResponse>> {
-        match get_header(params, req_headers, state.clone()).await {
+        match get_header_with_proofs(
+            State::<PbsState<SidecarBuilderState>>(state.clone()),
+            Path::<GetHeaderParams>(params),
+            req_headers,
+        )
+        .await
+        {
             Ok(Some(response)) => {
                 let mut local_payload = state.data.local_payload.lock();
                 *local_payload = None;
-                return Ok(Some(response));
+                return Ok(Some(GetHeaderResponse {
+                    data: response.data.header,
+                    ..Default::default()
+                }));
             }
             Err(err) => {
-                warn!("get header from relay failed, slot: {}, error: {}", params.slot, err);
+                warn!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
             }
             _ => {
-                warn!("get header from relay failed, slot: {}", params.slot);
+                warn!("get header with proofs from relay failed, slot: {}", params.slot);
             }
         }
 
@@ -203,12 +205,6 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         }
         submit_block(signed_blinded_block, req_headers, state).await
     }
-
-    fn extra_routes() -> Option<Router<PbsState<SidecarBuilderState>>> {
-        let mut router = Router::new();
-        router = router.route(GET_HEADER_WITH_PROOFS_PATH, get(get_header_with_proofs));
-        Some(router)
-    }
 }
 
 /// Get a header with proofs for a given slot and parent hash.
@@ -217,7 +213,7 @@ async fn get_header_with_proofs(
     State(state): State<PbsState<SidecarBuilderState>>,
     Path(params): Path<GetHeaderParams>,
     req_headers: HeaderMap,
-) -> Result<impl IntoResponse, PbsClientError> {
+) -> Result<Option<GetHeaderWithProofsResponse>> {
     let slot_uuid = state.get_or_update_slot_uuid(params.slot);
     let ms_into_slot = ms_into_slot(params.slot, state.config.chain);
 
@@ -235,7 +231,7 @@ async fn get_header_with_proofs(
             "late in slot, skipping relay requests"
         );
 
-        return Ok(StatusCode::NO_CONTENT.into_response());
+        return Ok(None);
     }
 
     // prepare headers, except for start time which is set in `send_one_get_header`
@@ -303,7 +299,6 @@ async fn get_header_with_proofs(
                 relay_bids.push(vanilla_response)
             }
             Ok(_) => {}
-            Err(err) if err.is_timeout() => error!(err = "Timed Out", relay_id),
             Err(err) => error!(?err, relay_id),
         }
     }
@@ -322,9 +317,9 @@ async fn get_header_with_proofs(
             version: winning_bid.version,
         };
 
-        Ok((StatusCode::OK, axum::Json(header_with_proofs)).into_response())
+        Ok(Some(header_with_proofs))
     } else {
-        Ok(StatusCode::NO_CONTENT.into_response())
+        Ok(None)
     }
 }
 
@@ -336,7 +331,7 @@ async fn send_timed_get_header(
     headers: HeaderMap,
     ms_into_slot: u64,
     mut timeout_left_ms: u64,
-) -> Result<Option<GetHeaderWithProofsResponse>, PbsError> {
+) -> Result<Option<GetHeaderWithProofsResponse>> {
     let url = relay.get_url(&format!(
         "/eth/v1/builder/header_with_proofs/{}/{}/{}",
         params.slot, params.parent_hash, params.pubkey
@@ -396,7 +391,6 @@ async fn send_timed_get_header(
                             n_headers += 1;
                             Some(maybe_header)
                         }
-                        Err(err) if err.is_timeout() => None,
                         Err(err) => {
                             error!(?err, "TG: error sending header request");
                             None
@@ -411,10 +405,7 @@ async fn send_timed_get_header(
             // all requests failed
             warn!("TG: no headers received");
 
-            return Err(PbsError::RelayResponse {
-                error_msg: "no headers received".to_string(),
-                code: TIMEOUT_ERROR_CODE,
-            });
+            return Ok(None);
         }
     }
 
@@ -438,7 +429,7 @@ async fn send_one_get_header(
     skip_sigverify: bool,
     min_bid_wei: U256,
     mut req_config: RequestConfig,
-) -> Result<(u64, Option<GetHeaderWithProofsResponse>), PbsError> {
+) -> Result<(u64, Option<GetHeaderWithProofsResponse>)> {
     // the timestamp in the header is the consensus block time which is fixed,
     // use the beginning of the request as proxy to make sure we use only the
     // last one received
@@ -464,10 +455,11 @@ async fn send_one_get_header(
     let code = res.status();
     let response_bytes = res.bytes().await?;
     if !code.is_success() {
-        return Err(PbsError::RelayResponse {
-            error_msg: String::from_utf8_lossy(&response_bytes).into_owned(),
-            code: code.as_u16(),
-        });
+        return Err(eyre::eyre!(
+            "get header with proof from relay failed, code: {}, err: {:?}",
+            code.as_u16(),
+            String::from_utf8_lossy(&response_bytes).into_owned()
+        ));
     };
 
     if code == StatusCode::NO_CONTENT {
