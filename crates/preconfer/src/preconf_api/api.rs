@@ -20,6 +20,7 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use super::state::GetSlotResponse;
 use crate::{
     error::RpcError,
     metrics::preconfer::{
@@ -174,6 +175,8 @@ pub async fn get_preconf_request(
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
-pub async fn get_slots(State(state): State<PreconfState>) -> Result<Json<Vec<u64>>, RpcError> {
+pub async fn get_slots(
+    State(state): State<PreconfState>,
+) -> Result<Json<Vec<GetSlotResponse>>, RpcError> {
     Ok(Json(state.get_slots().await?))
 }

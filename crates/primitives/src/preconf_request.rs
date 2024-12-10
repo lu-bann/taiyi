@@ -14,11 +14,11 @@ pub struct BlockspaceAllocation {
     /// Amount of gas to be allocated
     pub gas_limit: u64,
     /// Number of blobs to be allocated
-    pub blobs: u8,
+    pub blobs: usize,
 }
 
 impl BlockspaceAllocation {
-    pub fn new(gas_limit: u64, blobs: u8) -> Self {
+    pub fn new(gas_limit: u64, blobs: usize) -> Self {
         Self { gas_limit, blobs }
     }
 }

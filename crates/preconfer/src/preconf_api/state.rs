@@ -20,6 +20,7 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use reth_primitives::PooledTransactionsElement;
+use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfRequest,
     PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints,
@@ -31,7 +32,7 @@ use crate::{
     clients::{relay_client::RelayClient, signer_client::SignerClient},
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
     pricer::PreconfPricer,
 };
 
@@ -293,7 +294,7 @@ impl PreconfState {
         Ok(PreconfStatusResponse { status })
     }
 
-    pub async fn get_slots(&self) -> Result<Vec<u64>, RpcError> {
+    pub async fn get_slots(&self) -> Result<Vec<GetSlotResponse>, RpcError> {
         let current_slot = self.network_state.get_current_slot();
 
         let slot_diff = if self.is_exceed_deadline(current_slot) { 1 } else { 0 };
@@ -302,7 +303,12 @@ impl PreconfState {
             .available_slots()
             .into_iter()
             .filter(|slot| *slot > current_slot + slot_diff)
+            .map(|slot| GetSlotResponse {
+                slot,
+                blockspace_available: self.preconf_pool.blockspace_available(slot),
+            })
             .collect();
+
         Ok(available_slots)
     }
 
@@ -312,4 +318,10 @@ impl PreconfState {
         let deadline = self.deadline_of_slot(slot);
         utc_timestamp > deadline
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct GetSlotResponse {
+    pub slot: u64,
+    pub blockspace_available: BlockspaceAvailable,
 }
