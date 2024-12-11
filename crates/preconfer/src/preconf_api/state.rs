@@ -8,9 +8,12 @@ use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::{keccak256, PrimitiveSignature};
-use alloy_signer::Signer;
+use alloy_provider::{ProviderBuilder, RootProvider};
+use alloy_rpc_client::{ClientBuilder, RpcClient};
+use alloy_signer::{Signature as ECDSASignature, Signer};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
+use alloy_transport_http::{reqwest::Client, Http};
 use ethereum_consensus::{
     altair::genesis,
     clock::{from_system_time, Clock},
@@ -56,6 +59,18 @@ impl PreconfState {
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
 
         Self { relay_client, network_state, preconf_pool, signer_client, rpc_url }
+    }
+
+    pub fn execution_api_client(&self) -> eyre::Result<RootProvider<Http<Client>>> {
+        let rpc = self.rpc_url.parse()?;
+        let provider = ProviderBuilder::new().on_http(rpc);
+        Ok(provider)
+    }
+
+    pub fn rpc_client(&self) -> eyre::Result<RpcClient<Http<Client>>> {
+        let rpc = self.rpc_url.parse()?;
+        let client = ClientBuilder::default().http(rpc);
+        Ok(client)
     }
 
     pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
@@ -302,6 +317,10 @@ impl PreconfState {
             SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
         let deadline = self.deadline_of_slot(slot);
         utc_timestamp > deadline
+    }
+
+    pub fn chain_id(&self) -> u64 {
+        self.network_state.chain_id()
     }
 }
 
