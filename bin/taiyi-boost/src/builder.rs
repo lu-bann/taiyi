@@ -323,6 +323,7 @@ async fn get_header_with_proofs(
     }
 }
 
+/// The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/unstable/bolt-boost/src/server.rs#L282
 async fn send_timed_get_header(
     params: GetHeaderParams,
     relay: RelayClient,
@@ -422,6 +423,7 @@ async fn send_timed_get_header(
     .map(|(_, maybe_header)| maybe_header)
 }
 
+/// The code is modified from bolt's implementation:  https://github.com/chainbound/bolt/blob/unstable/bolt-boost/src/server.rs#L388
 async fn send_one_get_header(
     params: GetHeaderParams,
     relay: RelayClient,
@@ -497,6 +499,7 @@ async fn send_one_get_header(
     Ok((start_request_time, Some(get_header_response)))
 }
 
+/// The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/unstable/bolt-boost/src/server.rs#L471
 fn validate_header(
     signed_header: &SignedExecutionPayloadHeader,
     chain: Chain,

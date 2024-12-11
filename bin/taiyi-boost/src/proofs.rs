@@ -1,6 +1,6 @@
+/// The code is modified from bolt: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-boost/src/proofs.rs
 use std::collections::HashMap;
 
-/// The code is modified from bolt: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-boost/src/proofs.rs
 use alloy_primitives::{TxHash, B256};
 
 use super::types::{ConstraintsData, InclusionProofs};
