@@ -1,4 +1,4 @@
-use alloy_primitives::Signature;
+use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -12,11 +12,11 @@ pub struct PreconfResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PreconfResponseData {
     pub request_id: Uuid,
-    pub commitment: Option<Signature>,
+    pub commitment: Option<PrimitiveSignature>,
 }
 
 impl PreconfResponse {
-    pub fn success(request_id: Uuid, commitment: Option<Signature>) -> Self {
+    pub fn success(request_id: Uuid, commitment: Option<PrimitiveSignature>) -> Self {
         Self {
             status: "success".to_string(),
             message:
