@@ -6,11 +6,11 @@ import "forge-std/console.sol";
 import "open-zeppelin/utils/ReentrancyGuard.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import "open-zeppelin/utils/cryptography/MessageHashUtils.sol";
-import { TipTx } from "./interfaces/Types.sol";
+import { BlockReservation } from "./interfaces/Types.sol";
 import { PreconfRequest } from "./interfaces/Types.sol";
 import { PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
-import { Helper } from "./utils/Helper.sol";
+import { SignatureVerificationLib } from "./libs/SignatureVerificationLib.sol";
 
 contract TaiyiEscrow is ReentrancyGuard {
     using PreconfRequestLib for *;
@@ -81,18 +81,19 @@ contract TaiyiEscrow is ReentrancyGuard {
     }
 
     /**
-     * @dev Handles the payout of a TipTx.
-     * @param tipTx The TipTx containing the payout details.
+     * @dev Handles the payout of a BlockReservation.
+     * @param blockReservation The BlockReservation containing the payout details.
      * @param isAfterExec A boolean indicating if the payout is after execution.
      * @return amount The amount to be paid out.
      *
-     * This function calculates the payout amount based on the TipTx details and whether the payout is after execution.
+     * This function calculates the payout amount based on the BlockReservation details and whether the payout is after
+     * execution.
      * It then checks if the sender has sufficient balance and deducts the amount from the sender's balance.
      */
-    function payout(TipTx calldata tipTx, bool isAfterExec) internal returns (uint256 amount) {
-        amount = isAfterExec ? tipTx.prePay + tipTx.afterPay : tipTx.prePay;
-        require(balances[tipTx.from] >= amount, "Insufficient balance");
+    function payout(BlockReservation calldata blockReservation, bool isAfterExec) internal returns (uint256 amount) {
+        amount = isAfterExec ? blockReservation.deposit + blockReservation.tip : blockReservation.deposit;
+        require(balances[blockReservation.sender] >= amount, "Insufficient balance");
 
-        balances[tipTx.from] -= amount;
+        balances[blockReservation.sender] -= amount;
     }
 }

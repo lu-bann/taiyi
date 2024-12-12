@@ -6,12 +6,12 @@ import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
 import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
-import { PreconfRequest, TipTx, PreconfTx } from "../src/interfaces/Types.sol";
-import { Helper } from "../src/utils/Helper.sol";
+import { PreconfRequest, BlockReservation, PreconfTx } from "../src/interfaces/Types.sol";
+import { SignatureVerificationLib } from "../src/libs/SignatureVerificationLib.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;
-    using Helper for *;
+    using SignatureVerificationLib for *;
 
     TaiyiCore public taiyiCore;
     TaiyiEscrow public taiyiEscrow;
@@ -61,21 +61,22 @@ contract DeployTest is Test {
         // User
         //////////////////////////
         vm.startBroadcast(userPrivatekey);
-        TipTx memory tipTx = TipTx({
+        BlockReservation memory blockReservation = BlockReservation({
             gasLimit: 100_000,
-            from: user,
-            to: preconfer,
-            prePay: 0.1 ether,
-            afterPay: 0.5 ether,
+            sender: user,
+            recipient: preconfer,
+            deposit: 0.1 ether,
+            tip: 0.5 ether,
             nonce: 0,
-            targetSlot: 10
+            targetSlot: 10,
+            blobCount: 1
         });
 
-        bytes32 tipTxHash = tipTx.getTipTxHash();
-        (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
-        bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
+        bytes32 blockReservationHash = blockReservation.getBlockReservationHash();
+        (v, r, s) = vm.sign(userPrivatekey, blockReservationHash);
+        bytes memory blockReservationUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
+        (v, r, s) = vm.sign(preconferPrivatekey, blockReservationUserSignature.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
 
         PreconfTx memory preconfTx = PreconfTx({
@@ -83,9 +84,9 @@ contract DeployTest is Test {
             to: preconfer,
             value: 0.1 ether,
             callData: "",
-            callGasLimit: 100_000,
             nonce: 0,
-            signature: ""
+            signature: "",
+            blobHashes: new bytes32[](0)
         });
         bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
         (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
@@ -93,11 +94,11 @@ contract DeployTest is Test {
         preconfTx.signature = preconfTxSignature;
 
         PreconfRequest memory preconfReq = PreconfRequest({
-            tipTx: tipTx,
+            blockReservation: blockReservation,
             preconfTx: preconfTx,
-            tipTxSignature: "",
+            blockReservationSignature: "",
             preconferSignature: preconferSignature,
-            preconfReqSignature: ""
+            preconfTxSignature: ""
         });
 
         // taiyiEscrow.deposit{ value: 1 ether }();

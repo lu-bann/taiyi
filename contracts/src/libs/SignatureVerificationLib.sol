@@ -5,7 +5,7 @@ import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import "../interfaces/Types.sol";
 import "../libs/PreconfRequestLib.sol";
 
-library Helper {
+library SignatureVerificationLib {
     using PreconfRequestLib for PreconfTx;
 
     function hashSignature(bytes memory signature) internal pure returns (bytes32) {

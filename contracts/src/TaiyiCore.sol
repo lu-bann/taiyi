@@ -7,19 +7,20 @@ import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol"
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { TaiyiDelegation } from "./TaiyiDelegation.sol";
-import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
+import { PreconfRequest, BlockReservation, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
 import { Ownable } from "open-zeppelin/access/Ownable.sol";
 import "forge-std/console.sol";
 import { NonceManager } from "./utils/NonceManager.sol";
 import { SlotLib } from "./libs/SlotLib.sol";
-import { Helper } from "./utils/Helper.sol";
+import { SignatureVerificationLib } from "./libs/SignatureVerificationLib.sol";
 
 contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager, TaiyiDelegation {
     using PreconfRequestLib for *;
     using SignatureChecker for address;
-    using Helper for bytes;
+    using SignatureVerificationLib for bytes;
+
     /*//////////////////////////////////////////////////////
                           VARIABLES
     //////////////////////////////////////////////////////*/
@@ -108,29 +109,25 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
      * @param preconfReq The PreconfRequest to validate.
      */
     function validateRequest(PreconfRequest calldata preconfReq) public view {
-        TipTx calldata tipTx = preconfReq.tipTx;
+        BlockReservation calldata blockReservation = preconfReq.blockReservation;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
-        bytes32 tipHash = tipTx.getTipTxHash();
+        bytes32 blockReservationHash = blockReservation.getBlockReservationHash();
 
-        Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature, "invalid tip signature");
-        Helper.verifySignature(
+        SignatureVerificationLib.verifySignature(
+            blockReservationHash, blockReservation.sender, preconfReq.blockReservationSignature, "invalid tip signature"
+        );
+        SignatureVerificationLib.verifySignature(
             preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature, "invalid preconf signature"
         );
-        Helper.verifySignature(
-            preconfReq.tipTxSignature.hashSignature(),
-            tipTx.to,
+        SignatureVerificationLib.verifySignature(
+            preconfReq.blockReservationSignature.hashSignature(),
+            blockReservation.recipient,
             preconfReq.preconferSignature,
             "invalid preconfer signature"
         );
-        Helper.verifySignature(
-            preconfReq.getPreconfRequestHash(),
-            tipTx.to,
-            preconfReq.preconfReqSignature,
-            "invalid preconf req signature"
-        );
 
         require(preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
-        require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
+        require(blockReservation.nonce == getTipNonce(blockReservation.sender), "Incorrect tip nonce");
     }
 
     /// @notice Main bulk of the logic for validating and settling request
@@ -138,7 +135,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     function settleRequest(PreconfRequest calldata preconfReq) public payable nonReentrant {
         //require(preconferList[msg.sender], "Caller is not a preconfer");
 
-        TipTx calldata tipTx = preconfReq.tipTx;
+        BlockReservation calldata blockReservation = preconfReq.blockReservation;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
 
         // uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
@@ -147,7 +144,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
         validateRequest(preconfReq);
 
-        require(preconfReq.tipTx.to == owner(), "Tip to is not the owner");
+        require(preconfReq.blockReservation.recipient == owner(), "Tip to is not the owner");
 
         bool success;
         if (preconfTx.callData.length > 0) {
@@ -163,10 +160,10 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
             emit TransactionExecutionFailed(preconfTx.to, preconfTx.value);
         }
 
-        uint256 amount = payout(tipTx, true);
+        uint256 amount = payout(blockReservation, true);
         handlePayment(amount, preconfReq.getPreconfRequestHash());
 
-        incrementTipNonce(tipTx.from);
+        incrementTipNonce(blockReservation.sender);
         preconfRequestStatus[preconfReq.getPreconfRequestHash()] = PreconfRequestStatus.Executed;
         inclusionStatusMap[preconfReq.getPreconfRequestHash()] = true;
     }
@@ -176,20 +173,20 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     ///       This mechanism is designed to prevent user "griefing" the preconfer
     ///        by allowing the preconfer to withdraw the funds that need to be exhausted
     function exhaust(PreconfRequest calldata preconfReq) external onlyOwner {
-        TipTx calldata tipTx = preconfReq.tipTx;
+        BlockReservation calldata blockReservation = preconfReq.blockReservation;
 
         validateRequest(preconfReq);
-        require(tipTx.to == owner(), "Tip to is not the owner");
+        require(blockReservation.recipient == owner(), "Tip to is not the owner");
 
-        gasBurner(preconfReq.tipTx.gasLimit);
+        gasBurner(blockReservation.gasLimit);
 
-        uint256 amount = payout(tipTx, false);
+        uint256 amount = payout(blockReservation, false);
         handlePayment(amount, preconfReq.getPreconfRequestHash());
         preconfRequestStatus[preconfReq.getPreconfRequestHash()] = PreconfRequestStatus.Exhausted;
 
         bytes32 txHash = preconfReq.getPreconfRequestHash();
         inclusionStatusMap[txHash] = true;
-        emit Exhausted(msg.sender, tipTx.prePay);
+        emit Exhausted(msg.sender, blockReservation.deposit);
     }
 
     /**
@@ -240,7 +237,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     function challengeRequests(PreconfRequest[] calldata preconfReqs) external {
         for (uint256 i = 0; i < preconfReqs.length; i++) {
             PreconfRequest calldata preconfReq = preconfReqs[i];
-            TipTx calldata tipTx = preconfReq.tipTx;
+            BlockReservation calldata blockReservation = preconfReq.blockReservation;
 
             // Verify signatures
             validateRequest(preconfReq);
@@ -252,7 +249,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
             if (status == PreconfRequestStatus.NonInitiated) {
                 uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
-                require(slot >= tipTx.targetSlot, "PreconfRequest has not reached the block requested yet");
+                require(slot >= blockReservation.targetSlot, "PreconfRequest has not reached the block requested yet");
             } else if (status == PreconfRequestStatus.Executed || status == PreconfRequestStatus.Exhausted) {
                 bool isIncluded = inclusionStatusMap[preconfReq.getPreconfRequestHash()];
                 if (!isIncluded) {

@@ -5,14 +5,14 @@ import { Test, console } from "forge-std/Test.sol";
 import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
 import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
-import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
+import { BlockReservation, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
-import { Helper } from "../src/utils/Helper.sol";
+import { SignatureVerificationLib } from "../src/libs/SignatureVerificationLib.sol";
 import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
 
 contract TaiyiCoreTest is Test {
     using PreconfRequestLib for *;
-    using Helper for bytes;
+    using SignatureVerificationLib for bytes;
 
     TaiyiCore public taiyiCore;
 
@@ -59,49 +59,49 @@ contract TaiyiCoreTest is Test {
     }
 
     function fulfillPreconfRequest(
-        TipTx memory tipTx,
+        BlockReservation memory blockReservation,
         PreconfTx memory preconfTx
     )
         internal
         returns (PreconfRequest memory)
     {
-        bytes32 txHash = tipTx.getTipTxHash();
+        bytes32 txHash = blockReservation.getBlockReservationHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
-        bytes memory tipTxSig = abi.encodePacked(r, s, v);
-        console.logBytes(tipTxSig);
+        bytes memory blockReservationSig = abi.encodePacked(r, s, v);
+        console.logBytes(blockReservationSig);
 
         bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
         (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);
         bytes memory preconfTxSig = abi.encodePacked(r, s, v);
         preconfTx.signature = preconfTxSig;
 
-        (v, r, s) = vm.sign(ownerPrivatekey, tipTxSig.hashSignature());
+        (v, r, s) = vm.sign(ownerPrivatekey, blockReservationSig.hashSignature());
         bytes memory preconferSignature = abi.encodePacked(r, s, v);
         PreconfRequest memory preconfReq = PreconfRequest({
-            tipTx: tipTx,
+            blockReservation: blockReservation,
             preconfTx: preconfTx,
-            tipTxSignature: tipTxSig,
+            blockReservationSignature: blockReservationSig,
             preconferSignature: preconferSignature,
-            preconfReqSignature: ""
+            preconfTxSignature: ""
         });
 
         bytes32 preconfReqHash = preconfReq.getPreconfRequestHash();
         (v, r, s) = vm.sign(ownerPrivatekey, preconfReqHash);
         bytes memory preconfReqSig = abi.encodePacked(r, s, v);
-        preconfReq.preconfReqSignature = preconfReqSig;
         return preconfReq;
     }
 
     function testNormalWorkflow() public {
         uint256 targetSlot = 10;
-        TipTx memory tipTx = TipTx({
+        BlockReservation memory blockReservation = BlockReservation({
             gasLimit: 100_000,
-            from: user,
-            to: owner,
-            prePay: 1 ether,
-            afterPay: 2 ether,
+            sender: user,
+            recipient: owner,
+            tip: 1 ether,
+            deposit: 4 ether,
             nonce: 0,
-            targetSlot: targetSlot
+            targetSlot: targetSlot,
+            blobCount: 0
         });
 
         PreconfTx memory preconfTx = PreconfTx({
@@ -109,12 +109,12 @@ contract TaiyiCoreTest is Test {
             to: bob,
             value: 1 ether,
             callData: "",
-            callGasLimit: 100_000,
             nonce: 0,
-            signature: ""
+            signature: "",
+            blobHashes: new bytes32[](0)
         });
 
-        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
+        PreconfRequest memory preconfReq = fulfillPreconfRequest(blockReservation, preconfTx);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
         vm.prank(user);
         taiyiCore.deposit{ value: 4 ether }();
@@ -142,25 +142,26 @@ contract TaiyiCoreTest is Test {
     }
 
     function testExhaustFunction() public {
-        TipTx memory tipTx = TipTx({
+        BlockReservation memory blockReservation = BlockReservation({
             gasLimit: 100_000,
-            from: user,
-            to: owner,
-            prePay: 1 ether,
-            afterPay: 2 ether,
+            sender: user,
+            recipient: owner,
+            tip: 1 ether,
             nonce: 0,
-            targetSlot: 10
+            targetSlot: 10,
+            deposit: 9 ether,
+            blobCount: 0
         });
         PreconfTx memory preconfTx = PreconfTx({
             from: user,
             to: bob,
             value: 1 ether,
             callData: "",
-            callGasLimit: 100_000,
             nonce: 0,
-            signature: ""
+            signature: "",
+            blobHashes: new bytes32[](0)
         });
-        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
+        PreconfRequest memory preconfReq = fulfillPreconfRequest(blockReservation, preconfTx);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
 
         vm.prank(user);
