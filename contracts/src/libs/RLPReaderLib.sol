@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { RLPItem, RLPItemType,LibMemory, MemoryPointer } from "./LibMemory.sol";
+import { RLPItem, RLPItemType, LibMemory, MemoryPointer } from "./LibMemory.sol";
 
-/// @title RLPReaderLib 
+/// @title RLPReaderLib
 /// @notice RLPReaderLib is a library for parsing RLP-encoded byte arrays into Solidity types
 /// @custom:attribution Based on optimized version of Solidity-RLP
 /// Originally by Hamdi Allam (github.com/hamdiallam/Solidity-RLP)
-/// With optimizations from https://github.com/clabby/substratum/blob/4028bf1b121d9127c1c27d2a4feda3e44d3c9239/src/lib/rlp/RLPReaderLib.sol
+/// With optimizations from
+/// https://github.com/clabby/substratum/blob/4028bf1b121d9127c1c27d2a4feda3e44d3c9239/src/lib/rlp/RLPReaderLib.sol
 library RLPReaderLib {
     ////////////////////////////////////////////////////////////////
     //                         CONSTANTS                          //
@@ -168,6 +169,60 @@ library RLPReaderLib {
         return LibMemory.mcopy(inPtr, itemOffset, itemLength);
     }
 
+    /**
+     * Copies the bytes from a memory location.
+     * @param _src Pointer to the location to read from.
+     * @param _offset Offset to start reading from.
+     * @param _length Number of bytes to read.
+     * @return Copied bytes.
+     */
+    function _copy(
+        uint256 _src,
+        uint256 _offset,
+        uint256 _length
+    )
+        internal
+        pure
+        returns (
+            bytes memory
+        )
+    {
+        bytes memory out = new bytes(_length);
+        if (out.length == 0) {
+            return out;
+        }
+
+        uint256 src = _src + _offset;
+        uint256 dest;
+        assembly {
+            dest := add(out, 32)
+        }
+
+        // Copy over as many complete words as we can.
+        for (uint256 i = 0; i < _length / 32; i++) {
+            assembly {
+                mstore(dest, mload(src))
+            }
+
+            src += 32;
+            dest += 32;
+        }
+
+        // Pick out the remaining bytes.
+        uint256 mask = 256 ** (32 - (_length % 32)) - 1;
+        assembly {
+            mstore(
+                dest,
+                or(
+                    and(mload(src), not(mask)),
+                    and(mload(dest), mask)
+                )
+            )
+        }
+
+        return out;
+    }
+
     /// @notice Reads an RLP bytes value into bytes.
     /// @param _in RLP bytes value.
     /// @return _bytes Decoded bytes.
@@ -178,9 +233,7 @@ library RLPReaderLib {
     /// @notice Reads an RLP bytes32 value into a bytes32.
     /// @param _in RLP bytes32 value.
     /// @return _out Decoded bytes32.
-    function readBytes32(
-        RLPItem _in
-    ) internal pure returns (bytes32 _out) {
+    function readBytes32(RLPItem _in) internal pure returns (bytes32 _out) {
         // Unwrap the RLPItem to get the pointer and length
         (MemoryPointer inPtr, uint232 inLen) = unwrapRLPItem(_in);
         require(inLen <= 33, "Invalid RLP bytes32 value.");
@@ -193,18 +246,22 @@ library RLPReaderLib {
         // Ensure the total length matches the sum of offset and item length
         require(inLen == itemOffset + itemLength, "Invalid RLP bytes32 value.");
 
-
         uint256 ptr = uint256(MemoryPointer.unwrap(inPtr)) + itemOffset;
         assembly {
             // Load the data at the calculated pointer
             _out := mload(ptr)
 
             // If the item length is less than 32 bytes, shift the bytes to align correctly
-            if lt(itemLength, 32) {
-                _out := shr(mul(sub(32, itemLength), 8), _out)
-            }
+            if lt(itemLength, 32) { _out := shr(mul(sub(32, itemLength), 8), _out) }
         }
+    }
 
+    /// @notice Reads an RLP-encoded uint256 value
+    /// @param _in RLP item containing the uint256 value
+    /// @return The decoded uint256 value
+    /// @dev Internally converts the RLP bytes32 to uint256
+    function readUint256(RLPItem _in) internal pure returns (uint256) {
+        return uint256(readBytes32(_in));
     }
 
     /// @notice Reads the raw bytes of an RLP item.
@@ -222,7 +279,7 @@ library RLPReaderLib {
     /// @return _offset Offset of the encoded data.
     /// @return _length Length of the encoded data.
     /// @return _type RLP item type (LIST_ITEM or DATA_ITEM).
-    function _decodeLength(RLPItem _in) private pure returns (uint256 _offset, uint256 _length, RLPItemType _type) {
+    function _decodeLength(RLPItem _in) public pure returns (uint256 _offset, uint256 _length, RLPItemType _type) {
         (MemoryPointer inPtr, uint232 inLen) = unwrapRLPItem(_in);
         assembly ("memory-safe") {
             /// @dev Shorthand for reverting with a selector.

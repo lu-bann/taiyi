@@ -5,7 +5,11 @@ pragma solidity ^0.8.25;
 /// @param txs Array of raw transactions (RLP-encoded)
 /// @param tipTx RLP-encoded ETH transfer transaction for tip payment
 /// @param slot Target slot number
-/// @param sequenceNum Sequence number
+/// @param sequenceNum Index of the first transaction in txs within the constraint bundle. The anchor transaction
+///        has index 0, so sequenceNum == 1 means this is the first bundle after the anchor transaction.
+///        Example bundle layout:
+///        [anchor tx (0)] | [tx0,tx1,tx2 (1)] | [tx3,tx4 (4)] | [tx5 (6)]
+///                         ^ sequenceNum=1      ^ sequenceNum=4   ^ sequenceNum=6
 /// @param signer The address that signed the request
 struct PreconfRequestTypeA {
     bytes[] txs;
@@ -45,8 +49,29 @@ struct AnchorTxProof {
     uint256 inclusionBlockNumber;
     bytes blockHeaderRLP;
     uint256 anchorTxIndex;
-    bytes txMerkleProof;
+    bytes[] txMerkleProof;
     bytes anchorTxRLP;
+}
+
+struct BlockHeader {
+    bytes32 parentHash; // 0
+    // bytes32 uncleHash;        // 1
+    // address coinbase; // 2
+    bytes32 stateRoot; // 3
+    bytes32 transactionsRoot; // 4
+    // bytes32 receiptsRoot;     // 5
+    // bytes logsBloom;         // 6
+    // uint256 difficulty;       // 7
+    uint256 number; // 8
+    // uint256 gasLimit;        // 9
+    // uint256 gasUsed;         // 10
+    uint256 timestamp; // 11
+    // bytes extraData;         // 12
+    // bytes32 mixHash;         // 13
+    // bytes8 nonce; // 14
+    // Post-Merge fields
+    uint256 baseFeePerGas; // 15 (optional)
+        // bytes32 withdrawalsRoot;  // 16 (optional)
 }
 
 /// @dev A transaction that the user wants to execute for preconfirmation, like normal transaction
