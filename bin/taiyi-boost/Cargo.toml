@@ -9,6 +9,7 @@ alloy-eips = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true, features = ["debug-api"] }
+alloy-rlp = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 alloy-rpc-types-eth = { workspace = true }
@@ -27,6 +28,7 @@ ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }
 eyre = { workspace = true }
+futures = { workspace = true }
 hex = { workspace = true }
 lazy_static = { workspace = true }
 parking_lot = { workspace = true }
@@ -37,7 +39,9 @@ reth-primitives = { workspace = true }
 scc = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+ssz_rs = { workspace = true }
 ssz_types = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tree_hash = { workspace = true }
@@ -45,3 +49,6 @@ tree_hash_derive = { workspace = true }
 
 [dev-dependencies]
 ethereum-consensus = { workspace = true }
+ethereum_ssz = { workspace = true }
+lighthouse-types = { workspace = true }
+

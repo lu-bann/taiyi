@@ -356,12 +356,10 @@ mod test {
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_signer::k256::ecdsa::SigningKey;
     use alloy_signer_local::PrivateKeySigner;
+    use cb_common::utils::utcnow_sec;
 
     use super::*;
-    use crate::utils::{
-        get_now_timestamp,
-        tests::{gen_test_tx_request, get_test_config},
-    };
+    use crate::utils::tests::{gen_test_tx_request, get_test_config};
 
     #[test]
     fn local_extra_data() {
@@ -413,7 +411,7 @@ mod test {
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
 
-        let slot = genesis_time + (get_now_timestamp().unwrap() / context.seconds_per_slot) + 1;
+        let slot = (utcnow_sec() - genesis_time) / context.seconds_per_slot + 1;
 
         let block = local_builder.build_local_payload(slot, &[tx_signed_reth]).await?;
         assert_eq!(block.body.transactions.len(), 1);

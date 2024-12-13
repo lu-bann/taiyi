@@ -1,15 +1,13 @@
 use std::collections::HashSet;
 
-use alloy_consensus::TxEnvelope;
-use alloy_eips::eip2718::Decodable2718;
 use eyre::Result;
 use scc::HashMap;
 
-use crate::types::ConstraintsMessage;
+use crate::types::{ConstraintsData, ConstraintsMessage};
 
 #[derive(Clone, Default, Debug)]
 pub struct ConstraintsCache {
-    pub constraints: HashMap<u64, Vec<TxEnvelope>>,
+    pub constraints: HashMap<u64, ConstraintsData>,
 }
 
 impl ConstraintsCache {
@@ -33,13 +31,9 @@ impl ConstraintsCache {
 
     pub fn insert(&self, constraints: ConstraintsMessage) -> Result<()> {
         let constraints = self.remove_duplicate(constraints);
-        let txs: Vec<TxEnvelope> = constraints
-            .transactions
-            .iter()
-            .map(|bytes| TxEnvelope::decode_2718(&mut bytes.as_ref()))
-            .collect::<Result<Vec<_>, _>>()?;
+        let constraints_data = ConstraintsData::try_from(constraints.clone())?;
         self.constraints
-            .insert(constraints.slot, txs)
+            .insert(constraints.slot, constraints_data)
             .map_err(|_| eyre::eyre!("Failed to insert"))?;
         Ok(())
     }
@@ -49,8 +43,13 @@ impl ConstraintsCache {
         self.constraints.retain(|&k, _| k >= slot);
     }
 
+    // remove all constraints for the given slot.
+    pub fn remove(&self, slot: u64) -> Option<(u64, ConstraintsData)> {
+        self.constraints.remove(&slot)
+    }
+
     // Get total constraints for the given slot.
-    pub fn get(&self, slot: u64) -> Option<Vec<TxEnvelope>> {
+    pub fn get(&self, slot: u64) -> Option<ConstraintsData> {
         self.constraints.get(&slot).map(|x| x.get().clone())
     }
 }
@@ -89,11 +88,11 @@ mod tests {
             transactions: dup_txs,
         };
         cache.insert(constraints.clone()).ok();
-        assert_eq!(cache.get(1).unwrap().len(), 1);
+        assert_eq!(cache.get(1).unwrap().transactions.len(), 1);
         cache.prune(1);
-        assert_eq!(cache.get(1).unwrap().len(), 1);
+        assert_eq!(cache.get(1).unwrap().transactions.len(), 1);
         cache.prune(2);
-        assert_eq!(cache.get(1), None);
+        assert!(cache.get(1).is_none());
         Ok(())
     }
 }

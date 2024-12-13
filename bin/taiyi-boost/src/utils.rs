@@ -1,18 +1,5 @@
-use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
-
-use eyre::Result;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
-
-#[allow(unused)]
-pub fn get_nanos_timestamp() -> Result<u64, SystemTimeError> {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64)
-}
-
-#[allow(unused)]
-pub fn get_now_timestamp() -> Result<u64, SystemTimeError> {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs())
-}
 
 /// Helper struct to compute the signing root for a given object
 /// root and signing domain as defined in the Ethereum 2.0 specification.
@@ -33,16 +20,24 @@ pub(crate) mod tests {
     use std::env;
 
     use alloy_network::TransactionBuilder;
-    use alloy_primitives::{address, Address, U256};
+    use alloy_primitives::{address, Address, Bytes, B256, U256};
     use alloy_rpc_types_eth::TransactionRequest;
     use ethereum_consensus::networks::Network;
+    use eyre::Result;
+    use lighthouse_types::{ExecPayload, MainnetEthSpec, SignedBeaconBlockDeneb};
     use reqwest::Url;
+    use ssz::Decode;
 
-    use super::*;
     use crate::{
         types::{BlsSecretKeyWrapper, JwtSecretWrapper},
         ExtraConfig,
     };
+
+    const TEST_BLOCK: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/testdata/signed-mainnet-beacon-block.bin.ssz"
+    ));
+
     pub fn get_test_config() -> Result<ExtraConfig> {
         let engine_api = env::var("TAIYI_ENGINE_API").expect("Fail to read env TAIYI_ENGINE_API");
         let execution_api =
@@ -77,5 +72,29 @@ pub(crate) mod tests {
             .with_gas_limit(21_000)
             .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
             .with_max_fee_per_gas(20_000_000_000)
+    }
+
+    /// Reads and decodes a signed beacon block from `testdata`.
+    pub fn read_test_block() -> SignedBeaconBlockDeneb<MainnetEthSpec> {
+        SignedBeaconBlockDeneb::from_ssz_bytes(TEST_BLOCK).unwrap()
+    }
+
+    /// Reads and decodes the transactions root and the transactions from the test block.
+    pub fn read_test_transactions() -> (B256, Vec<Bytes>) {
+        let test_block = read_test_block();
+
+        let transactions = test_block.message.body.execution_payload.transactions().unwrap();
+
+        let transactions: Vec<Bytes> =
+            transactions.into_iter().map(|tx| Bytes::from(tx.to_vec())).collect();
+
+        let transactions_root = test_block
+            .message
+            .body
+            .execution_payload
+            .to_execution_payload_header()
+            .transactions_root();
+
+        (B256::from_slice(transactions_root.as_ref()), transactions)
     }
 }

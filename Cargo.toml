@@ -100,7 +100,8 @@ rustls = "0.23.15"
 tiny-bip39 = "1.0.0"
 zeroize = "1.8.1"
 uuid = { version = "1.11.0", features = ["serde"] }
-scc = "2.2.4"
-ethereum_ssz = "0.8.1"
-ethereum_ssz_derive = "0.8.0"
+scc = "2.2.5"
+ethereum_ssz = "0.7"
+ethereum_ssz_derive = "0.7"
 ssz_types = "0.8"
+lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v6.0.0" }
