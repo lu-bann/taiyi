@@ -48,7 +48,8 @@ impl RelayClient {
             .expect("relay")
             .join(format!("{PATH_BUILDER_API}{PATH_BUILDER_DELEGATIONS}").as_str())?;
         let response = self.client.get(url).query(&[("slot", slot)]).send().await?;
-        let delegation = response.json::<Vec<SignedDelegation>>().await?;
+        let body = response.text().await?;
+        let delegation = serde_json::from_str::<Vec<SignedDelegation>>(&body)?;
         Ok(delegation)
     }
 

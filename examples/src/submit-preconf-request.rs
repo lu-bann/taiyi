@@ -6,6 +6,7 @@ use alloy_provider::{
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use reqwest::Url;
+use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 #[tokio::main]
@@ -22,14 +23,14 @@ async fn main() -> eyre::Result<()> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
     let res_b = res.bytes().await?;
-    let available_slots = serde_json::from_slice::<Vec<u64>>(&res_b)?;
+    let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
     println!("available_slots: {:?}", available_slots);
     if available_slots.is_empty() {
         println!("No available slot");
         return Ok(());
     }
-    let target_slot = available_slots.first().unwrap();
-    println!("sender: {:?}", sender);
+    let target_slot = available_slots.first().unwrap().slot;
+    println!("sender: {:?} target_slot: {:?}", sender, target_slot);
     let fees = provider.estimate_eip1559_fees(None).await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
@@ -45,10 +46,13 @@ async fn main() -> eyre::Result<()> {
         .build(&wallet)
         .await?;
 
+    let tx_hash = transaction.tx_hash();
+    println!("tx_hash: {:?}", tx_hash);
+
     let preconf_request = PreconfRequest {
         allocation: BlockspaceAllocation::default(),
         transaction: Some(transaction.clone()),
-        target_slot: *target_slot,
+        target_slot,
     };
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
     let response =
@@ -58,12 +62,5 @@ async fn main() -> eyre::Result<()> {
 
     println!("res_body: {:?}", res_body);
 
-    // let res = client
-    //     .post(&format!("{}/commitments/v1/preconf_request", taiyi_url))
-    //     .json(&preconf_request)
-    //     .send()
-    //     .await?;
-    // let res_body = res.text().await?;
-    // println!("res: {}", res_body);
     Ok(())
 }

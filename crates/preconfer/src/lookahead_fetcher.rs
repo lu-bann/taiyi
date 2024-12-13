@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{future::Future, ops::Deref};
 
 use alloy_eips::merge::EPOCH_SLOTS;
 use alloy_network::Ethereum;
@@ -13,7 +13,7 @@ use ethereum_consensus::{
     primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
 };
-use futures::TryStreamExt;
+use futures::{future::IntoFuture, TryStreamExt};
 use mev_share_sse::EventClient;
 use reqwest::Url;
 use taiyi_primitives::ProposerInfo;
@@ -61,15 +61,23 @@ impl LookaheadFetcher {
     async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
         for slot in (epoch * 32)..((epoch + 1) * 32) {
-            let signed_delegations = self.relay_client.get_delegations(slot).await?;
-            'delegation_loop: for signed_delegation in signed_delegations {
-                let delegation_message = signed_delegation.message;
-                if delegation_message.action == DELEGATION_ACTION
-                    && delegation_message.delegatee_pubkey == self.gateway_pubkey
-                {
-                    info!("Delegation to gateway found for slot: {}", slot);
-                    self.network_state.add_slot(slot);
-                    break 'delegation_loop;
+            let res = self.relay_client.get_delegations(slot).await;
+            match res {
+                Ok(signed_delegations) => {
+                    'delegation_loop: for signed_delegation in signed_delegations {
+                        let delegation_message = signed_delegation.message;
+                        if delegation_message.action == DELEGATION_ACTION
+                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                        {
+                            info!("Delegation to gateway found for slot: {}", slot);
+                            self.network_state.add_slot(slot);
+                            break 'delegation_loop;
+                        }
+                    }
+                }
+                Err(e) => {
+                    // when there is no delegations for the slot, relay would return error
+                    debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
                 }
             }
         }
@@ -80,7 +88,9 @@ impl LookaheadFetcher {
         Ok(())
     }
 
-    pub async fn run(&mut self) -> eyre::Result<()> {
+    pub async fn run(mut self) -> eyre::Result<()> {
+        info!("Initializing lookahead fetcher");
+        self.initialze().await?;
         let client = EventClient::new(reqwest::Client::new());
         let beacon_url_head_event =
             format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint.as_str());
@@ -115,13 +125,9 @@ pub async fn run_cl_process(
     network_state: NetworkState,
     bls_pk: PublicKey,
     relay_urls: Vec<Url>,
-) -> eyre::Result<()> {
-    let mut lookahead_fetcher =
-        LookaheadFetcher::new(beacon_url, network_state, bls_pk, relay_urls);
-    lookahead_fetcher.initialze().await?;
-    lookahead_fetcher.run().await?;
-
-    Ok(())
+) -> impl Future<Output = eyre::Result<()>> {
+    let lookahead_fetcher = LookaheadFetcher::new(beacon_url, network_state, bls_pk, relay_urls);
+    lookahead_fetcher.run()
 }
 
 #[cfg(test)]

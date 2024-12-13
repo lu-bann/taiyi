@@ -90,13 +90,14 @@ impl PreconfState {
             while let Some(slot) = slot_stream.next().await {
                 let next_slot = slot + 1;
 
-                let submit_constraint_deadline_duration = self.deadline_of_slot(next_slot)
-                    - SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .expect("Time went backwards")
-                        .as_secs();
+                let submit_constraint_deadline_duration =
+                    self.deadline_of_slot(next_slot).saturating_sub(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .expect("Time went backwards")
+                            .as_secs(),
+                    );
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
-                info!("Submitting constraints for slot {}", next_slot);
                 match self.preconf_pool.pending_requests(next_slot) {
                     Ok(preconf_requests) => {
                         if preconf_requests.is_empty() {
@@ -118,7 +119,7 @@ impl PreconfState {
                         let message = ConstraintsMessage {
                             pubkey: BlsPublicKey::try_from(bls_pk.to_bytes().as_ref())
                                 .expect("key error"),
-                            slot,
+                            slot: next_slot,
                             top: true,
                             transactions: txs.try_into().expect("tx too big"),
                         };
@@ -132,7 +133,7 @@ impl PreconfState {
                             let max_retries = 5;
                             let mut i = 0;
 
-                            info!("Submitting {txs_len} constraints to relay");
+                            info!("Submitting {txs_len} constraints to relay on  slot {next_slot}");
                             'submit: while let Err(e) = relay_client
                                 .set_constraints(signed_constraints_message.clone())
                                 .await
