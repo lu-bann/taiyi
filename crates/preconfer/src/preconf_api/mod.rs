@@ -43,13 +43,6 @@ pub async fn spawn_service(
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
-    tokio::spawn(async move {
-        if let Err(e) = run_cl_process(beacon_client_url, network_state_cl, bls_pk, relay_url).await
-        {
-            eprintln!("Error in cl process: {e:?}");
-        }
-    });
-
     info!("preconfer is on chain_id: {:?}", chain_id);
 
     let state =
@@ -59,12 +52,16 @@ pub async fn spawn_service(
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
     let _ = preconfapiserver.run(state.clone()).await;
     tokio::select! {
-        _ = state.spawn_constraint_submitter() => {
-            error!("Constraint submitter task exited.");
-        },
-        _ = tokio::signal::ctrl_c() => {
-            info!("Ctrl-C received, shutting down...");
-        },
+            res = run_cl_process(beacon_client_url, network_state_cl, bls_pk, relay_url).await => {
+                error!("Error in cl process: {:?}", res);
+            }
+            res = state.spawn_constraint_submitter() => {
+                error!("Constraint submitter task exited. {:?}", res);
+            },
+            _ = tokio::signal::ctrl_c() => {
+                info!("Ctrl-C received, shutting down...");
+            },
+
     }
     Ok(())
 }

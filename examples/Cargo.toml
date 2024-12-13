@@ -16,8 +16,8 @@ eyre = { workspace = true }
 reqwest = { workspace = true }
 reth-primitives = { workspace = true }
 serde_json = { workspace = true }
-taiyi-primitives = { workspace = true }
 taiyi-preconfer = { workspace = true }
+taiyi-primitives = { workspace = true }
 tokio = { workspace = true }
 
 [lib]
