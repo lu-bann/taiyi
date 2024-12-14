@@ -1,8 +1,0 @@
-[package]
-name = "taiyi-integration-tests"
-version = { workspace = true }
-edition = { workspace = true }
-
-[dependencies]
-
-[lib]

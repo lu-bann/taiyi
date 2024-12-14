@@ -1,4 +1,4 @@
-if [ -z "$RPC_URL" ]; then
-    export RPC_URL="http://localhost:8545"
+if [ -z "$EXECUTION_URL" ]; then
+    export EXECUTION_URL="http://localhost:8545"
 fi
-forge script --rpc-url $RPC_URL -vvvv --private-key $PRIVATE_KEY --broadcast ./script/Deployments.s.sol:Deploy
+forge script --rpc-url $EXECUTION_URL -vvvv --private-key $PRIVATE_KEY --broadcast ./script/Deployments.s.sol:Deploy

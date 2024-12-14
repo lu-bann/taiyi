@@ -2,11 +2,26 @@ build:
 	cargo build --release
 
 test:
-	cargo test --workspace
+	cargo test
 
 format:
 	cargo +nightly fmt --all
 	cargo sort --workspace --grouped
+
+e2e-network:
+	bash scripts/devnet/start-devnet.sh
+
+e2e-setup:
+	bash scripts/devnet/initialize.sh
+	bash scripts/devnet/delegate.sh
+
+e2e-test:
+	bash scripts/devnet/start-e2e-tests.sh
+
+make e2e:
+	make e2e-network
+	make e2e-setup
+	make e2e-test
 
 lint:
 	cargo +nightly fmt --all -- --check

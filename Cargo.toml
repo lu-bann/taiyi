@@ -11,8 +11,17 @@ members = [
     "crates/cli",
     "crates/preconfer",
     "crates/primitives",
-    "examples",
-    "tests"
+    "e2e-tests",
+    "examples"
+]
+default-members = [
+    "bin/taiyi",
+    "bin/taiyi-boost",
+    "bin/taiyi-cli",
+    "crates/cli",
+    "crates/preconfer",
+    "crates/primitives",
+    "examples"
 ]
 resolver = "2"
 
@@ -99,7 +108,7 @@ tonic-build = "0.12.3"
 rustls = "0.23.15"
 tiny-bip39 = "1.0.0"
 zeroize = "1.8.1"
-uuid = { version = "1.11.0", features = ["serde"] }
+uuid = { version = "1.11.0", features = ["serde", "v4"] }
 scc = "2.2.5"
 ethereum_ssz = "0.7"
 ethereum_ssz_derive = "0.7"
