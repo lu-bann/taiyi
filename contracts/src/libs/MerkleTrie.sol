@@ -14,14 +14,34 @@ import { RLPItem, RLPItemType, LibMemory } from "./LibMemory.sol";
 /// https://github.com/ethereum-optimism/optimism/blob/2b589dfd0bfe371f99dcab24f21ff9dd60938561/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
 library MerkleTrie {
     /// @notice Struct representing a node in the trie.
+    /// @dev Branch Node Layout:
+    /// ┌───────────────────────────────┐
+    /// │ Encoded Node (RLP)            │
+    /// ├───────────────────────────────┤
+    /// │ 0xf84d...                     │
+    /// └───────────────────────────────┘
+    ///
+    /// ┌───────────────────────────────┐
+    /// │ Decoded Node (RLPItem[17])    │
+    /// ├───────────────────────────────┤
+    /// │ [0]  RLPItem → child 0        │
+    /// │ [1]  RLPItem → child 1        │
+    /// │ [2]  RLPItem → child 2 (null) │
+    /// │ ...                           │
+    /// │ [16] RLPItem → value         │
+    /// └───────────────────────────────┘
+    ///
+    /// RLPItem Format:
+    /// ┌───────────┬────────────────┐
+    /// │ [0, 24)   │ Memory Pointer │
+    /// │ [24, 256) │ Length         │
+    /// └───────────┴────────────────┘
     /// @custom:field encoded The RLP-encoded node.
     /// @custom:field decoded The RLP-decoded node.
     struct TrieNode {
         bytes encoded;
         RLPItem[] decoded;
     }
-
-    bytes1 constant RLP_NULL = bytes1(0x80);
 
     /// @notice Determines the number of elements per branch node.
     uint256 internal constant TREE_RADIX = 16;
@@ -64,19 +84,6 @@ library MerkleTrie {
         returns (bool valid_)
     {
         valid_ = LibBytes.equal(_value, get(_key, _proof, _root));
-    }
-
-    function get(bytes memory _key, bytes32 _root) public view returns (bool _exists, bytes memory _value) {
-        (TrieNode[] memory proof, uint256 pathLength, bytes memory keyRemainder, bool isFinalNode) =
-            _walkNodePath(_key, _root);
-
-        bool exists = keyRemainder.length == 0;
-
-        require(exists || isFinalNode, "Provided proof is invalid.");
-
-        bytes memory value = exists ? _getNodeValue(proof[pathLength - 1]) : bytes("");
-
-        return (exists, value);
     }
 
     /// @notice Retrieves the value associated with a given key.
@@ -214,7 +221,6 @@ library MerkleTrie {
         }
     }
 
-
     /**
      * @notice Picks out the ID for a node. Node ID is referred to as the
      * "hash" within the specification, but nodes < 32 bytes are not actually
@@ -222,16 +228,7 @@ library MerkleTrie {
      * @param _node Node to pull an ID for.
      * @return _nodeID ID for the node, depending on the size of its contents.
      */
-    function _getNodeID(
-        RLPItem _node
-    )
-        private
-        pure
-        returns (
-            bytes32 _nodeID,
-            uint256 length
-        )
-    {
+    function _getNodeID(RLPItem _node) private pure returns (bytes32 _nodeID, uint256 length) {
         bytes memory nodeID;
 
         if (_node.length() < 32) {
@@ -263,160 +260,5 @@ library MerkleTrie {
                 ++shared_;
             }
         }
-    }
-
-    /**
-     * @notice Walks through a proof using a provided key.
-     * @param _key Key to use for the walk.
-     * @param _root Known root of the trie.
-     * @return _proof The proof
-     * @return _pathLength Length of the final path
-     * @return _keyRemainder Portion of the key remaining after the walk.
-     * @return _isFinalNode Whether or not we've hit a dead end.
-     */
-    function _walkNodePath(
-        bytes memory _key,
-        bytes32 _root
-    )
-        private
-        view
-        returns (TrieNode[] memory _proof, uint256 _pathLength, bytes memory _keyRemainder, bool _isFinalNode)
-    {
-        // TODO: this is max length
-        _proof = new TrieNode[](9);
-
-        uint256 pathLength = 0;
-        bytes memory key = LibBytes.toNibbles(_key);
-
-        bytes32 currentNodeID = _root;
-        uint256 currentNodeLength = 32;
-        uint256 currentKeyIndex = 0;
-        uint256 currentKeyIncrement = 0;
-        TrieNode memory currentNode;
-
-        // Proof is top-down, so we start at the first element (root).
-        for (uint256 i = 0; i < _proof.length; i++) {
-            if (currentNodeID == bytes32(RLP_NULL)) {
-                break;
-            }
-            if (currentNodeLength >= 32) {
-                currentNode = getTrieNode(currentNodeID);
-            } else {
-                currentNode = getRawNode(LibBytes.slice(abi.encodePacked(currentNodeID), 0, currentNodeLength));
-            }
-            _proof[pathLength] = currentNode;
-            currentKeyIndex += currentKeyIncrement;
-
-            // Keep track of the proof elements we actually need.
-            // It's expensive to resize arrays, so this simply reduces gas costs.
-            pathLength += 1;
-
-            if (currentKeyIndex == 0) {
-                // First proof element is always the root node.
-                require(keccak256(currentNode.encoded) == currentNodeID, "Invalid root hash");
-            } else if (currentNode.encoded.length >= 32) {
-                // Nodes 32 bytes or larger are hashed inside branch nodes.
-                require(keccak256(currentNode.encoded) == currentNodeID, "Invalid large internal hash");
-            } else {
-                // Nodes smaller than 31 bytes aren't hashed.
-                require(LibBytes.toBytes32(currentNode.encoded) == currentNodeID, "Invalid internal node hash");
-            }
-
-            if (currentNode.decoded.length == BRANCH_NODE_LENGTH) {
-                if (currentKeyIndex == key.length) {
-                    // We've hit the end of the key
-                    // meaning the value should be within this branch node.
-                    break;
-                } else {
-                    // We're not at the end of the key yet.
-                    // Figure out what the next node ID should be and continue.
-                    uint8 branchKey = uint8(key[currentKeyIndex]);
-                    RLPItem nextNode = currentNode.decoded[branchKey];
-                    (currentNodeID, currentNodeLength) = _getNodeID(nextNode);
-                    currentKeyIncrement = 1;
-                    continue;
-                }
-            } else if (currentNode.decoded.length == LEAF_OR_EXTENSION_NODE_LENGTH) {
-                bytes memory path = _getNodePath(currentNode);
-                uint8 prefix = uint8(path[0]);
-                uint8 offset = 2 - prefix % 2;
-                bytes memory pathRemainder = LibBytes.slice(path, offset);
-                bytes memory keyRemainder = LibBytes.slice(key, currentKeyIndex);
-                uint256 sharedNibbleLength = _getSharedNibbleLength(pathRemainder, keyRemainder);
-
-                if (prefix == PREFIX_LEAF_EVEN || prefix == PREFIX_LEAF_ODD) {
-                    if (pathRemainder.length == sharedNibbleLength && keyRemainder.length == sharedNibbleLength) {
-                        // The key within this leaf matches our key exactly.
-                        // Increment the key index to reflect that we have no remainder.
-                        currentKeyIndex += sharedNibbleLength;
-                    }
-
-                    // We've hit a leaf node, so our next node should be NULL.
-                    currentNodeID = bytes32(RLP_NULL);
-                    break;
-                } else if (prefix == PREFIX_EXTENSION_EVEN || prefix == PREFIX_EXTENSION_ODD) {
-                    if (sharedNibbleLength != pathRemainder.length) {
-                        // Our extension node is not identical to the remainder.
-                        // We've hit the end of this path
-                        // updates will need to modify this extension.
-                        currentNodeID = bytes32(RLP_NULL);
-                        break;
-                    } else {
-                        // Our extension shares some nibbles.
-                        // Carry on to the next node.
-                        (currentNodeID, currentNodeLength) = _getNodeID(currentNode.decoded[1]);
-                        currentKeyIncrement = sharedNibbleLength;
-                        continue;
-                    }
-                } else {
-                    revert("Received a node with an unknown prefix");
-                }
-            } else {
-                revert("Received an unparseable node.");
-            }
-        }
-
-        // If our node ID is NULL, then we're at a dead end.
-        bool isFinalNode = currentNodeID == bytes32(RLP_NULL);
-        return (_proof, pathLength, LibBytes.slice(key, currentKeyIndex), isFinalNode);
-    }
-
-    /**
-     * @notice Gets the path for a node.
-     * @param _node Node to get a value for.
-     * @return _value Node value, as hex bytes.
-     */
-    function _getNodeValue(TrieNode memory _node) private pure returns (bytes memory _value) {
-        RLPItem _in = _node.decoded[_node.decoded.length - 1];
-        // this is bytes only if the length is 32
-        (uint256 itemOffset, uint256 itemLength, RLPItemType itemType) = RLPReaderLib._decodeLength(_in);
-
-        if (itemType == RLPItemType.DATA_ITEM) {
-            return RLPReaderLib._copy(_in.ptr(), itemOffset, itemLength);
-        } else if (itemType == RLPItemType.LIST_ITEM) {
-            require(_in.length() < 32, "bad _getNodeValue list");
-            return RLPReaderLib._copy(_in.ptr(), 0, _in.length());
-        }
-        revert("bad _getNodeValue");
-    }
-
-    function GetTrie() internal pure returns (mapping(bytes32 => bytes) storage trie) {
-        bytes32 position = keccak256("trie.trie.trie.trie");
-        assembly {
-            trie.slot := position
-        }
-    }
-
-    function getTrieNode(bytes32 nodeId) private view returns (TrieNode memory) {
-        bytes memory encoded = GetTrie()[nodeId];
-        if (encoded.length == 0) {
-            revert("bad hash in trie lookup");
-        }
-        require(keccak256(encoded) == nodeId, "bad hash in trie lookup");
-        return getRawNode(encoded);
-    }
-
-    function getRawNode(bytes memory encoded) private pure returns (TrieNode memory) {
-        return TrieNode({ encoded: encoded, decoded: RLPReaderLib.readList(encoded) });
     }
 }

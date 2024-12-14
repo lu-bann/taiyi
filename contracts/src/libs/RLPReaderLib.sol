@@ -176,17 +176,7 @@ library RLPReaderLib {
      * @param _length Number of bytes to read.
      * @return Copied bytes.
      */
-    function _copy(
-        uint256 _src,
-        uint256 _offset,
-        uint256 _length
-    )
-        internal
-        pure
-        returns (
-            bytes memory
-        )
-    {
+    function _copy(uint256 _src, uint256 _offset, uint256 _length) internal pure returns (bytes memory) {
         bytes memory out = new bytes(_length);
         if (out.length == 0) {
             return out;
@@ -211,13 +201,7 @@ library RLPReaderLib {
         // Pick out the remaining bytes.
         uint256 mask = 256 ** (32 - (_length % 32)) - 1;
         assembly {
-            mstore(
-                dest,
-                or(
-                    and(mload(src), not(mask)),
-                    and(mload(dest), mask)
-                )
-            )
+            mstore(dest, or(and(mload(src), not(mask)), and(mload(dest), mask)))
         }
 
         return out;
