@@ -112,7 +112,7 @@ contract TaiyiProofManager {
         bytes memory targetMerkleLeaf = targetTxIndex.writeUint();
 
         // Retrieve the RLP encoded transaction at targetTxIndex in the constraint bundle
-        bytes memory targetTxRLP = preconfReqTypeA.bundle.transactions[targetTxIndex];
+        bytes memory targetTxRLP = preconfReqTypeA.txs[targetTxIndex];
 
         // Verify the inclusion of the target transaction in the block's transaction merkle trie
         bool targetTxExists = MerkleTrie.verifyInclusionProof(
