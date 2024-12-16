@@ -10,15 +10,15 @@ import "../src/interfaces/ITaiyiCore.sol";
 
 contract Deploy is Script, Test {
     function run() public {
-        vm.startBroadcast();
+        // vm.startBroadcast();
 
-        address payable taiyiCoreAddr = payable(vm.envAddress("TAIYI_CORE"));
-        console.log("taiyi core: ", taiyiCoreAddr);
+        // address payable taiyiCoreAddr = payable(vm.envAddress("TAIYI_CORE"));
+        // console.log("taiyi core: ", taiyiCoreAddr);
 
-        TaiyiCore taiyiCore = TaiyiCore(taiyiCoreAddr);
+        // TaiyiCore taiyiCore = TaiyiCore(taiyiCoreAddr);
 
-        taiyiCore.registerPreconfer(msg.sender);
+        // taiyiCore.registerPreconfer(msg.sender);
 
-        vm.stopBroadcast();
+        // vm.stopBroadcast();
     }
 }

@@ -6,7 +6,6 @@ import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
 import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
-import { TaiyiDelegation } from "./TaiyiDelegation.sol";
 import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import "open-zeppelin/utils/cryptography/ECDSA.sol";
@@ -16,7 +15,7 @@ import { NonceManager } from "./utils/NonceManager.sol";
 import { SlotLib } from "./libs/SlotLib.sol";
 import { Helper } from "./utils/Helper.sol";
 
-contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager, TaiyiDelegation {
+contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager  {
     using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
@@ -44,7 +43,6 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         address proposerRegistry
     )
         Ownable(initialOwner)
-        TaiyiDelegation(proposerRegistry)
     {
         GENESIS_TIMESTAMP = genesisTimestamp;
     }
