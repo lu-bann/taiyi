@@ -1,0 +1,28 @@
+[package]
+name = "taiyi-e2e-tests"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dev-dependencies]
+alloy-consensus = { workspace = true }
+alloy-contract = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true }
+clap = { workspace = true }
+ethereum-consensus = { workspace = true }
+eyre = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+taiyi-cmd = { workspace = true }
+taiyi-preconfer = { workspace = true }
+taiyi-primitives = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tree_hash = { workspace = true }
+[lib]

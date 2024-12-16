@@ -22,7 +22,7 @@ use futures::StreamExt;
 use reth_primitives::PooledTransactionsElement;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, PreconfRequest,
+    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, ContextExt, PreconfRequest,
     PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints,
 };
 use tracing::{debug, error, info, warn};
@@ -35,9 +35,6 @@ use crate::{
     preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
     pricer::PreconfPricer,
 };
-
-pub const SET_CONSTRAINTS_CUTOFF_S: u64 = 8;
-pub const SET_CONSTRAINTS_CUTOFF_DELTA_S: u64 = 1;
 
 #[derive(Clone)]
 pub struct PreconfState {
@@ -67,12 +64,7 @@ impl PreconfState {
 
     fn deadline_of_slot(&self, slot: u64) -> u64 {
         let context = self.network_state.get_context();
-        let genesis_time = match context.genesis_time() {
-            Ok(genesis_time) => genesis_time,
-            Err(_) => context.min_genesis_time + context.genesis_delay,
-        };
-        genesis_time + ((slot - 1) * context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
-            - SET_CONSTRAINTS_CUTOFF_DELTA_S
+        context.get_deadline_of_slot(slot)
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {

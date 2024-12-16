@@ -1,5 +1,5 @@
 use alloy_consensus::TxEnvelope;
-use alloy_eips::eip2718::Decodable2718;
+use alloy_eips::eip2718::{Decodable2718, Eip2718Error};
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction,
     crypto::{PublicKey as BlsPublicKey, Signature as BlsSignature},
@@ -26,6 +26,12 @@ pub struct ConstraintsMessage {
     pub slot: u64,
     pub top: bool,
     pub transactions: List<Transaction, MAX_CONSTRAINTS_PER_SLOT>,
+}
+
+impl ConstraintsMessage {
+    pub fn decoded_tx(&self) -> Result<Vec<TxEnvelope>, Eip2718Error> {
+        self.transactions.iter().map(|tx| TxEnvelope::decode_2718(&mut tx.as_slice())).collect()
+    }
 }
 
 impl SignableBLS for ConstraintsMessage {
