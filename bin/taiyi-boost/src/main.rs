@@ -3,10 +3,14 @@ use commit_boost::prelude::*;
 use eyre::Result;
 use types::ExtraConfig;
 
+mod beacon;
 mod block_builder;
 mod builder;
 mod constraints;
 mod engine;
+mod engine_hinter;
+mod error;
+mod execution;
 mod metrics;
 mod proofs;
 mod types;
