@@ -12,8 +12,7 @@ use alloy_eips::{
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_rpc_types_engine::{
-    ExecutionPayload as AlloyExecutionPayload, ExecutionPayloadV1, ExecutionPayloadV2,
-    ExecutionPayloadV3, JwtError, JwtSecret,
+    ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3, JwtError, JwtSecret,
 };
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use axum::http::HeaderMap;
@@ -127,6 +126,20 @@ impl fmt::Display for BlsSecretKeyWrapper {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", const_hex::encode_prefixed(self.0.to_bytes()))
     }
+}
+
+/// Minimal account state needed for commitment validation.
+///
+/// Each account state is 8 + 32 + 1 + 7 (padding) bytes = 48 bytes.
+#[allow(unused)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AccountState {
+    /// The nonce of the account. This is the number of transactions sent from this account
+    pub transaction_count: u64,
+    /// The balance of the account in wei
+    pub balance: U256,
+    /// Flag to indicate if the account is a smart contract or an EOA
+    pub has_code: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
@@ -276,19 +289,10 @@ pub struct RequestConfig {
     pub headers: HeaderMap,
 }
 
-pub fn to_alloy_withdrawal(value: ethereum_consensus::deneb::Withdrawal) -> Withdrawal {
-    Withdrawal {
-        index: value.index as u64,
-        validator_index: value.validator_index as u64,
-        address: Address::from_slice(value.address.as_ref()),
-        amount: value.amount,
-    }
-}
-
 pub(crate) fn to_alloy_execution_payload(
     block: &SealedBlock,
     block_hash: B256,
-) -> AlloyExecutionPayload {
+) -> ExecutionPayloadV3 {
     let alloy_withdrawals = block
         .body
         .withdrawals
@@ -306,7 +310,7 @@ pub(crate) fn to_alloy_execution_payload(
         })
         .unwrap_or_default();
 
-    AlloyExecutionPayload::V3(ExecutionPayloadV3 {
+    ExecutionPayloadV3 {
         blob_gas_used: block.header.header().blob_gas_used.unwrap_or_default(),
         excess_blob_gas: block.excess_blob_gas.unwrap_or_default(),
         payload_inner: ExecutionPayloadV2 {
@@ -328,7 +332,7 @@ pub(crate) fn to_alloy_execution_payload(
             },
             withdrawals: alloy_withdrawals,
         },
-    })
+    }
 }
 
 pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {

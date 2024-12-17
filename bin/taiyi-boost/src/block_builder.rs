@@ -1,19 +1,9 @@
-use std::sync::Arc;
-
-use alloy_consensus::{Header, Transaction, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
-use alloy_eips::{
-    calc_excess_blob_gas, calc_next_block_base_fee,
-    eip1559::BaseFeeParams,
-    eip4895::{Withdrawal, Withdrawals},
-};
-use alloy_network::primitives::BlockTransactionsKind;
-use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+// The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
+use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_eips::{calc_excess_blob_gas, calc_next_block_base_fee, eip1559::BaseFeeParams};
+use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
-use alloy_rpc_types_eth::{Block, BlockId};
-use alloy_transport_http::{reqwest::Client, Http};
-use beacon_api_client::{mainnet::Client as BeaconClient, BlockId as BLBlockId, StateId};
 use cb_common::{
     pbs::{
         DenebSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessage, KzgCommitments,
@@ -22,19 +12,19 @@ use cb_common::{
     signer::BlsSecretKey,
 };
 use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
-use eyre::Result;
-use hex::FromHex;
 use reqwest::Url;
-use reth_primitives::{proofs, BlockBody, SealedBlock, SealedHeader, TransactionSigned};
-use serde_json::Value;
-use tracing::trace;
+use reth_primitives::{proofs, SealedBlock, TransactionSigned};
+use tracing::debug;
 use tree_hash::TreeHash;
 
 use crate::{
-    engine::{EngineApiHint, EngineClient},
+    beacon::BeaconClient,
+    engine_hinter::{EngineHinter, EngineHinterContext},
+    error::BuilderError,
+    execution::ExecutionClient,
     types::{
-        to_alloy_execution_payload, to_alloy_withdrawal, to_blobs_bundle, to_cb_execution_payload,
-        to_cb_execution_payload_header, tx_envelope_to_signed,
+        to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header,
+        tx_envelope_to_signed,
     },
     utils::compute_signing_root,
 };
@@ -55,8 +45,8 @@ const DEFAULT_EXTRA_DATA: [u8; 20] = [
 pub struct LocalBlockBuilder {
     context: Context,
     beacon_api_client: BeaconClient,
-    engine_api_client: EngineClient,
-    execution_api_client: Arc<RootProvider<Http<Client>>>,
+    engine_hinter: EngineHinter,
+    execution_api_client: ExecutionClient,
     fee_recipient: Address,
     extra_data: Bytes,
     bls_secret_key: BlsSecretKey,
@@ -75,13 +65,13 @@ impl LocalBlockBuilder {
         bls_secret_key: BlsSecretKey,
     ) -> Self {
         let beacon_api_client = BeaconClient::new(beacon_api);
-        let engine_api_client = EngineClient::new(engine_api, jwt_secret);
-        let provider = ProviderBuilder::new().on_http(execution_api);
+        let engine_hinter = EngineHinter::new(jwt_secret, engine_api);
+        let execution_api_client = ExecutionClient::new(execution_api);
         Self {
             context,
             beacon_api_client,
-            engine_api_client,
-            execution_api_client: Arc::new(provider),
+            engine_hinter,
+            execution_api_client,
             fee_recipient,
             extra_data: DEFAULT_EXTRA_DATA.into(),
             bls_secret_key,
@@ -94,50 +84,63 @@ impl LocalBlockBuilder {
         &self,
         target_slot: u64,
         transactions: &[TransactionSigned],
-    ) -> Result<SealedBlock> {
-        let latest_block = self
-            .execution_api_client
-            .get_block(BlockId::default(), BlockTransactionsKind::Full)
-            .await?
-            .expect("Failed to fetch latest block");
-        let withdrawals = self.get_expected_withdrawals_at_head().await?;
-        let prev_randao = self.get_prev_randao().await?;
-        let parent_beacon_block_root = B256::from_slice(
-            self.beacon_api_client.get_beacon_block_root(BLBlockId::Head).await?.as_slice(),
-        );
+    ) -> Result<SealedBlock, BuilderError> {
+        // Fetch the latest block to get the necessary parent values for the new block.
+        // For the timestamp, we must use the one expected by the beacon chain instead, to
+        // prevent edge cases where the proposer before us has missed their slot and therefore
+        // the timestamp of the previous block is too far in the past.
+        let head_block_fut = self.execution_api_client.get_block(None, true);
 
-        let versioned_hashes = transactions
-            .iter()
-            .flat_map(|tx| tx.blob_versioned_hashes())
-            .flatten()
-            .cloned()
-            .collect::<Vec<_>>();
-        let base_fee_per_gas = calc_next_block_base_fee(
-            latest_block.header.gas_used,
-            latest_block.header.gas_limit,
-            latest_block.header.base_fee_per_gas.unwrap_or_default(),
-            BaseFeeParams::ethereum(),
-        );
-        let excess_blob_gas = calc_excess_blob_gas(
-            latest_block.header.excess_blob_gas.unwrap_or_default(),
-            latest_block.header.blob_gas_used.unwrap_or_default(),
-        );
+        // Fetch the execution client info from the engine API in order to know what hint
+        // types the engine hinter can parse from the engine API responses.
+        let el_client_info_fut = self.engine_hinter.engine_client_version();
 
-        let blob_gas_used =
-            transactions.iter().fold(0, |acc, tx| acc + tx.blob_gas_used().unwrap_or_default());
+        let (head_block, el_client_info) = tokio::try_join!(head_block_fut, el_client_info_fut)?;
+
+        let el_client_code = el_client_info.first().ok_or(BuilderError::MissingClientInfo)?.code;
+        debug!(client = %el_client_code.client_name(), "Fetched execution client info");
+
+        // Fetch required head info from the beacon client
+        let parent_beacon_block_root_fut = self.beacon_api_client.get_parent_beacon_block_root();
+        let withdrawals_fut = self.beacon_api_client.get_expected_withdrawals_at_head();
+        let prev_randao_fut = self.beacon_api_client.get_prev_randao();
+
+        let (parent_beacon_block_root, withdrawals, prev_randao) =
+            tokio::try_join!(parent_beacon_block_root_fut, withdrawals_fut, prev_randao_fut)?;
+
+        // The next block timestamp must be calculated manually rather than relying on the
+        // previous execution block, to cover the edge case where any previous slots have
+        // been missed by the proposers immediately before us.
         let genesis_time = match self.context.genesis_time() {
             Ok(genesis_time) => genesis_time,
             Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
         };
         let block_timestamp = genesis_time + (target_slot * self.context.seconds_per_slot);
-        let block_body = BlockBody {
-            ommers: Vec::new(),
-            transactions: transactions.to_vec(),
-            withdrawals: Some(Withdrawals::new(withdrawals.clone())),
-        };
 
-        let ctx = BlockContext {
-            base_fee_per_gas,
+        let blob_versioned_hashes = transactions
+            .iter()
+            .flat_map(|tx| tx.blob_versioned_hashes())
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+
+        let base_fee = calc_next_block_base_fee(
+            head_block.header.gas_used,
+            head_block.header.gas_limit,
+            head_block.header.base_fee_per_gas.unwrap_or_default(),
+            BaseFeeParams::ethereum(),
+        );
+
+        let excess_blob_gas = calc_excess_blob_gas(
+            head_block.header.excess_blob_gas.unwrap_or_default(),
+            head_block.header.blob_gas_used.unwrap_or_default(),
+        );
+
+        let blob_gas_used =
+            transactions.iter().fold(0, |acc, tx| acc + tx.blob_gas_used().unwrap_or_default());
+
+        let ctx = EngineHinterContext {
+            base_fee,
             blob_gas_used,
             excess_blob_gas,
             parent_beacon_block_root,
@@ -146,80 +149,26 @@ impl LocalBlockBuilder {
             fee_recipient: self.fee_recipient,
             transactions_root: proofs::calculate_transaction_root(transactions),
             withdrawals_root: proofs::calculate_withdrawals_root(&withdrawals),
+            transactions: transactions.to_vec(),
+            blob_versioned_hashes,
             block_timestamp,
+            withdrawals: withdrawals.to_vec(),
+            head_block,
+            el_client_code,
+            // start the context with empty hints
+            hints: Default::default(),
         };
 
-        let mut hints = Hints::default();
-        let max_iterations = 20;
-        let mut i = 0;
-        loop {
-            let header = build_header_with_hints_and_context(&latest_block, &hints, &ctx);
-
-            let sealed_hash = header.hash_slow();
-            let sealed_header = SealedHeader::new(header, sealed_hash);
-            let sealed_block = SealedBlock::new(sealed_header, block_body.clone());
-
-            let block_hash = hints.block_hash.unwrap_or(sealed_block.hash());
-
-            let exec_payload = to_alloy_execution_payload(&sealed_block, block_hash);
-
-            let engine_hint = self
-                .engine_api_client
-                .fetch_next_payload_hint(&exec_payload, &versioned_hashes, parent_beacon_block_root)
-                .await?;
-
-            match engine_hint {
-                EngineApiHint::BlockHash(hash) => {
-                    trace!("Should not receive block hash hint {:?}", hash);
-                    hints.block_hash = Some(hash)
-                }
-
-                EngineApiHint::GasUsed(gas) => {
-                    hints.gas_used = Some(gas);
-                    hints.block_hash = None;
-                }
-                EngineApiHint::StateRoot(hash) => {
-                    hints.state_root = Some(hash);
-                    hints.block_hash = None
-                }
-                EngineApiHint::ReceiptsRoot(hash) => {
-                    hints.receipts_root = Some(hash);
-                    hints.block_hash = None
-                }
-                EngineApiHint::LogsBloom(bloom) => {
-                    hints.logs_bloom = Some(bloom);
-                    hints.block_hash = None
-                }
-
-                EngineApiHint::ValidPayload => return Ok(sealed_block),
-            }
-
-            if i > max_iterations {
-                return Err(eyre::eyre!(
-                    "Too many iterations: Failed to fetch all missing header values from geth error messages",
-                ));
-            }
-
-            i += 1;
-        }
-    }
-
-    /// Fetch the expected withdrawals for the given slot from the beacon chain.
-    async fn get_expected_withdrawals_at_head(&self) -> Result<Vec<Withdrawal>> {
-        Ok(self
-            .beacon_api_client
-            .get_expected_withdrawals(StateId::Head, None)
-            .await?
-            .into_iter()
-            .map(to_alloy_withdrawal)
-            .collect::<Vec<_>>())
+        // Use the engine API to fetch the missing value for the payload, until we have
+        // all the necessary data to consider it valid and seal the block.
+        self.engine_hinter.fetch_payload_from_hints(ctx).await
     }
 
     pub async fn build_signed_payload_response(
         &self,
         target_slot: u64,
         transactions: &[TxEnvelope],
-    ) -> Result<SignedPayloadResponse> {
+    ) -> eyre::Result<SignedPayloadResponse> {
         let signed_transactions: Vec<TransactionSigned> =
             transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
         let blobs_bundle = to_blobs_bundle(transactions);
@@ -244,7 +193,7 @@ impl LocalBlockBuilder {
         value: U256,
         header: ExecutionPayloadHeader<DenebSpec>,
         blob_kzg_commitments: KzgCommitments<DenebSpec>,
-    ) -> Result<SignedExecutionPayloadHeader> {
+    ) -> eyre::Result<SignedExecutionPayloadHeader> {
         let consensus_pubkey = self.bls_secret_key.sk_to_pk().to_bytes();
         let pubkey = BlsPublicKey::from(consensus_pubkey);
         let message = ExecutionPayloadHeaderMessage { header, blob_kzg_commitments, value, pubkey };
@@ -264,96 +213,14 @@ impl LocalBlockBuilder {
         let signature = self.bls_secret_key.sign(&signing_root, BLS_DST_SIG, &[]).to_bytes();
         Ok(SignedExecutionPayloadHeader { message, signature: signature.into() })
     }
-
-    /// Fetch the previous RANDAO value from the beacon chain.
-    ///
-    /// NOTE: for some reason, using the ApiResult from `beacon_api_client` doesn't work, so
-    /// we are making a direct request to the beacon client endpoint.
-    async fn get_prev_randao(&self) -> Result<B256> {
-        let url = self.beacon_api_client.endpoint.join("/eth/v1/beacon/states/head/randao")?;
-
-        reqwest::Client::new()
-            .get(url)
-            .send()
-            .await?
-            .json::<Value>()
-            .await?
-            .pointer("/data/randao")
-            .and_then(|value| value.as_str())
-            .map(|value| B256::from_hex(value).map_err(|e| eyre::eyre!("{:?}", e)))
-            .ok_or_else(|| eyre::eyre!("Failed to fetch prev RANDAO"))?
-    }
-}
-
-/// Build a header with the given hints and context values.
-fn build_header_with_hints_and_context(
-    latest_block: &Block,
-    hints: &Hints,
-    context: &BlockContext,
-) -> Header {
-    // Use the available hints, or default to an empty value if not present.
-    let gas_used = hints.gas_used.unwrap_or_default();
-    let receipts_root = hints.receipts_root.unwrap_or_default();
-    let logs_bloom = hints.logs_bloom.unwrap_or_default();
-    let state_root = hints.state_root.unwrap_or_default();
-
-    Header {
-        parent_hash: latest_block.header.hash,
-        ommers_hash: EMPTY_OMMER_ROOT_HASH,
-        beneficiary: context.fee_recipient,
-        state_root,
-        transactions_root: context.transactions_root,
-        receipts_root,
-        withdrawals_root: Some(context.withdrawals_root),
-        logs_bloom,
-        difficulty: U256::ZERO,
-        number: latest_block.header.number + 1,
-        gas_limit: latest_block.header.gas_limit,
-        gas_used,
-        timestamp: context.block_timestamp,
-        mix_hash: context.prev_randao,
-        nonce: B64::ZERO,
-        base_fee_per_gas: Some(context.base_fee_per_gas),
-        blob_gas_used: Some(context.blob_gas_used),
-        excess_blob_gas: Some(context.excess_blob_gas),
-        parent_beacon_block_root: Some(context.parent_beacon_block_root),
-        requests_hash: None,
-        extra_data: context.extra_data.clone(),
-        target_blobs_per_block: None,
-    }
-}
-
-/// Lightweight context struct to hold the necessary values for
-/// building a sealed block. Some of this data is fetched from the
-/// beacon chain, while others are calculated locally or from the
-/// transactions themselves.
-#[derive(Debug, Default)]
-struct BlockContext {
-    extra_data: Bytes,
-    base_fee_per_gas: u64,
-    blob_gas_used: u64,
-    excess_blob_gas: u64,
-    prev_randao: B256,
-    fee_recipient: Address,
-    transactions_root: B256,
-    withdrawals_root: B256,
-    parent_beacon_block_root: B256,
-    block_timestamp: u64,
-}
-
-#[derive(Debug, Default)]
-struct Hints {
-    pub gas_used: Option<u64>,
-    pub receipts_root: Option<B256>,
-    pub logs_bloom: Option<Bloom>,
-    pub state_root: Option<B256>,
-    pub block_hash: Option<B256>,
 }
 
 #[cfg(test)]
 mod test {
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
     use alloy_network::{EthereumWallet, TransactionBuilder};
+    use alloy_primitives::Address;
+    use alloy_provider::{Provider, ProviderBuilder};
     use alloy_signer::k256::ecdsa::SigningKey;
     use alloy_signer_local::PrivateKeySigner;
     use cb_common::utils::utcnow_sec;
