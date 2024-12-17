@@ -36,62 +36,62 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-common = { path = "crates/common" }
 
-axum = { version = "0.7.7", features = ["macros"] }
-axum-extra = { version = "0.9.4", features = ["typed-header"] }
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "cf3c404043230559660810bc0c9d6d5a8498d819" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "d24987fde753011488677ed10122c367ccf32938" }
+axum = { version = "0.7.9", features = ["macros"] }
+axum-extra = { version = "0.9.6", features = ["typed-header"] }
+ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
+beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
 
 # alloy
-alloy-primitives = { version = "0.8.8", default-features = false }
-alloy-rpc-types-beacon = { version = "0.5.4", default-features = false }
-alloy-rpc-types-engine = { version = "0.6.4", default-features = false }
-alloy-rpc-types = { version = "0.6.4", features = ["eth"], default-features = false }
-alloy-network = { version = "0.6.4", default-features = false }
-alloy-provider = { version = "0.6.4", features = ["reqwest"], default-features = false }
-alloy-signer = { version = "0.6.4", default-features = false }
-alloy-signer-local = { version = "0.6.4", features = ["mnemonic"] }
-alloy-transport = { version = "0.6.4" }
-alloy-contract = { version = "0.6.4" }
-alloy-eips = { version = "0.6.4", default-features = false }
-alloy-consensus = { version = "0.6.4", features = ["k256"] }
-alloy-rlp = "0.3.8"
-alloy-sol-types = "0.8.8"
-alloy-node-bindings = { version = "0.6.4", default-features = false }
-alloy-rpc-client = { version = "0.6.4", default-features = false }
-alloy-transport-http ={ version = "0.6.4", default-features = false }
-alloy-rpc-types-eth = { version = "0.6.4", default-features = false }
-alloy-rpc-types-trace = { version = "0.6.4", default-features = false }
+alloy-primitives = { version = "0.8.15", default-features = false }
+alloy-rpc-types-beacon = { version = "0.8.0", default-features = false }
+alloy-rpc-types-engine = { version = "0.8.1", default-features = false }
+alloy-rpc-types = { version = "0.8.1", features = ["eth"], default-features = false }
+alloy-network = { version = "0.8.1", default-features = false }
+alloy-provider = { version = "0.8.1", features = ["reqwest"], default-features = false }
+alloy-signer = { version = "0.8.1", default-features = false }
+alloy-signer-local = { version = "0.8.1", features = ["mnemonic"] }
+alloy-transport = { version = "0.8.1" }
+alloy-contract = { version = "0.8.1" }
+alloy-eips = { version = "0.8.1", default-features = false }
+alloy-consensus = { version = "0.8.1", features = ["k256"] }
+alloy-rlp = "0.3.10"
+alloy-sol-types = "0.8.15"
+alloy-node-bindings = { version = "0.8.1", default-features = false }
+alloy-rpc-client = { version = "0.8.1", default-features = false }
+alloy-transport-http ={ version = "0.8.1", default-features = false }
+alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
+alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
 
 # reth
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.2" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-common = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
 
-clap = { version = "4.5.20", features = ["derive", "env"] }
+clap = { version = "4.5.23", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
-serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.132"
-tokio = { version = "1.37.0", features = ["full"] }
-thiserror = { version = "1.0.64" }
-parking_lot = "0.12"
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+tokio = { version = "1.42.0", features = ["full"] }
+thiserror = { version = "2.0.7" }
+parking_lot = "0.12.3"
 futures = "0.3.31"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-blst = "0.3.12"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+blst = "0.3.13"
 lru = "0.12.5"
 priority-queue = "2.1.1"
-ahash = "0.8.6"
+ahash = "0.8.11"
 ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "ec3073e2273b4d0873fcb6df68ff4eff79588e92" }
-time = { version = "0.3.36", features = ["macros", "formatting", "parsing"] }
+time = { version = "0.3.37", features = ["macros", "formatting", "parsing"] }
 async-trait = "0.1.83"
-reqwest = "0.12.8"
+reqwest = "0.12.9"
 secp256k1 = { version = "0.30.0", features = ["global-context"] }
 k256 = "0.13.4"
 derive_more = "1.0.0"
@@ -101,16 +101,16 @@ futures-util = "0.3.31"
 lazy_static = "1.5.0"
 prometheus = "0.13.4"
 hex = "0.4.3"
-lighthouse_eth2_keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", rev = "2e0eb6d1b8705bbda2ba56eb195d9cc7c6575e95" }
+lighthouse_eth2_keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", tag = "v6.0.1" }
 tonic = "0.12.3"
-prost = "0.13.3"
+prost = "0.13.4"
 tonic-build = "0.12.3"
-rustls = "0.23.15"
-tiny-bip39 = "1.0.0"
+rustls = "0.23.20"
+tiny-bip39 = "2.0.0"
 zeroize = "1.8.1"
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
-scc = "2.2.5"
+scc = "2.2.6"
 ethereum_ssz = "0.7"
 ethereum_ssz_derive = "0.7"
 ssz_types = "0.8"
-lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v6.0.0" }
+lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v6.0.1" }

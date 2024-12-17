@@ -19,7 +19,7 @@ use ethereum_consensus::{
     ssz::prelude::ByteList,
 };
 use futures::StreamExt;
-use reth_primitives::PooledTransactionsElement;
+use reth_primitives::PooledTransaction;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, ContextExt, PreconfRequest,

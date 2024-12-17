@@ -4,7 +4,6 @@ use alloy_consensus::{Header, Transaction, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
 use alloy_eips::{
     calc_excess_blob_gas, calc_next_block_base_fee,
     eip1559::BaseFeeParams,
-    eip1898::BlockId,
     eip4895::{Withdrawal, Withdrawals},
 };
 use alloy_network::primitives::BlockTransactionsKind;
@@ -12,7 +11,7 @@ use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
-use alloy_rpc_types_eth::Block;
+use alloy_rpc_types_eth::{Block, BlockId};
 use alloy_transport_http::{reqwest::Client, Http};
 use beacon_api_client::{mainnet::Client as BeaconClient, BlockId as BLBlockId, StateId};
 use cb_common::{
@@ -320,6 +319,7 @@ fn build_header_with_hints_and_context(
         parent_beacon_block_root: Some(context.parent_beacon_block_root),
         requests_hash: None,
         extra_data: context.extra_data.clone(),
+        target_blobs_per_block: None,
     }
 }
 

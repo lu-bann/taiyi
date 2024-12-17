@@ -14,7 +14,7 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>()?;
+    let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>().await?;
     let _guard = initialize_pbs_tracing_log()?;
 
     let sidecar_state = SidecarBuilderState::new(&extra).await;

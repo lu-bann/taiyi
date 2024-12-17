@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use alloy_consensus::{Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
+use alloy_consensus::{BlockHeader, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
@@ -307,7 +307,7 @@ pub(crate) fn to_alloy_execution_payload(
         .unwrap_or_default();
 
     AlloyExecutionPayload::V3(ExecutionPayloadV3 {
-        blob_gas_used: block.blob_gas_used(),
+        blob_gas_used: block.header.header().blob_gas_used.unwrap_or_default(),
         excess_blob_gas: block.excess_blob_gas.unwrap_or_default(),
         payload_inner: ExecutionPayloadV2 {
             payload_inner: ExecutionPayloadV1 {
@@ -315,7 +315,7 @@ pub(crate) fn to_alloy_execution_payload(
                 block_hash,
                 block_number: block.number,
                 extra_data: block.extra_data.clone(),
-                transactions: block.raw_transactions(),
+                transactions: block.encoded_2718_transactions(),
                 fee_recipient: block.header.beneficiary,
                 gas_limit: block.gas_limit,
                 gas_used: block.gas_used,
@@ -355,7 +355,7 @@ pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
         }
         _ => panic!("Unsupported transaction type: {tx:?}"),
     };
-    TransactionSigned { transaction, signature, hash }
+    TransactionSigned { transaction, signature, hash: hash.into() }
 }
 pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebSpec>> {
     let blobs_bundle = transactions
@@ -435,7 +435,7 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpe
         block_hash: hash,
         transactions,
         withdrawals,
-        blob_gas_used: value.blob_gas_used(),
+        blob_gas_used: value.blob_gas_used().unwrap_or_default(),
         excess_blob_gas: value.excess_blob_gas.unwrap_or_default(),
     }
 }
