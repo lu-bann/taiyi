@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    tags:
+      - 'v*'
+
+env:
+  FOUNDRY_PROFILE: ci
+  API_KEY_INFURA: ${{ secrets.API_KEY_INFURA }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  unit-tests:
+    name: Run All Tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/ci.yml@main
+
+  e2e-tests:
+    name: Run E2E Tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/e2e-tests.yml@main
+
+  docker:
+    name: Build and Push Docker Image
+    needs: [unit-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/taiyi
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=long
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  release:
+    name: Build and Release Binaries
+    needs: [unit-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Prepare assets
+        shell: bash
+        run: |
+          mkdir -p release
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp target/${{ matrix.target }}/release/taiyi.exe release/taiyi-${{ matrix.target }}.exe
+            cp target/${{ matrix.target }}/release/taiyi-boost.exe release/taiyi-boost-${{ matrix.target }}.exe
+            cp target/${{ matrix.target }}/release/taiyi-cli.exe release/taiyi-cli-${{ matrix.target }}.exe
+          else
+            cp target/${{ matrix.target }}/release/taiyi release/taiyi-${{ matrix.target }}
+            cp target/${{ matrix.target }}/release/taiyi-boost release/taiyi-boost-${{ matrix.target }}
+            cp target/${{ matrix.target }}/release/taiyi-cli release/taiyi-cli-${{ matrix.target }}
+          fi
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: taiyi-${{ matrix.target }}
+          path: release/*
+
+  github-release:
+    name: Create GitHub Release
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          prerelease: ${{ github.ref == 'refs/heads/staging' }}
