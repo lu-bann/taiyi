@@ -4,9 +4,9 @@ pragma solidity ^0.8.25;
 import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
-import { EnumerableSet } from "open-zeppelin/utils/structs/EnumerableSet.sol";
-import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
-import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { OwnableUpgradeable } from "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title TaiyiProposerRegistry
 /// @notice Registry contract for managing validators and operators in the Taiyi protocol
@@ -25,7 +25,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
     mapping(address => Operator) public registeredOperators;
 
     EnumerableSet.AddressSet private restakingMiddlewareContracts;
-
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
@@ -88,23 +87,28 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
 
         //avsDirectory.registerOperatorToAVS(operator, operatorSignature);
 
-        Operator memory operator = Operator({
-            operatorAddress: operatorAddress,
-            rpc: rpcUrl,
-            restakingMiddlewareContract: middlewareContract
-        });
+        Operator memory operator =
+            Operator({ operatorAddress: operatorAddress, rpc: rpcUrl, restakingMiddlewareContract: middlewareContract });
 
         registeredOperators[operatorAddress] = operator;
     }
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
-    function deregisterOperator(address operatorAddress) onlyRestakingMiddlewareContracts external {
+    function deregisterOperator(address operatorAddress) external onlyRestakingMiddlewareContracts {
         require(registeredOperators[operatorAddress].operatorAddress != address(0), "Operator not registered");
 
         //avsDirectory.deregisterOperatorFromAVS(operator);
 
         delete registeredOperators[operatorAddress];
+    }
+
+    /// @notice Checks if an operator is registered in the registry
+    /// @param operatorAddress The address of the operator to check
+    /// @return bool True if the operator is registered, false otherwise
+    function isOperatorRegistered(address operatorAddress) public view returns (bool) {
+        Operator memory operator = registeredOperators[operatorAddress];
+        return operator.restakingMiddlewareContract != address(0);
     }
 
     /// @notice Registers a single validator
@@ -201,7 +205,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
         _registerValidators(pubkeys, operator);
     }
 
-
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
@@ -239,7 +242,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
     }
 
     //////// VIEW ////////
-
 
     /// @notice Gets validator status by public key hash
     /// @param pubKeyHash Hash of the validator's public key

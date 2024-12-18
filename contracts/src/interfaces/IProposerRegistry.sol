@@ -50,31 +50,26 @@ interface IProposerRegistry {
     /// @param operatorAddress The address of the operator to register
     /// @param rpcUrl The RPC URL of the operator
     /// @param middlewareContract The middleware contract address
-    function registerOperator(
-        address operatorAddress,
-        string calldata rpcUrl,
-        address middlewareContract
-    ) external;
+    function registerOperator(address operatorAddress, string calldata rpcUrl, address middlewareContract) external;
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
     function deregisterOperator(address operatorAddress) external;
 
+    /// @notice Checks if an operator is registered in the registry
+    /// @param operatorAddress The address of the operator to check
+    /// @return bool True if the operator is registered, false otherwise
+    function isOperatorRegistered(address operatorAddress) external view returns (bool);
+
     /// @notice Registers a single validator
     /// @param pubkey The BLS public key of the validator
     /// @param operator The operator address for the validator
-    function registerValidator(
-        bytes calldata pubkey,
-        address operator
-    ) external payable;
+    function registerValidator(bytes calldata pubkey, address operator) external payable;
 
     /// @notice Registers multiple validators in a single transaction
     /// @param pubkeys Array of BLS public keys
     /// @param operator The operator address for all validators
-    function batchRegisterValidators(
-        bytes[] calldata pubkeys,
-        address operator
-    ) external payable;
+    function batchRegisterValidators(bytes[] calldata pubkeys, address operator) external payable;
 
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
@@ -85,7 +80,6 @@ interface IProposerRegistry {
     /// @notice Confirms the opt-out process after the cooldown period
     /// @param pubKeyHash The hash of the validator's BLS public key
     function confirmOptOut(bytes32 pubKeyHash) external;
-
 
     /// @notice Gets operator address for a validator
     /// @param pubKeyHash Hash of the validator's public key

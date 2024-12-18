@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { SignatureChecker } from "open-zeppelin/utils/cryptography/SignatureChecker.sol";
+import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
 import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
-import "open-zeppelin/utils/cryptography/ECDSA.sol";
-import { Ownable } from "open-zeppelin/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/console.sol";
 import { NonceManager } from "./utils/NonceManager.sol";
 import { SlotLib } from "./libs/SlotLib.sol";
 import { Helper } from "./utils/Helper.sol";
 
-contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager  {
+contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager {
     using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
@@ -37,13 +37,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     event TipCollected(uint256 amount, bytes32 preconfRequestHash);
     event TransactionExecutionFailed(address to, uint256 value);
 
-    constructor(
-        address initialOwner,
-        uint256 genesisTimestamp,
-        address proposerRegistry
-    )
-        Ownable(initialOwner)
-    {
+    constructor(address initialOwner, uint256 genesisTimestamp, address proposerRegistry) Ownable(initialOwner) {
         GENESIS_TIMESTAMP = genesisTimestamp;
     }
 

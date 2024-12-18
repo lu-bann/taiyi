@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-
 interface IRestakingMiddlewareContract {
     // ========= INITIALIZER & UPGRADE FUNCTIONS =========
 
@@ -15,7 +14,8 @@ interface IRestakingMiddlewareContract {
         address _parameters,
         address _manager,
         address[] calldata restakingProtocolAddresses
-    ) external;
+    )
+        external;
 
     /// @notice Upgrades the middleware contract to version 2.
     /// @param _owner The address of the contract owner.
@@ -27,16 +27,14 @@ interface IRestakingMiddlewareContract {
         address _parameters,
         address _manager,
         address[] calldata restakingProtocolAddresses
-    ) external;
+    )
+        external;
 
     // ========= OPERATOR MANAGEMENT =========
 
-
     /// @notice Allows an operator to register with the middleware (EigenLayer-specific).
     /// @param rpc The RPC URL of the operator.
-    function registerOperator(
-        string calldata rpc
-    ) external;
+    function registerOperator(string calldata rpc) external;
 
     /// @notice Deregisters an operator from the middleware.
     function deregisterOperator() external;
@@ -83,9 +81,10 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator.
     /// @return collaterals An array of collateral token addresses.
     /// @return amounts An array of amounts staked corresponding to each collateral.
-    function getOperatorCollaterals(
-        address operator
-    ) external view returns (address[] memory collaterals, uint256[] memory amounts);
+    function getOperatorCollaterals(address operator)
+        external
+        view
+        returns (address[] memory collaterals, uint256[] memory amounts);
 
     /// @notice Gets the amount of tokens delegated to an operator for a specific collateral.
     /// @param operator The address of the operator.
@@ -102,7 +101,10 @@ interface IRestakingMiddlewareContract {
         address operator,
         address collateral,
         uint48 timestamp
-    ) external view returns (uint256 amount);
+    )
+        external
+        view
+        returns (uint256 amount);
 
     // ========= EPOCH MANAGEMENT =========
 
@@ -128,9 +130,7 @@ interface IRestakingMiddlewareContract {
 
     /// @notice Registers an operator to the AVS (EigenLayer-specific).
     /// @param operator The address of the operator.
-    function registerOperatorToAVS(
-        address operator
-    ) external;
+    function registerOperatorToAVS(address operator) external;
 
     /// @notice Deregisters an operator from the AVS (EigenLayer-specific).
     /// @param operator The address of the operator.
@@ -154,10 +154,5 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator to slash.
     /// @param collateral The address of the collateral token.
     /// @param amount The amount to slash.
-    function slash(
-        uint48 timestamp,
-        address operator,
-        address collateral,
-        uint256 amount
-    ) external;
+    function slash(uint48 timestamp, address operator, address collateral, uint256 amount) external;
 }
