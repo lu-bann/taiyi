@@ -2,9 +2,6 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
-      - staging
     tags:
       - 'v*'
 
@@ -116,4 +113,4 @@ jobs:
         with:
           files: artifacts/**/*
           generate_release_notes: true
-          prerelease: ${{ github.ref == 'refs/heads/staging' }}
+          prerelease: ${{ contains(github.ref, 'alpha') }}
