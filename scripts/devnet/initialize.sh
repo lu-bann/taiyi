@@ -6,8 +6,8 @@ source "$(dirname "$0")/config.sh"
 pushd $WORKING_DIR
 rm -rf el_cl_genesis_data
 rm -rf 1-lighthouse-reth-0-63-0
-kurtosis files download luban el_cl_genesis_data
-kurtosis files download luban 1-lighthouse-reth-0-63-0
+kurtosis files download $ENCLAVE_NAME el_cl_genesis_data
+kurtosis files download $ENCLAVE_NAME 1-lighthouse-reth-0-63-0
 export GENESIS_TIMESTAMP=`jq -r '.timestamp' ./el_cl_genesis_data/genesis.json`
 popd
 
