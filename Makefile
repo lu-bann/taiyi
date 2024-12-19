@@ -18,6 +18,9 @@ e2e-setup:
 e2e-test:
 	bash scripts/devnet/start-e2e-tests.sh
 
+e2e-clean:
+	bash scripts/devnet/clean.sh
+
 make e2e:
 	make e2e-network
 	make e2e-setup
