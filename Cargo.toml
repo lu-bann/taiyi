@@ -83,6 +83,7 @@ thiserror = { version = "2.0.7" }
 parking_lot = "0.12.3"
 futures = "0.3.31"
 tracing = "0.1.41"
+tracing-core = "0.1.33"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 blst = "0.3.13"
 lru = "0.12.5"
