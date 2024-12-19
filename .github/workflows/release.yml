@@ -6,22 +6,14 @@ on:
       - 'v*'
 
 env:
-  FOUNDRY_PROFILE: ci
-  API_KEY_INFURA: ${{ secrets.API_KEY_INFURA }}
   CARGO_TERM_COLOR: always
 
 jobs:
   unit-tests:
-    name: Run All Tests
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/workflows/ci.yml@main
+    uses: lu-bann/taiyi/.github/workflows/ci.yml@main
 
   e2e-tests:
-    name: Run E2E Tests
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/workflows/e2e-tests.yml@main
+    uses: lu-bann/taiyi/.github/workflows/e2e-tests.yml@main
 
   docker:
     name: Build and Push Docker Image
@@ -113,4 +105,4 @@ jobs:
         with:
           files: artifacts/**/*
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref, 'alpha') }}
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
