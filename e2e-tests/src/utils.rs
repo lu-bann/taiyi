@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use std::{path::Path, time::Duration};
+use std::{path::Path, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::U256;
@@ -16,7 +16,8 @@ use reqwest::Url;
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, PreconfRequest, PreconfResponse, SignedConstraints,
+    BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
+    PreconfResponse, SignedConstraints,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -24,6 +25,10 @@ use tracing::{error, info};
 use crate::constant::{
     PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, PRECONF_REQUEST_PATH, SLOT_CHECK_INTERVAL_SECONDS,
 };
+
+lazy_static::lazy_static! {
+    static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
+}
 
 #[derive(Clone)]
 pub struct TestConfig {
@@ -149,6 +154,19 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResp
     Ok(available_slots)
 }
 
+pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
+    let client = reqwest::Client::new();
+    let request = EstimateFeeRequest { slot };
+    let res = client
+        .post(&format!("{}/gateway/v0/estimate_fee", taiyi_url))
+        .json(&request)
+        .send()
+        .await?;
+    let res_b = res.bytes().await?;
+    let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
+    Ok(estimate_fee)
+}
+
 pub async fn get_constraints_from_relay(
     relay_url: &str,
     target_slot: u64,
@@ -220,7 +238,7 @@ pub async fn submit_preconf_request(
 }
 
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
-    initialize_tracing_log();
+    init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);
     info!("Waiting for slot greater than 32");
@@ -231,4 +249,12 @@ pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfi
     let taiyi_handle = start_taiyi_command_for_testing(&config).await?;
     tokio::time::sleep(Duration::from_secs(10)).await;
     Ok((taiyi_handle, config))
+}
+
+fn init_log() {
+    let is_init = &mut LOG_INIT.lock().unwrap();
+    if !**is_init {
+        initialize_tracing_log();
+        **is_init = true;
+    }
 }

@@ -5,17 +5,16 @@ use tracing::info;
 use crate::{
     constant::{PRECONFER_BLS_PK, SIGNER_PRIVATE},
     utils::{
-        generate_tx, get_available_slot, get_constraints_from_relay, setup_env,
+        generate_tx, get_available_slot, get_constraints_from_relay, get_estimate_fee, setup_env,
         submit_preconf_request, wait_until_slot, wati_until_deadline_of_slot, TestConfig,
     },
 };
 
 #[tokio::test]
 async fn test_with_taiyi_command() -> eyre::Result<()> {
-    info!("Starting preconfer");
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
-    // ...
+
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
 
     let target_slot = available_slot.first().unwrap().slot;
@@ -44,6 +43,21 @@ async fn test_with_taiyi_command() -> eyre::Result<()> {
     assert_eq!(tx_ret, tx);
 
     // Optionally, cleanup when done
+    taiyi_handle.abort();
+    Ok(())
+}
+#[tokio::test]
+async fn test_estimate_fee() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+
+    let target_slot = available_slot.first().unwrap().slot;
+
+    let estimate_fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
+
+    info!("estimate_fee: {:?}", estimate_fee);
     taiyi_handle.abort();
     Ok(())
 }

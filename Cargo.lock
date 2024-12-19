@@ -7180,6 +7180,7 @@ dependencies = [
  "ethereum-consensus",
  "eyre",
  "hex",
+ "lazy_static",
  "reqwest 0.12.9",
  "serde",
  "serde_json",
@@ -7188,6 +7189,7 @@ dependencies = [
  "taiyi-primitives",
  "tokio",
  "tracing",
+ "tracing-core",
  "tree_hash 0.8.0",
 ]
 
@@ -7226,10 +7228,12 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-rpc-types-beacon",
+ "alloy-rpc-types-trace",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
+ "alloy-transport-http",
  "axum",
  "beacon-api-client",
  "blst",

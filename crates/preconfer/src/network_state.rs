@@ -23,6 +23,10 @@ impl NetworkState {
         }
     }
 
+    pub fn chain_id(&self) -> u64 {
+        self.context.deposit_chain_id as u64
+    }
+
     pub fn get_context(&self) -> Context {
         self.context.clone()
     }

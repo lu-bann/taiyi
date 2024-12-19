@@ -25,6 +25,8 @@ pub enum RpcError {
     PreconfRequestError(String),
     #[error("Signature error: {0:?}")]
     SignatureError(String),
+    #[error("Params error: {0:?}")]
+    ParamsError(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
