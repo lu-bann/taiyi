@@ -2,117 +2,103 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "../src/TaiyiProposerRegistry.sol";
+import "../src/interfaces/IProposerRegistry.sol";
 
 contract TaiyiProposerRegistryTest is Test {
     TaiyiProposerRegistry public registry;
-    address public proposer1 = address(0x1);
-    address public proposer2 = address(0x2);
-    bytes public blsPubKey1 = hex"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    bytes public blsPubKey2 = hex"fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+
+    address owner = makeAddr("owner");
+    address middleware = makeAddr("middleware");
+    address operator = makeAddr("operator");
+    address operator2 = makeAddr("operator2");
 
     function setUp() public {
+        // Deploy the registry
         registry = new TaiyiProposerRegistry();
+        registry.initialize(owner, address(0), address(0));
+
+        // Verify operators aren't registered after initialization
+        assertFalse(registry.isOperatorRegistered(operator));
+        assertFalse(registry.isOperatorRegistered(operator2));
+
+        // Add a restaking contract
+        vm.prank(owner);
+        registry.addRestakingMiddlewareContract(middleware);
     }
 
-    // function testOptInRequires32Eth() public {
-    //     vm.deal(proposer1, TaiyiProposerRegistryLib.STAKE_AMOUNT);
-    //     vm.prank(proposer1);
-    //     registry.optIn{ value: TaiyiProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
+    function testInitialization() public {
+        assertEq(registry.owner(), owner);
+    }
 
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(TaiyiProposerRegistry.ProposerStatus.OptIn),
-    //         "Proposer status should be OptIn"
-    //     );
-    //     assertEq(address(registry).balance, TaiyiProposerRegistryLib.STAKE_AMOUNT);
-    // }
+    function testRegisterOperator() public {
+        // Must be called by the restaking contract
+        vm.prank(middleware);
+        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
 
-    // function testCannotWithdrawBeforeCooldown() public {
-    //     vm.deal(proposer1, TaiyiProposerRegistryLib.STAKE_AMOUNT);
-    //     vm.startPrank(proposer1);
-    //     registry.optIn{ value: TaiyiProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
+        // Check that it was registered
+        (address opAddr, string memory rpcUrl, address restakingContract) = getOperatorData(operator);
+        assertEq(opAddr, operator);
+        assertEq(rpcUrl, "https://rpc-operator");
+        assertEq(restakingContract, address(0xdead));
 
-    //     registry.initOptOut();
+        bool isReg = registry.isOperatorRegistered(operator);
+        assertTrue(isReg);
+    }
 
-    //     vm.expectRevert("Cooldown not elapsed");
-    //     registry.confirmOptOut();
+    function testRegisterOperatorRevertsIfAlreadyRegistered() public {
+        // First time success
+        vm.prank(middleware);
+        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
 
-    //     vm.warp(block.timestamp + 23 hours);
-    //     vm.expectRevert("Cooldown not elapsed");
-    //     registry.confirmOptOut();
+        // Second time revert
+        vm.prank(middleware);
+        vm.expectRevert(bytes("Operator already registered"));
+        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+    }
 
-    //     vm.warp(block.timestamp + 2 hours);
-    //     registry.confirmOptOut();
-    //     assertEq(proposer1.balance, TaiyiProposerRegistryLib.STAKE_AMOUNT);
-    //     vm.stopPrank();
-    // }
+    function testRegisterOperatorRevertsIfNotCalledByMiddleware() public {
+        vm.expectRevert(bytes("Unauthorized middleware"));
+        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+    }
 
-    // function testOptOutThenOptInLater() public {
-    //     vm.deal(proposer1, 64 ether);
-    //     vm.startPrank(proposer1);
+    function testDeregisterOperator() public {
+        // Register
+        vm.prank(middleware);
+        registry.registerOperator(operator2, "https://rpc-operator2", address(0xbeef));
 
-    //     // First opt-in
-    //     registry.optIn{ value: TaiyiProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(TaiyiProposerRegistry.ProposerStatus.OptIn),
-    //         "Proposer status should be OptIn"
-    //     );
+        // Deregister
+        vm.prank(middleware);
+        registry.deregisterOperator(operator2);
 
-    //     // Opt-out process
-    //     registry.initOptOut();
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(TaiyiProposerRegistry.ProposerStatus.OptingOut),
-    //         "Proposer status should be OptingOut"
-    //     );
+        bool isReg = registry.isOperatorRegistered(operator2);
+        assertFalse(isReg);
 
-    //     vm.warp(block.timestamp + 1 days + 1);
-    //     registry.confirmOptOut();
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(ProposerRegistry.ProposerStatus.OptedOut),
-    //         "Proposer status should be OptedOut"
-    //     );
+        // Confirm operator record is reset
+        (address opAddr, string memory rpcUrl, address restakingContract) = getOperatorData(operator2);
+        assertEq(opAddr, address(0));
+        assertEq(bytes(rpcUrl).length, 0);
+        assertEq(restakingContract, address(0));
+    }
 
-    //     // Opt-in again
-    //     registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(ProposerRegistry.ProposerStatus.OptIn),
-    //         "Proposer status should be OptIn"
-    //     );
+    function testDeregisterOperatorRevertIfNotRegistered() public {
+        vm.prank(middleware);
+        vm.expectRevert(bytes("Operator not registered"));
+        registry.deregisterOperator(operator2);
+    }
 
-    //     vm.stopPrank();
-    // }
+    function testIsOperatorRegisteredFalseWhenNotRegistered() public {
+        bool isReg = registry.isOperatorRegistered(operator2);
+        assertFalse(isReg);
+    }
 
-    // function testProposerStatusAfterOptOut() public {
-    //     vm.deal(proposer1, 32 ether);
-    //     vm.startPrank(proposer1);
-
-    //     registry.optIn{ value: ProposerRegistryLib.STAKE_AMOUNT }(blsPubKey1);
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(ProposerRegistry.ProposerStatus.OptIn),
-    //         "Proposer status should be OptIn"
-    //     );
-
-    //     registry.initOptOut();
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(ProposerRegistry.ProposerStatus.OptingOut),
-    //         "Proposer status should be OptingOut"
-    //     );
-
-    //     vm.warp(block.timestamp + 1 days + 1);
-    //     registry.confirmOptOut();
-    //     assertEq(
-    //         uint8(registry.getProposerStatus(blsPubKey1)),
-    //         uint8(ProposerRegistry.ProposerStatus.OptedOut),
-    //         "Proposer status should be OptedOut"
-    //     );
-
-    //     vm.stopPrank();
-    // }
+    // Helper function to read the Operator struct
+    function getOperatorData(address operatorAddr)
+        internal
+        view
+        returns (address opAddress, string memory rpc, address restakingContract)
+    {
+        (opAddress, rpc, restakingContract) = registry.registeredOperators(operatorAddr);
+    }
 }

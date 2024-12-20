@@ -1,7 +1,5 @@
 
 forge-std/=lib/forge-std/src/
-@axiom-crypto/axiom-std/=lib/axiom-std/src
-@axiom-crypto/v2-periphery/=lib/axiom-v2-periphery/src
 @openzeppelin/=lib/openzeppelin-contracts/
 @openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 @eigenlayer-middleware/=lib/eigenlayer-middleware/src/

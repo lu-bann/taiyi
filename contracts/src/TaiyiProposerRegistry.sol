@@ -33,8 +33,6 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
     function initialize(address _owner, address _proposerRegistry, address _avsDirectory) external initializer {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
-
-        transferOwnership(_owner);
     }
 
     /// @notice Authorizes an upgrade to a new implementation
@@ -83,7 +81,7 @@ contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, Ownabl
         external
         onlyRestakingMiddlewareContracts
     {
-        require(registeredOperators[operatorAddress].operatorAddress != address(0), "Operator already registered");
+        require(registeredOperators[operatorAddress].operatorAddress == address(0), "Operator already registered");
 
         //avsDirectory.registerOperatorToAVS(operator, operatorSignature);
 

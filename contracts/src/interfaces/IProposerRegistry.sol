@@ -21,9 +21,9 @@ interface IProposerRegistry {
     }
 
     struct Operator {
+        address operatorAddress;
         string rpc;
         address restakingMiddlewareContract;
-        address operatorAddress;
     }
 
     // Events
