@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,7 +49,7 @@ jobs:
   release:
     name: Build and Release Binaries
     needs: [unit-tests, e2e-tests]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
@@ -58,16 +59,16 @@ jobs:
             os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@1.83.0
         with:
           targets: ${{ matrix.target }}
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
       - name: Prepare assets
