@@ -12,18 +12,18 @@ use ProposerRegistry::ProposerRegistryInstance;
 #[derive(Debug, Parser)]
 pub struct BatchRegisterCommand {
     /// rpc url
-    #[clap(long = "rpc_url")]
-    pub rpc_url: String,
+    #[clap(long, env = "EXECUTION_RPC_URL")]
+    pub execution_rpc_url: String,
 
     /// Private key in hex format
-    #[clap(long = "private_key")]
+    #[clap(long, env = "PRIVATE_KEY")]
     pub private_key: String,
 
     /// taiyi proposer registry contract address
-    #[clap(long = "taiyi_proposer_registry_contract_addr")]
+    #[clap(long, env = "TAIYI_PROPOSER_REGISTRY_CONTRACT_ADDR")]
     pub taiyi_proposer_registry_contract_addr: String,
 
-    #[clap(long = "proposer_pubkeys", value_delimiter = ',')]
+    #[clap(long, env = "PROPOSER_PUBKEYS")]
     pub proposer_pubkey: Vec<String>,
 }
 
@@ -50,7 +50,7 @@ impl BatchRegisterCommand {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&self.rpc_url)
+            .on_builtin(&self.execution_rpc_url)
             .await?;
 
         let chain_id = provider.get_chain_id().await?;

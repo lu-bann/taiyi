@@ -6,35 +6,35 @@ use taiyi_preconfer::{metrics::preconfer::init_metrics, spawn_service};
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
-    #[clap(long = "taiyi_rpc_addr", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
+    #[clap(long, env="TAIYI_RPC_ADDR", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
     pub taiyi_rpc_addr: IpAddr,
 
     /// jsonrpc service port to listen on.
-    #[clap(long = "taiyi_rpc_port", default_value_t = 5656)]
+    #[clap(long, env = "TAIYI_RPC_PORT", default_value_t = 5656)]
     pub taiyi_rpc_port: u16,
 
     /// execution client rpc url
-    #[clap(long = "execution_client_url")]
-    pub execution_client_url: String,
+    #[clap(long, env = "EXECUTION_RPC_URL")]
+    pub execution_rpc_url: String,
 
     /// consensus client rpc url
-    #[clap(long = "beacon_client_url")]
-    pub beacon_client_url: String,
+    #[clap(long, env = "BEACON_RPC_URL")]
+    pub beacon_rpc_url: String,
 
     /// A BLS private key to use for signing
-    #[clap(long = "bls_sk")]
+    #[clap(long, env = "TAIYI_BLS_SK")]
     pub bls_sk: String,
 
     /// A BLS private key to use for signing
-    #[clap(long = "ecdsa_sk")]
+    #[clap(long, env = "TAIYI_ECDSA_SK")]
     pub ecdsa_sk: String,
 
     /// network
-    #[clap(long = "network")]
+    #[clap(long, env = "NETWORK")]
     pub network: String,
 
     /// consensus client rpc url
-    #[clap(long = "relay_url", value_delimiter = ',')]
+    #[clap(long, value_delimiter = ',')]
     pub relay_url: Vec<String>,
 
     /// taiyi service url. Internal usage for taiyi base fee predict module
@@ -58,8 +58,8 @@ impl PreconferCommand {
         let relay_url = self.relay_url.iter().map(|url| url.parse().expect("relay urls")).collect();
 
         spawn_service(
-            self.execution_client_url.clone(),
-            self.beacon_client_url.clone(),
+            self.execution_rpc_url.clone(),
+            self.beacon_rpc_url.clone(),
             context,
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,

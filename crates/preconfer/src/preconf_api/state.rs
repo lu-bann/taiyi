@@ -45,7 +45,7 @@ pub struct PreconfState {
     network_state: NetworkState,
     preconf_pool: Arc<PreconfPool>,
     signer_client: SignerClient,
-    rpc_url: String,
+    execution_rpc_url: String,
 }
 
 impl PreconfState {
@@ -53,22 +53,22 @@ impl PreconfState {
         network_state: NetworkState,
         relay_client: RelayClient,
         signer_client: SignerClient,
-        rpc_url: String,
+        execution_rpc_url: String,
     ) -> Self {
         let slot = network_state.get_current_slot();
         let preconf_pool = PreconfPoolBuilder::new().build(slot);
 
-        Self { relay_client, network_state, preconf_pool, signer_client, rpc_url }
+        Self { relay_client, network_state, preconf_pool, signer_client, execution_rpc_url }
     }
 
     pub fn execution_api_client(&self) -> eyre::Result<RootProvider<Http<Client>>> {
-        let rpc = self.rpc_url.parse()?;
+        let rpc = self.execution_rpc_url.parse()?;
         let provider = ProviderBuilder::new().on_http(rpc);
         Ok(provider)
     }
 
     pub fn rpc_client(&self) -> eyre::Result<RpcClient<Http<Client>>> {
-        let rpc = self.rpc_url.parse()?;
+        let rpc = self.execution_rpc_url.parse()?;
         let client = ClientBuilder::default().http(rpc);
         Ok(client)
     }
@@ -187,7 +187,7 @@ impl PreconfState {
 
         match self
             .preconf_pool
-            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .request_inclusion(preconf_request.clone(), request_id, self.execution_rpc_url.clone())
             .await
         {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
@@ -243,7 +243,7 @@ impl PreconfState {
 
         match self
             .preconf_pool
-            .request_inclusion(preconf_request.clone(), request_id, self.rpc_url.clone())
+            .request_inclusion(preconf_request.clone(), request_id, self.execution_rpc_url.clone())
             .await
         {
             Ok(PoolType::Ready) | Ok(PoolType::Pending) => {

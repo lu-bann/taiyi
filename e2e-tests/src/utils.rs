@@ -115,19 +115,19 @@ pub async fn start_taiyi_command_for_testing(
     // Create a default instance of the main command or configure it as needed
     let taiyi_command = PreconferCommand::parse_from([
         "preconfer",
-        "--bls_sk",
+        "--bls-sk",
         PRECONFER_BLS_SK,
-        "--ecdsa_sk",
+        "--ecdsa-sk",
         PRECONFER_ECDSA_SK,
         "--network",
         &network_dir,
-        "--execution_client_url",
+        "--execution-rpc-url",
         &config.execution_url,
-        "--beacon_client_url",
+        "--beacon-rpc-url",
         &config.beacon_url,
-        "--relay_url",
+        "--relay-url",
         &config.relay_url,
-        "--taiyi_rpc_port",
+        "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
     ]); // Assuming TaiyiCommand is the main command struct
 
