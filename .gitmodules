@@ -10,15 +10,19 @@
 [submodule "contracts/lib/axiom-v2-periphery"]
 	path = contracts/lib/axiom-v2-periphery
 	url = https://github.com/axiom-crypto/axiom-v2-periphery
-[submodule "contracts/lib/eigenlayer-contracts"]
-	path = contracts/lib/eigenlayer-contracts
-	url = https://github.com/Layr-Labs/eigenlayer-contracts
-[submodule "contracts/lib/eigenlayer-middleware"]
-	path = contracts/lib/eigenlayer-middleware
-	url = https://github.com/Layr-Labs/eigenlayer-middleware
 [submodule "contracts/lib/openzeppelin-contracts"]
 	path = contracts/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 [submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
 	path = contracts/lib/openzeppelin-contracts-upgradeable
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+[submodule "contracts/lib/eigenlayer-contracts"]
+	path = contracts/lib/eigenlayer-contracts
+	url = https://github.com/Layr-Labs/eigenlayer-contracts
+[submodule "lib/eigenlayer-middleware"]
+	path = lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware
+	branch = mainnet
+[submodule "contracts/lib/eigenlayer-middleware"]
+	path = contracts/lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware

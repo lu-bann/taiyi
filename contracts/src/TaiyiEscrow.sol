@@ -3,9 +3,9 @@ pragma solidity ^0.8.25;
 
 import "forge-std/console.sol";
 
-import "open-zeppelin/utils/ReentrancyGuard.sol";
-import "open-zeppelin/utils/cryptography/ECDSA.sol";
-import "open-zeppelin/utils/cryptography/MessageHashUtils.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { TipTx } from "./interfaces/Types.sol";
 import { PreconfRequest } from "./interfaces/Types.sol";
 import { PreconfTx } from "./interfaces/Types.sol";

@@ -15,8 +15,6 @@
   "author": "da-bao-jian",
   "license": "MIT",
   "dependencies": {
-    "@axiom-crypto/circuit": "2.0.9",
-    "@axiom-crypto/client": "2.0.9",
     "commander": "^11.1.0",
     "dotenv": "^16.4.5",
     "viem": "^2.9.7"
