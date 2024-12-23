@@ -22,8 +22,8 @@ pub mod state;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(
-    execution_client_url: String,
-    beacon_client_url: String,
+    execution_rpc_url: String,
+    beacon_rpc_url: String,
     context: Context,
     preconfer_ip: IpAddr,
     preconfer_port: u16,
@@ -32,7 +32,7 @@ pub async fn spawn_service(
     relay_url: Vec<Url>,
 ) -> eyre::Result<()> {
     let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_client_url).await?;
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_rpc_url).await?;
     let chain_id = provider.get_chain_id().await?;
 
     let network_state = NetworkState::new(context.clone());
@@ -46,13 +46,13 @@ pub async fn spawn_service(
     info!("preconfer is on chain_id: {:?}", chain_id);
 
     let state =
-        PreconfState::new(network_state, relay_client, signer_client, execution_client_url.clone());
+        PreconfState::new(network_state, relay_client, signer_client, execution_rpc_url.clone());
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
     let _ = preconfapiserver.run(state.clone()).await;
     tokio::select! {
-            res = run_cl_process(beacon_client_url, network_state_cl, bls_pk, relay_url).await => {
+            res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
                 error!("Error in cl process: {:?}", res);
             }
             res = state.spawn_constraint_submitter() => {

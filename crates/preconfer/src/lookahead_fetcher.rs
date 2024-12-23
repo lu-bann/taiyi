@@ -33,7 +33,7 @@ pub struct LookaheadFetcher {
 
 impl LookaheadFetcher {
     pub fn new(
-        beacon_url: String,
+        beacon_rpc_url: String,
         network_state: NetworkState,
         gateway_pubkey: PublicKey,
         relay_urls: Vec<Url>,
@@ -41,7 +41,7 @@ impl LookaheadFetcher {
         let gateway_pubkey =
             BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
         Self {
-            beacon_client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
+            beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
             network_state,
             gateway_pubkey,
             relay_client: RelayClient::new(relay_urls),
@@ -121,12 +121,13 @@ impl LookaheadFetcher {
 }
 
 pub async fn run_cl_process(
-    beacon_url: String,
+    beacon_rpc_url: String,
     network_state: NetworkState,
     bls_pk: PublicKey,
     relay_urls: Vec<Url>,
 ) -> impl Future<Output = eyre::Result<()>> {
-    let lookahead_fetcher = LookaheadFetcher::new(beacon_url, network_state, bls_pk, relay_urls);
+    let lookahead_fetcher =
+        LookaheadFetcher::new(beacon_rpc_url, network_state, bls_pk, relay_urls);
     lookahead_fetcher.run()
 }
 

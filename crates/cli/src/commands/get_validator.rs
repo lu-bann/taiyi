@@ -10,14 +10,14 @@ use ProposerRegistry::ProposerRegistryInstance;
 #[derive(Debug, Parser)]
 pub struct GetValidatorCommand {
     /// rpc url
-    #[clap(long = "rpc_url")]
-    pub rpc_url: String,
+    #[clap(long, env = "EXECUTION_RPC_URL")]
+    pub execution_rpc_url: String,
 
     /// proposer registry contract address
-    #[clap(long = "proposer_registry_address")]
+    #[clap(long, env = "PROPOSER_REGISTRY_ADDRESS")]
     pub proposer_registry_address: String,
 
-    #[clap(long = "proposer_pubkey")]
+    #[clap(long, env = "PROPOSER_PUBKEY")]
     pub proposer_pubkey: String,
 }
 
@@ -48,8 +48,10 @@ sol! {
 impl GetValidatorCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         // Connect to the Ethereum network
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&self.rpc_url).await?;
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_builtin(&self.execution_rpc_url)
+            .await?;
 
         let proposer_registry_address: Address = self.proposer_registry_address.parse()?;
         // Parse contract address
