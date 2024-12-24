@@ -7,5 +7,5 @@ pub struct EstimateFeeRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct EstimateFeeResponse {
-    pub fee: u64,
+    pub fee: u128,
 }

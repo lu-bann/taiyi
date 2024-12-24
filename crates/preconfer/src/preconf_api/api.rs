@@ -1,9 +1,9 @@
-use std::{fmt::Debug, net::SocketAddr, time::Instant};
+use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
 
 use alloy_consensus::{BlockHeader, Transaction, TxEnvelope};
 use alloy_eips::{eip2718::Decodable2718, BlockId};
 use alloy_network::{Ethereum, TransactionBuilder};
-use alloy_primitives::{hex, U256};
+use alloy_primitives::{hex, Address, PrimitiveSignature, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
 use alloy_rpc_types_trace::geth::{
@@ -18,12 +18,13 @@ use axum::{
     Router,
 };
 use eyre::OptionExt;
-use reqwest::StatusCode;
+use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, EstimateFeeRequest, EstimateFeeResponse,
-    PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse, PreconfTxRequest,
+    BlockspaceAllocation, CancelPreconfRequest, CancelPreconfResponse, EstimateFeeRequest,
+    EstimateFeeResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
+    PreconfTxRequest, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -39,11 +40,11 @@ use crate::{
     preconf_api::PreconfState,
 };
 
-pub const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
-pub const PRECONF_REQUEST_TX_PATH: &str = "/commitments/v1/preconf_request/tx";
-pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v1/preconf_request/:preconf_hash";
-pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v1/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/gateway/v0/estimate_fee";
+pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
+pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
+pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
+pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
+pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -62,9 +63,8 @@ impl PreconfApiServer {
 
     pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
         let app = Router::new()
-            .route(PRECONF_REQUEST_PATH, post(handle_preconf_request))
-            .route(PRECONF_REQUEST_PATH, delete(delete_preconf_request))
-            .route(PRECONF_REQUEST_TX_PATH, post(handle_preconf_request_tx))
+            .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
+            .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction))
             .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
@@ -100,81 +100,63 @@ pub async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "OK"}))
 }
 
-pub async fn handle_preconf_request(
+pub async fn handle_reserve_blockspace(
+    headers: HeaderMap,
     State(state): State<PreconfState>,
-    Json(preconf_request): Json<PreconfRequest>,
+    Json(request): Json<BlockspaceAllocation>,
+) -> Result<Json<Uuid>, RpcError> {
+    info!("Received blockspace reservation request");
+
+    // Extract the signer and signature from the headers
+    let (signer, signature) = {
+        let auth = headers
+            .get("x-luban-signature")
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+
+        // Remove the "0x" prefix
+        let auth = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+
+        let mut split = auth.split(':');
+
+        let address = split.next().ok_or(RpcError::MalformedHeader)?;
+        let address = Address::from_str(address).map_err(|_| RpcError::MalformedHeader)?;
+
+        let sig = split.next().ok_or(RpcError::MalformedHeader)?;
+        let sig = PrimitiveSignature::from_str(sig).expect("Failed to parse signature");
+
+        (address, sig)
+    };
+
+    // verify the signature
+    let recovered_signer = signature
+        .recover_address_from_prehash(&request.digest())
+        .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+    if recovered_signer != signer {
+        return Err(RpcError::SignatureError("Invalid signature".to_string()));
+    }
+
+    let request_id = state.reserve_blockspace(request, signer).await?;
+    Ok(Json(request_id))
+}
+
+pub async fn handle_submit_transaction(
+    headers: HeaderMap,
+    State(state): State<PreconfState>,
+    Json(param): Json<SubmitTransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError> {
-    let start_request = Instant::now();
-    match state.request_preconf(preconf_request).await {
-        Ok(response) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Err(e)
-        }
-    }
-}
+    // TODO: Extract the signature from the headers and verify the signature
+    let signature = {
+        let auth = headers
+            .get("x-luban-signature")
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
-pub async fn delete_preconf_request(
-    State(state): State<PreconfState>,
-    Json(cancel_request): Json<CancelPreconfRequest>,
-) -> Result<Json<CancelPreconfResponse>, RpcError> {
-    match state.cancel_preconf_request(cancel_request).await {
-        Ok(response) => {
-            PRECONF_CANCEL_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            PRECONF_CANCEL_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_PATH])
-                .inc();
-            Err(e.into())
-        }
-    }
-}
-
-pub async fn handle_preconf_request_tx(
-    State(state): State<PreconfState>,
-    Json(request): Json<PreconfTxRequest>,
-) -> Result<impl IntoResponse, RpcError> {
-    let start_request = Instant::now();
-    match state.preconf_transaction(request.request_id, request.transaction).await {
-        Ok(response) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), PRECONF_REQUEST_TX_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), PRECONF_REQUEST_TX_PATH])
-                .inc();
-            Err(e)
-        }
+        // Remove the "0x" prefix
+        let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+        PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
+    };
+    match state.submit_transaction(param, signature).await {
+        Ok(response) => Ok(Json(response)),
+        Err(e) => Err(e),
     }
 }
 
@@ -193,37 +175,8 @@ pub async fn get_slots(
 }
 
 pub async fn handle_estimate_tip(
-    State(state): State<PreconfState>,
+    State(_): State<PreconfState>,
     Json(_request): Json<EstimateFeeRequest>,
 ) -> Result<Json<EstimateFeeResponse>, RpcError> {
-    let client = state.execution_api_client().map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    let rpc_client = state.rpc_client().map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    let block_number =
-        client.get_block_number().await.map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    let mut batch = rpc_client.new_batch();
-    let mut handlers = Vec::new();
-    #[derive(Debug, Serialize, Deserialize, Clone)]
-    #[serde(rename_all = "camelCase")]
-    struct BlockResp {
-        pub base_fee_per_gas: String,
-    }
-    for n in (block_number - 10)..block_number {
-        let call = batch
-            .add_call("eth_getBlockByNumber", &(format!("0x{n:x}"), false))
-            .map_err(|e| RpcError::UnknownError(e.to_string()))?
-            .map_resp(|resp: BlockResp| {
-                let hex_str = resp.base_fee_per_gas.trim_start_matches("0x");
-                u64::from_str_radix(hex_str, 16).expect("Failed to parse base fee")
-            });
-        handlers.push(call);
-    }
-    batch.send().await.map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    let results = futures::future::join_all(handlers).await;
-    let mut sum = 0;
-    let len = results.len();
-    for r in results {
-        sum += r.map_err(|e| RpcError::UnknownError(e.to_string()))?;
-    }
-    let fee = sum / len as u64;
-    Ok(Json(EstimateFeeResponse { fee }))
+    Ok(Json(EstimateFeeResponse { fee: 1 }))
 }

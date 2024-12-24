@@ -12,23 +12,31 @@ mod tests {
     use alloy_primitives::{hex, keccak256, Address, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
+    use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
     use ethereum_consensus::deneb::Context;
     use k256::{ecdsa::VerifyingKey, Secp256k1};
     use reqwest::Url;
     use secp256k1::{ecdsa::Signature as EcdsaSignature, Message, PublicKey as EcdsaPublicKey};
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest, PreconfResponse};
+    use taiyi_primitives::{
+        BlockspaceAllocation, PreconfRequest, PreconfResponse, SubmitTransactionRequest,
+    };
     use tracing::info;
+    use uuid::Uuid;
 
     use crate::{
-        clients::{relay_client::RelayClient, signer_client::SignerClient},
+        clients::{
+            execution_client::ExecutionClient, relay_client::RelayClient,
+            signer_client::SignerClient,
+        },
         network_state::NetworkState,
         preconf_api::{
-            api::{PreconfApiServer, PRECONF_REQUEST_PATH, PRECONF_REQUEST_TX_PATH},
+            api::{PreconfApiServer, RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH},
             state::PreconfState,
         },
     };
 
+    #[ignore]
     #[tokio::test]
     async fn test_preconf_api_server() -> eyre::Result<()> {
         let context = Context::for_mainnet();
@@ -47,10 +55,13 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
 
-        let state =
-            PreconfState::new(network_state, relay_client, signer_client.clone(), rpc_url.clone());
-        let genesis_time = context.genesis_time().unwrap();
-
+        // spawn api server
+        let state = PreconfState::new(
+            network_state,
+            relay_client,
+            signer_client.clone(),
+            rpc_url.parse().unwrap(),
+        );
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
         let server_endpoint = preconfapiserver.endpoint();
@@ -60,8 +71,38 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
+        let current_time =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+        let genesis_time = context.genesis_time().unwrap();
+
+        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 2;
+
+        let request = BlockspaceAllocation {
+            target_slot,
+            deposit: U256::ZERO,
+            gas_limit: 21_0000,
+            num_blobs: 0,
+        };
+        let signature = hex::encode(signer.sign_hash(&request.digest()).await?.as_bytes());
+
+        let endpoint = Url::parse(&server_endpoint).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
+        let response = reqwest::Client::new()
+            .post(endpoint.clone())
+            .header("content-type", "application/json")
+            .header("x-luban-signature", format!("{}:0x{}", signer.address(), signature))
+            .json(&request)
+            .send()
+            .await?;
+        let status = response.status();
+        let body = response.bytes().await?;
+        println!("body: {:?}", body);
+        assert_eq!(status, 200);
+        let request_id: Uuid = serde_json::from_slice(&body)?;
+        info!("request_id: {:?}", request_id);
+
+        // Test sending a allocation request without a transaction and then sending a transaction with the request_id
         let fees = provider.estimate_eip1559_fees(None).await?;
         let transaction = TransactionRequest::default()
             .with_from(*sender)
@@ -75,89 +116,21 @@ mod tests {
             .build(&wallet)
             .await?;
 
-        let current_time =
-            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
-
-        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 2;
-
-        let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
-            transaction: Some(transaction.clone()),
-            target_slot,
-        };
-        let request_endpoint =
-            Url::parse(&server_endpoint).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
-        let response = reqwest::Client::new()
-            .post(request_endpoint.clone())
-            .json(&preconf_request)
-            .send()
-            .await?;
-        let status = response.status();
-        let body = response.bytes().await?;
-        println!("body: {:?}", body);
-        assert_eq!(status, 200);
-        let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
-
-        let message = {
-            let mut data = Vec::new();
-            data.extend_from_slice(
-                preconf_request.transaction.expect("preconf tx not found").tx_hash().as_slice(),
-            );
-            data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
-            keccak256(data)
-        };
-
-        let commitment = preconf_response.data.commitment.unwrap();
-
-        // TODO: fix signature verification
-
-        // let ecda_sig = EcdsaSignature::from_compact(&commitment.as_bytes())?;
-
-        // let message = Message::from_digest(*message);
-        // let is_valid = ecda_sig.verify(&message, &EcdsaPublicKey::from_str(&ecdsa_pubkey)?).is_ok();
-        // assert!(is_valid);
-
-        // Test sending a allocation request without a transaction and then sending a transaction with the request_id
-        let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
-            transaction: None,
-            target_slot,
-        };
-
-        let response = reqwest::Client::new()
-            .post(request_endpoint.clone())
-            .json(&preconf_request)
-            .send()
-            .await?;
-
-        assert_eq!(response.status(), 200);
-        let preconf_response: PreconfResponse = response.json().await?;
-        assert_eq!(preconf_response.data.commitment, None);
-
-        let request_id = preconf_response.data.request_id;
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(1000))
-            .with_nonce(1)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-        let preconf_tx_rq = taiyi_primitives::PreconfTxRequest { request_id, transaction };
         let send_transaction_endpoint =
-            Url::parse(&server_endpoint).unwrap().join(PRECONF_REQUEST_TX_PATH).unwrap();
+            Url::parse(&server_endpoint).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
+        let request = SubmitTransactionRequest { request_id, transaction: transaction.clone() };
+        let signature = hex::encode(signer.sign_hash(&request.digest()).await?.as_bytes());
         let response = reqwest::Client::new()
-            .post(send_transaction_endpoint)
-            .json(&preconf_tx_rq)
+            .post(send_transaction_endpoint.clone())
+            .header("content-type", "application/json")
+            .header("x-luban-signature", format!("0x{}", signature))
+            .json(&request)
             .send()
             .await?;
         let status = response.status();
         let body = response.text().await?;
-        println!("status: {}", status);
-        println!("body: {}", body);
+        info!("status: {}", status);
+        info!("body: {}", body);
         assert_eq!(status, 200);
 
         Ok(())

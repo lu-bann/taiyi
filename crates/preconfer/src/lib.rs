@@ -9,7 +9,6 @@ mod network_state;
 mod preconf_api;
 mod preconf_pool;
 mod pricer;
-mod rpc_state;
 #[cfg(test)]
 mod tests;
 mod validator;

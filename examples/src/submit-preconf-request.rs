@@ -52,7 +52,7 @@ async fn main() -> eyre::Result<()> {
     let preconf_request = PreconfRequest {
         allocation: BlockspaceAllocation::default(),
         transaction: Some(transaction.clone()),
-        target_slot,
+        signer: Some(sender),
     };
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
     let response =

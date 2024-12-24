@@ -9,10 +9,11 @@ use alloy_provider::{
     Provider, ProviderBuilder,
 };
 use alloy_rpc_types::TransactionRequest;
+use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
-use reqwest::Url;
+use reqwest::{StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
@@ -23,7 +24,7 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 use crate::constant::{
-    PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, PRECONF_REQUEST_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
 };
 
 lazy_static::lazy_static! {
@@ -224,17 +225,49 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     Ok(transaction)
 }
 
+pub async fn generate_reserve_blockspace_request(
+    signer_private: &str,
+    target_slot: u64,
+    fee: u128,
+) -> (BlockspaceAllocation, String) {
+    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+
+    let request = BlockspaceAllocation {
+        target_slot,
+        deposit: U256::from(fee * 21_000),
+        gas_limit: 21_0000,
+        num_blobs: 0,
+    };
+    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("{}:0x{}", signer.address(), signature))
+}
+
+pub async fn send_reserve_blockspace_request(
+    request: BlockspaceAllocation,
+    signature: String,
+    taiyi_url: &str,
+) -> eyre::Result<StatusCode> {
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
+    let response = reqwest::Client::new()
+        .post(request_endpoint.clone())
+        .header("content-type", "application/json")
+        .header("x-luban-signature", signature)
+        .json(&request)
+        .send()
+        .await?;
+    Ok(response.status())
+}
+
 pub async fn submit_preconf_request(
     taiyi_url: &str,
     tx: &TxEnvelope,
-    target_slot: u64,
 ) -> eyre::Result<PreconfResponse> {
     let preconf_request = PreconfRequest {
         allocation: BlockspaceAllocation::default(),
         transaction: Some(tx.clone()),
-        target_slot,
+        signer: None,
     };
-    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join("todo").unwrap();
     let response =
         reqwest::Client::new().post(request_endpoint.clone()).json(&preconf_request).send().await?;
     let body = response.text().await?;

@@ -27,6 +27,8 @@ pub enum RpcError {
     SignatureError(String),
     #[error("Params error: {0:?}")]
     ParamsError(String),
+    #[error("Malformed header")]
+    MalformedHeader,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -61,6 +63,10 @@ pub enum ValidationError {
     LowBalance(u128),
     #[error("Failed to get account state for address: {0}")]
     AccountStateNotFound(Address),
+    #[error("Signer not found for preconf request")]
+    SignerNotFound,
+    #[error("Transaction not found for preconf request")]
+    TransactionNotFound,
     #[error("custom error {0:?}")]
     CustomError(String),
 }
@@ -103,4 +109,12 @@ pub enum PoolError {
     InsufficientGasLimit(u64, u64),
     #[error("requested blobs {0} exceeds max available blobs {1}")]
     InsufficientBlobs(usize, usize),
+    #[error("Insufficient escrow balance")]
+    InsufficientEscrowBalance,
+    #[error("Blockspace not available")]
+    BlockspaceNotAvailable,
+    #[error("Transaction not found")]
+    TransactionNotFound,
+    #[error("Escrow balance not found for account {0}")]
+    EscrowBalanceNotFoundForAccount(Address),
 }

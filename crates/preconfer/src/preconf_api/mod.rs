@@ -11,7 +11,9 @@ use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
-    clients::{relay_client::RelayClient, signer_client::SignerClient},
+    clients::{
+        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
+    },
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
@@ -39,14 +41,17 @@ pub async fn spawn_service(
     let network_state_cl = network_state.clone();
 
     let relay_client = RelayClient::new(relay_url.clone());
-
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
     info!("preconfer is on chain_id: {:?}", chain_id);
 
-    let state =
-        PreconfState::new(network_state, relay_client, signer_client, execution_rpc_url.clone());
+    let state = PreconfState::new(
+        network_state,
+        relay_client,
+        signer_client,
+        Url::parse(&execution_rpc_url)?,
+    );
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
