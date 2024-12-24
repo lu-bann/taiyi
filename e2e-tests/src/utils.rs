@@ -24,7 +24,8 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 use crate::constant::{
-    PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
+    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
 };
 
 lazy_static::lazy_static! {
@@ -149,7 +150,7 @@ pub async fn start_taiyi_command_for_testing(
 
 pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResponse>> {
     let client = reqwest::Client::new();
-    let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
+    let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
     let res_b = res.bytes().await?;
     let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
     Ok(available_slots)
@@ -158,11 +159,8 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResp
 pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
     let client = reqwest::Client::new();
     let request = EstimateFeeRequest { slot };
-    let res = client
-        .post(&format!("{}/gateway/v0/estimate_fee", taiyi_url))
-        .json(&request)
-        .send()
-        .await?;
+    let res =
+        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&request).send().await?;
     let res_b = res.bytes().await?;
     let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
     Ok(estimate_fee)
@@ -255,25 +253,8 @@ pub async fn send_reserve_blockspace_request(
         .json(&request)
         .send()
         .await?;
+    info!("Response: {:?}", response);
     Ok(response.status())
-}
-
-pub async fn submit_preconf_request(
-    taiyi_url: &str,
-    tx: &TxEnvelope,
-) -> eyre::Result<PreconfResponse> {
-    let preconf_request = PreconfRequest {
-        allocation: BlockspaceAllocation::default(),
-        transaction: Some(tx.clone()),
-        signer: None,
-    };
-    let request_endpoint = Url::parse(&taiyi_url).unwrap().join("todo").unwrap();
-    let response =
-        reqwest::Client::new().post(request_endpoint.clone()).json(&preconf_request).send().await?;
-    let body = response.text().await?;
-    info!("submit preconf request response: {:?}", body);
-    let res_body = serde_json::from_str::<PreconfResponse>(&body)?;
-    Ok(res_body)
 }
 
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {

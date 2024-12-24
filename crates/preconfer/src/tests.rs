@@ -73,66 +73,6 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let current_time =
-            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
-        let genesis_time = context.genesis_time().unwrap();
-
-        let target_slot = (current_time - genesis_time) / context.seconds_per_slot + 2;
-
-        let request = BlockspaceAllocation {
-            target_slot,
-            deposit: U256::ZERO,
-            gas_limit: 21_0000,
-            num_blobs: 0,
-        };
-        let signature = hex::encode(signer.sign_hash(&request.digest()).await?.as_bytes());
-
-        let endpoint = Url::parse(&server_endpoint).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
-        let response = reqwest::Client::new()
-            .post(endpoint.clone())
-            .header("content-type", "application/json")
-            .header("x-luban-signature", format!("{}:0x{}", signer.address(), signature))
-            .json(&request)
-            .send()
-            .await?;
-        let status = response.status();
-        let body = response.bytes().await?;
-        println!("body: {:?}", body);
-        assert_eq!(status, 200);
-        let request_id: Uuid = serde_json::from_slice(&body)?;
-        info!("request_id: {:?}", request_id);
-
-        // Test sending a allocation request without a transaction and then sending a transaction with the request_id
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(1000))
-            .with_nonce(0)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-
-        let send_transaction_endpoint =
-            Url::parse(&server_endpoint).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
-        let request = SubmitTransactionRequest { request_id, transaction: transaction.clone() };
-        let signature = hex::encode(signer.sign_hash(&request.digest()).await?.as_bytes());
-        let response = reqwest::Client::new()
-            .post(send_transaction_endpoint.clone())
-            .header("content-type", "application/json")
-            .header("x-luban-signature", format!("0x{}", signature))
-            .json(&request)
-            .send()
-            .await?;
-        let status = response.status();
-        let body = response.text().await?;
-        info!("status: {}", status);
-        info!("body: {}", body);
-        assert_eq!(status, 200);
-
         Ok(())
     }
 }

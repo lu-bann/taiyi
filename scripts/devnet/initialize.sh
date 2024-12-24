@@ -2,7 +2,6 @@ set -xe
 
 source "$(dirname "$0")/config.sh"
 
-
 pushd $WORKING_DIR
 rm -rf el_cl_genesis_data
 rm -rf 1-lighthouse-reth-0-63-0
