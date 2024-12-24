@@ -166,7 +166,12 @@ pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<Estima
     let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
     Ok(estimate_fee)
 }
-
+pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
+    let client = reqwest::Client::new();
+    let res = client.get(&format!("{}/health", taiyi_url)).send().await?;
+    let res_b = res.text().await?;
+    Ok(res_b)
+}
 pub async fn get_constraints_from_relay(
     relay_url: &str,
     target_slot: u64,
@@ -232,12 +237,14 @@ pub async fn submit_preconf_request(
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
     let response =
         reqwest::Client::new().post(request_endpoint.clone()).json(&preconf_request).send().await?;
-
-    let res_body = response.json::<PreconfResponse>().await?;
+    let body = response.text().await?;
+    info!("submit preconf request response: {:?}", body);
+    let res_body = serde_json::from_str::<PreconfResponse>(&body)?;
     Ok(res_body)
 }
 
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
+    std::env::set_var("RUST_LOG", "debug");
     init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);

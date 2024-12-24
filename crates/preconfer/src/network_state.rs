@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use alloy_eips::merge::EPOCH_SLOTS;
 use ethereum_consensus::deneb::Context;
 use parking_lot::RwLock;
 
@@ -32,7 +31,7 @@ impl NetworkState {
     }
 
     pub fn get_current_epoch(&self) -> u64 {
-        self.current_slot.load(Ordering::Relaxed) / EPOCH_SLOTS
+        self.current_slot.load(Ordering::Relaxed) / self.context.slots_per_epoch
     }
 
     pub fn get_current_slot(&self) -> u64 {
@@ -54,6 +53,6 @@ impl NetworkState {
     /// Removes the slots which are older than epoch head slot
     pub fn clear_slots(&self, epoch: u64) {
         let mut available_slots = self.available_slots.write();
-        available_slots.retain(|&slot| slot >= epoch * EPOCH_SLOTS);
+        available_slots.retain(|&slot| slot >= epoch * self.context.slots_per_epoch);
     }
 }

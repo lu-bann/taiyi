@@ -1,12 +1,12 @@
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
-use taiyi_cmd::initialize_tracing_log;
 use tracing::info;
 
 use crate::{
     constant::{PRECONFER_BLS_PK, SIGNER_PRIVATE},
     utils::{
-        generate_tx, get_available_slot, get_constraints_from_relay, get_estimate_fee, setup_env,
-        submit_preconf_request, wait_until_slot, wati_until_deadline_of_slot, TestConfig,
+        generate_tx, get_available_slot, get_constraints_from_relay, get_estimate_fee,
+        health_check, setup_env, submit_preconf_request, wait_until_slot,
+        wati_until_deadline_of_slot, TestConfig,
     },
 };
 
@@ -58,6 +58,18 @@ async fn test_estimate_fee() -> eyre::Result<()> {
     let estimate_fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
 
     info!("estimate_fee: {:?}", estimate_fee);
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_health_check() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    let health_check = health_check(&config.taiyi_url()).await?;
+
+    info!("health_check: {:?}", health_check);
     taiyi_handle.abort();
     Ok(())
 }
