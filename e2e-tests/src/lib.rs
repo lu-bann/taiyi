@@ -2,5 +2,5 @@
 #![cfg(test)]
 
 mod constant;
-mod tests;
+mod test_preconf_workflow;
 mod utils;
