@@ -36,7 +36,6 @@ mod tests {
         },
     };
 
-    #[ignore]
     #[tokio::test]
     async fn test_preconf_api_server() -> eyre::Result<()> {
         let context = Context::for_mainnet();
@@ -72,6 +71,8 @@ mod tests {
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
+
+        // test 
 
         Ok(())
     }

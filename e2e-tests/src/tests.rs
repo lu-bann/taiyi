@@ -6,6 +6,7 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::{
     constant::{PRECONFER_BLS_PK, SIGNER_PRIVATE},
@@ -60,7 +61,11 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         generate_reserve_blockspace_request(SIGNER_PRIVATE, target_slot, fee.fee).await;
 
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
-    assert_eq!(res, 200);
+    let status = res.status();
+    let body = res.bytes().await?;
+    let request_id = serde_json::from_slice::<Uuid>(&body)?;
+    info!("Request ID: {:?}", request_id);
+    assert_eq!(status, 200);
 
     // Optionally, cleanup when done
     taiyi_handle.abort();

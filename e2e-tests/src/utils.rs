@@ -13,7 +13,7 @@ use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
-use reqwest::{StatusCode, Url};
+use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
@@ -244,7 +244,7 @@ pub async fn send_reserve_blockspace_request(
     request: BlockspaceAllocation,
     signature: String,
     taiyi_url: &str,
-) -> eyre::Result<StatusCode> {
+) -> eyre::Result<Response> {
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
@@ -253,8 +253,7 @@ pub async fn send_reserve_blockspace_request(
         .json(&request)
         .send()
         .await?;
-    info!("Response: {:?}", response);
-    Ok(response.status())
+    Ok(response)
 }
 
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
