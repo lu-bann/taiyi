@@ -58,21 +58,18 @@ impl PreconfState {
         relay_client: RelayClient,
         signer_client: SignerClient,
         execution_rpc_url: Url,
+        taiyi_escrow_address: Address,
     ) -> Self {
         let slot = network_state.get_current_slot();
-        let preconf_pool = PreconfPoolBuilder::new().build(slot, execution_rpc_url);
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(slot, execution_rpc_url, taiyi_escrow_address);
 
         Self { relay_client, network_state, preconf_pool, signer_client }
     }
 
-    fn deadline_of_slot(&self, slot: u64) -> u64 {
-        let context = self.network_state.get_context();
-        context.get_deadline_of_slot(slot)
-    }
-
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
         let relay_client = self.relay_client.clone();
-        let context = self.network_state.get_context();
+        let context = self.network_state.context();
         let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,
             Err(_) => context.min_genesis_time + context.genesis_delay,
@@ -86,7 +83,7 @@ impl PreconfState {
                 let next_slot = slot + 1;
 
                 let submit_constraint_deadline_duration =
-                    self.deadline_of_slot(next_slot).saturating_sub(
+                    context.get_deadline_of_slot(next_slot).saturating_sub(
                         SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .expect("Time went backwards")
@@ -159,8 +156,13 @@ impl PreconfState {
         request: BlockspaceAllocation,
         signer: Address,
     ) -> Result<Uuid, RpcError> {
+        // Check if the gateway is delegated for the target slot
+        if !self.network_state.contains_slot(request.target_slot) {
+            return Err(RpcError::SlotNotAvailable(request.target_slot));
+        }
+
         let current_slot = self.network_state.get_current_slot();
-        // Target slot must be atleas current slot + 2
+        // Target slot must be atleast current slot + 2
         if request.target_slot < current_slot + 1 {
             return Err(RpcError::ExceedDeadline(request.target_slot));
         }
@@ -197,9 +199,11 @@ impl PreconfState {
         if preconf_request.transaction.is_some() {
             return Err(RpcError::PreconfTxAlreadySet);
         }
+
         if self.is_exceed_deadline(preconf_request.target_slot()) {
             return Err(RpcError::ExceedDeadline(preconf_request.target_slot()));
         }
+
         // Check if blocksapce reserved matches with transaction gas limit
         if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
             return Err(RpcError::UnknownError(
@@ -258,7 +262,7 @@ impl PreconfState {
     fn is_exceed_deadline(&self, slot: u64) -> bool {
         let utc_timestamp =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
-        let deadline = self.deadline_of_slot(slot);
+        let deadline = self.network_state.context().get_deadline_of_slot(slot);
         utc_timestamp > deadline
     }
 

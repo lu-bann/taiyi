@@ -1,5 +1,9 @@
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    ops::Add,
+};
 
+use alloy_contract::{ContractInstance, Interface};
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
@@ -32,6 +36,7 @@ pub async fn spawn_service(
     bls_sk: String,
     ecdsa_sk: String,
     relay_url: Vec<Url>,
+    taiyi_escrow_address: Address,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_rpc_url).await?;
@@ -51,6 +56,7 @@ pub async fn spawn_service(
         relay_client,
         signer_client,
         Url::parse(&execution_rpc_url)?,
+        taiyi_escrow_address,
     );
 
     // spawn preconfapi server
@@ -66,7 +72,7 @@ pub async fn spawn_service(
             _ = tokio::signal::ctrl_c() => {
                 info!("Ctrl-C received, shutting down...");
             },
-
     }
+
     Ok(())
 }

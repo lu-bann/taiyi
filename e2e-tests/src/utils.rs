@@ -18,14 +18,15 @@ use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
     BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
-    PreconfResponse, SignedConstraints,
+    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::constant::{
     AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
-    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS, SUBMIT_TRANSACTION_PATH,
 };
 
 lazy_static::lazy_static! {
@@ -240,6 +241,18 @@ pub async fn generate_reserve_blockspace_request(
     (request, format!("{}:0x{}", signer.address(), signature))
 }
 
+pub async fn generate_submit_transaction_request(
+    signer_private: &str,
+    request_id: Uuid,
+) -> (SubmitTransactionRequest, String) {
+    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+
+    let transaction = generate_tx("http://localhost:8545", PRECONFER_ECDSA_SK).await.unwrap();
+    let request = SubmitTransactionRequest { transaction, request_id };
+    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("0x{}", signature))
+}
+
 pub async fn send_reserve_blockspace_request(
     request: BlockspaceAllocation,
     signature: String,
@@ -253,6 +266,24 @@ pub async fn send_reserve_blockspace_request(
         .json(&request)
         .send()
         .await?;
+    Ok(response)
+}
+
+pub async fn send_submit_transaction_request(
+    request: SubmitTransactionRequest,
+    signature: String,
+    taiyi_url: &str,
+) -> eyre::Result<PreconfResponse> {
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
+    let response = reqwest::Client::new()
+        .post(request_endpoint.clone())
+        .header("content-type", "application/json")
+        .header("x-luban-signature", format!("0x{}", signature))
+        .json(&request)
+        .send()
+        .await?;
+    let body = response.bytes().await?;
+    let response: PreconfResponse = serde_json::from_slice(&body)?;
     Ok(response)
 }
 

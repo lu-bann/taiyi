@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use alloy_contract::Error as AlloyContractError;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use axum::{
     response::{IntoResponse, Response},
     Json,
@@ -29,6 +29,8 @@ pub enum RpcError {
     ParamsError(String),
     #[error("Malformed header")]
     MalformedHeader,
+    #[error("Gateway isn't delegated for the slot: {0}")]
+    SlotNotAvailable(u64),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -60,7 +62,7 @@ pub enum ValidationError {
     #[error("Internal error: {0}")]
     Internal(String),
     #[error("Insufficient account balance, balance_diff: {0}")]
-    LowBalance(u128),
+    LowBalance(U256),
     #[error("Failed to get account state for address: {0}")]
     AccountStateNotFound(Address),
     #[error("Signer not found for preconf request")]

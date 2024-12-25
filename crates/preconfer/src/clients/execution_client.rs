@@ -49,17 +49,19 @@ impl ExecutionClient {
         Ok(resutl)
     }
 
-    pub async fn balance_of(&self, account: Address) -> eyre::Result<U256> {
-        let taiyi_escrow = TaiyiEscrow::new(
-            "0xA791D59427B2b7063050187769AC871B497F4b3C".parse()?,
-            self.inner.clone(),
-        );
+    pub async fn balance_of(
+        &self,
+        account: Address,
+        taiyi_escrow_address: Address,
+    ) -> eyre::Result<U256> {
+        let taiyi_escrow = TaiyiEscrow::new(taiyi_escrow_address, self.inner.clone());
         let balance = taiyi_escrow.balanceOf(account).call().await?;
         Ok(balance._0)
     }
 }
 
 lazy_static! {
+    // TODO: Correct value of BALANCE_STORAGE_SLOT
     /// mapping(address => uint256) public balances
     pub static ref BALANCE_STORAGE_SLOT: StorageKey =
         StorageKey::from_hex("0x0000000000000000000000000000000000000000000000000000000000000001").expect("");

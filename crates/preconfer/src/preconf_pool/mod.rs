@@ -3,12 +3,13 @@ use std::{collections::HashMap, ops::Add, str::FromStr, sync::Arc};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
 use alloy_primitives::{Address, PrimitiveSignature, U256};
-use alloy_provider::utils::EIP1559_MIN_PRIORITY_FEE;
+use alloy_provider::{utils::EIP1559_MIN_PRIORITY_FEE, RootProvider};
+use alloy_transport_http::Http;
 use k256::elliptic_curve::rand_core::le;
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use reth_revm::primitives::EnvKzgSettings;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
@@ -31,9 +32,14 @@ impl PreconfPoolBuilder {
         Self
     }
 
-    pub fn build(self, current_slot: u64, rpc_url: Url) -> Arc<PreconfPool> {
+    pub fn build(
+        self,
+        current_slot: u64,
+        rpc_url: Url,
+        taiyi_escrow_address: Address,
+    ) -> Arc<PreconfPool> {
         let validator = PreconfValidator::new(rpc_url);
-        Arc::new(PreconfPool::new(current_slot, validator))
+        Arc::new(PreconfPool::new(current_slot, validator, taiyi_escrow_address))
     }
 }
 
@@ -47,10 +53,16 @@ pub struct PreconfPool {
     validator: PreconfValidator,
     /// latest state fo the pool
     pool_state: PoolState,
+    /// escrow contract
+    taiyi_escrow_address: Address,
 }
 
 impl PreconfPool {
-    pub fn new(current_slot: u64, validator: PreconfValidator) -> Self {
+    pub fn new(
+        current_slot: u64,
+        validator: PreconfValidator,
+        taiyi_escrow_address: Address,
+    ) -> Self {
         Self {
             pool_inner: RwLock::new(PreconfPoolInner {
                 pending: Pending::new(),
@@ -59,6 +71,7 @@ impl PreconfPool {
             }),
             validator,
             pool_state: PoolState { current_slot },
+            taiyi_escrow_address,
         }
     }
 
@@ -132,7 +145,8 @@ impl PreconfPool {
         deposit: U256,
     ) -> Result<bool, PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
-        let escrow_balance = self.validator.execution_client.balance_of(account).await;
+        let escrow_balance =
+            self.validator.execution_client.balance_of(account, self.taiyi_escrow_address).await;
 
         match escrow_balance {
             Ok(balance) => {
@@ -165,12 +179,11 @@ impl PreconfPool {
             .await
             .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
 
-        let account_balance = account_state.balance.to::<u128>();
+        let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
         // Check if sender has enough balance to cover transaction cost
-        // For EIP-1559 transactions: `max_fee_per_gas * gas_limit + tx_value`.
-        let cost = transaction.max_fee_per_gas() * transaction.gas_limit() as u128
-            + transaction.value().to::<u128>();
+        // For EIP-1559 transactions: tx_value.
+        let cost = transaction.value();
 
         if account_balance < cost {
             return Err(ValidationError::LowBalance(cost - account_balance));
@@ -320,7 +333,8 @@ mod tests {
     fn test_add_remove_request() {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-        let preconf_pool = PreconfPoolBuilder::new().build(1, rpc_url.parse().unwrap());
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(1, rpc_url.parse().unwrap(), Address::default());
 
         let mut preconf = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
@@ -355,7 +369,8 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
         let slot = provider.get_block_number().await?;
-        let preconf_pool = PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap());
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -382,7 +397,6 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-        let slot = provider.get_block_number().await?;
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
             transaction: Some(transaction.clone()),
@@ -395,7 +409,6 @@ mod tests {
         Ok(())
     }
 
-    #[ignore]
     #[tokio::test]
     async fn test_low_balance_err() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
@@ -404,7 +417,8 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
         let slot = provider.get_block_number().await?;
-        let preconf_pool = PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap());
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -420,7 +434,7 @@ mod tests {
 
         let transaction = TransactionRequest::default()
             .with_from(*sender)
-            .with_value(U256::from(9))
+            .with_value(U256::MAX)
             .with_nonce(0)
             .with_gas_limit(21_0000)
             .with_to(*receiver)
@@ -431,16 +445,16 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-        let slot = provider.get_block_number().await?;
-        // let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
-
-        // info!("Validation result: {:?}", validation_result);
-
-        // assert!(validation_result.is_err());
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: Some(transaction.clone()),
+            signer: Some(*sender),
+        };
+        let validation_result = preconf_pool.validate(&preconf_request).await;
+        assert!(validation_result.is_err());
         Ok(())
     }
 
-    #[ignore]
     #[tokio::test]
     async fn test_nonce_too_high() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
@@ -449,7 +463,8 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
         let slot = provider.get_block_number().await?;
-        let preconf_pool = PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap());
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -476,15 +491,16 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-        let slot = provider.get_block_number().await?;
-        // let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
-        // info!("Validation result: {:?}", validation_result);
-
-        // assert!(validation_result.is_err());
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: Some(transaction.clone()),
+            signer: Some(*sender),
+        };
+        let validation_result = preconf_pool.validate(&preconf_request).await;
+        assert!(validation_result.is_err());
         Ok(())
     }
 
-    #[ignore]
     #[tokio::test]
     async fn test_nonce_too_low() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
@@ -493,7 +509,8 @@ mod tests {
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
         let slot = provider.get_block_number().await?;
-        let preconf_pool = PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap());
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -543,11 +560,13 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
-        let slot = provider.get_block_number().await?;
-        // let validation_result = preconf_pool.validate(rpc_state, *sender, slot + 1, &transaction);
-        // info!("Validation result: {:?}", validation_result);
-
-        // assert!(validation_result.is_err());
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation::default(),
+            transaction: Some(transaction.clone()),
+            signer: Some(*sender),
+        };
+        let validation_result = preconf_pool.validate(&preconf_request).await;
+        assert!(validation_result.is_err());
         Ok(())
     }
 }

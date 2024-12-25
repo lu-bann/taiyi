@@ -144,7 +144,6 @@ pub async fn handle_submit_transaction(
     State(state): State<PreconfState>,
     Json(param): Json<SubmitTransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError> {
-    // TODO: Extract the signature from the headers and verify the signature
     let signature = {
         let auth = headers
             .get("x-luban-signature")
