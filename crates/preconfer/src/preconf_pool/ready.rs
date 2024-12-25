@@ -45,7 +45,7 @@ impl Ready {
             }
             Ok(preconfs)
         } else {
-            Err(PoolError::SlotNotFound(slot))
+            Err(PoolError::RequestsNotFoundForSlot(slot))
         }
     }
 
@@ -64,7 +64,7 @@ impl Ready {
             }
             Ok(preconfs)
         } else {
-            Err(PoolError::SlotNotFound(slot))
+            Err(PoolError::RequestsNotFoundForSlot(slot))
         }
     }
 
@@ -94,6 +94,6 @@ mod tests {
     fn test_remove_preconfs_for_slot_not_found() {
         let mut ready = Ready::new();
         let result = ready.remove_preconfs_for_slot(1);
-        assert!(matches!(result, Err(PoolError::SlotNotFound(1))));
+        assert!(matches!(result, Err(PoolError::RequestsNotFoundForSlot(1))));
     }
 }

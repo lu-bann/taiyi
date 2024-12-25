@@ -149,7 +149,6 @@ pub async fn handle_submit_transaction(
             .get("x-luban-signature")
             .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
-        // Remove the "0x" prefix
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };

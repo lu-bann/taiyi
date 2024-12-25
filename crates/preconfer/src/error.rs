@@ -104,7 +104,7 @@ pub enum PoolError {
     #[error("preconf request {0:?} not found")]
     PreconfRequestNotFound(Uuid),
     #[error("preconf request for slot {0} not found")]
-    SlotNotFound(u64),
+    RequestsNotFoundForSlot(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
     InvalidPreconfTx(Uuid),
     #[error("requested gas limit {0} exceeds max available gas limit {1}")]

@@ -140,8 +140,8 @@ impl PreconfState {
                             }
                         }
                     }
-                    Err(_) => {
-                        debug!("No requests found for slot: {}", next_slot);
+                    Err(err) => {
+                        debug!(?err, "Error fetching preconf requests for slot");
                         continue;
                     }
                 }

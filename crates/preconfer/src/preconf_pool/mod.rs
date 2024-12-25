@@ -123,7 +123,7 @@ impl PreconfPool {
 
             match validation_outcome {
                 ValidationOutcome::Valid { .. } => {
-                    self.insert_pending(request_id, preconf_request);
+                    self.insert_ready(request_id, preconf_request);
                     Ok(())
                 }
                 _ => unimplemented!(),

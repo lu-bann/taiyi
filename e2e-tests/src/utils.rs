@@ -184,7 +184,7 @@ pub async fn get_constraints_from_relay(
         .send()
         .await?;
     let res_b = res.text().await?;
-    info!("get constraints from relay: {:?}", res_b);
+    info!("get constraints from relay for slot: {} : {:?}", target_slot, res_b);
     let constraints = serde_json::from_str::<Vec<SignedConstraints>>(&res_b)?;
     Ok(constraints)
 }
@@ -212,10 +212,12 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let fees = provider.estimate_eip1559_fees(None).await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
+    info!("Transaction nonce: {}", nonce);
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        .with_nonce(nonce)
+        // TODO: use the correct nonce, dont' why the nonce above is 3.
+        .with_nonce(1)
         .with_gas_limit(21_0000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
@@ -246,10 +248,11 @@ pub async fn generate_reserve_blockspace_request(
 pub async fn generate_submit_transaction_request(
     signer_private: &str,
     request_id: Uuid,
+    rpc_url: &str,
 ) -> (SubmitTransactionRequest, String) {
     let signer: PrivateKeySigner = signer_private.parse().unwrap();
 
-    let transaction = generate_tx("http://localhost:8545", PRECONFER_ECDSA_SK).await.unwrap();
+    let transaction = generate_tx(rpc_url, PRECONFER_ECDSA_SK).await.unwrap();
     let request = SubmitTransactionRequest { transaction, request_id };
     let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
     (request, format!("0x{}", signature))
@@ -275,17 +278,15 @@ pub async fn send_submit_transaction_request(
     request: SubmitTransactionRequest,
     signature: String,
     taiyi_url: &str,
-) -> eyre::Result<PreconfResponse> {
+) -> eyre::Result<Response> {
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
         .header("content-type", "application/json")
-        .header("x-luban-signature", format!("0x{}", signature))
+        .header("x-luban-signature", signature)
         .json(&request)
         .send()
         .await?;
-    let body = response.bytes().await?;
-    let response: PreconfResponse = serde_json::from_slice(&body)?;
     Ok(response)
 }
 
