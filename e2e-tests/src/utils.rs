@@ -243,7 +243,7 @@ pub async fn generate_reserve_blockspace_request(
     (request, format!("{}:0x{}", signer.address(), signature))
 }
 
-pub async fn generate_submit_transaction_request(
+pub async fn  generate_submit_transaction_request(
     signer_private: &str,
     request_id: Uuid,
 ) -> (SubmitTransactionRequest, String) {
