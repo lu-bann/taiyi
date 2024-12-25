@@ -132,6 +132,8 @@ pub async fn start_taiyi_command_for_testing(
         &config.relay_url,
         "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
+        "--taiyi-escrow-address",
+        "0xA791D59427B2b7063050187769AC871B497F4b3C",
     ]); // Assuming TaiyiCommand is the main command struct
 
     // Spawn the taiyi command in a background task
