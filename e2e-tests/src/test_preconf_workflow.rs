@@ -40,7 +40,7 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         let signer: PrivateKeySigner = SIGNER_PRIVATE.parse()?;
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .wallet(EthereumWallet::new(signer))
+            .wallet(EthereumWallet::new(signer.clone()))
             .on_builtin(&config.execution_url)
             .await?;
 
@@ -53,6 +53,9 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         // Wait for transaction to be mined
         let receipt = pending_tx.get_receipt().await?;
         info!("Transaction mined in block: {:?}", receipt.block_number.unwrap());
+
+        let balance = taiyi_escrow.balanceOf(signer.address()).call().await?;
+        assert_eq!(balance._0, U256::from(100_000));
     }
 
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
