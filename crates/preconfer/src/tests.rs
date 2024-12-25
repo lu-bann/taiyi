@@ -43,10 +43,17 @@ mod tests {
     };
 
     sol! {
-        #[sol(rpc, bytecode="608060405234801561000f575f80fd5b5060ae8061001c5f395ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c806370a0823114602a575b5f80fd5b603b6035366004604d565b505f1990565b60405190815260200160405180910390f35b5f60208284031215605c575f80fd5b81356001600160a01b03811681146071575f80fd5b939250505056fea26469706673582212206c61bd25fef4d1a8213d5b720477f9645de0e38c4005072cb8bc13256564e97f64736f6c63430008140033")]
+        #[sol(rpc, bytecode="6080604052348015600e575f80fd5b506101c38061001c5f395ff3fe608060405260043610610033575f3560e01c806327e235e31461003757806370a0823114610074578063d0e30db0146100a8575b5f80fd5b348015610042575f80fd5b5061006261005136600461013b565b5f6020819052908152604090205481565b60405190815260200160405180910390f35b34801561007f575f80fd5b5061006261008e36600461013b565b6001600160a01b03165f9081526020819052604090205490565b6100b06100b2565b005b5f34116101165760405162461bcd60e51b815260206004820152602860248201527f4465706f73697420616d6f756e74206d7573742062652067726561746572207460448201526768616e207a65726f60c01b606482015260840160405180910390fd5b335f9081526020819052604081208054349290610134908490610168565b9091555050565b5f6020828403121561014b575f80fd5b81356001600160a01b0381168114610161575f80fd5b9392505050565b8082018082111561018757634e487b7160e01b5f52601160045260245ffd5b9291505056fea26469706673582212205b3ebf660e7dcdb2d674f60a0229e4677c14be1e78d91ba988f92f12ade8038264736f6c63430008190033")]
         contract TaiyiEscrow {
-            function balanceOf(address owner) public view returns (uint256 balance) {
-                return type(uint256).max;
+            mapping(address => uint256) public balances;
+
+            function balanceOf(address user) public view returns (uint256) {
+                return balances[user];
+            }
+
+            function deposit() public payable {
+                require(msg.value > 0, "Deposit amount must be greater than zero");
+                balances[msg.sender] += msg.value;
             }
         }
     }
@@ -88,9 +95,13 @@ mod tests {
         let escrow = TaiyiEscrow::deploy(&provider).await?;
         info!("Deployed contract at address: {}", escrow.address());
 
+        // Deposit into the escrow contract
+        let builder = escrow.deposit().value(U256::from(100_000));
+        let tx_hash = builder.send().await?.watch().await?;
+
         let builder = escrow.balanceOf(*sender);
-        let balance = builder.call().await?.balance;
-        assert_eq!(balance, U256::MAX);
+        let balance = builder.call().await?._0;
+        assert_eq!(balance, U256::from(100_000));
 
         // spawn api server
         let state = PreconfState::new(

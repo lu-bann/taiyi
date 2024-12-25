@@ -46,6 +46,12 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
         let contract_address: Address = "0xA791D59427B2b7063050187769AC871B497F4b3C".parse()?;
         let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+
+        // check if contract exists
+        let code = provider.get_code_at(contract_address).await?;
+        info!("Contract code: {:?}", code);
+        assert!(code.len() > 2);
+
         // Call deposit function
         let tx = taiyi_escrow.deposit().value(U256::from(100_000)).into_transaction_request();
         let pending_tx = provider.send_transaction(tx).await?;
@@ -54,6 +60,9 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         let receipt = pending_tx.get_receipt().await?;
         info!("Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
+        // sleep for a while to make sure the transaction is mined
+        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+        info!("fetching balance");
         let balance = taiyi_escrow.balanceOf(signer.address()).call().await?;
         assert_eq!(balance._0, U256::from(100_000));
     }
