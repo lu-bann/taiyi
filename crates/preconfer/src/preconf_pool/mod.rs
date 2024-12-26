@@ -67,11 +67,6 @@ impl PreconfPool {
         &self,
         preconf_request: PreconfRequest,
     ) -> Result<Uuid, PoolError> {
-        // Check if there's space left in the block
-        if !self.can_accomodate(preconf_request.allocation.clone()) {
-            return Err(PoolError::BlockspaceNotAvailable);
-        }
-
         // check if the sender has enough balance to lock the deposit
         if !self
             .has_enough_balance(
@@ -91,12 +86,13 @@ impl PreconfPool {
                 None => BlockspaceAvailable::default(),
             };
 
-        // Verify again after acquiring the write lock that we still have enough space
+        // Verify that we have enough space
         if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
             || blockspace_avail.blobs < preconf_request.allocation.num_blobs
         {
             return Err(PoolError::BlockspaceNotAvailable);
         }
+
         // calculate diffs
         blockspace_avail.gas_limit -= preconf_request.allocation.gas_limit;
         blockspace_avail.blobs -= preconf_request.allocation.num_blobs;
@@ -107,7 +103,6 @@ impl PreconfPool {
         // Update the blockspace issued for the target slot and insert the request into the pending pool
         pool_inner.update_blockspace(preconf_request.target_slot(), blockspace_avail);
         pool_inner.pending.insert(request_id, preconf_request);
-        drop(pool_inner);
 
         Ok(request_id)
     }
@@ -124,12 +119,6 @@ impl PreconfPool {
         } else {
             Err(PoolError::TransactionNotFound)
         }
-    }
-
-    pub fn can_accomodate(&self, request: BlockspaceAllocation) -> bool {
-        let blockspace_avail = self.blockspace_available(request.target_slot);
-        blockspace_avail.gas_limit >= request.gas_limit
-            && blockspace_avail.blobs >= request.num_blobs
     }
 
     pub async fn has_enough_balance(

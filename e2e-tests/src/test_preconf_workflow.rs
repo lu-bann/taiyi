@@ -94,8 +94,6 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         let nonce = provider.get_transaction_count(signer.address()).await?;
         info!("Nonce: {:?}", nonce);
 
-        // sleep for a while to make sure the transaction is mined
-        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
         info!("fetching balance");
         let balance = taiyi_escrow.balanceOf(signer.address()).call().await?;
         assert_eq!(balance._0, U256::from(100_000));
