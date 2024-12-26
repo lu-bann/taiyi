@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use crate::{
     error::{PoolError, ValidationError},
-    validator::{PreconfValidator, ValidationOutcome},
+    validator::PreconfValidator,
 };
 
 mod pending;
@@ -32,14 +32,9 @@ impl PreconfPoolBuilder {
         Self
     }
 
-    pub fn build(
-        self,
-        current_slot: u64,
-        rpc_url: Url,
-        taiyi_escrow_address: Address,
-    ) -> Arc<PreconfPool> {
+    pub fn build(self, rpc_url: Url, taiyi_escrow_address: Address) -> Arc<PreconfPool> {
         let validator = PreconfValidator::new(rpc_url);
-        Arc::new(PreconfPool::new(current_slot, validator, taiyi_escrow_address))
+        Arc::new(PreconfPool::new(validator, taiyi_escrow_address))
     }
 }
 
@@ -51,18 +46,12 @@ pub struct PreconfPool {
     pool_inner: RwLock<PreconfPoolInner>,
     /// Validator to validate preconf requests.
     validator: PreconfValidator,
-    /// latest state fo the pool
-    pool_state: PoolState,
     /// escrow contract
     taiyi_escrow_address: Address,
 }
 
 impl PreconfPool {
-    pub fn new(
-        current_slot: u64,
-        validator: PreconfValidator,
-        taiyi_escrow_address: Address,
-    ) -> Self {
+    pub fn new(validator: PreconfValidator, taiyi_escrow_address: Address) -> Self {
         Self {
             pool_inner: RwLock::new(PreconfPoolInner {
                 pending: Pending::new(),
@@ -70,7 +59,6 @@ impl PreconfPool {
                 blockspace_issued: HashMap::new(),
             }),
             validator,
-            pool_state: PoolState { current_slot },
             taiyi_escrow_address,
         }
     }
@@ -118,16 +106,9 @@ impl PreconfPool {
         request_id: Uuid,
     ) -> Result<(), PoolError> {
         if preconf_request.transaction.is_some() {
-            // validate the preconf request
-            let validation_outcome = self.validate(&preconf_request).await?;
-
-            match validation_outcome {
-                ValidationOutcome::Valid { .. } => {
-                    self.insert_ready(request_id, preconf_request);
-                    Ok(())
-                }
-                _ => unimplemented!(),
-            }
+            self.validate(&preconf_request).await?;
+            self.insert_ready(request_id, preconf_request);
+            Ok(())
         } else {
             Err(PoolError::TransactionNotFound)
         }
@@ -162,7 +143,7 @@ impl PreconfPool {
     async fn validate(
         &self,
         preconf_request: &PreconfRequest,
-    ) -> eyre::Result<ValidationOutcome, ValidationError> {
+    ) -> eyre::Result<(), ValidationError> {
         let signer = match preconf_request.signer {
             Some(signer) => signer,
             None => return Err(ValidationError::SignerNotFound),
@@ -200,14 +181,7 @@ impl PreconfPool {
             return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
-        // TODO: uncomment this once we have simulator ready
-        // if target_slot == self.pool_state.current_slot + 1 {
-        //     Ok(ValidationOutcome::Valid { simulate: true })
-        // } else {
-        //     Ok(ValidationOutcome::Valid { simulate: false })
-        // }
-
-        Ok(ValidationOutcome::Valid { simulate: false })
+        Ok(())
     }
 
     /// Returns a preconf request from the pending pool.
@@ -326,7 +300,6 @@ mod tests {
     use crate::{
         error::PoolError,
         preconf_pool::{PoolType, PreconfPoolBuilder},
-        validator::ValidationOutcome,
     };
 
     #[test]
@@ -334,7 +307,7 @@ mod tests {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
         let preconf_pool =
-            PreconfPoolBuilder::new().build(1, rpc_url.parse().unwrap(), Address::default());
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
         let mut preconf = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
@@ -368,9 +341,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let slot = provider.get_block_number().await?;
         let preconf_pool =
-            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -416,9 +388,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let slot = provider.get_block_number().await?;
         let preconf_pool =
-            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -462,9 +433,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let slot = provider.get_block_number().await?;
         let preconf_pool =
-            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -508,9 +478,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let slot = provider.get_block_number().await?;
         let preconf_pool =
-            PreconfPoolBuilder::new().build(slot, rpc_url.parse().unwrap(), Address::default());
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();

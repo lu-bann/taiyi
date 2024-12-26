@@ -60,10 +60,7 @@ impl PreconfState {
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
     ) -> Self {
-        let slot = network_state.get_current_slot();
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(slot, execution_rpc_url, taiyi_escrow_address);
-
+        let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
         Self { relay_client, network_state, preconf_pool, signer_client }
     }
 
@@ -151,6 +148,9 @@ impl PreconfState {
     }
 
     /// reserve blockspace for a slot
+    ///
+    /// Requirements for target slot:
+    /// 1. Must be at least 2 slots ahead of current slot
     pub async fn reserve_blockspace(
         &self,
         request: BlockspaceAllocation,
@@ -163,6 +163,8 @@ impl PreconfState {
 
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
+        // Current + 1 slot transactions should use Type A transactions directly
+        // Reservation is only for slots with 2+ slot delay
         if request.target_slot < current_slot + 1 {
             return Err(RpcError::ExceedDeadline(request.target_slot));
         }

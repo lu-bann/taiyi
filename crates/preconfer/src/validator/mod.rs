@@ -29,18 +29,3 @@ impl PreconfValidator {
         }
     }
 }
-
-#[derive(Debug)]
-pub enum ValidationOutcome {
-    /// The transaction is considered valid and can be inserted into the sub-pools.
-    ///
-    /// If simulate is true, the transaction should be sent for simulation against the latest
-    /// state for inclusion in the next block. ie. Ready sub-pool.
-    /// If simulate is false, the transaction should be parked in the Pending sub-pool.
-    Valid {
-        /// Whether to propagate the transaction to the simulator.
-        simulate: bool,
-    },
-    /// An error occurred while trying to validate the transaction
-    Error,
-}

@@ -67,7 +67,7 @@ impl Pending {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::Address;
+    use alloy_primitives::{Address, U256};
     use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
     use uuid::Uuid;
 
@@ -89,5 +89,35 @@ mod tests {
 
         parked.remove(id);
         assert_eq!(parked.get(id), None);
+    }
+
+    #[test]
+    fn test_get_pending_diffs_for_account_after_insert_multiple_and_remove() {
+        let mut parked = Pending::new();
+        let account = Address::default();
+
+        let request1 = PreconfRequest {
+            allocation: BlockspaceAllocation { deposit: U256::from(100), ..Default::default() },
+            transaction: None,
+            signer: Some(account),
+        };
+        let request2 = PreconfRequest {
+            allocation: BlockspaceAllocation { deposit: U256::from(200), ..Default::default() },
+            transaction: None,
+            signer: Some(account),
+        };
+
+        let id1 = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        parked.insert(id1, request1.clone());
+        parked.insert(id2, request2.clone());
+
+        assert_eq!(parked.get_pending_diffs_for_account(account), Some(U256::from(300)));
+
+        parked.remove(id1);
+        assert_eq!(parked.get_pending_diffs_for_account(account), Some(U256::from(200)));
+
+        parked.remove(id2);
+        assert_eq!(parked.get_pending_diffs_for_account(account), None);
     }
 }

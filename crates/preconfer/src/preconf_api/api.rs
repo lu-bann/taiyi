@@ -34,8 +34,7 @@ use super::state::GetSlotResponse;
 use crate::{
     error::RpcError,
     metrics::preconfer::{
-        PRECONF_CANCEL_RECEIVED, PRECONF_REQUEST_RECEIVED, PRECONF_RESPONSE_DURATION,
-        PRECONF_TX_RECEIVED,
+        BLOCKSPACE_REQUEST_RECEIVED, PRECONF_RESPONSE_DURATION, PRECONF_TX_RECEIVED,
     },
     preconf_api::PreconfState,
 };
@@ -107,6 +106,8 @@ pub async fn handle_reserve_blockspace(
 ) -> Result<Json<Uuid>, RpcError> {
     info!("Received blockspace reservation request");
 
+    let start_request = Instant::now();
+
     // Extract the signer and signature from the headers
     let (signer, signature) = {
         let auth = headers
@@ -135,8 +136,28 @@ pub async fn handle_reserve_blockspace(
         return Err(RpcError::SignatureError("Invalid signature".to_string()));
     }
 
-    let request_id = state.reserve_blockspace(request, signer).await?;
-    Ok(Json(request_id))
+    match state.reserve_blockspace(request, signer).await {
+        Ok(request_id) => {
+            let request_latency = start_request.elapsed();
+            PRECONF_RESPONSE_DURATION
+                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
+                .observe(request_latency.as_secs_f64());
+            BLOCKSPACE_REQUEST_RECEIVED
+                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
+                .inc();
+            Ok(Json(request_id))
+        }
+        Err(e) => {
+            let request_latency = start_request.elapsed();
+            PRECONF_RESPONSE_DURATION
+                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
+                .observe(request_latency.as_secs_f64());
+            BLOCKSPACE_REQUEST_RECEIVED
+                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), RESERVE_BLOCKSPACE_PATH])
+                .inc();
+            Err(e)
+        }
+    }
 }
 
 pub async fn handle_submit_transaction(
@@ -144,6 +165,8 @@ pub async fn handle_submit_transaction(
     State(state): State<PreconfState>,
     Json(param): Json<SubmitTransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError> {
+    let start_request = Instant::now();
+
     let signature = {
         let auth = headers
             .get("x-luban-signature")
@@ -153,8 +176,26 @@ pub async fn handle_submit_transaction(
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
     match state.submit_transaction(param, signature).await {
-        Ok(response) => Ok(Json(response)),
-        Err(e) => Err(e),
+        Ok(response) => {
+            let request_latency = start_request.elapsed();
+            PRECONF_RESPONSE_DURATION
+                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
+                .observe(request_latency.as_secs_f64());
+            PRECONF_TX_RECEIVED
+                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
+                .inc();
+            Ok(Json(response))
+        }
+        Err(e) => {
+            let request_latency = start_request.elapsed();
+            PRECONF_RESPONSE_DURATION
+                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
+                .observe(request_latency.as_secs_f64());
+            PRECONF_TX_RECEIVED
+                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), SUBMIT_TRANSACTION_PATH])
+                .inc();
+            Err(e)
+        }
     }
 }
 

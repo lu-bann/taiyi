@@ -168,12 +168,14 @@ pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<Estima
     let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
     Ok(estimate_fee)
 }
+
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}/health", taiyi_url)).send().await?;
     let res_b = res.text().await?;
     Ok(res_b)
 }
+
 pub async fn get_constraints_from_relay(
     relay_url: &str,
     target_slot: u64,

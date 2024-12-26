@@ -19,7 +19,7 @@ pub enum RpcError {
     UnknownError(String),
     #[error("exceed deadline for slot {0}")]
     ExceedDeadline(u64),
-    #[error("Orderpool error: {0:?}")]
+    #[error("Preconf pool error: {0:?}")]
     PoolError(#[from] PoolError),
     #[error("Preconf request error: {0:?}")]
     PreconfRequestError(String),

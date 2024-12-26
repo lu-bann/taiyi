@@ -13,7 +13,7 @@ use crate::{
     constant::{PRECONFER_BLS_PK, SIGNER_PRIVATE},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        get_available_slot, get_constraints_from_relay, get_estimate_fee,
+        get_available_slot, get_constraints_from_relay, get_estimate_fee, health_check,
         send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
         wati_until_deadline_of_slot,
     },
@@ -28,6 +28,34 @@ sol! {
         #[derive(Debug)]
         function deposit() public payable;
     }
+}
+
+#[tokio::test]
+async fn test_estimate_fee() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+
+    let target_slot = available_slot.first().unwrap().slot;
+
+    let estimate_fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
+
+    info!("estimate_fee: {:?}", estimate_fee);
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_health_check() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    let health_check = health_check(&config.taiyi_url()).await?;
+
+    info!("health_check: {:?}", health_check);
+    taiyi_handle.abort();
+    Ok(())
 }
 
 #[tokio::test]
@@ -129,5 +157,15 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
     // Optionally, cleanup when done
     taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_reserve_blockspace_invalid_no_balance() -> eyre::Result<()> {
     Ok(())
 }
