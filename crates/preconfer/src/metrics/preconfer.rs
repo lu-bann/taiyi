@@ -18,7 +18,7 @@ lazy_static! {
         TAIYI_PRECONFER_METRICS
     )
     .unwrap();
-    pub static ref PRECONF_REQUEST_RECEIVED: IntCounterVec =
+    pub static ref BLOCKSPACE_REQUEST_RECEIVED: IntCounterVec =
         register_int_counter_vec_with_registry!(
             "preconf_request_received",
             "Number of preconf requests received",

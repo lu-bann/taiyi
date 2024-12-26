@@ -41,6 +41,10 @@ pub struct PreconferCommand {
     #[clap(long)]
     pub taiyi_service_url: Option<String>,
 
+    /// Taiyi Escrow contract address
+    #[clap(long)]
+    pub taiyi_escrow_address: String,
+
     /// metrics port
     #[clap(long)]
     pub metrics_port: Option<u16>,
@@ -66,6 +70,7 @@ impl PreconferCommand {
             self.bls_sk.clone(),
             self.ecdsa_sk.clone(),
             relay_url,
+            self.taiyi_escrow_address.parse()?,
         )
         .await?;
 

@@ -9,21 +9,24 @@ use alloy_provider::{
     Provider, ProviderBuilder,
 };
 use alloy_rpc_types::TransactionRequest;
+use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
-use reqwest::Url;
+use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
     BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
-    PreconfResponse, SignedConstraints,
+    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::constant::{
-    PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, PRECONF_REQUEST_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
+    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS, SUBMIT_TRANSACTION_PATH,
 };
 
 lazy_static::lazy_static! {
@@ -129,6 +132,8 @@ pub async fn start_taiyi_command_for_testing(
         &config.relay_url,
         "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
+        "--taiyi-escrow-address",
+        "0xA791D59427B2b7063050187769AC871B497F4b3C",
     ]); // Assuming TaiyiCommand is the main command struct
 
     // Spawn the taiyi command in a background task
@@ -148,7 +153,7 @@ pub async fn start_taiyi_command_for_testing(
 
 pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResponse>> {
     let client = reqwest::Client::new();
-    let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
+    let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
     let res_b = res.bytes().await?;
     let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
     Ok(available_slots)
@@ -157,21 +162,20 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResp
 pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
     let client = reqwest::Client::new();
     let request = EstimateFeeRequest { slot };
-    let res = client
-        .post(&format!("{}/gateway/v0/estimate_fee", taiyi_url))
-        .json(&request)
-        .send()
-        .await?;
+    let res =
+        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&request).send().await?;
     let res_b = res.bytes().await?;
     let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
     Ok(estimate_fee)
 }
+
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}/health", taiyi_url)).send().await?;
     let res_b = res.text().await?;
     Ok(res_b)
 }
+
 pub async fn get_constraints_from_relay(
     relay_url: &str,
     target_slot: u64,
@@ -182,7 +186,7 @@ pub async fn get_constraints_from_relay(
         .send()
         .await?;
     let res_b = res.text().await?;
-    info!("get constraints from relay: {:?}", res_b);
+    info!("get constraints from relay for slot: {} : {:?}", target_slot, res_b);
     let constraints = serde_json::from_str::<Vec<SignedConstraints>>(&res_b)?;
     Ok(constraints)
 }
@@ -210,10 +214,12 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let fees = provider.estimate_eip1559_fees(None).await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
+    info!("Transaction nonce: {}", nonce);
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        .with_nonce(nonce)
+        // TODO: use the correct nonce, dont' why the nonce above is 3.
+        .with_nonce(1)
         .with_gas_limit(21_0000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
@@ -224,23 +230,66 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     Ok(transaction)
 }
 
-pub async fn submit_preconf_request(
-    taiyi_url: &str,
-    tx: &TxEnvelope,
+pub async fn generate_reserve_blockspace_request(
+    signer_private: &str,
     target_slot: u64,
-) -> eyre::Result<PreconfResponse> {
-    let preconf_request = PreconfRequest {
-        allocation: BlockspaceAllocation::default(),
-        transaction: Some(tx.clone()),
+    fee: u128,
+) -> (BlockspaceAllocation, String) {
+    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+
+    let request = BlockspaceAllocation {
         target_slot,
+        deposit: U256::from(fee * 21_000),
+        gas_limit: 21_0000,
+        num_blobs: 0,
     };
-    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
-    let response =
-        reqwest::Client::new().post(request_endpoint.clone()).json(&preconf_request).send().await?;
-    let body = response.text().await?;
-    info!("submit preconf request response: {:?}", body);
-    let res_body = serde_json::from_str::<PreconfResponse>(&body)?;
-    Ok(res_body)
+    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("{}:0x{}", signer.address(), signature))
+}
+
+pub async fn generate_submit_transaction_request(
+    signer_private: &str,
+    request_id: Uuid,
+    rpc_url: &str,
+) -> (SubmitTransactionRequest, String) {
+    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+
+    let transaction = generate_tx(rpc_url, PRECONFER_ECDSA_SK).await.unwrap();
+    let request = SubmitTransactionRequest { transaction, request_id };
+    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("0x{}", signature))
+}
+
+pub async fn send_reserve_blockspace_request(
+    request: BlockspaceAllocation,
+    signature: String,
+    taiyi_url: &str,
+) -> eyre::Result<Response> {
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
+    let response = reqwest::Client::new()
+        .post(request_endpoint.clone())
+        .header("content-type", "application/json")
+        .header("x-luban-signature", signature)
+        .json(&request)
+        .send()
+        .await?;
+    Ok(response)
+}
+
+pub async fn send_submit_transaction_request(
+    request: SubmitTransactionRequest,
+    signature: String,
+    taiyi_url: &str,
+) -> eyre::Result<Response> {
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
+    let response = reqwest::Client::new()
+        .post(request_endpoint.clone())
+        .header("content-type", "application/json")
+        .header("x-luban-signature", signature)
+        .json(&request)
+        .send()
+        .await?;
+    Ok(response)
 }
 
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {

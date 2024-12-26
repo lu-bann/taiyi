@@ -26,7 +26,7 @@ impl NetworkState {
         self.context.deposit_chain_id as u64
     }
 
-    pub fn get_context(&self) -> Context {
+    pub fn context(&self) -> Context {
         self.context.clone()
     }
 
@@ -54,5 +54,9 @@ impl NetworkState {
     pub fn clear_slots(&self, epoch: u64) {
         let mut available_slots = self.available_slots.write();
         available_slots.retain(|&slot| slot >= epoch * self.context.slots_per_epoch);
+    }
+
+    pub fn contains_slot(&self, slot: u64) -> bool {
+        self.available_slots.read().contains(&slot)
     }
 }

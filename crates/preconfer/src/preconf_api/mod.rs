@@ -1,5 +1,9 @@
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    ops::Add,
+};
 
+use alloy_contract::{ContractInstance, Interface};
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
@@ -11,7 +15,9 @@ use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
-    clients::{relay_client::RelayClient, signer_client::SignerClient},
+    clients::{
+        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
+    },
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
     pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
@@ -30,6 +36,7 @@ pub async fn spawn_service(
     bls_sk: String,
     ecdsa_sk: String,
     relay_url: Vec<Url>,
+    taiyi_escrow_address: Address,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_rpc_url).await?;
@@ -39,14 +46,18 @@ pub async fn spawn_service(
     let network_state_cl = network_state.clone();
 
     let relay_client = RelayClient::new(relay_url.clone());
-
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
     info!("preconfer is on chain_id: {:?}", chain_id);
 
-    let state =
-        PreconfState::new(network_state, relay_client, signer_client, execution_rpc_url.clone());
+    let state = PreconfState::new(
+        network_state,
+        relay_client,
+        signer_client,
+        Url::parse(&execution_rpc_url)?,
+        taiyi_escrow_address,
+    );
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
@@ -61,7 +72,7 @@ pub async fn spawn_service(
             _ = tokio::signal::ctrl_c() => {
                 info!("Ctrl-C received, shutting down...");
             },
-
     }
+
     Ok(())
 }

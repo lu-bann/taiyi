@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use alloy_contract::Error as AlloyContractError;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use axum::{
     response::{IntoResponse, Response},
     Json,
@@ -19,7 +19,7 @@ pub enum RpcError {
     UnknownError(String),
     #[error("exceed deadline for slot {0}")]
     ExceedDeadline(u64),
-    #[error("Orderpool error: {0:?}")]
+    #[error("Preconf pool error: {0:?}")]
     PoolError(#[from] PoolError),
     #[error("Preconf request error: {0:?}")]
     PreconfRequestError(String),
@@ -27,6 +27,10 @@ pub enum RpcError {
     SignatureError(String),
     #[error("Params error: {0:?}")]
     ParamsError(String),
+    #[error("Malformed header")]
+    MalformedHeader,
+    #[error("Gateway isn't delegated for the slot: {0}")]
+    SlotNotAvailable(u64),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -58,9 +62,13 @@ pub enum ValidationError {
     #[error("Internal error: {0}")]
     Internal(String),
     #[error("Insufficient account balance, balance_diff: {0}")]
-    LowBalance(u128),
+    LowBalance(U256),
     #[error("Failed to get account state for address: {0}")]
     AccountStateNotFound(Address),
+    #[error("Signer not found for preconf request")]
+    SignerNotFound,
+    #[error("Transaction not found for preconf request")]
+    TransactionNotFound,
     #[error("custom error {0:?}")]
     CustomError(String),
 }
@@ -96,11 +104,19 @@ pub enum PoolError {
     #[error("preconf request {0:?} not found")]
     PreconfRequestNotFound(Uuid),
     #[error("preconf request for slot {0} not found")]
-    SlotNotFound(u64),
+    RequestsNotFoundForSlot(u64),
     #[error("Invalid preconf tx for hash: {0:?}")]
     InvalidPreconfTx(Uuid),
     #[error("requested gas limit {0} exceeds max available gas limit {1}")]
     InsufficientGasLimit(u64, u64),
     #[error("requested blobs {0} exceeds max available blobs {1}")]
     InsufficientBlobs(usize, usize),
+    #[error("Insufficient escrow balance")]
+    InsufficientEscrowBalance,
+    #[error("Blockspace not available")]
+    BlockspaceNotAvailable,
+    #[error("Transaction not found")]
+    TransactionNotFound,
+    #[error("Escrow balance not found for account {0}")]
+    EscrowBalanceNotFoundForAccount(Address),
 }

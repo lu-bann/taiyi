@@ -4,10 +4,10 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::TxEnvelope;
+use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{keccak256, PrimitiveSignature};
+use alloy_primitives::{keccak256, Address, PrimitiveSignature};
 use alloy_provider::{ProviderBuilder, RootProvider};
 use alloy_rpc_client::{ClientBuilder, RpcClient};
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -22,17 +22,22 @@ use ethereum_consensus::{
     ssz::prelude::ByteList,
 };
 use futures::StreamExt;
+use reqwest::Url;
 use reth_primitives::PooledTransaction;
+use reth_revm::handler::execution;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage, ContextExt, PreconfRequest,
-    PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints,
+    BlockspaceAllocation, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
+    ContextExt, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS,
+    SignedConstraints, SubmitTransactionRequest,
 };
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::{
-    clients::{relay_client::RelayClient, signer_client::SignerClient},
+    clients::{
+        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
+    },
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
@@ -41,11 +46,10 @@ use crate::{
 
 #[derive(Clone)]
 pub struct PreconfState {
-    relay_client: RelayClient,
     network_state: NetworkState,
     preconf_pool: Arc<PreconfPool>,
+    relay_client: RelayClient,
     signer_client: SignerClient,
-    execution_rpc_url: String,
 }
 
 impl PreconfState {
@@ -53,38 +57,16 @@ impl PreconfState {
         network_state: NetworkState,
         relay_client: RelayClient,
         signer_client: SignerClient,
-        execution_rpc_url: String,
+        execution_rpc_url: Url,
+        taiyi_escrow_address: Address,
     ) -> Self {
-        let slot = network_state.get_current_slot();
-        let preconf_pool = PreconfPoolBuilder::new().build(slot);
-
-        Self { relay_client, network_state, preconf_pool, signer_client, execution_rpc_url }
-    }
-
-    pub fn execution_api_client(&self) -> eyre::Result<RootProvider<Http<Client>>> {
-        let rpc = self.execution_rpc_url.parse()?;
-        let provider = ProviderBuilder::new().on_http(rpc);
-        Ok(provider)
-    }
-
-    pub fn rpc_client(&self) -> eyre::Result<RpcClient<Http<Client>>> {
-        let rpc = self.execution_rpc_url.parse()?;
-        let client = ClientBuilder::default().http(rpc);
-        Ok(client)
-    }
-
-    pub fn preconf_requests(&self) -> Result<Vec<PreconfRequest>, PoolError> {
-        self.preconf_pool.preconf_requests()
-    }
-
-    fn deadline_of_slot(&self, slot: u64) -> u64 {
-        let context = self.network_state.get_context();
-        context.get_deadline_of_slot(slot)
+        let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
+        Self { relay_client, network_state, preconf_pool, signer_client }
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
         let relay_client = self.relay_client.clone();
-        let context = self.network_state.get_context();
+        let context = self.network_state.context();
         let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,
             Err(_) => context.min_genesis_time + context.genesis_delay,
@@ -98,14 +80,14 @@ impl PreconfState {
                 let next_slot = slot + 1;
 
                 let submit_constraint_deadline_duration =
-                    self.deadline_of_slot(next_slot).saturating_sub(
+                    context.get_deadline_of_slot(next_slot).saturating_sub(
                         SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .expect("Time went backwards")
                             .as_secs(),
                     );
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
-                match self.preconf_pool.pending_requests(next_slot) {
+                match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
                         if preconf_requests.is_empty() {
                             continue;
@@ -155,127 +137,95 @@ impl PreconfState {
                             }
                         }
                     }
-                    Err(_) => {
-                        debug!("No requests found for slot: {}", next_slot);
+                    Err(err) => {
+                        debug!(?err, "Error fetching preconf requests for slot");
                         continue;
                     }
                 }
-                self.preconf_pool.remove_account_state(next_slot);
             }
             Ok(())
         }
     }
 
-    /// Send a preconf request to the preconfer
+    /// reserve blockspace for a slot
     ///
-    /// Expected forms
-    ///     - PreconfRequest without transaction
-    ///     - PreconfRequest with transaction
-    pub async fn request_preconf(
+    /// Requirements for target slot:
+    /// 1. Must be at least 2 slots ahead of current slot
+    pub async fn reserve_blockspace(
         &self,
-        preconf_request: PreconfRequest,
-    ) -> Result<PreconfResponse, RpcError> {
-        // TODO: check for sender's collateral
-        // A sender must have enough collateral to cover for the penalty imposed by the preconfer on
-        // the sender if the sender fails to submit the preconf_tx
-
-        let request_id = Uuid::new_v4();
-
-        if self.is_exceed_deadline(preconf_request.target_slot) {
-            return Err(RpcError::ExceedDeadline(preconf_request.target_slot));
+        request: BlockspaceAllocation,
+        signer: Address,
+    ) -> Result<Uuid, RpcError> {
+        // Check if the gateway is delegated for the target slot
+        if !self.network_state.contains_slot(request.target_slot) {
+            return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        match self
-            .preconf_pool
-            .request_inclusion(preconf_request.clone(), request_id, self.execution_rpc_url.clone())
-            .await
-        {
-            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
-                let message_digest = {
-                    let mut data = Vec::new();
-                    // First field is the concatenation of the transaction hash
-                    data.extend_from_slice(
-                        preconf_request
-                            .transaction
-                            .expect("preconf tx not found")
-                            .tx_hash()
-                            .as_slice(),
-                    );
-
-                    // Second field is the little endian encoding of the target slot
-                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
-                    keccak256(data)
-                };
-                let commitment =
-                    self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
-                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
-                    })?;
-                Ok(PreconfResponse::success(request_id, Some(commitment)))
-            }
-            Ok(PoolType::Parked) => Ok(PreconfResponse::success(request_id, None)),
-            Err(e) => Err(RpcError::PoolError(e)),
+        let current_slot = self.network_state.get_current_slot();
+        // Target slot must be atleast current slot + 2
+        // Current + 1 slot transactions should use Type A transactions directly
+        // Reservation is only for slots with 2+ slot delay
+        if request.target_slot < current_slot + 1 {
+            return Err(RpcError::ExceedDeadline(request.target_slot));
         }
+
+        // Construct a preconf request
+        let preconf_request =
+            PreconfRequest { allocation: request, transaction: None, signer: Some(signer) };
+
+        self.preconf_pool.reserve_blockspace(preconf_request).await.map_err(RpcError::PoolError)
     }
 
-    pub async fn cancel_preconf_request(
+    pub async fn submit_transaction(
         &self,
-        _cancel_preconf_request: CancelPreconfRequest,
-    ) -> Result<CancelPreconfResponse, PoolError> {
-        unimplemented!()
-    }
-
-    pub async fn preconf_transaction(
-        &self,
-        request_id: Uuid,
-        transaction: TxEnvelope,
+        request: SubmitTransactionRequest,
+        signature: PrimitiveSignature,
     ) -> Result<PreconfResponse, RpcError> {
         let mut preconf_request = self
             .preconf_pool
-            .get_parked(request_id)
-            .ok_or(PoolError::PreconfRequestNotFound(request_id))?;
+            .get_pending(request.request_id)
+            .ok_or(PoolError::PreconfRequestNotFound(request.request_id))?;
+
+        // Verify the signature
+        let recovered_signer = signature
+            .recover_address_from_prehash(&request.digest())
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+        let signer = match preconf_request.signer() {
+            Some(signer) => signer,
+            None => return Err(RpcError::UnknownError("No signer found".to_string())),
+        };
+        if recovered_signer != signer {
+            return Err(RpcError::SignatureError("Invalid signature".to_string()));
+        }
+
         if preconf_request.transaction.is_some() {
             return Err(RpcError::PreconfTxAlreadySet);
         }
-        if self.is_exceed_deadline(preconf_request.target_slot) {
-            return Err(RpcError::ExceedDeadline(preconf_request.target_slot));
+
+        if self.is_exceed_deadline(preconf_request.target_slot()) {
+            return Err(RpcError::ExceedDeadline(preconf_request.target_slot()));
         }
-        preconf_request.transaction = Some(transaction.clone());
+
+        // Check if blocksapce reserved matches with transaction gas limit
+        if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
+            return Err(RpcError::UnknownError(
+                "Gas limit exceeds reserved blockspace".to_string(),
+            ));
+        }
+
+        preconf_request.transaction = Some(request.transaction.clone());
 
         match self
             .preconf_pool
-            .request_inclusion(preconf_request.clone(), request_id, self.execution_rpc_url.clone())
+            .submit_transaction(preconf_request.clone(), request.request_id)
             .await
         {
-            Ok(PoolType::Ready) | Ok(PoolType::Pending) => {
-                let message_digest = {
-                    let mut data = Vec::new();
-                    // First field is the concatenation of the transaction hash
-                    data.extend_from_slice(
-                        preconf_request
-                            .transaction
-                            .expect("preconf tx not found")
-                            .tx_hash()
-                            .as_slice(),
-                    );
-
-                    // Second field is the little endian encoding of the target slot
-                    data.extend_from_slice(&preconf_request.target_slot.to_le_bytes());
-                    keccak256(data)
-                };
+            Ok(_) => {
                 let commitment =
-                    self.signer_client.sign_with_ecdsa(message_digest).await.map_err(|e| {
+                    self.signer_client.sign_with_ecdsa(request.digest()).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponse::success(request_id, Some(commitment)))
-            }
-            Ok(PoolType::Parked) => Err(RpcError::UnknownError(
-                "Preconf request shouldn't be in Parked subpool".to_string(),
-            )),
-            Err(PoolError::InvalidPreconfTx(_)) => {
-                self.preconf_pool.delete_parked(request_id);
-                // TODO penalize the sender
-                // self.preconfer.taiyi_core_contract.exhaust(preconf_request.into()).call().await?;
-                Err(RpcError::PreconfRequestError("Invalid preconf tx".to_string()))
+                Ok(PreconfResponse::success(request.request_id, Some(commitment)))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
@@ -287,7 +237,6 @@ impl PreconfState {
     ) -> Result<PreconfStatusResponse, PoolError> {
         let pool = self.preconf_pool.get_pool(request_id)?;
         let status = match pool {
-            PoolType::Parked => PreconfStatus::Pending,
             PoolType::Pending => PreconfStatus::Pending,
             PoolType::Ready => PreconfStatus::Accepted,
         };
@@ -315,7 +264,7 @@ impl PreconfState {
     fn is_exceed_deadline(&self, slot: u64) -> bool {
         let utc_timestamp =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
-        let deadline = self.deadline_of_slot(slot);
+        let deadline = self.network_state.context().get_deadline_of_slot(slot);
         utc_timestamp > deadline
     }
 

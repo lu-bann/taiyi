@@ -27,4 +27,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-core = { workspace = true }
 tree_hash = { workspace = true }
+uuid = { workspace = true }
+
 [lib]
