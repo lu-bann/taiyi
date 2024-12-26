@@ -182,6 +182,22 @@ impl PreconfPool {
             return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
+        // heavy blob tx validation
+        if transaction.is_eip4844() {
+            let transaction = transaction
+                .as_eip4844()
+                .expect("Failed to decode 4844 transaction")
+                .tx()
+                .clone()
+                .try_into_4844_with_sidecar()
+                .map_err(|_| {
+                    ValidationError::Internal("Failed to decode 4844 transaction".to_string())
+                })?;
+
+            // validate the blob
+            transaction.validate_blob(self.validator.kzg_settings.get())?;
+        }
+
         Ok(())
     }
 
