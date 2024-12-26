@@ -83,7 +83,20 @@ impl PreconfPool {
             return Err(PoolError::InsufficientEscrowBalance);
         }
 
-        let mut blockspace_avail = self.blockspace_available(preconf_request.target_slot());
+        let mut pool_inner = self.pool_inner.write();
+
+        let mut blockspace_avail =
+            match pool_inner.blockspace_issued.get(&preconf_request.target_slot()) {
+                Some(space) => space.clone(),
+                None => BlockspaceAvailable::default(),
+            };
+
+        // Verify again after acquiring the write lock that we still have enough space
+        if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
+            || blockspace_avail.blobs < preconf_request.allocation.num_blobs
+        {
+            return Err(PoolError::BlockspaceNotAvailable);
+        }
         // calculate diffs
         blockspace_avail.gas_limit -= preconf_request.allocation.gas_limit;
         blockspace_avail.blobs -= preconf_request.allocation.num_blobs;
@@ -91,12 +104,11 @@ impl PreconfPool {
 
         let request_id = Uuid::new_v4();
 
-        // Update the blockspace issued for the target slot
-        self.pool_inner
-            .write()
-            .blockspace_issued
-            .insert(preconf_request.target_slot(), blockspace_avail);
-        self.insert_pending(request_id, preconf_request);
+        // Update the blockspace issued for the target slot and insert the request into the pending pool
+        pool_inner.update_blockspace(preconf_request.target_slot(), blockspace_avail);
+        pool_inner.pending.insert(request_id, preconf_request);
+        drop(pool_inner);
+
         Ok(request_id)
     }
 
@@ -242,11 +254,15 @@ impl PreconfPoolInner {
         let ready_diff = self.pending.get_pending_diffs_for_account(account);
 
         match (pending_diff, ready_diff) {
-            (Some(parked), Some(pending)) => Some(parked + pending),
-            (Some(parked), None) => Some(parked),
-            (None, Some(pending)) => Some(pending),
+            (Some(pending_diff), Some(ready_diff)) => Some(pending_diff + ready_diff),
+            (Some(pending_diff), None) => Some(pending_diff),
+            (None, Some(ready_diff)) => Some(ready_diff),
             (None, None) => None,
         }
+    }
+
+    fn update_blockspace(&mut self, slot: u64, blockspace: BlockspaceAvailable) {
+        self.blockspace_issued.insert(slot, blockspace);
     }
 }
 
