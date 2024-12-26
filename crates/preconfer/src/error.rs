@@ -74,6 +74,8 @@ pub enum ValidationError {
     CustomError(String),
     #[error("Invalid blob {0:?}")]
     BlobValidation(#[from] BlobTransactionValidationError),
+    #[error("Blob count exceeds limit, expected not more than {0}, got {1}")]
+    BlobCountExceedsLimit(usize, usize),
 }
 
 #[allow(dead_code)]
