@@ -182,6 +182,29 @@ impl PreconfPool {
             return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
+        // heavy blob tx validation
+        if transaction.is_eip4844() {
+            let transaction = transaction
+                .as_eip4844()
+                .expect("Failed to decode 4844 transaction")
+                .tx()
+                .clone()
+                .try_into_4844_with_sidecar()
+                .map_err(|_| {
+                    ValidationError::Internal("Failed to decode 4844 transaction".to_string())
+                })?;
+
+            if preconf_request.allocation.num_blobs < transaction.tx.blob_versioned_hashes.len() {
+                return Err(ValidationError::BlobCountExceedsLimit(
+                    preconf_request.allocation.num_blobs,
+                    transaction.tx.blob_versioned_hashes.len(),
+                ));
+            }
+
+            // validate the blob
+            transaction.validate_blob(self.validator.kzg_settings.get())?;
+        }
+
         Ok(())
     }
 
@@ -289,9 +312,13 @@ pub struct PoolState {
 mod tests {
     use std::time::Duration;
 
-    use alloy_consensus::TxEnvelope;
-    use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip2718::Decodable2718};
-    use alloy_network::{EthereumWallet, TransactionBuilder};
+    use alloy_consensus::{SidecarBuilder, SimpleCoder, TxEnvelope};
+    use alloy_eips::{
+        eip1559::ETHEREUM_BLOCK_GAS_LIMIT,
+        eip2718::Decodable2718,
+        eip4844::{BYTES_PER_BLOB, DATA_GAS_PER_BLOB},
+    };
+    use alloy_network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{Address, U256, U64};
     use alloy_provider::{Provider, ProviderBuilder};
@@ -383,6 +410,122 @@ mod tests {
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_validate_4844_ok() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        // Create a sidecar with some data.
+        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        let data = vec![1u8; BYTES_PER_BLOB];
+        builder.ingest(&data);
+        builder.ingest(&data);
+        let sidecar = builder.build()?;
+        assert_eq!(sidecar.blobs.len(), 3);
+
+        let gas_price = provider.get_gas_price().await?;
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_nonce(0)
+            .with_to(*receiver)
+            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
+            .with_max_fee_per_blob_gas(gas_price)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .with_blob_sidecar(sidecar)
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation { num_blobs: 3, ..Default::default() },
+            transaction: Some(transaction.clone()),
+            signer: Some(*sender),
+        };
+        let validation_result = preconf_pool.validate(&preconf_request).await;
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_validate_4844_err_esceed_num_blobs_limit() -> eyre::Result<()> {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+
+        let provider =
+            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let preconf_pool =
+            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer);
+
+        let fees = provider.estimate_eip1559_fees(None).await?;
+        info!(
+            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
+            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
+        );
+
+        // Create a sidecar with some data.
+        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        let data = vec![1u8; BYTES_PER_BLOB];
+        builder.ingest(&data);
+        builder.ingest(&data);
+        let sidecar = builder.build()?;
+        assert_eq!(sidecar.blobs.len(), 3);
+
+        let gas_price = provider.get_gas_price().await?;
+
+        let transaction = TransactionRequest::default()
+            .with_from(*sender)
+            .with_nonce(0)
+            .with_to(*receiver)
+            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
+            .with_max_fee_per_blob_gas(gas_price)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(0)
+            .with_blob_sidecar(sidecar.clone())
+            .build(&wallet)
+            .await?;
+
+        info!("Transaction built: {:?}", transaction);
+        let preconf_request = PreconfRequest {
+            allocation: BlockspaceAllocation { num_blobs: 1, ..Default::default() },
+            transaction: Some(transaction.clone()),
+            signer: Some(*sender),
+        };
+        let validation_result = preconf_pool.validate(&preconf_request).await;
+        info!("Validation result: {:?}", validation_result);
+
+        assert!(validation_result.is_err());
         Ok(())
     }
 

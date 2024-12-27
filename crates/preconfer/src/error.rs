@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use alloy_consensus::BlobTransactionValidationError;
 use alloy_contract::Error as AlloyContractError;
 use alloy_primitives::{Address, U256};
 use axum::{
@@ -48,7 +49,7 @@ impl IntoResponse for RpcError {
 }
 
 /// Possible commitment validation errors.
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum ValidationError {
     #[error("Transaction nonce too low. Expected {0}, got {1}")]
     NonceTooLow(u64, u64),
@@ -71,6 +72,10 @@ pub enum ValidationError {
     TransactionNotFound,
     #[error("custom error {0:?}")]
     CustomError(String),
+    #[error("Invalid blob {0:?}")]
+    BlobValidation(#[from] BlobTransactionValidationError),
+    #[error("Blob count exceeds limit, expected not more than {0}, got {1}")]
+    BlobCountExceedsLimit(usize, usize),
 }
 
 #[allow(dead_code)]
@@ -94,7 +99,7 @@ pub enum PricerError {
     Custom(String),
 }
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Error)]
 pub enum PoolError {
     /// Request validation failed.
     #[error("Validation failed: {0}")]
