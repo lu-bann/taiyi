@@ -10,6 +10,7 @@ use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
 use blst::min_pk::PublicKey;
 use ethereum_consensus::{
+    deneb::Context,
     primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
 };
@@ -29,30 +30,35 @@ pub struct LookaheadFetcher {
     network_state: NetworkState,
     gateway_pubkey: BlsPublicKey,
     relay_client: RelayClient,
+    context: Context,
 }
 
 impl LookaheadFetcher {
     pub fn new(
-        beacon_url: String,
+        beacon_rpc_url: String,
         network_state: NetworkState,
         gateway_pubkey: PublicKey,
         relay_urls: Vec<Url>,
+        context: Context,
     ) -> Self {
         let gateway_pubkey =
             BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
         Self {
-            beacon_client: Client::new(Url::parse(&beacon_url).expect("Invalid URL")),
+            beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
             network_state,
             gateway_pubkey,
             relay_client: RelayClient::new(relay_urls),
+            context,
         }
     }
 
     pub async fn initialze(&mut self) -> eyre::Result<()> {
         let head = self.beacon_client.get_beacon_block(BlockId::Head).await?;
         let slot = head.message().slot();
-        let epoch = slot / 32;
+        let epoch = slot / self.context.slots_per_epoch;
+        // look ahead for next two epoch
         self.add_slot(epoch).await?;
+        self.add_slot(epoch + 1).await?;
         self.network_state.update_slot(slot);
         Ok(())
     }
@@ -60,7 +66,9 @@ impl LookaheadFetcher {
     /// Add slots from the epoch if the slot is delegated to the gateway
     async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
-        for slot in (epoch * 32)..((epoch + 1) * 32) {
+        for slot in
+            (epoch * self.context.slots_per_epoch)..((epoch + 1) * self.context.slots_per_epoch)
+        {
             let res = self.relay_client.get_delegations(slot).await;
             match res {
                 Ok(signed_delegations) => {
@@ -81,9 +89,6 @@ impl LookaheadFetcher {
                 }
             }
         }
-
-        // clear old slots
-        self.network_state.clear_slots(epoch);
 
         Ok(())
     }
@@ -111,7 +116,8 @@ impl LookaheadFetcher {
             assert!((epoch != current_epoch) == event.epoch_transition, "Invalid epoch");
             if epoch != current_epoch {
                 info!("Epoch changed from {} to {}", current_epoch, epoch);
-                self.add_slot(epoch).await?;
+                self.add_slot(epoch + 1).await?;
+                self.network_state.clear_slots(epoch);
             }
             self.network_state.update_slot(slot);
             info!("Current slot: {}", slot);
@@ -121,12 +127,14 @@ impl LookaheadFetcher {
 }
 
 pub async fn run_cl_process(
-    beacon_url: String,
+    beacon_rpc_url: String,
     network_state: NetworkState,
     bls_pk: PublicKey,
     relay_urls: Vec<Url>,
+    context: Context,
 ) -> impl Future<Output = eyre::Result<()>> {
-    let lookahead_fetcher = LookaheadFetcher::new(beacon_url, network_state, bls_pk, relay_urls);
+    let lookahead_fetcher =
+        LookaheadFetcher::new(beacon_rpc_url, network_state, bls_pk, relay_urls, context);
     lookahead_fetcher.run()
 }
 

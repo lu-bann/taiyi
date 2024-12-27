@@ -8,4 +8,9 @@ pub const PRECONFER_ECDSA_SK: &str =
     "0xc5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2";
 
 pub const SLOT_CHECK_INTERVAL_SECONDS: u64 = 12; // Assuming 12 seconds per slot
-pub const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
+
+pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
+pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
+pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
+pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
+pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";

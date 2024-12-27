@@ -1,6 +1,5 @@
 set -x
 
-
 # set default enclave name
 if [ -z "$ENCLAVE_NAME" ]; then
   export ENCLAVE_NAME="luban"

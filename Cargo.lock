@@ -7059,7 +7059,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "eyre",
@@ -7135,7 +7135,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-cmd"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -7166,7 +7166,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-e2e-tests"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7180,6 +7180,7 @@ dependencies = [
  "ethereum-consensus",
  "eyre",
  "hex",
+ "lazy_static",
  "reqwest 0.12.9",
  "serde",
  "serde_json",
@@ -7188,12 +7189,14 @@ dependencies = [
  "taiyi-primitives",
  "tokio",
  "tracing",
+ "tracing-core",
  "tree_hash 0.8.0",
+ "uuid 1.11.0",
 ]
 
 [[package]]
 name = "taiyi-examples"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7214,7 +7217,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-preconfer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7226,10 +7229,12 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-rpc-types-beacon",
+ "alloy-rpc-types-trace",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
+ "alloy-transport-http",
  "axum",
  "beacon-api-client",
  "blst",
@@ -7262,7 +7267,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-primitives"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",

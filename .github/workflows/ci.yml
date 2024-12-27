@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
     branches:
       - dev
@@ -25,6 +26,8 @@ jobs:
           tool: cargo-sort,cargo-machete
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
