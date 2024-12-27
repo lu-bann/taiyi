@@ -7059,7 +7059,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "eyre",
@@ -7135,7 +7135,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-cmd"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -7166,7 +7166,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-e2e-tests"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7196,7 +7196,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-examples"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7217,7 +7217,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-preconfer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -7267,7 +7267,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-primitives"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
