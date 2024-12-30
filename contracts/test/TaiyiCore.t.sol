@@ -51,7 +51,12 @@ contract TaiyiCoreTest is Test {
         taiyiCore = new TaiyiCore(owner, genesisTimestamp, address(0));
     }
 
-    function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {
+    function assertPreconfRequestStatus(
+        bytes32 preconfRequestHash,
+        PreconfRequestStatus expectedStatus
+    )
+        internal
+    {
         uint8 status = uint8(taiyiCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
     }

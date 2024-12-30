@@ -83,7 +83,14 @@ library BLS12381 {
      * @param message The message to hash
      * @param dst The domain separation tag
      */
-    function hashToCurveG2(bytes memory message, bytes memory dst) internal view returns (G2Point memory r) {
+    function hashToCurveG2(
+        bytes memory message,
+        bytes memory dst
+    )
+        internal
+        view
+        returns (G2Point memory r)
+    {
         // 1. u = hash_to_field(msg, 2)
         FieldPoint2[2] memory u = hashToFieldFp2(message, dst);
         // 2. Q0 = map_to_curve(u[0])
@@ -102,7 +109,14 @@ library BLS12381 {
      * @param message The message to hash
      * @param dst The domain separation tag
      */
-    function hashToFieldFp2(bytes memory message, bytes memory dst) internal view returns (FieldPoint2[2] memory) {
+    function hashToFieldFp2(
+        bytes memory message,
+        bytes memory dst
+    )
+        internal
+        view
+        returns (FieldPoint2[2] memory)
+    {
         // 1. len_in_bytes = count * m * L
         // so always 2 * 2 * 64 = 256
         uint16 lenInBytes = 256;
@@ -158,7 +172,14 @@ library BLS12381 {
     /**
      * @notice Adds two G2 points using the precompile at 0x0e
      */
-    function plus(G2Point memory point1, G2Point memory point2) internal view returns (G2Point memory) {
+    function plus(
+        G2Point memory point1,
+        G2Point memory point2
+    )
+        internal
+        view
+        returns (G2Point memory)
+    {
         uint256[8] memory r;
 
         uint256[16] memory input = [
@@ -359,7 +380,14 @@ library BLS12381 {
         return b;
     }
 
-    function _modfield(uint256 _b1, uint256 _b2) internal view returns (uint256[2] memory r) {
+    function _modfield(
+        uint256 _b1,
+        uint256 _b2
+    )
+        internal
+        view
+        returns (uint256[2] memory r)
+    {
         assembly {
             let bl := 0x40
             let ml := 0x40
@@ -390,8 +418,14 @@ library BLS12381 {
             // saves 300 gas per call instead of sending it along every time
             // places the first 32 bytes and the last 32 bytes of the field
             // modulus
-            mstore(add(freemem, 0xc0), 0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7)
-            mstore(add(freemem, 0xe0), 0x64774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab)
+            mstore(
+                add(freemem, 0xc0),
+                0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7
+            )
+            mstore(
+                add(freemem, 0xe0),
+                0x64774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+            )
 
             // Invoke contract 0x5, put return value right after mod.length, @
             // 0x60
@@ -420,7 +454,14 @@ library BLS12381 {
      * pub keys that have
      * 16 functional bytes in the first word, and 32 bytes in the second.
      */
-    function _greaterThan(uint256[2] memory a, uint256[2] memory b) internal pure returns (bool) {
+    function _greaterThan(
+        uint256[2] memory a,
+        uint256[2] memory b
+    )
+        internal
+        pure
+        returns (bool)
+    {
         uint256 wordA;
         uint256 wordB;
         uint256 mask;
@@ -452,7 +493,11 @@ library BLS12381 {
         return false;
     }
 
-    function _resolveG2Point(uint256[8] memory flattened) internal pure returns (G2Point memory) {
+    function _resolveG2Point(uint256[8] memory flattened)
+        internal
+        pure
+        returns (G2Point memory)
+    {
         return G2Point({
             x: [flattened[0], flattened[1]],
             x_I: [flattened[2], flattened[3]],

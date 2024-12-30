@@ -46,7 +46,11 @@ interface IProposerRegistry {
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
     /// @param middlewareContract The middleware contract address
-    function registerOperator(address operatorAddress, address middlewareContract) external;
+    function registerOperator(
+        address operatorAddress,
+        address middlewareContract
+    )
+        external;
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
@@ -60,18 +64,33 @@ interface IProposerRegistry {
     /// @notice Registers a single validator
     /// @param pubkey The BLS public key of the validator
     /// @param operator The operator address for the validator
-    function registerValidator(bytes calldata pubkey, address operator) external payable;
+    function registerValidator(
+        bytes calldata pubkey,
+        address operator
+    )
+        external
+        payable;
 
     /// @notice Registers multiple validators in a single transaction
     /// @param pubkeys Array of BLS public keys
     /// @param operator The operator address for all validators
-    function batchRegisterValidators(bytes[] calldata pubkeys, address operator) external payable;
+    function batchRegisterValidators(
+        bytes[] calldata pubkeys,
+        address operator
+    )
+        external
+        payable;
 
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
     /// @param signature The BLS signature proving control over the pubkey
-    function initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry, BLS12381.G2Point calldata signature) external;
+    function initOptOut(
+        bytes32 pubKeyHash,
+        uint256 signatureExpiry,
+        BLS12381.G2Point calldata signature
+    )
+        external;
 
     /// @notice Confirms the opt-out process after the cooldown period
     /// @param pubKeyHash The hash of the validator's BLS public key
@@ -85,17 +104,26 @@ interface IProposerRegistry {
     /// @notice Gets the operator address for a given validator public key
     /// @param pubkey The BLS public key of the validator
     /// @return The operator address associated with the validator
-    function getValidatorOperator(bytes calldata pubkey) external view returns (address);
+    function getValidatorOperator(bytes calldata pubkey)
+        external
+        view
+        returns (address);
 
     /// @notice Gets validator status by public key hash
     /// @param pubKeyHash Hash of the validator's public key
     /// @return The validator's status
-    function getValidatorStatus(bytes32 pubKeyHash) external view returns (ValidatorStatus);
+    function getValidatorStatus(bytes32 pubKeyHash)
+        external
+        view
+        returns (ValidatorStatus);
 
     /// @notice Gets validator status by public key
     /// @param pubKey The validator's public key
     /// @return The validator's status
-    function getValidatorStatus(bytes calldata pubKey) external view returns (ValidatorStatus);
+    function getValidatorStatus(bytes calldata pubKey)
+        external
+        view
+        returns (ValidatorStatus);
 
     /// @notice Gets validator information by public key hash
     /// @param pubKeyHash Hash of the validator's public key

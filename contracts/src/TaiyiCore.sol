@@ -6,7 +6,12 @@ import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
 
-import { PreconfRequest, PreconfRequestStatus, PreconfTx, TipTx } from "./interfaces/Types.sol";
+import {
+    PreconfRequest,
+    PreconfRequestStatus,
+    PreconfTx,
+    TipTx
+} from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 
 import { SlotLib } from "./libs/SlotLib.sol";
@@ -14,11 +19,18 @@ import { Helper } from "./utils/Helper.sol";
 import { NonceManager } from "./utils/NonceManager.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import { SignatureChecker } from "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
+import { SignatureChecker } from
+    "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import "forge-std/console.sol";
 
-contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager {
+contract TaiyiCore is
+    Ownable,
+    ITaiyiCore,
+    TaiyiEscrow,
+    ITaiyiChallengeManager,
+    NonceManager
+{
     using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
@@ -40,7 +52,13 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     event TipCollected(uint256 amount, bytes32 preconfRequestHash);
     event TransactionExecutionFailed(address to, uint256 value);
 
-    constructor(address initialOwner, uint256 genesisTimestamp, address proposerRegistry) Ownable(initialOwner) {
+    constructor(
+        address initialOwner,
+        uint256 genesisTimestamp,
+        address proposerRegistry
+    )
+        Ownable(initialOwner)
+    {
         GENESIS_TIMESTAMP = genesisTimestamp;
     }
 
@@ -55,7 +73,11 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
      * @param preconfRequestHash The hash of the PreconfRequest.
      * @return The status of the PreconfRequest.
      */
-    function getPreconfRequestStatus(bytes32 preconfRequestHash) public view returns (PreconfRequestStatus) {
+    function getPreconfRequestStatus(bytes32 preconfRequestHash)
+        public
+        view
+        returns (PreconfRequestStatus)
+    {
         return preconfRequestStatus[preconfRequestHash];
     }
 
@@ -88,7 +110,10 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
      * @dev This function processes a list of PreconfRequests in a single call.
      * @param preconfReqs An array of PreconfRequest structs to be settled.
      */
-    function batchSettleRequests(PreconfRequest[] calldata preconfReqs) external payable {
+    function batchSettleRequests(PreconfRequest[] calldata preconfReqs)
+        external
+        payable
+    {
         uint256 length = preconfReqs.length;
         for (uint256 i = 0; i < length;) {
             PreconfRequest calldata preconfReq = preconfReqs[i];
@@ -110,9 +135,14 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
         bytes32 tipHash = tipTx.getTipTxHash();
 
-        Helper.verifySignature(tipHash, tipTx.from, preconfReq.tipTxSignature, "invalid tip signature");
         Helper.verifySignature(
-            preconfTx.getPreconfTxHash(), preconfTx.from, preconfReq.preconfTx.signature, "invalid preconf signature"
+            tipHash, tipTx.from, preconfReq.tipTxSignature, "invalid tip signature"
+        );
+        Helper.verifySignature(
+            preconfTx.getPreconfTxHash(),
+            preconfTx.from,
+            preconfReq.preconfTx.signature,
+            "invalid preconf signature"
         );
         Helper.verifySignature(
             preconfReq.tipTxSignature.hashSignature(),
@@ -127,13 +157,19 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
             "invalid preconf req signature"
         );
 
-        require(preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce");
+        require(
+            preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce"
+        );
         require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
     }
 
     /// @notice Main bulk of the logic for validating and settling request
     /// @dev called by the preconfer to settle the request
-    function settleRequest(PreconfRequest calldata preconfReq) public payable nonReentrant {
+    function settleRequest(PreconfRequest calldata preconfReq)
+        public
+        payable
+        nonReentrant
+    {
         //require(preconferList[msg.sender], "Caller is not a preconfer");
 
         TipTx calldata tipTx = preconfReq.tipTx;
@@ -151,7 +187,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         bool success;
         if (preconfTx.callData.length > 0) {
             // Execute contract call with provided calldata
-            (success,) = payable(preconfTx.to).call{ value: preconfTx.value }(preconfTx.callData);
+            (success,) =
+                payable(preconfTx.to).call{ value: preconfTx.value }(preconfTx.callData);
         } else {
             // Execute plain Ether transfer
             (success,) = payable(preconfTx.to).call{ value: preconfTx.value }("");
@@ -166,7 +203,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         handlePayment(amount, preconfReq.getPreconfRequestHash());
 
         incrementTipNonce(tipTx.from);
-        preconfRequestStatus[preconfReq.getPreconfRequestHash()] = PreconfRequestStatus.Executed;
+        preconfRequestStatus[preconfReq.getPreconfRequestHash()] =
+            PreconfRequestStatus.Executed;
         inclusionStatusMap[preconfReq.getPreconfRequestHash()] = true;
     }
 
@@ -187,7 +225,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
         uint256 amount = payout(tipTx, false);
         handlePayment(amount, preconfReq.getPreconfRequestHash());
-        preconfRequestStatus[preconfReq.getPreconfRequestHash()] = PreconfRequestStatus.Exhausted;
+        preconfRequestStatus[preconfReq.getPreconfRequestHash()] =
+            PreconfRequestStatus.Exhausted;
 
         bytes32 txHash = preconfReq.getPreconfRequestHash();
         inclusionStatusMap[txHash] = true;
@@ -250,14 +289,25 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
             validateRequest(preconfReq);
 
             // Check the status of the PreconfRequest
-            PreconfRequestStatus status = getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
+            PreconfRequestStatus status =
+                getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
 
-            require(status != PreconfRequestStatus.Collected, "PreconfRequest has already been collected");
+            require(
+                status != PreconfRequestStatus.Collected,
+                "PreconfRequest has already been collected"
+            );
 
             if (status == PreconfRequestStatus.NonInitiated) {
-                uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
-                require(slot >= tipTx.targetSlot, "PreconfRequest has not reached the block requested yet");
-            } else if (status == PreconfRequestStatus.Executed || status == PreconfRequestStatus.Exhausted) {
+                uint256 slot =
+                    SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
+                require(
+                    slot >= tipTx.targetSlot,
+                    "PreconfRequest has not reached the block requested yet"
+                );
+            } else if (
+                status == PreconfRequestStatus.Executed
+                    || status == PreconfRequestStatus.Exhausted
+            ) {
                 bool isIncluded = inclusionStatusMap[preconfReq.getPreconfRequestHash()];
                 if (!isIncluded) {
                     // Slash the preconfer (to be implemented)

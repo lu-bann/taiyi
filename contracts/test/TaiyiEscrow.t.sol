@@ -38,7 +38,11 @@ contract TaiyiEscrowTest is Test {
         core.deposit{ value: 1 ether }();
 
         assertEq(core.balances(user), 1 ether, "Balance should be 1 ether after deposit");
-        assertEq(core.lockBlockOf(user), type(uint256).max, "Lock block should be max after deposit");
+        assertEq(
+            core.lockBlockOf(user),
+            type(uint256).max,
+            "Lock block should be max after deposit"
+        );
     }
 
     function testWithdrawLocked() public {

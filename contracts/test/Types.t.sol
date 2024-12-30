@@ -29,7 +29,10 @@ contract PreconTxTest is Test {
             encoded,
             hex"000000000000000000000000a83114a443da1cecefc50368531cace9f37fcccb0000000000000000000000006d2e03b7effeae98bd302a9f836d0d6ab000276600000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000005208000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000"
         );
-        assertEq(hash, bytes32(0x7b61576a8d5323483fd3f578d0adbb469bb77d6674278aeb8550231c0a6e8ff9));
+        assertEq(
+            hash,
+            bytes32(0x7b61576a8d5323483fd3f578d0adbb469bb77d6674278aeb8550231c0a6e8ff9)
+        );
     }
 
     function testPreconfRequestHash() public {
@@ -63,9 +66,18 @@ contract PreconTxTest is Test {
         bytes32 tipTxHash = tipTx.getTipTxHash();
         bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
         bytes32 hash = preconfRequest.getPreconfRequestHash();
-        assertEq(tipTxHash, bytes32(0x6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a));
-        assertEq(preconfTxHash, bytes32(0x7b61576a8d5323483fd3f578d0adbb469bb77d6674278aeb8550231c0a6e8ff9));
-        assertEq(hash, bytes32(0xc735e25cf49577fe300dbcdbd2d2a51ce2bc97f5b3c8a09c059d769709cd70e3));
+        assertEq(
+            tipTxHash,
+            bytes32(0x6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a)
+        );
+        assertEq(
+            preconfTxHash,
+            bytes32(0x7b61576a8d5323483fd3f578d0adbb469bb77d6674278aeb8550231c0a6e8ff9)
+        );
+        assertEq(
+            hash,
+            bytes32(0xc735e25cf49577fe300dbcdbd2d2a51ce2bc97f5b3c8a09c059d769709cd70e3)
+        );
     }
 
     function testPreconTxEmptyCalldataHash() public pure {
@@ -81,7 +93,10 @@ contract PreconTxTest is Test {
 
         bytes32 hash = preconfTx.getPreconfTxHash();
 
-        assertEq(hash, bytes32(0x5db8eee818de95bee126e27f278d765b7ef486865e46395e991b8527be726c7d));
+        assertEq(
+            hash,
+            bytes32(0x5db8eee818de95bee126e27f278d765b7ef486865e46395e991b8527be726c7d)
+        );
     }
 
     function testTipTxHash() public {
@@ -97,6 +112,9 @@ contract PreconTxTest is Test {
         vm.chainId(1337);
         bytes32 hash = tipTx.getTipTxHash();
 
-        assertEq(hash, bytes32(0x6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a));
+        assertEq(
+            hash,
+            bytes32(0x6f8659a050af4ec085b502748f249504c344abfadae8a9308dc52d118c76511a)
+        );
     }
 }
