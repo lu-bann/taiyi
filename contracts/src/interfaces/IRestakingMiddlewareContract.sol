@@ -101,7 +101,13 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator.
     /// @param collateral The address of the collateral token.
     /// @return amount The amount of tokens delegated to the operator.
-    function getOperatorStake(address operator, address collateral) external view returns (uint256 amount);
+    function getOperatorStake(
+        address operator,
+        address collateral
+    )
+        external
+        view
+        returns (uint256 amount);
 
     /// @notice Gets the stake of an operator at a specific timestamp.
     /// @param operator The address of the operator.
@@ -151,7 +157,10 @@ interface IRestakingMiddlewareContract {
     /// (EigenLayer-specific).
     /// @param operator The address of the operator.
     /// @return An array of strategy addresses.
-    function getOperatorRestakedStrategies(address operator) external view returns (address[] memory);
+    function getOperatorRestakedStrategies(address operator)
+        external
+        view
+        returns (address[] memory);
 
     /// @notice Gets the restakeable strategies (EigenLayer-specific).
     /// @return An array of strategy addresses.
@@ -166,5 +175,11 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator to slash.
     /// @param collateral The address of the collateral token.
     /// @param amount The amount to slash.
-    function slash(uint48 timestamp, address operator, address collateral, uint256 amount) external;
+    function slash(
+        uint48 timestamp,
+        address operator,
+        address collateral,
+        uint256 amount
+    )
+        external;
 }

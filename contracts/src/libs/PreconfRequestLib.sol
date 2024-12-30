@@ -12,9 +12,11 @@ library PreconfRequestLib {
         "TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)"
     );
 
-    bytes32 constant INCLUSION_META_TYPEHASH = keccak256("InclusionMeta(uint256 startingBlockNumber)");
+    bytes32 constant INCLUSION_META_TYPEHASH =
+        keccak256("InclusionMeta(uint256 startingBlockNumber)");
 
-    bytes32 constant ORDERING_META_TYPEHASH = keccak256("OrderingMeta(uint256 txCount,uint256 index)");
+    bytes32 constant ORDERING_META_TYPEHASH =
+        keccak256("OrderingMeta(uint256 txCount,uint256 index)");
 
     bytes32 constant PRECONF_CONDITIONS_TYPEHASH = keccak256(
         abi.encodePacked(
@@ -26,8 +28,9 @@ library PreconfRequestLib {
         )
     );
 
-    bytes32 constant EIP712_DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 constant EIP712_DOMAIN_TYPEHASH = keccak256(
+        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+    );
 
     function getDomainSeparator() public view returns (bytes32) {
         uint256 chainId;
@@ -48,16 +51,27 @@ library PreconfRequestLib {
         );
     }
 
-    function getPreconfRequestHash(PreconfRequest calldata preconfRequest) public view returns (bytes32) {
+    function getPreconfRequestHash(PreconfRequest calldata preconfRequest)
+        public
+        view
+        returns (bytes32)
+    {
         bytes32 tipTxHash = getTipTxHash(preconfRequest.tipTx);
         bytes32 preconfTxHash = getPreconfTxHash(preconfRequest.preconfTx);
         return keccak256(
-            abi.encodePacked(tipTxHash, preconfTxHash, preconfRequest.tipTxSignature, preconfRequest.preconferSignature)
+            abi.encodePacked(
+                tipTxHash,
+                preconfTxHash,
+                preconfRequest.tipTxSignature,
+                preconfRequest.preconferSignature
+            )
         );
     }
 
     function getTipTxHash(TipTx calldata tipTx) public view returns (bytes32) {
-        return keccak256(abi.encodePacked("\x19\x01", getDomainSeparator(), _getTipTxHash(tipTx)));
+        return keccak256(
+            abi.encodePacked("\x19\x01", getDomainSeparator(), _getTipTxHash(tipTx))
+        );
     }
 
     function _getTipTxHash(TipTx calldata tipTx) internal pure returns (bytes32) {
@@ -75,13 +89,26 @@ library PreconfRequestLib {
         );
     }
 
-    function encodePreconfTx(PreconfTx calldata preconfTx) public pure returns (bytes memory) {
+    function encodePreconfTx(PreconfTx calldata preconfTx)
+        public
+        pure
+        returns (bytes memory)
+    {
         return abi.encode(
-            preconfTx.from, preconfTx.to, preconfTx.value, preconfTx.callData, preconfTx.callGasLimit, preconfTx.nonce
+            preconfTx.from,
+            preconfTx.to,
+            preconfTx.value,
+            preconfTx.callData,
+            preconfTx.callGasLimit,
+            preconfTx.nonce
         );
     }
 
-    function getPreconfTxHash(PreconfTx calldata preconfTx) public pure returns (bytes32) {
+    function getPreconfTxHash(PreconfTx calldata preconfTx)
+        public
+        pure
+        returns (bytes32)
+    {
         return keccak256(encodePreconfTx(preconfTx));
     }
 }

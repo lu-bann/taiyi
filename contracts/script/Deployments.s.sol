@@ -19,7 +19,8 @@ contract Deploy is Script, Test {
         TaiyiProposerRegistry taiyiProposerRegistry = new TaiyiProposerRegistry();
         emit log_address(address(taiyiProposerRegistry));
 
-        TaiyiCore taiyiCore = new TaiyiCore(msg.sender, genesis_timestamp, address(taiyiProposerRegistry));
+        TaiyiCore taiyiCore =
+            new TaiyiCore(msg.sender, genesis_timestamp, address(taiyiProposerRegistry));
         emit log_address(address(taiyiCore));
 
         vm.stopBroadcast();

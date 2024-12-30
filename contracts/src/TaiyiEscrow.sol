@@ -8,9 +8,11 @@ import { PreconfRequest } from "./interfaces/Types.sol";
 import { PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 import { Helper } from "./utils/Helper.sol";
-import { ReentrancyGuard } from "@openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuard } from
+    "@openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "@openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
+import { MessageHashUtils } from
+    "@openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract TaiyiEscrow is ReentrancyGuard {
     using PreconfRequestLib for *;
@@ -60,7 +62,9 @@ contract TaiyiEscrow is ReentrancyGuard {
     /// maxUint256
     /// @param amount The amount to withdraw
     function requestWithdraw(uint256 amount) public {
-        require(balances[msg.sender] >= amount, "Insufficient balance to request withdraw");
+        require(
+            balances[msg.sender] >= amount, "Insufficient balance to request withdraw"
+        );
         lockBlock[msg.sender] = block.number;
         emit RequestedWithdraw(msg.sender, amount);
     }
@@ -71,7 +75,8 @@ contract TaiyiEscrow is ReentrancyGuard {
     function withdraw(uint256 amount) public nonReentrant {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         require(
-            lockBlock[msg.sender] != maxUint256 && block.number >= lockBlock[msg.sender] + LOCK_PERIOD,
+            lockBlock[msg.sender] != maxUint256
+                && block.number >= lockBlock[msg.sender] + LOCK_PERIOD,
             "Withdrawal is locked"
         );
         balances[msg.sender] -= amount;
@@ -92,7 +97,13 @@ contract TaiyiEscrow is ReentrancyGuard {
      * It then checks if the sender has sufficient balance and deducts the
      * amount from the sender's balance.
      */
-    function payout(TipTx calldata tipTx, bool isAfterExec) internal returns (uint256 amount) {
+    function payout(
+        TipTx calldata tipTx,
+        bool isAfterExec
+    )
+        internal
+        returns (uint256 amount)
+    {
         amount = isAfterExec ? tipTx.prePay + tipTx.afterPay : tipTx.prePay;
         require(balances[tipTx.from] >= amount, "Insufficient balance");
 

@@ -53,7 +53,7 @@ remappings = [
 [fmt]
   bracket_spacing = true
   int_types = "long"
-  line_length = 120
+  line_length = 90
   sort_imports = true
   contract_new_line = true
   multiline_func_header = "all"
