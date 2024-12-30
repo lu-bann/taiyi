@@ -60,7 +60,8 @@ interface IDelegationContract {
     function isRegisteredPreconfer(address Preconfer) external view returns (bool);
 
     /**
-     * @notice Allows a validator to delegate preconfirmation duties to a Preconfer
+     * @notice Allows a validator to delegate preconfirmation duties to a
+     * Preconfer
      * @param preconferElection The struct containing delegation details
      */
     function delegatePreconfDuty(PreconferElection calldata preconferElection)

@@ -6,7 +6,8 @@ library SlotLib {
 
     /**
      * @notice Calculates the slot number from a given timestamp.
-     * @dev This function calculates the slot number based on the provided timestamp and genesis timestamp.
+     * @dev This function calculates the slot number based on the provided
+     * timestamp and genesis timestamp.
      * @param timestamp The timestamp to calculate the slot number from.
      * @param genesisTimestamp The genesis timestamp of the system.
      * @return The slot number corresponding to the given timestamp.

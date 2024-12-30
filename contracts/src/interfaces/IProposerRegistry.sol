@@ -22,7 +22,6 @@ interface IProposerRegistry {
 
     struct Operator {
         address operatorAddress;
-        string rpc;
         address restakingMiddlewareContract;
     }
 
@@ -34,9 +33,7 @@ interface IProposerRegistry {
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
-    /// @param _proposerRegistry Address of the proposer registry
-    /// @param _avsDirectory Address of the AVS directory
-    function initialize(address _owner, address _proposerRegistry, address _avsDirectory) external;
+    function initialize(address _owner) external;
 
     /// @notice Adds a new middleware contract to the registry
     /// @param middlewareContract Address of middleware contract to add
@@ -48,9 +45,8 @@ interface IProposerRegistry {
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
-    /// @param rpcUrl The RPC URL of the operator
     /// @param middlewareContract The middleware contract address
-    function registerOperator(address operatorAddress, string calldata rpcUrl, address middlewareContract) external;
+    function registerOperator(address operatorAddress, address middlewareContract) external;
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
