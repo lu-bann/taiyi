@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
 import "../src/TaiyiProposerRegistry.sol";
 import "../src/interfaces/IProposerRegistry.sol";
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 contract TaiyiProposerRegistryTest is Test {
     TaiyiProposerRegistry public registry;
@@ -17,7 +17,7 @@ contract TaiyiProposerRegistryTest is Test {
     function setUp() public {
         // Deploy the registry
         registry = new TaiyiProposerRegistry();
-        registry.initialize(owner, address(0), address(0));
+        registry.initialize(owner);
 
         // Verify operators aren't registered after initialization
         assertFalse(registry.isOperatorRegistered(operator));
@@ -35,12 +35,11 @@ contract TaiyiProposerRegistryTest is Test {
     function testRegisterOperator() public {
         // Must be called by the restaking contract
         vm.prank(middleware);
-        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+        registry.registerOperator(operator, address(0xdead));
 
         // Check that it was registered
-        (address opAddr, string memory rpcUrl, address restakingContract) = getOperatorData(operator);
+        (address opAddr, address restakingContract) = getOperatorData(operator);
         assertEq(opAddr, operator);
-        assertEq(rpcUrl, "https://rpc-operator");
         assertEq(restakingContract, address(0xdead));
 
         bool isReg = registry.isOperatorRegistered(operator);
@@ -50,23 +49,23 @@ contract TaiyiProposerRegistryTest is Test {
     function testRegisterOperatorRevertsIfAlreadyRegistered() public {
         // First time success
         vm.prank(middleware);
-        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+        registry.registerOperator(operator, address(0xdead));
 
         // Second time revert
         vm.prank(middleware);
         vm.expectRevert(bytes("Operator already registered"));
-        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+        registry.registerOperator(operator, address(0xdead));
     }
 
     function testRegisterOperatorRevertsIfNotCalledByMiddleware() public {
         vm.expectRevert(bytes("Unauthorized middleware"));
-        registry.registerOperator(operator, "https://rpc-operator", address(0xdead));
+        registry.registerOperator(operator, address(0xdead));
     }
 
     function testDeregisterOperator() public {
         // Register
         vm.prank(middleware);
-        registry.registerOperator(operator2, "https://rpc-operator2", address(0xbeef));
+        registry.registerOperator(operator2, address(0xbeef));
 
         // Deregister
         vm.prank(middleware);
@@ -76,9 +75,8 @@ contract TaiyiProposerRegistryTest is Test {
         assertFalse(isReg);
 
         // Confirm operator record is reset
-        (address opAddr, string memory rpcUrl, address restakingContract) = getOperatorData(operator2);
+        (address opAddr, address restakingContract) = getOperatorData(operator2);
         assertEq(opAddr, address(0));
-        assertEq(bytes(rpcUrl).length, 0);
         assertEq(restakingContract, address(0));
     }
 
@@ -97,8 +95,8 @@ contract TaiyiProposerRegistryTest is Test {
     function getOperatorData(address operatorAddr)
         internal
         view
-        returns (address opAddress, string memory rpc, address restakingContract)
+        returns (address opAddress, address restakingContract)
     {
-        (opAddress, rpc, restakingContract) = registry.registeredOperators(operatorAddr);
+        (opAddress, restakingContract) = registry.registeredOperators(operatorAddr);
     }
 }

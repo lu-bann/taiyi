@@ -1,4 +1,5 @@
-// Code copied from https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
+// Code copied from
+// https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
@@ -14,7 +15,8 @@ contract BLSSignatureChecker {
     }
 
     /**
-     * @notice Returns `true` if the BLS signature on the message matches against the public key
+     * @notice Returns `true` if the BLS signature on the message matches
+     * against the public key
      * @param message The message bytes
      * @param sig The BLS signature
      * @param pubkey The BLS public key of the expected signer
@@ -31,7 +33,8 @@ contract BLSSignatureChecker {
         // Hash the message bytes into a G2 point
         BLS12381.G2Point memory msgG2 = message.hashToCurveG2(dst());
 
-        // Return the pairing check that denotes the correctness of the signature
+        // Return the pairing check that denotes the correctness of the
+        // signature
         return BLS12381.pairing(pubkey, msgG2, BLS12381.negGeneratorG1(), sig);
     }
 }

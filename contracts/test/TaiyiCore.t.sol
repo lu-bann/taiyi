@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.25;
 
-import { Test, console } from "forge-std/Test.sol";
 import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
 import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
-import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
+import { PreconfRequest, PreconfTx, TipTx } from "../src/interfaces/Types.sol";
+
+import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
 import { Helper } from "../src/utils/Helper.sol";
-import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
+import { Test, console } from "forge-std/Test.sol";
 
 contract TaiyiCoreTest is Test {
     using PreconfRequestLib for *;
@@ -41,9 +42,6 @@ contract TaiyiCoreTest is Test {
         bob = vm.addr(bobPrivatekey);
         coinbase = vm.addr(coinbasePrivatekey);
 
-        console.log("User address:", user);
-        console.log("Owner address:", owner);
-        console.log("bob address:", bob);
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
 

@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
-import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
-import { PreconfRequest, TipTx, PreconfRequestStatus, PreconfTx } from "./interfaces/Types.sol";
+import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
+import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
+
+import { PreconfRequest, PreconfRequestStatus, PreconfTx, TipTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import "forge-std/console.sol";
-import { NonceManager } from "./utils/NonceManager.sol";
+
 import { SlotLib } from "./libs/SlotLib.sol";
 import { Helper } from "./utils/Helper.sol";
+import { NonceManager } from "./utils/NonceManager.sol";
+import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import { SignatureChecker } from "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
+
+import "forge-std/console.sol";
 
 contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, NonceManager {
     using PreconfRequestLib for *;
@@ -47,7 +50,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
     /**
      * @notice Returns the status of a given PreconfRequest.
-     * @dev This function retrieves the status of a PreconfRequest using its hash.
+     * @dev This function retrieves the status of a PreconfRequest using its
+     * hash.
      * @param preconfRequestHash The hash of the PreconfRequest.
      * @return The status of the PreconfRequest.
      */
@@ -57,7 +61,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
     /**
      * @notice Checks if a given PreconfRequest is included.
-     * @dev This function checks the inclusion status of a PreconfRequest using its hash.
+     * @dev This function checks the inclusion status of a PreconfRequest using
+     * its hash.
      * @param preconfRequestHash The hash of the PreconfRequest.
      * @return True if the PreconfRequest is included, false otherwise.
      */
@@ -96,7 +101,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
     /**
      * @notice Validates the given PreconfRequest.
-     * @dev This function checks the signatures and nonces of the provided PreconfRequest.
+     * @dev This function checks the signatures and nonces of the provided
+     * PreconfRequest.
      * @param preconfReq The PreconfRequest to validate.
      */
     function validateRequest(PreconfRequest calldata preconfReq) public view {
@@ -133,7 +139,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
         TipTx calldata tipTx = preconfReq.tipTx;
         PreconfTx calldata preconfTx = preconfReq.preconfTx;
 
-        // uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
+        // uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp,
+        // GENESIS_TIMESTAMP);
 
         // require(tipTx.targetSlot == slot, "Wrong slot number");
 
@@ -164,9 +171,12 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
     }
 
     /// @dev This function is used to exhaust the gas to the point of
-    ///      `gasLimit` defined in `TipTx` iteratively, and transfer the `prePayment` to the preconfer
-    ///       This mechanism is designed to prevent user "griefing" the preconfer
-    ///        by allowing the preconfer to withdraw the funds that need to be exhausted
+    ///      `gasLimit` defined in `TipTx` iteratively, and transfer the
+    /// `prePayment` to the preconfer
+    ///       This mechanism is designed to prevent user "griefing" the
+    /// preconfer
+    ///        by allowing the preconfer to withdraw the funds that need to be
+    /// exhausted
     function exhaust(PreconfRequest calldata preconfReq) external onlyOwner {
         TipTx calldata tipTx = preconfReq.tipTx;
 
@@ -186,7 +196,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
     /**
      * @notice Burns gas by transferring the specified amount to the coinbase.
-     * @dev This function attempts to transfer the given amount of gas to the block's coinbase.
+     * @dev This function attempts to transfer the given amount of gas to the
+     * block's coinbase.
      * @param amount The amount of gas to be burned.
      */
     function gasBurner(uint256 amount) internal {
@@ -206,7 +217,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow, ITaiyiChallengeManager, 
 
     /**
      * @notice Collects the tip for a given PreconfRequest.
-     * @dev This function collects the tip amount for a PreconfRequest and updates the status.
+     * @dev This function collects the tip amount for a PreconfRequest and
+     * updates the status.
      * @param preconfRequestHash The hash of the PreconfRequest.
      */
     function collectTip(bytes32 preconfRequestHash) public {
