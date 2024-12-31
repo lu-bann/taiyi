@@ -26,3 +26,6 @@
 [submodule "contracts/lib/eigenlayer-middleware"]
 	path = contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "contracts/lib/openzeppelin-test-helpers.git"]
+	path = contracts/lib/openzeppelin-test-helpers.git
+	url = https://github.com/OpenZeppelin/openzeppelin-test-helpers.git
