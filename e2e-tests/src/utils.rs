@@ -5,7 +5,7 @@ use std::{path::Path, sync::Mutex, time::Duration};
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::U256;
 use alloy_provider::{
-    network::{EthereumWallet, TransactionBuilder},
+    network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
 use alloy_rpc_types::TransactionRequest;
@@ -25,12 +25,20 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::constant::{
-    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
-    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS, SUBMIT_TRANSACTION_PATH,
+    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK,
+    PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    SUBMIT_TRANSACTION_PATH,
 };
 
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
+    static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct ErrorResponse {
+    pub code: u64,
+    pub message: String,
 }
 
 #[derive(Clone)]
@@ -231,32 +239,30 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
 }
 
 pub async fn generate_reserve_blockspace_request(
-    signer_private: &str,
+    signer_private: PrivateKeySigner,
     target_slot: u64,
+    gas_limit: u64,
     fee: u128,
 ) -> (BlockspaceAllocation, String) {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
-
     let request = BlockspaceAllocation {
         target_slot,
         deposit: U256::from(fee * 21_000),
-        gas_limit: 21_0000,
+        gas_limit,
         num_blobs: 0,
     };
-    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
-    (request, format!("{}:0x{}", signer.address(), signature))
+    let signature =
+        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("{}:0x{}", signer_private.address(), signature))
 }
 
 pub async fn generate_submit_transaction_request(
-    signer_private: &str,
+    signer_private: PrivateKeySigner,
+    tx: TxEnvelope,
     request_id: Uuid,
-    rpc_url: &str,
 ) -> (SubmitTransactionRequest, String) {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
-
-    let transaction = generate_tx(rpc_url, PRECONFER_ECDSA_SK).await.unwrap();
-    let request = SubmitTransactionRequest { transaction, request_id };
-    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    let request = SubmitTransactionRequest { transaction: tx, request_id };
+    let signature =
+        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
     (request, format!("0x{}", signature))
 }
 
@@ -292,8 +298,27 @@ pub async fn send_submit_transaction_request(
     Ok(response)
 }
 
+pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> {
+    // because we are using only one funding signer lock
+    // using lock to avoid two tests create two account with the same nonce on funding account
+    let _lock = FUNDING_SIGNER_LOCK.lock().unwrap();
+    let funding: PrivateKeySigner = FUNDING_SIGNER_PRIVATE.parse()?;
+    let wallet = EthereumWallet::new(funding.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_builtin(&config.execution_url)
+        .await?;
+    let new_signer = PrivateKeySigner::random();
+    let mut tx = TransactionRequest::default();
+    tx.set_to(new_signer.address());
+    tx.set_value(U256::from(1000000000000000000u128));
+    let send = provider.send_transaction(tx).await?;
+    let _ = send.get_receipt().await?;
+    Ok(new_signer)
+}
+
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
-    std::env::set_var("RUST_LOG", "debug");
     init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);

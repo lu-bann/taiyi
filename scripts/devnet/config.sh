@@ -9,6 +9,12 @@ if [ -z "$WORKING_DIR" ]; then
   export WORKING_DIR="$(pwd)"
 fi
 
+# Source .env file if it exists
+if [ -f .env ]; then
+    source .env
+fi
+
+
 if kurtosis enclave inspect $ENCLAVE_NAME >/dev/null 2>&1; then
   export EXECUTION_URL="http://$(kurtosis port print luban el-1-reth-lighthouse rpc)"
   export BEACON_URL="$(kurtosis port print luban cl-1-lighthouse-reth http)"
