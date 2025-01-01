@@ -16,7 +16,7 @@ use crate::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
         get_available_slot, get_constraints_from_relay, get_estimate_fee, health_check,
         new_account, send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
-        wati_until_deadline_of_slot,
+        wati_until_deadline_of_slot, ErrorResponse,
     },
 };
 
@@ -124,11 +124,36 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
 #[tokio::test]
 async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
-    Ok(())
-}
+    let (taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
 
-#[tokio::test]
-async fn test_reserve_blockspace_invalid_no_balance() -> eyre::Result<()> {
+    let wallet = EthereumWallet::new(signer.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet.clone())
+        .on_builtin(&config.execution_url)
+        .await?;
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(0));
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot;
+    info!("Target slot: {:?}", target_slot);
+
+    let fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) =
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, fee.fee).await;
+
+    // Reserve blockspace
+    let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    let body = res.bytes().await?;
+    info!("reserve_blockspace response: {:?}", body);
+    let response = serde_json::from_slice::<ErrorResponse>(&body)?;
+    assert_eq!(status, 400);
+    assert!(response.message.contains("InsufficientEscrowBalance"));
+    taiyi_handle.abort();
     Ok(())
 }
 

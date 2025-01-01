@@ -35,6 +35,12 @@ lazy_static::lazy_static! {
     static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
 }
 
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct ErrorResponse {
+    pub code: u64,
+    pub message: String,
+}
+
 #[derive(Clone)]
 pub struct TestConfig {
     pub working_dir: String,
