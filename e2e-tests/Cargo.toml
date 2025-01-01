@@ -12,6 +12,7 @@ alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
 clap = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
