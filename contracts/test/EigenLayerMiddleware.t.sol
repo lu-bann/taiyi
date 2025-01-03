@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { IDelegationManager } from
-    "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
-import { ISignatureUtils } from
-    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
-import { EigenLayerMiddleware } from "src/EigenLayerMiddleware.sol";
-import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
+import {IDelegationManager} from "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import {ISignatureUtils} from "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+import {EigenLayerMiddleware} from "src/EigenLayerMiddleware.sol";
+import {TaiyiProposerRegistry} from "src/TaiyiProposerRegistry.sol";
 
-import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
+import {EigenlayerDeployer} from "./utils/EigenlayerDeployer.sol";
 import "forge-std/Test.sol";
-import { BLS12381 } from "src/libs/BLS12381.sol";
+import {BLS12381} from "src/libs/BLS12381.sol";
 
 contract EigenlayerMiddlewareTest is Test {
     using BLS12381 for BLS12381.G1Point;
@@ -64,11 +62,9 @@ contract EigenlayerMiddlewareTest is Test {
     // ============================================
 
     function testOperatorRegistration() public {
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            _operatorRegistration();
+        IDelegationManager.OperatorDetails memory operatorDetails = _operatorRegistration();
         assertEq(
-            abi.encode(eigenLayerDeployer.delegationManager().operatorDetails(operator)),
-            abi.encode(operatorDetails)
+            abi.encode(eigenLayerDeployer.delegationManager().operatorDetails(operator)), abi.encode(operatorDetails)
         );
     }
 
@@ -78,8 +74,7 @@ contract EigenlayerMiddlewareTest is Test {
     }
 
     function testStakerDelegationToOperator() public {
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            _operatorRegistration();
+        IDelegationManager.OperatorDetails memory operatorDetails = _operatorRegistration();
         _stakerDelegationToOperator();
         assertEq(eigenLayerDeployer.delegationManager().delegatedTo(staker), operator);
     }
@@ -87,10 +82,7 @@ contract EigenlayerMiddlewareTest is Test {
     function testOperatorAVSRegistration() public {
         _operatorRegistration();
         _operatorAVSRegistration();
-        assertTrue(
-            proposerRegistry.isOperatorRegistered(address(operator)),
-            "Operator registration failed"
-        );
+        assertTrue(proposerRegistry.isOperatorRegistered(address(operator)), "Operator registration failed");
     }
 
     // ============================================
@@ -103,19 +95,14 @@ contract EigenlayerMiddlewareTest is Test {
         impersonate(operator)
         returns (IDelegationManager.OperatorDetails memory operatorDetails)
     {
-        operatorDetails =
-            IDelegationManager.OperatorDetails(address(operator), address(0), 0);
+        operatorDetails = IDelegationManager.OperatorDetails(address(operator), address(0), 0);
 
-        eigenLayerDeployer.delegationManager().registerAsOperator(
-            operatorDetails, "https://taiyi.wtf"
-        );
+        eigenLayerDeployer.delegationManager().registerAsOperator(operatorDetails, "https://taiyi.wtf");
     }
 
     /// @notice Stakes WETH tokens through the EigenLayer strategy
     function _stakeWETH() internal impersonate(staker) returns (uint256 shares) {
-        eigenLayerDeployer.weth().approve(
-            address(eigenLayerDeployer.strategyManager()), 69 ether
-        );
+        eigenLayerDeployer.weth().approve(address(eigenLayerDeployer.strategyManager()), 69 ether);
 
         shares = eigenLayerDeployer.strategyManager().depositIntoStrategy(
             eigenLayerDeployer.wethStrat(), eigenLayerDeployer.weth(), 69 ether
@@ -126,15 +113,12 @@ contract EigenlayerMiddlewareTest is Test {
     function _stakerDelegationToOperator() internal impersonate(staker) {
         ISignatureUtils.SignatureWithExpiry memory operatorSignature =
             ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
-        eigenLayerDeployer.delegationManager().delegateTo(
-            operator, operatorSignature, bytes32(0)
-        );
+        eigenLayerDeployer.delegationManager().delegateTo(operator, operatorSignature, bytes32(0));
     }
 
     /// @notice Registers operator with AVS using signed message
     function _operatorAVSRegistration() internal impersonate(operator) {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
-            _getOperatorSignature();
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature = _getOperatorSignature();
         eigenLayerMiddleware.registerOperator(operatorSignature);
     }
 
@@ -143,8 +127,7 @@ contract EigenlayerMiddlewareTest is Test {
         internal
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
     {
-        bytes32 digest = eigenLayerDeployer.avsDirectory()
-            .calculateOperatorAVSRegistrationDigestHash({
+        bytes32 digest = eigenLayerDeployer.avsDirectory().calculateOperatorAVSRegistrationDigestHash({
             operator: operator,
             avs: address(eigenLayerMiddleware),
             salt: bytes32(0),
@@ -152,7 +135,6 @@ contract EigenlayerMiddlewareTest is Test {
         });
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(operatorSecretKey, digest);
         bytes memory sig = abi.encodePacked(r, s, v);
-        operatorSignature =
-            ISignatureUtils.SignatureWithSaltAndExpiry(sig, bytes32(0), type(uint256).max);
+        operatorSignature = ISignatureUtils.SignatureWithSaltAndExpiry(sig, bytes32(0), type(uint256).max);
     }
 }

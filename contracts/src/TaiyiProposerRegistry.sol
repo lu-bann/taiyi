@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
-import { BLS12381 } from "./libs/BLS12381.sol";
-import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
+import {IProposerRegistry} from "./interfaces/IProposerRegistry.sol";
+import {IProposerRegistry} from "./interfaces/IProposerRegistry.sol";
+import {BLS12381} from "./libs/BLS12381.sol";
+import {BLSSignatureChecker} from "./libs/BLSSignatureChecker.sol";
 
-import { OwnableUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
-import { UUPSUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-import { EnumerableSet } from
-    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {EnumerableSet} from "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title TaiyiProposerRegistry
@@ -18,12 +16,7 @@ import { EnumerableSet } from
  * protocol, rewritten to follow
  *         the "internal-call" pattern seen in EigenLayerMiddleware.
  */
-contract TaiyiProposerRegistry is
-    IProposerRegistry,
-    BLSSignatureChecker,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
+contract TaiyiProposerRegistry is IProposerRegistry, BLSSignatureChecker, OwnableUpgradeable, UUPSUpgradeable {
     using BLS12381 for BLS12381.G1Point;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -58,7 +51,7 @@ contract TaiyiProposerRegistry is
 
     /// @notice Authorizes an upgrade to a new implementation
     /// @param newImplementation Address of new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /// ----------------------------------------------------------
     ///                        MODIFIERS
@@ -66,9 +59,8 @@ contract TaiyiProposerRegistry is
 
     /// @notice Restricts function access to registered middleware contracts
     modifier onlyRestakingMiddlewareContracts() {
-        require(
-            restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
-        );
+        require(restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware");
+        require(restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware");
         _;
     }
 
@@ -78,29 +70,20 @@ contract TaiyiProposerRegistry is
 
     /// @notice Adds a new middleware contract to the registry
     /// @param middlewareContract Address of middleware contract to add
-    function addRestakingMiddlewareContract(address middlewareContract)
-        external
-        onlyOwner
-    {
+    function addRestakingMiddlewareContract(address middlewareContract) external onlyOwner {
         _addRestakingMiddlewareContract(middlewareContract);
     }
 
     /// @notice Removes a middleware contract from the registry
     /// @param middlewareContract Address of middleware contract to remove
-    function removeRestakingMiddlewareContract(address middlewareContract)
-        external
-        onlyOwner
-    {
+    function removeRestakingMiddlewareContract(address middlewareContract) external onlyOwner {
         _removeRestakingMiddlewareContract(middlewareContract);
     }
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
     /// @param middlewareContract The middleware contract address
-    function registerOperator(
-        address operatorAddress,
-        address middlewareContract
-    )
+    function registerOperator(address operatorAddress, address middlewareContract)
         external
         onlyRestakingMiddlewareContracts
     {
@@ -109,20 +92,14 @@ contract TaiyiProposerRegistry is
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
-    function deregisterOperator(address operatorAddress)
-        external
-        onlyRestakingMiddlewareContracts
-    {
+    function deregisterOperator(address operatorAddress) external onlyRestakingMiddlewareContracts {
         _deregisterOperator(operatorAddress);
     }
 
     /// @notice Registers a single validator
     /// @param pubkey The BLS public key of the validator
     /// @param operator The operator address for the validator
-    function registerValidator(
-        bytes calldata pubkey,
-        address operator
-    )
+    function registerValidator(bytes calldata pubkey, address operator)
         external
         payable
         onlyRestakingMiddlewareContracts
@@ -133,10 +110,7 @@ contract TaiyiProposerRegistry is
     /// @notice Registers multiple validators in a single transaction
     /// @param pubkeys Array of BLS public keys
     /// @param operator The operator address for all validators
-    function batchRegisterValidators(
-        bytes[] calldata pubkeys,
-        address operator
-    )
+    function batchRegisterValidators(bytes[] calldata pubkeys, address operator)
         external
         payable
         onlyRestakingMiddlewareContracts
@@ -148,13 +122,7 @@ contract TaiyiProposerRegistry is
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
     /// @param signature The BLS signature proving control over the pubkey
-    function initOptOut(
-        bytes32 pubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
-    )
-        external
-    {
+    function initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry, BLS12381.G2Point calldata signature) external {
         _initOptOut(pubKeyHash, signatureExpiry, signature);
     }
 
@@ -181,84 +149,46 @@ contract TaiyiProposerRegistry is
     }
 
     /// @dev Internal function that registers a new operator
-    function _registerOperator(
-        address operatorAddress,
-        address middlewareContract
-    )
-        internal
-    {
-        require(
-            registeredOperators[operatorAddress].operatorAddress == address(0),
-            "Operator already registered"
-        );
+    function _registerOperator(address operatorAddress, address middlewareContract) internal {
+        require(registeredOperators[operatorAddress].operatorAddress == address(0), "Operator already registered");
 
-        Operator memory operatorData = Operator({
-            operatorAddress: operatorAddress,
-            restakingMiddlewareContract: middlewareContract
-        });
+        Operator memory operatorData =
+            Operator({operatorAddress: operatorAddress, restakingMiddlewareContract: middlewareContract});
 
         registeredOperators[operatorAddress] = operatorData;
     }
 
     /// @dev Internal function that deregisters an existing operator
     function _deregisterOperator(address operatorAddress) internal {
-        require(
-            registeredOperators[operatorAddress].operatorAddress != address(0),
-            "Operator not registered"
-        );
+        require(registeredOperators[operatorAddress].operatorAddress != address(0), "Operator not registered");
         delete registeredOperators[operatorAddress];
     }
 
     /// @dev Internal function that registers a single validator
     function _registerValidator(bytes calldata pubkey, address operator) internal {
-        require(
-            registeredOperators[operator].operatorAddress != address(0),
-            "Operator not registered"
-        );
+        require(registeredOperators[operator].operatorAddress != address(0), "Operator not registered");
 
         bytes32 pubkeyHash = keccak256(pubkey);
-        require(
-            validators[pubkeyHash].status == ValidatorStatus.NotRegistered,
-            "Validator already registered"
-        );
+        require(validators[pubkeyHash].status == ValidatorStatus.NotRegistered, "Validator already registered");
 
-        validators[pubkeyHash] = Validator({
-            pubkey: pubkey,
-            operator: operator,
-            status: ValidatorStatus.Active,
-            optOutTimestamp: 0
-        });
+        validators[pubkeyHash] =
+            Validator({pubkey: pubkey, operator: operator, status: ValidatorStatus.Active, optOutTimestamp: 0});
 
         emit ValidatorRegistered(pubkeyHash, operator);
     }
 
     /// @dev Internal function that batch-registers multiple validators
-    function _batchRegisterValidators(
-        bytes[] calldata pubkeys,
-        address operator
-    )
-        internal
-    {
-        require(
-            registeredOperators[operator].operatorAddress != address(0),
-            "Operator not registered"
-        );
+    function _batchRegisterValidators(bytes[] calldata pubkeys, address operator) internal {
+        require(registeredOperators[operator].operatorAddress != address(0), "Operator not registered");
 
         for (uint256 i = 0; i < pubkeys.length; i++) {
             bytes memory pubkey = pubkeys[i];
             bytes32 pubkeyHash = keccak256(pubkey);
 
-            require(
-                validators[pubkeyHash].status == ValidatorStatus.NotRegistered,
-                "Validator already registered"
-            );
+            require(validators[pubkeyHash].status == ValidatorStatus.NotRegistered, "Validator already registered");
 
-            validators[pubkeyHash] = Validator({
-                pubkey: pubkey,
-                operator: operator,
-                status: ValidatorStatus.Active,
-                optOutTimestamp: 0
-            });
+            validators[pubkeyHash] =
+                Validator({pubkey: pubkey, operator: operator, status: ValidatorStatus.Active, optOutTimestamp: 0});
 
             emit ValidatorRegistered(pubkeyHash, operator);
         }
@@ -266,13 +196,7 @@ contract TaiyiProposerRegistry is
 
     /// @dev Internal function that initiates the opt-out process for a
     /// validator
-    function _initOptOut(
-        bytes32 pubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
-    )
-        internal
-    {
+    function _initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry, BLS12381.G2Point calldata signature) internal {
         Validator storage validator = validators[pubKeyHash];
 
         require(validator.operator != address(0), "Validator not registered");
@@ -297,10 +221,8 @@ contract TaiyiProposerRegistry is
         Validator storage validator = validators[pubKeyHash];
         require(validator.operator != address(0), "Validator not registered");
         require(validator.status == ValidatorStatus.OptingOut, "Validator not opting out");
-        require(
-            block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN,
-            "Cooldown period not elapsed"
-        );
+        require(block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN, "Cooldown period not elapsed");
+        require(block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN, "Cooldown period not elapsed");
 
         validator.status = ValidatorStatus.OptedOut;
         validator.operator = address(0);
@@ -317,11 +239,7 @@ contract TaiyiProposerRegistry is
     /// @notice Gets the operator address for a given validator public key
     /// @param pubkey The BLS public key of the validator
     /// @return The operator address associated with the validator
-    function getValidatorOperator(bytes calldata pubkey)
-        external
-        view
-        returns (address)
-    {
+    function getValidatorOperator(bytes calldata pubkey) external view returns (address) {
         bytes32 pubKeyHash = keccak256(pubkey);
         Validator memory validator = validators[pubKeyHash];
         require(validator.operator != address(0), "Validator not registered");
@@ -332,29 +250,20 @@ contract TaiyiProposerRegistry is
     /// @param operatorAddress The address of the operator to check
     /// @return bool True if the operator is registered, false otherwise
     function isOperatorRegistered(address operatorAddress) public view returns (bool) {
-        return
-            registeredOperators[operatorAddress].restakingMiddlewareContract != address(0);
+        return registeredOperators[operatorAddress].restakingMiddlewareContract != address(0);
     }
 
     /// @notice Gets validator status by public key hash
     /// @param pubKeyHash Hash of the validator's public key
     /// @return The validator's status
-    function getValidatorStatus(bytes32 pubKeyHash)
-        external
-        view
-        returns (ValidatorStatus)
-    {
+    function getValidatorStatus(bytes32 pubKeyHash) external view returns (ValidatorStatus) {
         return validators[pubKeyHash].status;
     }
 
     /// @notice Gets validator status by public key
     /// @param pubKey The validator's public key
     /// @return The validator's status
-    function getValidatorStatus(bytes calldata pubKey)
-        external
-        view
-        returns (ValidatorStatus)
-    {
+    function getValidatorStatus(bytes calldata pubKey) external view returns (ValidatorStatus) {
         return validators[_hashBLSPubKey(pubKey)].status;
     }
 

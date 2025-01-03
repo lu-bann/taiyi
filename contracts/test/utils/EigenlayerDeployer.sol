@@ -23,16 +23,11 @@ import "@eigenlayer-contracts/src/test/mocks/LiquidStakingToken.sol";
 
 import "./Operator.sol";
 
-import
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol";
-import
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/ProxyAdmin.sol";
-import
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol";
+import "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 
 /// @dev This file is adapted from EigenLayer's test deployment contract
 /// @custom:attribution
@@ -64,10 +59,8 @@ contract EigenlayerDeployer is Operators {
     mapping(uint256 => IStrategy) public strategies;
 
     //from testing seed phrase
-    bytes32 priv_key_0 =
-        0x1234567812345678123456781234567812345678123456781234567812345678;
-    bytes32 priv_key_1 =
-        0x1234567812345678123456781234567812345698123456781234567812348976;
+    bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
+    bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
 
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
@@ -163,39 +156,18 @@ contract EigenlayerDeployer is Operators {
          */
         emptyContract = new EmptyContract();
         delegationManager = DelegationManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(emptyContract), address(eigenLayerProxyAdmin), ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         strategyManager = StrategyManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(emptyContract), address(eigenLayerProxyAdmin), ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        slasher = Slasher(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(emptyContract), address(eigenLayerProxyAdmin), ""
-                )
-            )
-        );
+        slasher =
+            Slasher(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
         avsDirectory = AVSDirectory(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(emptyContract), address(eigenLayerProxyAdmin), ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         eigenPodManager = EigenPodManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(emptyContract), address(eigenLayerProxyAdmin), ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit, eigenPodManager, GOERLI_GENESIS_TIME);
@@ -204,14 +176,11 @@ contract EigenlayerDeployer is Operators {
 
         // Second, deploy the *implementation* contracts, using the *proxy
         // contracts* as inputs
-        DelegationManager delegationImplementation =
-            new DelegationManager(strategyManager, slasher, eigenPodManager);
-        StrategyManager strategyManagerImplementation =
-            new StrategyManager(delegationManager, eigenPodManager, slasher);
+        DelegationManager delegationImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager);
+        StrategyManager strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(strategyManager, delegationManager);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(
-            ethPOSDeposit, eigenPodBeacon, strategyManager, slasher, delegationManager
-        );
+        EigenPodManager eigenPodManagerImplementation =
+            new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher, delegationManager);
         AVSDirectory avsDirectoryImplementation = new AVSDirectory(delegationManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation
@@ -244,10 +213,7 @@ contract EigenlayerDeployer is Operators {
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
             abi.encodeWithSelector(
-                Slasher.initialize.selector,
-                eigenLayerReputedMultisig,
-                eigenLayerPauserReg,
-                0 /*initialPausedStatus*/
+                Slasher.initialize.selector, eigenLayerReputedMultisig, eigenLayerPauserReg, 0 /*initialPausedStatus*/
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -272,8 +238,7 @@ contract EigenlayerDeployer is Operators {
         );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test strategy
-        weth =
-            new ERC20PresetFixedSupply("weth", "WETH", wethInitialSupply, address(this));
+        weth = new ERC20PresetFixedSupply("weth", "WETH", wethInitialSupply, address(this));
 
         // deploy StrategyBase contract implementation, then create upgradeable
         // proxy that points to implementation and initialize it
@@ -283,15 +248,12 @@ contract EigenlayerDeployer is Operators {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(
-                        StrategyBase.initialize.selector, weth, eigenLayerPauserReg
-                    )
+                    abi.encodeWithSelector(StrategyBase.initialize.selector, weth, eigenLayerPauserReg)
                 )
             )
         );
 
-        eigenToken =
-            new ERC20PresetFixedSupply("eigen", "EIGEN", wethInitialSupply, address(this));
+        eigenToken = new ERC20PresetFixedSupply("eigen", "EIGEN", wethInitialSupply, address(this));
 
         // deploy upgradeable proxy that points to StrategyBase implementation
         // and initialize it
@@ -300,9 +262,7 @@ contract EigenlayerDeployer is Operators {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(
-                        StrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg
-                    )
+                    abi.encodeWithSelector(StrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
                 )
             )
         );
@@ -313,19 +273,15 @@ contract EigenlayerDeployer is Operators {
         bool[] memory thirdPartyTransfersForbiddenValues = new bool[](2);
         thirdPartyTransfersForbiddenValues[0] = true;
         thirdPartyTransfersForbiddenValues[1] = true;
-        strategyManager.addStrategiesToDepositWhitelist(
-            whitelistStrategies, thirdPartyTransfersForbiddenValues
-        );
+        strategyManager.addStrategiesToDepositWhitelist(whitelistStrategies, thirdPartyTransfersForbiddenValues);
 
         staker = acct_0;
         weth.transfer(staker, 100 ether);
     }
 
     function _setAddresses(string memory config) internal {
-        eigenLayerProxyAdminAddress =
-            stdJson.readAddress(config, ".addresses.eigenLayerProxyAdmin");
-        eigenLayerPauserRegAddress =
-            stdJson.readAddress(config, ".addresses.eigenLayerPauserReg");
+        eigenLayerProxyAdminAddress = stdJson.readAddress(config, ".addresses.eigenLayerProxyAdmin");
+        eigenLayerPauserRegAddress = stdJson.readAddress(config, ".addresses.eigenLayerPauserReg");
         delegationAddress = stdJson.readAddress(config, ".addresses.delegation");
         strategyManagerAddress = stdJson.readAddress(config, ".addresses.strategyManager");
         slasherAddress = stdJson.readAddress(config, ".addresses.slasher");

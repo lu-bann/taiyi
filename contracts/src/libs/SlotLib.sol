@@ -12,14 +12,7 @@ library SlotLib {
      * @param genesisTimestamp The genesis timestamp of the system.
      * @return The slot number corresponding to the given timestamp.
      */
-    function getSlotFromTimestamp(
-        uint256 timestamp,
-        uint256 genesisTimestamp
-    )
-        internal
-        pure
-        returns (uint256)
-    {
+    function getSlotFromTimestamp(uint256 timestamp, uint256 genesisTimestamp) internal pure returns (uint256) {
         require(timestamp >= genesisTimestamp, "Invalid timestamp");
         return (timestamp - genesisTimestamp) / SLOT_TIME;
     }

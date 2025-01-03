@@ -1,14 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { TaiyiCore } from "../src/TaiyiCore.sol";
-import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
-import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
+import {TaiyiCore} from "../src/TaiyiCore.sol";
+import {TaiyiEscrow} from "../src/TaiyiEscrow.sol";
+import {ITaiyiCore} from "../src/interfaces/ITaiyiCore.sol";
 
-import { PreconfRequest, PreconfTx, TipTx } from "../src/interfaces/Types.sol";
-import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
-import { Helper } from "../src/utils/Helper.sol";
-import { Test, console } from "forge-std/Test.sol";
+import {PreconfRequest, PreconfTx, TipTx} from "../src/interfaces/Types.sol";
+import {PreconfRequestLib} from "../src/libs/PreconfRequestLib.sol";
+import {BlockspaceAllocation, PreconfRequestBType} from "../src/types/PreconfRequestBTypes.sol";
+import {Helper} from "../src/utils/Helper.sol";
+import {Test, console} from "forge-std/Test.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;
@@ -39,12 +40,11 @@ contract DeployTest is Test {
         console.log("user:      ", user, " | balance: ", user.balance);
         console.log("owner:     ", owner, " | balance: ", owner.balance);
         console.log("preconfer: ", preconfer, " | balance: ", preconfer.balance);
+    }
 
-        // vm.deal(user, 100 ether);
-        // vm.deal(preconfer, 100 ether);
-
-        // taiyiCore = new TaiyiCore(owner);
-        // taiyiEscrow = taiyiCore.getTaiyiEscrow();
+    function signRawTx(bytes memory _rawTx) internal returns (bytes memory) {
+        (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(preconferPrivatekey, keccak256(_rawTx));
+        return abi.encodePacked(_r, _s, _v);
     }
 
     function run() public {
@@ -62,55 +62,35 @@ contract DeployTest is Test {
         // User
         //////////////////////////
         vm.startBroadcast(userPrivatekey);
-        TipTx memory tipTx = TipTx({
+        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
-            from: user,
-            to: preconfer,
-            prePay: 0.1 ether,
-            afterPay: 0.5 ether,
-            nonce: 0,
-            targetSlot: 10
+            sender: user,
+            recipient: preconfer,
+            deposit: 0.1 ether,
+            tip: 0.1 ether,
+            targetSlot: 10,
+            blobCount: 1
         });
 
-        bytes32 tipTxHash = tipTx.getTipTxHash();
-        (v, r, s) = vm.sign(userPrivatekey, tipTxHash);
-        bytes memory tipTxUserSignature = abi.encodePacked(r, s, v);
+        bytes32 blockspaceAllocationHash = blockspaceAllocation.getBlockspaceAllocationHash();
+        (v, r, s) = vm.sign(userPrivatekey, blockspaceAllocationHash);
+        bytes memory blockspaceAllocationUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, tipTxUserSignature.hashSignature());
-        bytes memory preconferSignature = abi.encodePacked(r, s, v);
+        (v, r, s) = vm.sign(preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature());
+        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
-        PreconfTx memory preconfTx = PreconfTx({
-            from: user,
-            to: preconfer,
-            value: 0.1 ether,
-            callData: "",
-            callGasLimit: 100_000,
-            nonce: 0,
-            signature: ""
+        bytes memory rawTx =
+            hex"000000000000000000000000a83114a443da1cecefc50368531cace9f37fcccb0000000000000000000000006d2e03b7effeae98bd302a9f836d0d6ab000276600000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000005208000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000";
+
+        PreconfRequestBType memory preconfReq = PreconfRequestBType({
+            blockspaceAllocation: blockspaceAllocation,
+            blockspaceAllocationSignature: blockspaceAllocationUserSignature,
+            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            rawTx: rawTx,
+            gatewaySignedRawTx: signRawTx(rawTx)
         });
-        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
-        (v, r, s) = vm.sign(userPrivatekey, bytes32(preconfTxHash));
-        bytes memory preconfTxSignature = abi.encodePacked(r, s, v);
-        preconfTx.signature = preconfTxSignature;
-
-        PreconfRequest memory preconfReq = PreconfRequest({
-            tipTx: tipTx,
-            preconfTx: preconfTx,
-            tipTxSignature: "",
-            preconferSignature: preconferSignature,
-            preconfReqSignature: ""
-        });
-
-        // taiyiEscrow.deposit{ value: 1 ether }();
 
         console.log("user balance:    ", taiyiEscrow.balances(user));
-        // console.log("user lock block: ", taiyiEscrow.lockBlock(user));
-        // console.log("user nonce:      ", taiyiEscrow.nonce(user));
         vm.stopBroadcast();
-
-        // vm.startBroadcast(preconferPrivatekey);
-        //     taiyiCore.settleRequest{value:
-        // preconfReq.preconfTx.value}(preconfReq);
-        // vm.stopBroadcast();
     }
 }
