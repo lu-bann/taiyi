@@ -44,6 +44,9 @@ contract PreconTxTest is Test {
         });
         vm.chainId(1337);
         bytes32 preconfRequestBTypeHash = preconfRequestBType.getPreconfRequestBTypeHash();
-        assertEq(preconfRequestBTypeHash, bytes32(0xf54edbcf22dd1a0ac4a7d2c87e9552d283df6141ccff486754dffa1820021ac1));
+        assertEq(
+            preconfRequestBTypeHash,
+            bytes32(0xf54edbcf22dd1a0ac4a7d2c87e9552d283df6141ccff486754dffa1820021ac1)
+        );
     }
 }

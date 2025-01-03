@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {TaiyiCore} from "../src/TaiyiCore.sol";
-import {TaiyiEscrow} from "../src/TaiyiEscrow.sol";
-import {ITaiyiCore} from "../src/interfaces/ITaiyiCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
+import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
 
-import {PreconfRequestLib} from "../src/libs/PreconfRequestLib.sol";
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
 
-import {PreconfRequestStatus} from "../src/types/CommonTypes.sol";
-import {BlockspaceAllocation, PreconfRequestBType} from "../src/types/PreconfRequestBTypes.sol";
-import {Helper} from "../src/utils/Helper.sol";
-import {Test, console} from "forge-std/Test.sol";
+import { PreconfRequestStatus } from "../src/types/CommonTypes.sol";
+import {
+    BlockspaceAllocation,
+    PreconfRequestBType
+} from "../src/types/PreconfRequestBTypes.sol";
+import { Helper } from "../src/utils/Helper.sol";
+import { Test, console } from "forge-std/Test.sol";
 
 contract TaiyiCoreTest is Test {
     using PreconfRequestLib for *;
@@ -46,7 +49,12 @@ contract TaiyiCoreTest is Test {
         taiyiCore = new TaiyiCore(owner, genesisTimestamp, address(0));
     }
 
-    function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {
+    function assertPreconfRequestStatus(
+        bytes32 preconfRequestHash,
+        PreconfRequestStatus expectedStatus
+    )
+        internal
+    {
         uint8 status = uint8(taiyiCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
     }
@@ -59,7 +67,8 @@ contract TaiyiCoreTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, blockspaceHash);
         bytes memory blockspaceAllocationSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
+        (v, r, s) =
+            vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
         bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
@@ -86,10 +95,11 @@ contract TaiyiCoreTest is Test {
             blobCount: 1
         });
 
-        PreconfRequestBType memory preconfReq = fulfillPreconfRequest(blockspaceAllocation);
+        PreconfRequestBType memory preconfReq =
+            fulfillPreconfRequest(blockspaceAllocation);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestBTypeHash();
         vm.prank(user);
-        taiyiCore.deposit{value: 4 ether}();
+        taiyiCore.deposit{ value: 4 ether }();
 
         uint256 balances = taiyiCore.balanceOf(user);
         console.log("User balance:", balances);
@@ -124,11 +134,12 @@ contract TaiyiCoreTest is Test {
             targetSlot: targetSlot,
             blobCount: 1
         });
-        PreconfRequestBType memory preconfReq = fulfillPreconfRequest(blockspaceAllocation);
+        PreconfRequestBType memory preconfReq =
+            fulfillPreconfRequest(blockspaceAllocation);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestBTypeHash();
 
         vm.prank(user);
-        taiyiCore.deposit{value: 9 ether}();
+        taiyiCore.deposit{ value: 9 ether }();
 
         // Check balance before exhaust
         uint256 balanceBefore = taiyiCore.balanceOf(user);

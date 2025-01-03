@@ -24,15 +24,26 @@ contract Operators is Test {
     }
 
     function getOperatorAddress(uint256 index) public returns (address) {
-        return stdJson.readAddress(operatorConfigJson, string.concat(operatorPrefix(index), "Address"));
+        return stdJson.readAddress(
+            operatorConfigJson, string.concat(operatorPrefix(index), "Address")
+        );
     }
 
     function getOperatorSecretKey(uint256 index) public returns (uint256) {
         return readUint(operatorConfigJson, index, "SecretKey");
     }
 
-    function readUint(string memory json, uint256 index, string memory key) public returns (uint256) {
-        return stringToUint(stdJson.readString(json, string.concat(operatorPrefix(index), key)));
+    function readUint(
+        string memory json,
+        uint256 index,
+        string memory key
+    )
+        public
+        returns (uint256)
+    {
+        return stringToUint(
+            stdJson.readString(json, string.concat(operatorPrefix(index), key))
+        );
     }
 
     function stringToUint(string memory s) public pure returns (uint256) {

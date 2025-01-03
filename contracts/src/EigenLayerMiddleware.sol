@@ -1,29 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { OwnableUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-import {IERC20} from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {EnumerableMap} from "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
-import {EnumerableSet} from "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { EnumerableMap } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
+import { EnumerableSet } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
-import {TaiyiProposerRegistry} from "./TaiyiProposerRegistry.sol";
-import {IProposerRegistry} from "./interfaces/IProposerRegistry.sol";
+import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
+import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
 
-import {AVSDirectoryStorage} from "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";
-import {DelegationManagerStorage} from "@eigenlayer-contracts/src/contracts/core/DelegationManagerStorage.sol";
-import {StrategyManagerStorage} from "@eigenlayer-contracts/src/contracts/core/StrategyManagerStorage.sol";
-import {IAVSDirectory} from "@eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
-import {IDelegationManager} from "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
-import {IEigenPod} from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
-import {IEigenPodManager} from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
-import {ISignatureUtils} from "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+import { AVSDirectoryStorage } from
+    "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";
+import { DelegationManagerStorage } from
+    "@eigenlayer-contracts/src/contracts/core/DelegationManagerStorage.sol";
+import { StrategyManagerStorage } from
+    "@eigenlayer-contracts/src/contracts/core/StrategyManagerStorage.sol";
+import { IAVSDirectory } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
+import { IDelegationManager } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IEigenPodManager } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
-import {IStrategy} from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
-import {IStrategyManager} from "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
+import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
+import { IStrategyManager } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
-import {IServiceManager} from "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
+import { IServiceManager } from
+    "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
 
 /// @title EigenLayerMiddleware
 /// @notice Middleware contract for integrating with EigenLayer and managing
@@ -112,7 +125,12 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @notice Get the strategies an operator has restaked in
     /// @param operator Address of the operator
     /// @return Array of strategy addresses the operator has restaked in
-    function getOperatorRestakedStrategies(address operator) external view override returns (address[] memory) {
+    function getOperatorRestakedStrategies(address operator)
+        external
+        view
+        override
+        returns (address[] memory)
+    {
         address[] memory restakedStrategies = new address[](strategies.length());
         uint256 count = 0;
 
@@ -133,7 +151,12 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
 
     /// @notice Get all strategies that can be restaked
     /// @return Array of all registered strategy addresses
-    function getRestakeableStrategies() external view override returns (address[] memory) {
+    function getRestakeableStrategies()
+        external
+        view
+        override
+        returns (address[] memory)
+    {
         return strategies.values();
     }
 
@@ -145,13 +168,22 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @param disabledTime Timestamp when entry was disabled
     /// @param timestamp Timestamp to check against
     /// @return bool True if entry was active at timestamp
-    function _wasEnabledAt(uint48 enabledTime, uint48 disabledTime, uint48 timestamp) private pure returns (bool) {
-        return enabledTime != 0 && enabledTime <= timestamp && (disabledTime == 0 || disabledTime >= timestamp);
+    function _wasEnabledAt(
+        uint48 enabledTime,
+        uint48 disabledTime,
+        uint48 timestamp
+    )
+        private
+        pure
+        returns (bool)
+    {
+        return enabledTime != 0 && enabledTime <= timestamp
+            && (disabledTime == 0 || disabledTime >= timestamp);
     }
 
     /// @notice Authorizes contract upgrades
     /// @param newImplementation Address of new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
     // ========= EXTERNAL FUNCTIONS =========
 
@@ -169,7 +201,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         address _delegationManager,
         address _strategyManager,
         address _eigenPodManager
-    ) public initializer {
+    )
+        public
+        initializer
+    {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
         transferOwnership(_owner);
@@ -192,7 +227,12 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// validators specified in the corresponding
     /// valPubKeys array
     /// @dev Length of valPubKeys array must match length of podOwners array
-    function registerValidator(bytes[][] calldata valPubKeys, address[] calldata podOwners) external {
+    function registerValidator(
+        bytes[][] calldata valPubKeys,
+        address[] calldata podOwners
+    )
+        external
+    {
         uint256 len = podOwners.length;
         for (uint256 i = 0; i < len; ++i) {
             _registerValidators(valPubKeys[i], podOwners[i]);
@@ -218,7 +258,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
 
     /// @notice Allow an operator to signal opt-in to the protocol
     /// @param operatorSignature The operator's signature
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature)
+    function registerOperator(
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    )
         public
         onlyEigenCoreOperator
         onlyNonRegisteredOperator
@@ -249,7 +291,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     function registerOperatorToAVS(
         address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) external override {
+    )
+        external
+        override
+    {
         _registerOperatorToAVS(operator, operatorSignature);
     }
 
@@ -267,9 +312,17 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// validators
     /// @param valPubKeys Array of validator BLS public keys to register
     /// @param podOwner Address of the EigenPod owner
-    function _registerValidators(bytes[] calldata valPubKeys, address podOwner) internal {
+    function _registerValidators(
+        bytes[] calldata valPubKeys,
+        address podOwner
+    )
+        internal
+    {
         // Check caller is either pod owner or their delegated operator
-        if (msg.sender != podOwner && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)) {
+        if (
+            msg.sender != podOwner
+                && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)
+        ) {
             revert SenderNotPodOwnerOrOperator();
         }
 
@@ -277,7 +330,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         address operator = DELEGATION_MANAGER.delegatedTo(podOwner);
 
         // Verify operator is registered in proposer registry
-        require(proposerRegistry.isOperatorRegistered(operator), "Operator not registered");
+        require(
+            proposerRegistry.isOperatorRegistered(operator), "Operator not registered"
+        );
 
         // Verify pod owner has an EigenPod
         require(EIGEN_POD_MANAGER.hasPod(podOwner), "No Pod exists");
@@ -287,7 +342,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         uint256 len = valPubKeys.length;
         for (uint256 i = 0; i < len; ++i) {
             // Check validator is active in EigenLayer core
-            if (pod.validatorPubkeyToInfo(valPubKeys[i]).status != IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+            if (
+                pod.validatorPubkeyToInfo(valPubKeys[i]).status
+                    != IEigenPod.VALIDATOR_STATUS.ACTIVE
+            ) {
                 revert ValidatorNotActiveWithinEigenCore();
             }
 
@@ -316,7 +374,11 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     }
 
     /// @dev Internal function that registers an operator.
-    function _registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature) internal {
+    function _registerOperator(
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    )
+        internal
+    {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
         proposerRegistry.registerOperator(msg.sender, address(this));
     }
@@ -342,7 +404,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     function _registerOperatorToAVS(
         address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) internal {
+    )
+        internal
+    {
         require(msg.sender == operator, "Only operator can register");
         AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
     }

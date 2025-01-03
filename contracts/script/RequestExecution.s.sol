@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {TaiyiCore} from "../src/TaiyiCore.sol";
-import {TaiyiEscrow} from "../src/TaiyiEscrow.sol";
-import {ITaiyiCore} from "../src/interfaces/ITaiyiCore.sol";
+import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
+import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
 
-import {PreconfRequest, PreconfTx, TipTx} from "../src/interfaces/Types.sol";
-import {PreconfRequestLib} from "../src/libs/PreconfRequestLib.sol";
-import {BlockspaceAllocation, PreconfRequestBType} from "../src/types/PreconfRequestBTypes.sol";
-import {Helper} from "../src/utils/Helper.sol";
-import {Test, console} from "forge-std/Test.sol";
+import { PreconfRequest, PreconfTx, TipTx } from "../src/interfaces/Types.sol";
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
+import {
+    BlockspaceAllocation,
+    PreconfRequestBType
+} from "../src/types/PreconfRequestBTypes.sol";
+import { Helper } from "../src/utils/Helper.sol";
+import { Test, console } from "forge-std/Test.sol";
 
 contract DeployTest is Test {
     using PreconfRequestLib for *;
@@ -43,7 +46,8 @@ contract DeployTest is Test {
     }
 
     function signRawTx(bytes memory _rawTx) internal returns (bytes memory) {
-        (uint8 _v, bytes32 _r, bytes32 _s) = vm.sign(preconferPrivatekey, keccak256(_rawTx));
+        (uint8 _v, bytes32 _r, bytes32 _s) =
+            vm.sign(preconferPrivatekey, keccak256(_rawTx));
         return abi.encodePacked(_r, _s, _v);
     }
 
@@ -72,11 +76,14 @@ contract DeployTest is Test {
             blobCount: 1
         });
 
-        bytes32 blockspaceAllocationHash = blockspaceAllocation.getBlockspaceAllocationHash();
+        bytes32 blockspaceAllocationHash =
+            blockspaceAllocation.getBlockspaceAllocationHash();
         (v, r, s) = vm.sign(userPrivatekey, blockspaceAllocationHash);
         bytes memory blockspaceAllocationUserSignature = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature());
+        (v, r, s) = vm.sign(
+            preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature()
+        );
         bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         bytes memory rawTx =

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {BlockspaceAllocation, PreconfRequestBType} from "../types/PreconfRequestBTypes.sol";
+import {
+    BlockspaceAllocation, PreconfRequestBType
+} from "../types/PreconfRequestBTypes.sol";
 
 library PreconfRequestLib {
     /*//////////////////////////////////////////////////////
@@ -16,8 +18,9 @@ library PreconfRequestLib {
         "PreconfRequestBType(BlockspaceAllocation blockspaceAllocation,bytes blockspaceAllocationSignature,bytes gatewaySignedBlockspaceAllocation,bytes rawTx,bytes gatewaySignedRawTx)"
     );
 
-    bytes32 constant EIP712_DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 constant EIP712_DOMAIN_TYPEHASH = keccak256(
+        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+    );
 
     function getDomainSeparator() public view returns (bytes32) {
         uint256 chainId;
@@ -38,13 +41,19 @@ library PreconfRequestLib {
         );
     }
 
-    function getBlockspaceAllocationHash(BlockspaceAllocation calldata blockspaceAllocation)
+    function getBlockspaceAllocationHash(
+        BlockspaceAllocation calldata blockspaceAllocation
+    )
         public
         view
         returns (bytes32)
     {
         return keccak256(
-            abi.encodePacked("\x19\x01", getDomainSeparator(), _getBlockspaceAllocationHash(blockspaceAllocation))
+            abi.encodePacked(
+                "\x19\x01",
+                getDomainSeparator(),
+                _getBlockspaceAllocationHash(blockspaceAllocation)
+            )
         );
     }
 
@@ -54,7 +63,11 @@ library PreconfRequestLib {
         returns (bytes32)
     {
         return keccak256(
-            abi.encodePacked("\x19\x01", getDomainSeparator(), _getPreconfRequestBTypeHash(preconfRequestBType))
+            abi.encodePacked(
+                "\x19\x01",
+                getDomainSeparator(),
+                _getPreconfRequestBTypeHash(preconfRequestBType)
+            )
         );
     }
 
@@ -63,7 +76,8 @@ library PreconfRequestLib {
         pure
         returns (bytes32)
     {
-        bytes32 blockspaceAllocationHash = _getBlockspaceAllocationHash(preconfRequestBType.blockspaceAllocation);
+        bytes32 blockspaceAllocationHash =
+            _getBlockspaceAllocationHash(preconfRequestBType.blockspaceAllocation);
         return keccak256(
             abi.encode(
                 PRECONF_REQUEST_B_TYPE_HASH,
@@ -76,7 +90,9 @@ library PreconfRequestLib {
         );
     }
 
-    function _getBlockspaceAllocationHash(BlockspaceAllocation calldata blockspaceAllocation)
+    function _getBlockspaceAllocationHash(
+        BlockspaceAllocation calldata blockspaceAllocation
+    )
         internal
         pure
         returns (bytes32)

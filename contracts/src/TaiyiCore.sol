@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {TaiyiEscrow} from "./TaiyiEscrow.sol";
-import {TaiyiProposerRegistry} from "./TaiyiProposerRegistry.sol";
-import {ITaiyiCore} from "./interfaces/ITaiyiCore.sol";
-import {PreconfRequestLib} from "./libs/PreconfRequestLib.sol";
+import { TaiyiEscrow } from "./TaiyiEscrow.sol";
+import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
+import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
+import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 
-import {SlotLib} from "./libs/SlotLib.sol";
-import {PreconfRequestStatus} from "./types/CommonTypes.sol";
-import {BlockspaceAllocation, PreconfRequestBType} from "./types/PreconfRequestBTypes.sol";
+import { SlotLib } from "./libs/SlotLib.sol";
+import { PreconfRequestStatus } from "./types/CommonTypes.sol";
+import {
+    BlockspaceAllocation, PreconfRequestBType
+} from "./types/PreconfRequestBTypes.sol";
 
-import {Helper} from "./utils/Helper.sol";
-import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ECDSA} from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import {SignatureChecker} from "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
+import { Helper } from "./utils/Helper.sol";
+import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import { SignatureChecker } from
+    "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import "forge-std/console.sol";
 
@@ -45,7 +48,13 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// CONSTRUCTOR
     ///////////////////////////////////////////////////////////////
 
-    constructor(address initialOwner, uint256 genesisTimestamp, address proposerRegistry) Ownable(initialOwner) {
+    constructor(
+        address initialOwner,
+        uint256 genesisTimestamp,
+        address proposerRegistry
+    )
+        Ownable(initialOwner)
+    {
         GENESIS_TIMESTAMP = genesisTimestamp;
     }
 
@@ -57,7 +66,11 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// @dev Retrieves the status of a PreconfRequest using its hash
     /// @param preconfRequestHash The hash of the PreconfRequest
     /// @return The status of the PreconfRequest
-    function getPreconfRequestStatus(bytes32 preconfRequestHash) public view returns (PreconfRequestStatus) {
+    function getPreconfRequestStatus(bytes32 preconfRequestHash)
+        public
+        view
+        returns (PreconfRequestStatus)
+    {
         return preconfRequestStatus[preconfRequestHash];
     }
 
@@ -80,11 +93,18 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// EXTERNAL/PUBLIC FUNCTIONS
     ///////////////////////////////////////////////////////////////
 
-    function getTip(PreconfRequestBType calldata preconfRequestBType) public payable nonReentrant {
+    function getTip(PreconfRequestBType calldata preconfRequestBType)
+        public
+        payable
+        nonReentrant
+    {
         _getTip(preconfRequestBType);
     }
 
-    function exhaust(PreconfRequestBType calldata preconfRequestBType) external onlyOwner {
+    function exhaust(PreconfRequestBType calldata preconfRequestBType)
+        external
+        onlyOwner
+    {
         _exhaust(preconfRequestBType);
     }
 
@@ -99,11 +119,21 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// @notice Validates the given PreconfRequestBType
     /// @dev Checks the signatures of the provided PreconfRequestBType
     /// @param preconfRequestBType The PreconfRequestBType to validate
-    function _validatePreconfRequestBType(PreconfRequestBType calldata preconfRequestBType) public view {
-        require(preconfRequestBType.blockspaceAllocation.recipient == owner(), "Tip is not to the owner");
+    function _validatePreconfRequestBType(
+        PreconfRequestBType calldata preconfRequestBType
+    )
+        public
+        view
+    {
+        require(
+            preconfRequestBType.blockspaceAllocation.recipient == owner(),
+            "Tip is not to the owner"
+        );
 
-        BlockspaceAllocation calldata blockspaceAllocation = preconfRequestBType.blockspaceAllocation;
-        bytes32 blockspaceAllocationHash = blockspaceAllocation.getBlockspaceAllocationHash();
+        BlockspaceAllocation calldata blockspaceAllocation =
+            preconfRequestBType.blockspaceAllocation;
+        bytes32 blockspaceAllocationHash =
+            blockspaceAllocation.getBlockspaceAllocationHash();
 
         Helper.verifySignature(
             blockspaceAllocationHash,
@@ -129,7 +159,7 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// @dev Attempts to transfer the given amount of gas to the block's coinbase
     /// @param amount The amount of gas to be burned
     function _gasBurner(uint256 amount) internal {
-        (bool success,) = payable(block.coinbase).call{value: amount}("");
+        (bool success,) = payable(block.coinbase).call{ value: amount }("");
         require(success, "Gas burn failed");
     }
 
@@ -158,7 +188,8 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
         uint256 amount = payout(preconfRequestBType.blockspaceAllocation, true);
         _handlePayment(amount, preconfRequestBType.getPreconfRequestBTypeHash());
 
-        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] = PreconfRequestStatus.Executed;
+        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] =
+            PreconfRequestStatus.Executed;
         inclusionStatusMap[preconfRequestBType.getPreconfRequestBTypeHash()] = true;
     }
 
@@ -168,14 +199,16 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// @param preconfRequestBType The preconfirmation request to exhaust
     function _exhaust(PreconfRequestBType calldata preconfRequestBType) internal {
         _validatePreconfRequestBType(preconfRequestBType);
-        BlockspaceAllocation calldata blockspaceAllocation = preconfRequestBType.blockspaceAllocation;
+        BlockspaceAllocation calldata blockspaceAllocation =
+            preconfRequestBType.blockspaceAllocation;
         require(blockspaceAllocation.recipient == owner(), "Tip to is not the owner");
 
         _gasBurner(blockspaceAllocation.gasLimit);
 
         uint256 amount = payout(blockspaceAllocation, false);
         _handlePayment(amount, preconfRequestBType.getPreconfRequestBTypeHash());
-        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] = PreconfRequestStatus.Exhausted;
+        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] =
+            PreconfRequestStatus.Exhausted;
 
         bytes32 txHash = preconfRequestBType.getPreconfRequestBTypeHash();
         inclusionStatusMap[txHash] = true;

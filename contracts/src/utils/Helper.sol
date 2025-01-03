@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import "../libs/PreconfRequestLib.sol";
 import "../types/PreconfRequestBTypes.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 library Helper {
     using PreconfRequestLib for PreconfRequestBType;
@@ -12,7 +12,12 @@ library Helper {
         return keccak256(signature);
     }
 
-    function verifySignature(bytes32 hashValue, address signer, bytes memory signature, string memory errorMessage)
+    function verifySignature(
+        bytes32 hashValue,
+        address signer,
+        bytes memory signature,
+        string memory errorMessage
+    )
         internal
         pure
     {
@@ -20,7 +25,12 @@ library Helper {
         require(hash_signer == signer, errorMessage);
     }
 
-    function verifySignature(bytes memory hashValue, address signer, bytes memory signature, string memory errorMessage)
+    function verifySignature(
+        bytes memory hashValue,
+        address signer,
+        bytes memory signature,
+        string memory errorMessage
+    )
         internal
         pure
     {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {BLS12381} from "../libs/BLS12381.sol";
+import { BLS12381 } from "../libs/BLS12381.sol";
 
 interface IDelegationContract {
     /**
@@ -15,7 +15,9 @@ interface IDelegationContract {
      * @param validatorPubKeyHash The hash of the validator's BLS public key
      * @param Preconfer The address of the Preconfer
      */
-    event ValidatorDelegated(bytes32 indexed validatorPubKeyHash, address indexed Preconfer);
+    event ValidatorDelegated(
+        bytes32 indexed validatorPubKeyHash, address indexed Preconfer
+    );
 
     /**
      * @notice Event emitted when a Preconfer is deregistered
@@ -28,7 +30,9 @@ interface IDelegationContract {
      * @param validatorPubKeyHash The hash of the validator's BLS public key
      * @param Preconfer The address of the Preconfer
      */
-    event DelegationRevoked(bytes32 indexed validatorPubKeyHash, address indexed Preconfer);
+    event DelegationRevoked(
+        bytes32 indexed validatorPubKeyHash, address indexed Preconfer
+    );
 
     /**
      * @notice Struct representing the preconfer election details
@@ -73,7 +77,10 @@ interface IDelegationContract {
      * @param validatorPubKeyHash The hash of the validator's BLS public key
      * @return The address of the delegated Preconfer
      */
-    function getDelegatedPreconfer(bytes32 validatorPubKeyHash) external view returns (address);
+    function getDelegatedPreconfer(bytes32 validatorPubKeyHash)
+        external
+        view
+        returns (address);
 
     /**
      * @notice Allows a validator to revoke their delegation

@@ -32,15 +32,19 @@ contract TaiyiEscrowTest is Test {
 
     function testDeposit() public {
         vm.prank(user);
-        core.deposit{value: 1 ether}();
+        core.deposit{ value: 1 ether }();
 
         assertEq(core.balances(user), 1 ether, "Balance should be 1 ether after deposit");
-        assertEq(core.lockBlockOf(user), type(uint256).max, "Lock block should be max after deposit");
+        assertEq(
+            core.lockBlockOf(user),
+            type(uint256).max,
+            "Lock block should be max after deposit"
+        );
     }
 
     function testWithdrawLocked() public {
         vm.startPrank(user);
-        core.deposit{value: 1 ether}();
+        core.deposit{ value: 1 ether }();
         vm.stopPrank();
 
         vm.expectRevert("Withdrawal is locked");
@@ -50,7 +54,7 @@ contract TaiyiEscrowTest is Test {
 
     function testWithdrawAfterLock() public {
         vm.prank(user);
-        core.deposit{value: 1 ether}();
+        core.deposit{ value: 1 ether }();
 
         vm.prank(user);
         core.requestWithdraw(1 ether);

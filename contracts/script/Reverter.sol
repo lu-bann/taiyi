@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 contract Reverter {
     uint256[] private array;
 
-    function dontRevert() public pure {}
+    function dontRevert() public pure { }
 
     function revertFromRevert() public pure {
         revert();
