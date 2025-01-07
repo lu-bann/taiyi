@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
 import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 
@@ -66,6 +67,9 @@ contract TaiyiProposerRegistry is
 
     /// @notice Restricts function access to registered middleware contracts
     modifier onlyRestakingMiddlewareContracts() {
+        require(
+            restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
+        );
         require(
             restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
         );
@@ -297,6 +301,10 @@ contract TaiyiProposerRegistry is
         Validator storage validator = validators[pubKeyHash];
         require(validator.operator != address(0), "Validator not registered");
         require(validator.status == ValidatorStatus.OptingOut, "Validator not opting out");
+        require(
+            block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN,
+            "Cooldown period not elapsed"
+        );
         require(
             block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN,
             "Cooldown period not elapsed"

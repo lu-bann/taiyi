@@ -1,31 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { PreconfRequest, PreconfTx, TipTx } from "../interfaces/Types.sol";
+import {
+    BlockspaceAllocation, PreconfRequestBType
+} from "../types/PreconfRequestBTypes.sol";
 
 library PreconfRequestLib {
     /*//////////////////////////////////////////////////////
                           CONSTANTS
     //////////////////////////////////////////////////////*/
 
-    bytes32 constant TIP_TX_TYPEHASH = keccak256(
-        "TipTx(uint256 gasLimit,address from,address to,uint256 prePay,uint256 afterPay,uint256 nonce,uint256 targetSlot)"
+    bytes32 constant BLOCKSPACE_ALLOCATION_TYPEHASH = keccak256(
+        "BlockspaceAllocation(uint256 gasLimit,address sender,address recipient,uint256 deposit,uint256 tip,uint256 targetSlot,uint256 blobCount)"
     );
 
-    bytes32 constant INCLUSION_META_TYPEHASH =
-        keccak256("InclusionMeta(uint256 startingBlockNumber)");
-
-    bytes32 constant ORDERING_META_TYPEHASH =
-        keccak256("OrderingMeta(uint256 txCount,uint256 index)");
-
-    bytes32 constant PRECONF_CONDITIONS_TYPEHASH = keccak256(
-        abi.encodePacked(
-            "PreconfConditions(",
-            "InclusionMeta inclusionMetaData,",
-            "OrderingMeta orderingMetaData,",
-            "uint256 blockNumber",
-            ")"
-        )
+    bytes32 constant PRECONF_REQUEST_B_TYPE_HASH = keccak256(
+        "PreconfRequestBType(BlockspaceAllocation blockspaceAllocation,bytes blockspaceAllocationSignature,bytes gatewaySignedBlockspaceAllocation,bytes rawTx,bytes gatewaySignedRawTx)"
     );
 
     bytes32 constant EIP712_DOMAIN_TYPEHASH = keccak256(
@@ -51,64 +41,73 @@ library PreconfRequestLib {
         );
     }
 
-    function getPreconfRequestHash(PreconfRequest calldata preconfRequest)
+    function getBlockspaceAllocationHash(
+        BlockspaceAllocation calldata blockspaceAllocation
+    )
         public
         view
         returns (bytes32)
     {
-        bytes32 tipTxHash = getTipTxHash(preconfRequest.tipTx);
-        bytes32 preconfTxHash = getPreconfTxHash(preconfRequest.preconfTx);
         return keccak256(
             abi.encodePacked(
-                tipTxHash,
-                preconfTxHash,
-                preconfRequest.tipTxSignature,
-                preconfRequest.preconferSignature
+                "\x19\x01",
+                getDomainSeparator(),
+                _getBlockspaceAllocationHash(blockspaceAllocation)
             )
         );
     }
 
-    function getTipTxHash(TipTx calldata tipTx) public view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked("\x19\x01", getDomainSeparator(), _getTipTxHash(tipTx))
-        );
-    }
-
-    function _getTipTxHash(TipTx calldata tipTx) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                TIP_TX_TYPEHASH,
-                tipTx.gasLimit,
-                tipTx.from,
-                tipTx.to,
-                tipTx.prePay,
-                tipTx.afterPay,
-                tipTx.nonce,
-                tipTx.targetSlot
-            )
-        );
-    }
-
-    function encodePreconfTx(PreconfTx calldata preconfTx)
+    function getPreconfRequestBTypeHash(PreconfRequestBType calldata preconfRequestBType)
         public
-        pure
-        returns (bytes memory)
+        view
+        returns (bytes32)
     {
-        return abi.encode(
-            preconfTx.from,
-            preconfTx.to,
-            preconfTx.value,
-            preconfTx.callData,
-            preconfTx.callGasLimit,
-            preconfTx.nonce
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                getDomainSeparator(),
+                _getPreconfRequestBTypeHash(preconfRequestBType)
+            )
         );
     }
 
-    function getPreconfTxHash(PreconfTx calldata preconfTx)
-        public
+    function _getPreconfRequestBTypeHash(PreconfRequestBType calldata preconfRequestBType)
+        internal
         pure
         returns (bytes32)
     {
-        return keccak256(encodePreconfTx(preconfTx));
+        bytes32 blockspaceAllocationHash =
+            _getBlockspaceAllocationHash(preconfRequestBType.blockspaceAllocation);
+        return keccak256(
+            abi.encode(
+                PRECONF_REQUEST_B_TYPE_HASH,
+                blockspaceAllocationHash,
+                preconfRequestBType.blockspaceAllocationSignature,
+                preconfRequestBType.gatewaySignedBlockspaceAllocation,
+                preconfRequestBType.rawTx,
+                preconfRequestBType.gatewaySignedRawTx
+            )
+        );
+    }
+
+    function _getBlockspaceAllocationHash(
+        BlockspaceAllocation calldata blockspaceAllocation
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encode(
+                BLOCKSPACE_ALLOCATION_TYPEHASH,
+                blockspaceAllocation.gasLimit,
+                blockspaceAllocation.sender,
+                blockspaceAllocation.recipient,
+                blockspaceAllocation.deposit,
+                blockspaceAllocation.tip,
+                blockspaceAllocation.targetSlot,
+                blockspaceAllocation.blobCount
+            )
+        );
     }
 }

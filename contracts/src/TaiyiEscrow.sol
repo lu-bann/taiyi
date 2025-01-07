@@ -3,10 +3,9 @@ pragma solidity ^0.8.25;
 
 import "forge-std/console.sol";
 
-import { TipTx } from "./interfaces/Types.sol";
-import { PreconfRequest } from "./interfaces/Types.sol";
-import { PreconfTx } from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
+
+import { BlockspaceAllocation } from "./types/PreconfRequestBTypes.sol";
 import { Helper } from "./utils/Helper.sol";
 import { ReentrancyGuard } from
     "@openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -86,27 +85,25 @@ contract TaiyiEscrow is ReentrancyGuard {
         emit Withdrawn(msg.sender, amount);
     }
 
-    /**
-     * @dev Handles the payout of a TipTx.
-     * @param tipTx The TipTx containing the payout details.
-     * @param isAfterExec A boolean indicating if the payout is after execution.
-     * @return amount The amount to be paid out.
-     *
-     * This function calculates the payout amount based on the TipTx details and
-     * whether the payout is after execution.
-     * It then checks if the sender has sufficient balance and deducts the
-     * amount from the sender's balance.
-     */
+    /// @dev Handles the payout of a blockspace allocation.
+    /// @param blockspaceAllocation The blockspace allocation containing the payout details.
+    /// @param isAfterExec A boolean indicating if the payout is after execution.
+    /// @return amount The amount to be paid out.
+    ///
+    /// If isAfterExec is true, returns deposit + tip amount.
+    /// If isAfterExec is false, returns only deposit amount.
+    /// Deducts the amount from sender's balance after checking for sufficient funds.
     function payout(
-        TipTx calldata tipTx,
+        BlockspaceAllocation calldata blockspaceAllocation,
         bool isAfterExec
     )
         internal
         returns (uint256 amount)
     {
-        amount = isAfterExec ? tipTx.prePay + tipTx.afterPay : tipTx.prePay;
-        require(balances[tipTx.from] >= amount, "Insufficient balance");
-
-        balances[tipTx.from] -= amount;
+        amount = isAfterExec
+            ? blockspaceAllocation.deposit + blockspaceAllocation.tip
+            : blockspaceAllocation.deposit;
+        require(balances[blockspaceAllocation.sender] >= amount, "Insufficient balance");
+        balances[blockspaceAllocation.sender] -= amount;
     }
 }

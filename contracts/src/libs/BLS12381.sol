@@ -1,3 +1,5 @@
+// Code copied from
+// https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 

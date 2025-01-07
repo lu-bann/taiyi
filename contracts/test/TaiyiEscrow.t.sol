@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
 import "../src/TaiyiCore.sol";
@@ -21,11 +21,8 @@ contract TaiyiEscrowTest is Test {
     uint256 internal ownerPrivatekey;
 
     function setUp() public {
-        userPrivatekey = 0x5678;
-        ownerPrivatekey = 0x1234;
-
-        user = vm.addr(userPrivatekey);
-        owner = vm.addr(ownerPrivatekey);
+        (user, userPrivatekey) = makeAddrAndKey("user");
+        (owner, ownerPrivatekey) = makeAddrAndKey("owner");
 
         vm.deal(user, 100 ether);
 

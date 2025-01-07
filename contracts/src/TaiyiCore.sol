@@ -3,20 +3,16 @@ pragma solidity ^0.8.25;
 
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
-import { ITaiyiChallengeManager } from "./interfaces/ITaiyiChallengeManager.sol";
 import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
-
-import {
-    PreconfRequest,
-    PreconfRequestStatus,
-    PreconfTx,
-    TipTx
-} from "./interfaces/Types.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 
 import { SlotLib } from "./libs/SlotLib.sol";
+import { PreconfRequestStatus } from "./types/CommonTypes.sol";
+import {
+    BlockspaceAllocation, PreconfRequestBType
+} from "./types/PreconfRequestBTypes.sol";
+
 import { Helper } from "./utils/Helper.sol";
-import { NonceManager } from "./utils/NonceManager.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { SignatureChecker } from
@@ -24,19 +20,15 @@ import { SignatureChecker } from
 
 import "forge-std/console.sol";
 
-contract TaiyiCore is
-    Ownable,
-    ITaiyiCore,
-    TaiyiEscrow,
-    ITaiyiChallengeManager,
-    NonceManager
-{
-    using PreconfRequestLib for *;
+contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
+    using PreconfRequestLib for PreconfRequestBType;
+    using PreconfRequestLib for BlockspaceAllocation;
     using SignatureChecker for address;
     using Helper for bytes;
-    /*//////////////////////////////////////////////////////
-                          VARIABLES
-    //////////////////////////////////////////////////////*/
+
+    ///////////////////////////////////////////////////////////////
+    /// VARIABLES
+    ///////////////////////////////////////////////////////////////
 
     uint256 collectedTip;
     uint256 internal GENESIS_TIMESTAMP;
@@ -44,13 +36,17 @@ contract TaiyiCore is
     mapping(bytes32 => PreconfRequestStatus) public preconfRequestStatus;
     mapping(bytes32 => bool) public inclusionStatusMap;
 
-    /*//////////////////////////////////////////////////////
-                          EVENTS
-    //////////////////////////////////////////////////////*/
+    ///////////////////////////////////////////////////////////////
+    /// EVENTS
+    ///////////////////////////////////////////////////////////////
 
     event Exhausted(address indexed preconfer, uint256 amount);
     event TipCollected(uint256 amount, bytes32 preconfRequestHash);
     event TransactionExecutionFailed(address to, uint256 value);
+
+    ///////////////////////////////////////////////////////////////
+    /// CONSTRUCTOR
+    ///////////////////////////////////////////////////////////////
 
     constructor(
         address initialOwner,
@@ -62,17 +58,14 @@ contract TaiyiCore is
         GENESIS_TIMESTAMP = genesisTimestamp;
     }
 
-    /*//////////////////////////////////////////////////////
-                          VIEW FUNCTIONS
-    //////////////////////////////////////////////////////*/
+    ///////////////////////////////////////////////////////////////
+    /// VIEW FUNCTIONS
+    ///////////////////////////////////////////////////////////////
 
-    /**
-     * @notice Returns the status of a given PreconfRequest.
-     * @dev This function retrieves the status of a PreconfRequest using its
-     * hash.
-     * @param preconfRequestHash The hash of the PreconfRequest.
-     * @return The status of the PreconfRequest.
-     */
+    /// @notice Returns the status of a given PreconfRequest
+    /// @dev Retrieves the status of a PreconfRequest using its hash
+    /// @param preconfRequestHash The hash of the PreconfRequest
+    /// @return The status of the PreconfRequest
     function getPreconfRequestStatus(bytes32 preconfRequestHash)
         public
         view
@@ -81,241 +74,158 @@ contract TaiyiCore is
         return preconfRequestStatus[preconfRequestHash];
     }
 
-    /**
-     * @notice Checks if a given PreconfRequest is included.
-     * @dev This function checks the inclusion status of a PreconfRequest using
-     * its hash.
-     * @param preconfRequestHash The hash of the PreconfRequest.
-     * @return True if the PreconfRequest is included, false otherwise.
-     */
+    /// @notice Checks if a given PreconfRequest is included
+    /// @dev Checks the inclusion status of a PreconfRequest using its hash
+    /// @param preconfRequestHash The hash of the PreconfRequest
+    /// @return True if the PreconfRequest is included, false otherwise
     function checkInclusion(bytes32 preconfRequestHash) external view returns (bool) {
         return inclusionStatusMap[preconfRequestHash];
     }
 
-    /**
-     * @notice Returns the collected tip amount.
-     * @dev This function retrieves the total amount of collected tips.
-     * @return The collected tip amount.
-     */
+    /// @notice Returns the collected tip amount
+    /// @dev Retrieves the total amount of collected tips
+    /// @return The collected tip amount
     function getCollectedTip() external view returns (uint256) {
         return collectedTip;
     }
 
-    /*//////////////////////////////////////////////////////
-                    STATE CHANGING FUNCTIONS
-    //////////////////////////////////////////////////////*/
+    ///////////////////////////////////////////////////////////////
+    /// EXTERNAL/PUBLIC FUNCTIONS
+    ///////////////////////////////////////////////////////////////
 
-    /**
-     * @notice Batches settles multiple PreconfRequests.
-     * @dev This function processes a list of PreconfRequests in a single call.
-     * @param preconfReqs An array of PreconfRequest structs to be settled.
-     */
-    function batchSettleRequests(PreconfRequest[] calldata preconfReqs)
-        external
-        payable
-    {
-        uint256 length = preconfReqs.length;
-        for (uint256 i = 0; i < length;) {
-            PreconfRequest calldata preconfReq = preconfReqs[i];
-            settleRequest(preconfReq);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Validates the given PreconfRequest.
-     * @dev This function checks the signatures and nonces of the provided
-     * PreconfRequest.
-     * @param preconfReq The PreconfRequest to validate.
-     */
-    function validateRequest(PreconfRequest calldata preconfReq) public view {
-        TipTx calldata tipTx = preconfReq.tipTx;
-        PreconfTx calldata preconfTx = preconfReq.preconfTx;
-        bytes32 tipHash = tipTx.getTipTxHash();
-
-        Helper.verifySignature(
-            tipHash, tipTx.from, preconfReq.tipTxSignature, "invalid tip signature"
-        );
-        Helper.verifySignature(
-            preconfTx.getPreconfTxHash(),
-            preconfTx.from,
-            preconfReq.preconfTx.signature,
-            "invalid preconf signature"
-        );
-        Helper.verifySignature(
-            preconfReq.tipTxSignature.hashSignature(),
-            tipTx.to,
-            preconfReq.preconferSignature,
-            "invalid preconfer signature"
-        );
-        Helper.verifySignature(
-            preconfReq.getPreconfRequestHash(),
-            tipTx.to,
-            preconfReq.preconfReqSignature,
-            "invalid preconf req signature"
-        );
-
-        require(
-            preconfTx.nonce == getPreconfNonce(preconfTx.from), "Incorrect preconf nonce"
-        );
-        require(tipTx.nonce == getTipNonce(tipTx.from), "Incorrect tip nonce");
-    }
-
-    /// @notice Main bulk of the logic for validating and settling request
-    /// @dev called by the preconfer to settle the request
-    function settleRequest(PreconfRequest calldata preconfReq)
+    function getTip(PreconfRequestBType calldata preconfRequestBType)
         public
         payable
         nonReentrant
     {
-        //require(preconferList[msg.sender], "Caller is not a preconfer");
-
-        TipTx calldata tipTx = preconfReq.tipTx;
-        PreconfTx calldata preconfTx = preconfReq.preconfTx;
-
-        // uint256 slot = SlotLib.getSlotFromTimestamp(block.timestamp,
-        // GENESIS_TIMESTAMP);
-
-        // require(tipTx.targetSlot == slot, "Wrong slot number");
-
-        validateRequest(preconfReq);
-
-        require(preconfReq.tipTx.to == owner(), "Tip to is not the owner");
-
-        bool success;
-        if (preconfTx.callData.length > 0) {
-            // Execute contract call with provided calldata
-            (success,) =
-                payable(preconfTx.to).call{ value: preconfTx.value }(preconfTx.callData);
-        } else {
-            // Execute plain Ether transfer
-            (success,) = payable(preconfTx.to).call{ value: preconfTx.value }("");
-        }
-        incrementPreconfNonce(preconfTx.from);
-
-        if (!success) {
-            emit TransactionExecutionFailed(preconfTx.to, preconfTx.value);
-        }
-
-        uint256 amount = payout(tipTx, true);
-        handlePayment(amount, preconfReq.getPreconfRequestHash());
-
-        incrementTipNonce(tipTx.from);
-        preconfRequestStatus[preconfReq.getPreconfRequestHash()] =
-            PreconfRequestStatus.Executed;
-        inclusionStatusMap[preconfReq.getPreconfRequestHash()] = true;
+        _getTip(preconfRequestBType);
     }
 
-    /// @dev This function is used to exhaust the gas to the point of
-    ///      `gasLimit` defined in `TipTx` iteratively, and transfer the
-    /// `prePayment` to the preconfer
-    ///       This mechanism is designed to prevent user "griefing" the
-    /// preconfer
-    ///        by allowing the preconfer to withdraw the funds that need to be
-    /// exhausted
-    function exhaust(PreconfRequest calldata preconfReq) external onlyOwner {
-        TipTx calldata tipTx = preconfReq.tipTx;
-
-        validateRequest(preconfReq);
-        require(tipTx.to == owner(), "Tip to is not the owner");
-
-        gasBurner(preconfReq.tipTx.gasLimit);
-
-        uint256 amount = payout(tipTx, false);
-        handlePayment(amount, preconfReq.getPreconfRequestHash());
-        preconfRequestStatus[preconfReq.getPreconfRequestHash()] =
-            PreconfRequestStatus.Exhausted;
-
-        bytes32 txHash = preconfReq.getPreconfRequestHash();
-        inclusionStatusMap[txHash] = true;
-        emit Exhausted(msg.sender, tipTx.prePay);
+    function exhaust(PreconfRequestBType calldata preconfRequestBType)
+        external
+        onlyOwner
+    {
+        _exhaust(preconfRequestBType);
     }
 
-    /**
-     * @notice Burns gas by transferring the specified amount to the coinbase.
-     * @dev This function attempts to transfer the given amount of gas to the
-     * block's coinbase.
-     * @param amount The amount of gas to be burned.
-     */
-    function gasBurner(uint256 amount) internal {
+    function collectTip(bytes32 preconfRequestHash) public {
+        _collectTip(preconfRequestHash);
+    }
+
+    ///////////////////////////////////////////////////////////////
+    /// INTERNAL FUNCTIONS
+    ///////////////////////////////////////////////////////////////
+
+    /// @notice Validates the given PreconfRequestBType
+    /// @dev Checks the signatures of the provided PreconfRequestBType
+    /// @param preconfRequestBType The PreconfRequestBType to validate
+    function _validatePreconfRequestBType(
+        PreconfRequestBType calldata preconfRequestBType
+    )
+        public
+        view
+    {
+        require(
+            preconfRequestBType.blockspaceAllocation.recipient == owner(),
+            "Tip is not to the owner"
+        );
+
+        BlockspaceAllocation calldata blockspaceAllocation =
+            preconfRequestBType.blockspaceAllocation;
+        bytes32 blockspaceAllocationHash =
+            blockspaceAllocation.getBlockspaceAllocationHash();
+
+        Helper.verifySignature(
+            blockspaceAllocationHash,
+            blockspaceAllocation.sender,
+            preconfRequestBType.blockspaceAllocationSignature,
+            "invalid blockspace allocation signature"
+        );
+        Helper.verifySignature(
+            preconfRequestBType.blockspaceAllocationSignature,
+            blockspaceAllocation.recipient,
+            preconfRequestBType.gatewaySignedBlockspaceAllocation,
+            "invalid gateway signature"
+        );
+        Helper.verifySignature(
+            preconfRequestBType.rawTx,
+            blockspaceAllocation.recipient,
+            preconfRequestBType.gatewaySignedRawTx,
+            "invalid raw tx signature"
+        );
+    }
+
+    /// @notice Burns gas by transferring the specified amount to the coinbase
+    /// @dev Attempts to transfer the given amount of gas to the block's coinbase
+    /// @param amount The amount of gas to be burned
+    function _gasBurner(uint256 amount) internal {
         (bool success,) = payable(block.coinbase).call{ value: amount }("");
         require(success, "Gas burn failed");
     }
 
-    /**
-     * @notice Handles the payment by updating the preconfer tips.
-     * @dev This function adds the specified amount to the preconfer tips.
-     * @param amount The amount to be added to the preconfer tips.
-     * @param preconfRequestHash The hash of the PreconfRequest.
-     */
-    function handlePayment(uint256 amount, bytes32 preconfRequestHash) internal {
+    /// @notice Handles payment by updating preconfer tips
+    /// @dev Adds the specified amount to the preconfer tips
+    /// @param amount The amount to be added to the preconfer tips
+    /// @param preconfRequestHash The hash of the PreconfRequest
+    function _handlePayment(uint256 amount, bytes32 preconfRequestHash) internal {
         preconferTips[preconfRequestHash] += amount;
     }
 
-    /**
-     * @notice Collects the tip for a given PreconfRequest.
-     * @dev This function collects the tip amount for a PreconfRequest and
-     * updates the status.
-     * @param preconfRequestHash The hash of the PreconfRequest.
-     */
-    function collectTip(bytes32 preconfRequestHash) public {
+    /// @notice Processes and validates a tip payment for a preconfirmation request
+    /// @dev This function:
+    ///      1. Verifies the request hasn't been previously used
+    ///      2. Validates the request parameters
+    ///      3. Processes the payment including deposit and tip
+    ///      4. Updates request status to executed
+    /// @param preconfRequestBType The preconfirmation request containing blockspace allocation and signatures
+    function _getTip(PreconfRequestBType calldata preconfRequestBType) internal {
+        require(
+            inclusionStatusMap[preconfRequestBType.getPreconfRequestBTypeHash()] == false,
+            "PreconfRequest has been exhausted"
+        );
+        _validatePreconfRequestBType(preconfRequestBType);
+
+        uint256 amount = payout(preconfRequestBType.blockspaceAllocation, true);
+        _handlePayment(amount, preconfRequestBType.getPreconfRequestBTypeHash());
+
+        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] =
+            PreconfRequestStatus.Executed;
+        inclusionStatusMap[preconfRequestBType.getPreconfRequestBTypeHash()] = true;
+    }
+
+    /// @notice Exhausts a preconfirmation request by burning gas and handling payment
+    /// @dev This function validates the request, burns gas according to the allocation,
+    ///      processes payment, and marks the request as exhausted
+    /// @param preconfRequestBType The preconfirmation request to exhaust
+    function _exhaust(PreconfRequestBType calldata preconfRequestBType) internal {
+        _validatePreconfRequestBType(preconfRequestBType);
+        BlockspaceAllocation calldata blockspaceAllocation =
+            preconfRequestBType.blockspaceAllocation;
+        require(blockspaceAllocation.recipient == owner(), "Tip to is not the owner");
+
+        _gasBurner(blockspaceAllocation.gasLimit);
+
+        uint256 amount = payout(blockspaceAllocation, false);
+        _handlePayment(amount, preconfRequestBType.getPreconfRequestBTypeHash());
+        preconfRequestStatus[preconfRequestBType.getPreconfRequestBTypeHash()] =
+            PreconfRequestStatus.Exhausted;
+
+        bytes32 txHash = preconfRequestBType.getPreconfRequestBTypeHash();
+        inclusionStatusMap[txHash] = true;
+        emit Exhausted(msg.sender, blockspaceAllocation.tip);
+    }
+
+    /// @notice Collects the tip amount for a specific preconfirmation request
+    /// @dev Transfers the accumulated tip amount to the contract's collected tips
+    ///      and marks the request as collected
+    /// @param preconfRequestHash The hash of the preconfirmation request to collect tips for
+    function _collectTip(bytes32 preconfRequestHash) internal {
         uint256 tipAmount = preconferTips[preconfRequestHash];
         require(tipAmount > 0, "No tip to collect");
 
-        // Update the preconf request status to Collected
         preconfRequestStatus[preconfRequestHash] = PreconfRequestStatus.Collected;
 
         emit TipCollected(tipAmount, preconfRequestHash);
         collectedTip += tipAmount;
-    }
-
-    /*//////////////////////////////////////////////////////
-                        HELPER FUNCTIONS
-    //////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Challenges multiple PreconfRequests.
-     * @dev This function processes a list of PreconfRequests in a single call.
-     * @param preconfReqs An array of PreconfRequest structs to be challenged.
-     */
-    function challengeRequests(PreconfRequest[] calldata preconfReqs) external {
-        for (uint256 i = 0; i < preconfReqs.length; i++) {
-            PreconfRequest calldata preconfReq = preconfReqs[i];
-            TipTx calldata tipTx = preconfReq.tipTx;
-
-            // Verify signatures
-            validateRequest(preconfReq);
-
-            // Check the status of the PreconfRequest
-            PreconfRequestStatus status =
-                getPreconfRequestStatus(preconfReq.getPreconfRequestHash());
-
-            require(
-                status != PreconfRequestStatus.Collected,
-                "PreconfRequest has already been collected"
-            );
-
-            if (status == PreconfRequestStatus.NonInitiated) {
-                uint256 slot =
-                    SlotLib.getSlotFromTimestamp(block.timestamp, GENESIS_TIMESTAMP);
-                require(
-                    slot >= tipTx.targetSlot,
-                    "PreconfRequest has not reached the block requested yet"
-                );
-            } else if (
-                status == PreconfRequestStatus.Executed
-                    || status == PreconfRequestStatus.Exhausted
-            ) {
-                bool isIncluded = inclusionStatusMap[preconfReq.getPreconfRequestHash()];
-                if (!isIncluded) {
-                    // Slash the preconfer (to be implemented)
-                    // eigenServiceManager.freezeOperator(tipTx.to);
-                } else {
-                    collectTip(bytes32(preconfReq.preconferSignature));
-                }
-            }
-        }
     }
 }

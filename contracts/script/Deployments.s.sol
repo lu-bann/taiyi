@@ -6,6 +6,8 @@ import { TaiyiCore } from "../src/TaiyiCore.sol";
 import "../src/TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
 import "../src/interfaces/ITaiyiCore.sol";
+import { Script } from "forge-std/Script.sol";
+import { Test, console } from "forge-std/Test.sol";
 
 import { Reverter } from "./Reverter.sol";
 import { Script } from "forge-std/Script.sol";
