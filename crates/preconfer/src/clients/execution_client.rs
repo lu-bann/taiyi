@@ -1,5 +1,11 @@
-use alloy_primitives::{hex::FromHex, keccak256, Address, StorageKey, U256};
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_consensus::{Header, TxEnvelope};
+use alloy_eips::BlockId;
+use alloy_primitives::{
+    hex::FromHex, keccak256, private::alloy_rlp::Decodable, Address, StorageKey, B256, U256,
+};
+use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
+use alloy_rpc_types::StateContext;
+use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_sol_types::sol;
 use alloy_transport_http::Http;
 use k256::pkcs8::der;
@@ -58,6 +64,28 @@ impl ExecutionClient {
         let balance = taiyi_escrow.balanceOf(account).call().await?;
         Ok(balance._0)
     }
+
+    pub async fn gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
+        let trace_options = GethDebugTracingCallOptions::default();
+        let trace = self
+            .inner
+            .debug_trace_call(tx.into(), BlockId::latest(), trace_options)
+            .await?
+            .try_into_default_frame()?;
+        Ok(trace.gas)
+    }
+
+    pub async fn header(&self, block: B256) -> eyre::Result<Header> {
+        let rlp_encoded_header =
+            self.inner.debug_get_raw_header(BlockId::Hash(block.into())).await?;
+        let decoded = Header::decode(&mut rlp_encoded_header.as_ref())?;
+        Ok(decoded)
+    }
+
+    pub async fn nonce(&self, address: Address) -> eyre::Result<u64> {
+        let account = self.inner.get_account(address).await?;
+        Ok(account.nonce)
+    }
 }
 
 lazy_static! {
@@ -71,4 +99,55 @@ lazy_static! {
 pub struct AccountState {
     pub nonce: u64,
     pub balance: U256,
+}
+
+mod test {
+    use alloy_consensus::TxEnvelope;
+    use alloy_eips::BlockId;
+    use alloy_network::{EthereumWallet, TransactionBuilder};
+    use alloy_primitives::U256;
+    use alloy_provider::ext::DebugApi;
+    use alloy_rpc_types::TransactionRequest;
+    use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
+    use alloy_signer_local::PrivateKeySigner;
+
+    use crate::clients::execution_client::ExecutionClient;
+
+    #[tokio::test]
+    async fn test_gas_used() -> eyre::Result<()> {
+        let anvil = alloy_node_bindings::Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+        let sender = anvil.addresses().first().unwrap();
+        let receiver = anvil.addresses().last().unwrap();
+        let client = ExecutionClient::new(rpc_url.parse().unwrap());
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+        let wallet = EthereumWallet::from(signer.clone());
+
+        let tx = TransactionRequest::default()
+            .with_from(*sender)
+            .with_to(*receiver)
+            .with_value(U256::from(100))
+            .with_nonce(0)
+            .with_gas_limit(30_000)
+            .with_max_fee_per_gas(1)
+            .with_max_priority_fee_per_gas(1)
+            .build(&wallet)
+            .await?;
+
+        let gas_used = client.gas_used(tx).await?;
+        assert_eq!(gas_used, 21000);
+        Ok(())
+    }
+
+    // #[tokio::test]
+    // async fn test_header() -> eyre::Result<()> {
+    //     let anvil = alloy_node_bindings::Anvil::new().block_time(1).chain_id(0).spawn();
+    //     let rpc_url = anvil.endpoint();
+    //     let client = ExecutionClient::new(rpc_url.parse().unwrap());
+    //     let block = anvil.block().await?;
+    //     let header = client.header(block).await?;
+    //     assert_eq!(header.number, block);
+    //     Ok(())
+    // }
 }

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, ops::Add, str::FromStr, sync::Arc};
 
-use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_consensus::{Header, Transaction, TxEnvelope};
 use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
-use alloy_primitives::{Address, PrimitiveSignature, U256};
+use alloy_primitives::{Address, PrimitiveSignature, B256, U256};
 use alloy_provider::{utils::EIP1559_MIN_PRIORITY_FEE, RootProvider};
 use alloy_transport_http::Http;
 use k256::elliptic_curve::rand_core::le;
@@ -208,6 +208,10 @@ impl PreconfPool {
         Ok(())
     }
 
+    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequest>> {
+        self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
+    }
+
     /// Returns a preconf request from the pending pool.
     pub fn get_pending(&self, request_id: Uuid) -> Option<PreconfRequest> {
         self.pool_inner.read().pending.get(request_id)
@@ -247,6 +251,18 @@ impl PreconfPool {
 
     pub fn blockspace_available(&self, slot: u64) -> BlockspaceAvailable {
         self.pool_inner.read().blockspace_issued.get(&slot).cloned().unwrap_or_default()
+    }
+
+    pub async fn calculate_gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
+        self.validator.execution_client.gas_used(tx).await
+    }
+
+    pub async fn get_header(&self, block: B256) -> eyre::Result<Header> {
+        self.validator.execution_client.header(block).await
+    }
+
+    pub async fn get_nonce(&self, address: Address) -> eyre::Result<u64> {
+        self.validator.execution_client.nonce(address).await
     }
 }
 

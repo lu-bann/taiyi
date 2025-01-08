@@ -175,6 +175,7 @@ mod tests {
             .with_chain_id(chain_id)
             .build(&wallet)
             .await?;
+
         let submit_transaction_request = SubmitTransactionRequest { request_id, transaction };
         let signature = hex::encode(
             signer.sign_hash(&submit_transaction_request.digest()).await.unwrap().as_bytes(),

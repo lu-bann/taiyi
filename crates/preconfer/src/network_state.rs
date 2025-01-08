@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 
+use alloy_primitives::B256;
 use ethereum_consensus::deneb::Context;
 use parking_lot::RwLock;
 
@@ -10,6 +11,7 @@ use parking_lot::RwLock;
 pub struct NetworkState {
     context: Context,
     current_slot: Arc<AtomicU64>,
+    parent_block: Arc<RwLock<B256>>,
     available_slots: Arc<RwLock<Vec<u64>>>,
 }
 
@@ -18,6 +20,7 @@ impl NetworkState {
         Self {
             context,
             current_slot: Arc::new(AtomicU64::default()),
+            parent_block: Arc::new(RwLock::new(B256::default())),
             available_slots: Arc::new(RwLock::new(vec![])),
         }
     }
@@ -40,6 +43,14 @@ impl NetworkState {
 
     pub fn update_slot(&self, slot: u64) {
         self.current_slot.store(slot, Ordering::Relaxed);
+    }
+
+    pub fn parent_block(&self) -> B256 {
+        self.parent_block.read().clone()
+    }
+
+    pub fn update_parent_block(&self, parent_block: B256) {
+        *self.parent_block.write() = parent_block;
     }
 
     pub fn add_slot(&self, slot: u64) {

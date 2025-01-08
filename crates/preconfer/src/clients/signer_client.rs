@@ -51,6 +51,10 @@ impl SignerClient {
     pub fn ecdsa_address(&self) -> Address {
         self.ecdsa.address()
     }
+
+    pub fn ecdsa_signer(&self) -> &PrivateKeySigner {
+        &self.ecdsa
+    }
 }
 
 pub fn compute_domain_custom(chain: &Context, domain_mask: [u8; 4]) -> [u8; 32] {
