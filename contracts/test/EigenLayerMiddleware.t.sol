@@ -184,7 +184,7 @@ contract EigenlayerMiddlewareTest is Test {
         uint64 validatorIndex = 123;
         uint64 restakedBalanceGwei = 32_000_000_000; // example: 32 ETH in Gwei
         uint64 lastCheckpointedAt = 9_999_999_999; // arbitrary placeholder
-        uint256 statusActive = 1 << 192; // 1 = ACTIVE in your enum
+        uint256 statusActive = 1 << 192; // 1 = ACTIVE in IEigenPod.VALIDATOR_STATUS
 
         // Pack them into one 256-bit word.
         uint256 packed = uint256(validatorIndex);
