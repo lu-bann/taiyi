@@ -46,7 +46,7 @@ contract TaiyiCoreTest is Test {
         vm.warp(genesisTimestamp);
 
         // TODO: remove this address(0) with proposer registry address
-        taiyiCore = new TaiyiCore(owner, genesisTimestamp, address(0));
+        taiyiCore = new TaiyiCore(owner, genesisTimestamp);
     }
 
     function assertPreconfRequestStatus(
@@ -54,6 +54,7 @@ contract TaiyiCoreTest is Test {
         PreconfRequestStatus expectedStatus
     )
         internal
+        view
     {
         uint8 status = uint8(taiyiCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
@@ -61,6 +62,7 @@ contract TaiyiCoreTest is Test {
 
     function fulfillPreconfRequest(BlockspaceAllocation memory blockspaceAllocation)
         internal
+        view
         returns (PreconfRequestBType memory preconfRequestBType)
     {
         bytes32 blockspaceHash = blockspaceAllocation.getBlockspaceAllocationHash();
