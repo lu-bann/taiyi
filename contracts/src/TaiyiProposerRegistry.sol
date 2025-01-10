@@ -151,15 +151,8 @@ contract TaiyiProposerRegistry is
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
-    /// @param signature The BLS signature proving control over the pubkey
-    function initOptOut(
-        bytes32 pubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
-    )
-        external
-    {
-        _initOptOut(pubKeyHash, signatureExpiry, signature);
+    function initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry) external {
+        _initOptOut(pubKeyHash, signatureExpiry);
     }
 
     /// @notice Confirms validator opt-out after cooldown period
@@ -272,9 +265,9 @@ contract TaiyiProposerRegistry is
     /// validator
     function _initOptOut(
         bytes32 pubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
+        uint256 signatureExpiry
     )
+        //BLS12381.G2Point calldata signature
         internal
     {
         Validator storage validator = validators[pubKeyHash];

@@ -59,8 +59,7 @@ contract Deploy is Script, Test {
         taiyiProposerRegistry.initialize(msg.sender);
         emit log_address(address(taiyiProposerRegistry));
 
-        TaiyiCore taiyiCore =
-            new TaiyiCore(msg.sender, genesis_timestamp, address(taiyiProposerRegistry));
+        TaiyiCore taiyiCore = new TaiyiCore(msg.sender, genesis_timestamp);
         emit log_address(address(taiyiCore));
 
         EigenLayerMiddleware eigenLayerMiddleware = new EigenLayerMiddleware();

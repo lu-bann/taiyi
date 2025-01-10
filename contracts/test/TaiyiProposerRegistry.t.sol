@@ -28,7 +28,7 @@ contract TaiyiProposerRegistryTest is Test {
         registry.addRestakingMiddlewareContract(middleware);
     }
 
-    function testInitialization() public {
+    function testInitialization() public view {
         assertEq(registry.owner(), owner);
     }
 
@@ -86,7 +86,7 @@ contract TaiyiProposerRegistryTest is Test {
         registry.deregisterOperator(operator2);
     }
 
-    function testIsOperatorRegisteredFalseWhenNotRegistered() public {
+    function testIsOperatorRegisteredFalseWhenNotRegistered() public view {
         bool isReg = registry.isOperatorRegistered(operator2);
         assertFalse(isReg);
     }

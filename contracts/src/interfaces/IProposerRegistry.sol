@@ -84,12 +84,11 @@ interface IProposerRegistry {
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
-    /// @param signature The BLS signature proving control over the pubkey
     function initOptOut(
         bytes32 pubKeyHash,
-        uint256 signatureExpiry,
-        BLS12381.G2Point calldata signature
+        uint256 signatureExpiry
     )
+        // BLS12381.G2Point calldata signature
         external;
 
     /// @notice Confirms the opt-out process after the cooldown period

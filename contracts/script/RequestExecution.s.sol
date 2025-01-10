@@ -5,7 +5,6 @@ import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
 import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
 
-import { PreconfRequest, PreconfTx, TipTx } from "../src/interfaces/Types.sol";
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
 import {
     BlockspaceAllocation,
@@ -45,7 +44,7 @@ contract DeployTest is Test {
         console.log("preconfer: ", preconfer, " | balance: ", preconfer.balance);
     }
 
-    function signRawTx(bytes memory _rawTx) internal returns (bytes memory) {
+    function signRawTx(bytes memory _rawTx) internal view returns (bytes memory) {
         (uint8 _v, bytes32 _r, bytes32 _s) =
             vm.sign(preconferPrivatekey, keccak256(_rawTx));
         return abi.encodePacked(_r, _s, _v);
@@ -84,18 +83,6 @@ contract DeployTest is Test {
         (v, r, s) = vm.sign(
             preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature()
         );
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
-
-        bytes memory rawTx =
-            hex"000000000000000000000000a83114a443da1cecefc50368531cace9f37fcccb0000000000000000000000006d2e03b7effeae98bd302a9f836d0d6ab000276600000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000005208000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000";
-
-        PreconfRequestBType memory preconfReq = PreconfRequestBType({
-            blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: blockspaceAllocationUserSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
-            rawTx: rawTx,
-            gatewaySignedRawTx: signRawTx(rawTx)
-        });
 
         console.log("user balance:    ", taiyiEscrow.balances(user));
         vm.stopBroadcast();

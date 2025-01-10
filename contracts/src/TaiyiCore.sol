@@ -50,9 +50,9 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
 
     constructor(
         address initialOwner,
-        uint256 genesisTimestamp,
-        address proposerRegistry
+        uint256 genesisTimestamp
     )
+        //address proposerRegistry
         Ownable(initialOwner)
     {
         GENESIS_TIMESTAMP = genesisTimestamp;
