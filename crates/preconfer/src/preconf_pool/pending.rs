@@ -67,7 +67,7 @@ impl Pending {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{Address, U256};
+    use alloy_primitives::{Address, U256, PrimitiveSignature};
     use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
     use uuid::Uuid;
 
@@ -78,6 +78,7 @@ mod tests {
         let mut parked = Pending::new();
         let request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
             signer: Some(Address::default()),
         };
@@ -98,11 +99,13 @@ mod tests {
 
         let request1 = PreconfRequest {
             allocation: BlockspaceAllocation { deposit: U256::from(100), ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
             signer: Some(account),
         };
         let request2 = PreconfRequest {
             allocation: BlockspaceAllocation { deposit: U256::from(200), ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
             signer: Some(account),
         };

@@ -87,6 +87,7 @@ mod tests {
     use alloy_network::TransactionBuilder;
     use alloy_rpc_types::TransactionRequest;
     use taiyi_primitives::BlockspaceAllocation;
+    use alloy_primitives::PrimitiveSignature;
 
     use super::*;
 
@@ -104,6 +105,7 @@ mod tests {
         let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
         let preconf = PreconfRequest {
             allocation: BlockspaceAllocation { target_slot: 1, ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction),
             signer: Some(Address::default()),
         };

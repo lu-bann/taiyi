@@ -57,6 +57,7 @@ pub async fn spawn_service(
         signer_client,
         Url::parse(&execution_rpc_url)?,
         taiyi_escrow_address,
+        provider,
     );
 
     // spawn preconfapi server

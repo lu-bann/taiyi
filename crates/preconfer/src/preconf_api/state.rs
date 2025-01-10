@@ -7,8 +7,8 @@ use std::{
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718};
 use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
-use alloy_primitives::{keccak256, Address, PrimitiveSignature, U256};
-use alloy_provider::{ProviderBuilder, RootProvider};
+use alloy_primitives::{keccak256, Address, Bytes, PrimitiveSignature, U256};
+use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_client::{ClientBuilder, RpcClient};
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -40,6 +40,7 @@ use crate::{
     clients::{
         execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
     },
+    contract::{core::TaiyiCore, to_solidity_type},
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
@@ -47,23 +48,28 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PreconfState {
+pub struct PreconfState<P> {
     network_state: NetworkState,
     preconf_pool: Arc<PreconfPool>,
     relay_client: RelayClient,
     signer_client: SignerClient,
+    provider: P,
 }
 
-impl PreconfState {
+impl<P> PreconfState<P>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     pub fn new(
         network_state: NetworkState,
         relay_client: RelayClient,
         signer_client: SignerClient,
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
+        provider: P,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client }
+        Self { relay_client, network_state, preconf_pool, signer_client, provider }
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -98,6 +104,9 @@ impl PreconfState {
                 let base_fee = header.next_block_base_fee(BaseFeeParams::ethereum()).unwrap();
 
                 let signer = self.signer_client.ecdsa_signer();
+
+                let taiyi_core =
+                    TaiyiCore::new(self.preconf_pool.taiyi_escrow_address, self.provider.clone());
 
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
@@ -135,19 +144,95 @@ impl PreconfState {
                                     tx_ref.try_into().expect("tx bytes too big");
                                 txs.push(tx_bytes);
 
-                                let mut tx_bytes = Vec::new();
-                                tx.encode_2718(&mut tx_bytes);
-                                let tx_ref: &[u8] = tx_bytes.as_ref();
+                                let mut tx_encoded = Vec::new();
+                                tx.encode_2718(&mut tx_encoded);
+                                let tx_ref: &[u8] = tx_encoded.as_ref();
                                 let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
                                     tx_ref.try_into().expect("tx bytes too big");
                                 txs.push(tx_bytes);
 
                                 // TODO: Append with a transaction that calls get_tip() on TaiyiCore contract
+                                let blockspace_allocation_sig_user = preconf_req.alloc_sig;
+                                let blockspace_allocation_sig_gateway = self
+                                    .signer_client
+                                    .sign_with_ecdsa(preconf_req.allocation.digest())
+                                    .await
+                                    .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
+                                let gateway_signed_raw_tx = self
+                                    .signer_client
+                                    .sign_with_ecdsa(keccak256(tx_encoded.clone()))
+                                    .await
+                                    .map_err(|e| {
+                                        RpcError::SignatureError(format!(
+                                            "Failed to issue commitment: {e:?}"
+                                        ))
+                                    })?;
+                                let preconf_request_type_b = to_solidity_type(
+                                    preconf_req,
+                                    blockspace_allocation_sig_user,
+                                    blockspace_allocation_sig_gateway,
+                                    tx_encoded.into(),
+                                    gateway_signed_raw_tx,
+                                    self.preconf_pool.taiyi_escrow_address,
+                                );
+
+                                // Call getTip() on TaiyiCore contract
+                                let get_tip_tx = taiyi_core
+                                    .getTip(preconf_request_type_b)
+                                    .into_transaction_request();
+                                let get_tip_tx =
+                                    get_tip_tx.build(&EthereumWallet::from(signer.clone())).await?;
+                                let mut tx_encoded = Vec::new();
+                                get_tip_tx.encode_2718(&mut tx_encoded);
+                                let tx_ref: &[u8] = tx_encoded.as_ref();
+                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                                    tx_ref.try_into().expect("tx bytes too big");
+                                txs.push(tx_bytes);
                             }
                         }
 
-                        // Fetch all preconf requests for which the gateway must calls exhaust() on TaiyiCore contract
-                        let _requests = self.preconf_pool.fetch_pending(next_slot).unwrap();
+                        // Fetch all preconf requests for which the gateway must call exhaust() on TaiyiCore contract
+                        let requests = self.preconf_pool.fetch_pending(next_slot).unwrap();
+                        for preconf_req in requests {
+                            let blockspace_allocation_sig_user = preconf_req.alloc_sig;
+                            let blockspace_allocation_sig_gateway = self
+                                .signer_client
+                                .sign_with_ecdsa(preconf_req.allocation.digest())
+                                .await
+                                .map_err(|e| {
+                                    RpcError::SignatureError(format!(
+                                        "Failed to issue commitment: {e:?}"
+                                    ))
+                                })?;
+                            let preconf_request_type_b = to_solidity_type(
+                                preconf_req,
+                                blockspace_allocation_sig_user,
+                                blockspace_allocation_sig_gateway,
+                                Bytes::default(),
+                                self.signer_client
+                                    .sign_with_ecdsa(keccak256(Bytes::default()))
+                                    .await
+                                    .map_err(|e| {
+                                        RpcError::SignatureError(format!(
+                                            "Failed to issue commitment: {e:?}"
+                                        ))
+                                    })?,
+                                self.preconf_pool.taiyi_escrow_address,
+                            );
+
+                            // Call exhaust() on TaiyiCore contract
+                            let exhaust_tx = taiyi_core
+                                .exhaust(preconf_request_type_b)
+                                .into_transaction_request();
+                            let exhaust_tx =
+                                exhaust_tx.build(&EthereumWallet::from(signer.clone())).await?;
+                            let mut tx_encoded = Vec::new();
+                            exhaust_tx.encode_2718(&mut tx_encoded);
+                            let tx_ref: &[u8] = tx_encoded.as_ref();
+                            let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                                tx_ref.try_into().expect("tx bytes too big");
+                            txs.push(tx_bytes);
+                        }
 
                         let txs_len = txs.len();
                         let bls_pk = self.signer_client.bls_pubkey();
@@ -200,6 +285,7 @@ impl PreconfState {
     pub async fn reserve_blockspace(
         &self,
         request: BlockspaceAllocation,
+        alloc_sig: PrimitiveSignature,
         signer: Address,
     ) -> Result<Uuid, RpcError> {
         // Check if the gateway is delegated for the target slot
@@ -216,8 +302,12 @@ impl PreconfState {
         }
 
         // Construct a preconf request
-        let preconf_request =
-            PreconfRequest { allocation: request, transaction: None, signer: Some(signer) };
+        let preconf_request = PreconfRequest {
+            allocation: request,
+            alloc_sig,
+            transaction: None,
+            signer: Some(signer),
+        };
 
         self.preconf_pool.reserve_blockspace(preconf_request).await.map_err(RpcError::PoolError)
     }

@@ -246,7 +246,8 @@ pub async fn generate_reserve_blockspace_request(
 ) -> (BlockspaceAllocation, String) {
     let request = BlockspaceAllocation {
         target_slot,
-        deposit: U256::from(fee * 21_000),
+        deposit: U256::from(fee * 21_000 / 2),
+        tip: U256::from(fee * 21_000 / 2),
         gas_limit,
         num_blobs: 0,
     };

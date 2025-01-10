@@ -3,7 +3,7 @@ use reqwest::Url;
 use reth_revm::primitives::EnvKzgSettings;
 use taiyi_primitives::PreconfRequest;
 
-use crate::clients::execution_client::ExecutionClient;
+use crate::{clients::execution_client::ExecutionClient, contract::TaiyiCoreInstance};
 
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]

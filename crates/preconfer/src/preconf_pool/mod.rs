@@ -47,7 +47,7 @@ pub struct PreconfPool {
     /// Validator to validate preconf requests.
     validator: PreconfValidator,
     /// escrow contract
-    taiyi_escrow_address: Address,
+    pub taiyi_escrow_address: Address,
 }
 
 impl PreconfPool {
@@ -336,7 +336,7 @@ mod tests {
     };
     use alloy_network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{Address, U256, U64};
+    use alloy_primitives::{Address, PrimitiveSignature, U256, U64};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer_local::PrivateKeySigner;
@@ -359,6 +359,7 @@ mod tests {
 
         let mut preconf = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
             signer: Some(Address::default()),
         };
@@ -419,6 +420,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -477,6 +479,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation { num_blobs: 3, ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -535,6 +538,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation { num_blobs: 1, ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -582,6 +586,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -627,6 +632,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -695,6 +701,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let preconf_request = PreconfRequest {
             allocation: BlockspaceAllocation::default(),
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };

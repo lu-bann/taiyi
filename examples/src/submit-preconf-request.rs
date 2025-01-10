@@ -1,4 +1,4 @@
-use alloy_primitives::U256;
+use alloy_primitives::{PrimitiveSignature, U256};
 use alloy_provider::{
     network::{EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
@@ -51,6 +51,7 @@ async fn main() -> eyre::Result<()> {
 
     let preconf_request = PreconfRequest {
         allocation: BlockspaceAllocation::default(),
+        alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
         transaction: Some(transaction.clone()),
         signer: Some(sender),
     };

@@ -110,6 +110,7 @@ mod tests {
             signer_client.clone(),
             rpc_url.parse().unwrap(),
             *escrow.address(),
+            provider.clone(),
         );
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
@@ -205,7 +206,8 @@ mod tests {
     ) -> (BlockspaceAllocation, String) {
         let request = BlockspaceAllocation {
             target_slot,
-            deposit: U256::from(fee * 21_000),
+            deposit: U256::from(fee * 21_000 / 2),
+            tip: U256::from(fee * 21_000 / 2),
             gas_limit: 21_0000,
             num_blobs: 0,
         };
