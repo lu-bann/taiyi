@@ -350,7 +350,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
             }
 
             // Register validator in proposer registry
-            proposerRegistry.registerValidator(valPubKeys[i], podOwner);
+            proposerRegistry.registerValidator(valPubKeys[i], operator);
         }
     }
 

@@ -7,7 +7,7 @@
   evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
-  optimizer = true
+  optimizer = false
   optimizer_runs = 10_000
   out = "out"
   script = "script"
@@ -15,7 +15,7 @@
   solc = "0.8.25"
   src = "src"
   test = "test"
-  via_ir = true
+  via_ir = false
 
 remappings = [
   "forge-std/=lib/forge-std/src/",
