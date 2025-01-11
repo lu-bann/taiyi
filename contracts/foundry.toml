@@ -17,6 +17,10 @@
   test = "test"
   via_ir = false
 
+[profile.prod]
+  optimizer = true
+  via_ir = true
+
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@openzeppelin-contracts/=lib/openzeppelin-contracts/",     
