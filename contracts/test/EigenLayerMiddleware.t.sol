@@ -7,6 +7,7 @@ import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 import { EigenLayerMiddleware } from "src/EigenLayerMiddleware.sol";
 import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
+import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
 import "forge-std/Test.sol";
@@ -80,7 +81,7 @@ contract EigenlayerMiddlewareTest is Test {
     function testStakerDelegationToOperator() public {
         IDelegationManager.OperatorDetails memory operatorDetails =
             _operatorRegistration();
-        _stakerDelegationToOperator();
+        _delegationToOperator(staker);
         assertEq(eigenLayerDeployer.delegationManager().delegatedTo(staker), operator);
     }
 
@@ -93,9 +94,106 @@ contract EigenlayerMiddlewareTest is Test {
         );
     }
 
+    /// @notice Tests creating an EigenPod and verifies successful creation
+    function testCreatePod() public {
+        address mockPodOwner = makeAddr("mockPodOwner");
+
+        vm.startPrank(mockPodOwner);
+        address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
+        vm.stopPrank();
+
+        assertTrue(podAddress != address(0), "Pod should have been created");
+    }
+
+    /// @notice Tests operator registration and pod owner delegation workflow
+    function testOperatorRegistrationAndDelegation() public {
+        IDelegationManager.OperatorDetails memory operatorDetails =
+            _operatorRegistration();
+
+        address mockPodOwner = makeAddr("mockPodOwner");
+        _delegationToOperator(mockPodOwner);
+
+        // Verify delegation
+        address delegatedTo =
+            eigenLayerDeployer.delegationManager().delegatedTo(mockPodOwner);
+        assertEq(delegatedTo, operator, "Pod owner should be delegated to the operator");
+    }
+
+    /// @notice Tests complete validator registration flow through the middleware
+    /// including pod creation, operator setup, and validator registration
+    function testRegisterValidatorInRegistry() public {
+        address mockPodOwner = makeAddr("mockPodOwner");
+        vm.startPrank(mockPodOwner);
+        address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
+        vm.stopPrank();
+
+        // Set up operator and delegation
+        _operatorRegistration();
+        _delegationToOperator(mockPodOwner);
+        _operatorAVSRegistration();
+
+        // Create test validator pubkey
+        bytes memory validatorPubkey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            validatorPubkey[i] = 0xab;
+        }
+        _cheatValidatorPubkeyActive(podAddress, validatorPubkey);
+
+        // Register validator
+        bytes[][] memory valPubKeys = new bytes[][](1);
+        valPubKeys[0] = new bytes[](1);
+        valPubKeys[0][0] = validatorPubkey;
+
+        address[] memory podOwners = new address[](1);
+        podOwners[0] = mockPodOwner;
+
+        vm.prank(mockPodOwner);
+        eigenLayerMiddleware.registerValidator(valPubKeys, podOwners);
+
+        // Verify registration status
+        bytes32 pubkeyHash = keccak256(validatorPubkey);
+        IProposerRegistry.ValidatorStatus validatorStatus =
+            proposerRegistry.getValidatorStatus(pubkeyHash);
+        assertEq(uint8(validatorStatus), uint8(IProposerRegistry.ValidatorStatus.Active));
+    }
+
     // ============================================
     // ============= Helper Functions =============
     // ============================================
+
+    /// @notice Helper function to simulate a validator being active in EigenLayer by manipulating storage
+    /// @param podAddress The address of the EigenPod contract
+    /// @param pubkey The BLS public key of the validator to activate
+    function _cheatValidatorPubkeyActive(
+        address podAddress,
+        bytes memory pubkey
+    )
+        internal
+    {
+        // The contract uses sha256 on (pubkey || bytes16(0)).
+        //    So replicate that here, to match exactly.
+        bytes32 pubkeyHash = sha256(abi.encodePacked(pubkey, bytes16(0)));
+
+        // The _validatorPubkeyHashToInfo mapping is at storage slot 54 on EigenPod.sol
+        //    via 'forge inspect lib/eigenlayer-contracts/src/contracts/pods/EigenPod.sol:EigenPod storage'
+        //    Key is keccak256(pubkeyHash, 54).
+        bytes32 infoSlot = keccak256(abi.encode(pubkeyHash, uint256(54)));
+
+        // Fill in the ValidatorInfo fields. If VALIDATOR_STATUS.ACTIVE = 1,
+        //    we shift 1 by 192 bits for the status portion:
+        uint64 validatorIndex = 123;
+        uint64 restakedBalanceGwei = 32_000_000_000; // example: 32 ETH in Gwei
+        uint64 lastCheckpointedAt = 9_999_999_999; // arbitrary placeholder
+        uint256 statusActive = 1 << 192; // 1 = ACTIVE in IEigenPod.VALIDATOR_STATUS
+
+        // Pack them into one 256-bit word.
+        uint256 packed = uint256(validatorIndex);
+        packed |= uint256(restakedBalanceGwei) << 64;
+        packed |= uint256(lastCheckpointedAt) << 128;
+        packed |= statusActive;
+
+        vm.store(podAddress, infoSlot, bytes32(packed));
+    }
 
     /// @notice Registers an operator in the DelegationManager
     function _operatorRegistration()
@@ -123,7 +221,7 @@ contract EigenlayerMiddlewareTest is Test {
     }
 
     /// @notice Delegates the staker to the operator within the DelegationManager
-    function _stakerDelegationToOperator() internal impersonate(staker) {
+    function _delegationToOperator(address delegator) internal impersonate(delegator) {
         ISignatureUtils.SignatureWithExpiry memory operatorSignature =
             ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
         eigenLayerDeployer.delegationManager().delegateTo(
