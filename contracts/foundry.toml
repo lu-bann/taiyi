@@ -35,8 +35,21 @@ remappings = [
   "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
 ]
 
-[profile.prod]
+[profile.ci]
+  auto_detect_solc = false
+  block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
+  bytecode_hash = "none"
+  evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+  fuzz = { runs = 1_000 }
+  gas_reports = ["*"]
   optimizer = true
+  optimizer_runs = 10_000
+  out = "out"
+  script = "script"
+  fs_permissions = [{ access = "read-write", path = "./" }]
+  solc = "0.8.25"
+  src = "src"
+  test = "test"
   via_ir = true
 
 # [etherscan]
