@@ -17,10 +17,6 @@
   test = "test"
   via_ir = false
 
-[profile.prod]
-  optimizer = true
-  via_ir = true
-
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@openzeppelin-contracts/=lib/openzeppelin-contracts/",     
@@ -39,9 +35,9 @@ remappings = [
   "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
 ]
 
-[profile.ci]
-  fuzz = { runs = 10_000 }
-  verbosity = 4
+[profile.prod]
+  optimizer = true
+  via_ir = true
 
 # [etherscan]
 #   arbitrum = { key = "${API_KEY_ARBISCAN}" }
