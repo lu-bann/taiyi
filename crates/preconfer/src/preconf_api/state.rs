@@ -260,7 +260,7 @@ where
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
                             .with_nonce(nonce)
-                            .with_gas_limit(1_0000_000)
+                            .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee.into())
                             .with_max_priority_fee_per_gas(1);
                         // increment nonce
