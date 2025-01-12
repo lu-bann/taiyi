@@ -63,8 +63,9 @@ pub async fn spawn_service(
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
     let _ = preconfapiserver.run(state.clone()).await;
+
     tokio::select! {
-            res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url, context).await => {
+            res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
                 error!("Error in cl process: {:?}", res);
             }
             res = state.spawn_constraint_submitter() => {

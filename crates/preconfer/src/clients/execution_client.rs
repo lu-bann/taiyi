@@ -102,11 +102,11 @@ pub struct AccountState {
 }
 
 mod test {
-    use alloy_consensus::TxEnvelope;
+    use alloy_consensus::{Header, TxEnvelope};
     use alloy_eips::BlockId;
     use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::U256;
-    use alloy_provider::ext::DebugApi;
+    use alloy_primitives::{private::alloy_rlp::Decodable, U256};
+    use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
     use alloy_signer_local::PrivateKeySigner;
@@ -143,11 +143,20 @@ mod test {
     // #[tokio::test]
     // async fn test_header() -> eyre::Result<()> {
     //     let anvil = alloy_node_bindings::Anvil::new().block_time(1).chain_id(0).spawn();
-    //     let rpc_url = anvil.endpoint();
-    //     let client = ExecutionClient::new(rpc_url.parse().unwrap());
-    //     let block = anvil.block().await?;
-    //     let header = client.header(block).await?;
-    //     assert_eq!(header.number, block);
+    //     let provider =
+    //         ProviderBuilder::new().with_recommended_fillers().on_http(anvil.endpoint_url());
+
+    //     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+    //     let block = provider
+    //         .get_block(BlockId::latest(), alloy_rpc_types::BlockTransactionsKind::Hashes)
+    //         .await?
+    //         .unwrap();
+    //     let header = block.header.inner;
+    //     let rlp_encoded_header = provider.debug_get_raw_header(BlockId::latest()).await?;
+    //     let decoded = Header::decode(&mut rlp_encoded_header.as_ref())?;
+
+    //     assert_eq!(decoded, header);
     //     Ok(())
     // }
 }

@@ -114,6 +114,8 @@ impl PreconfPool {
     ) -> Result<(), PoolError> {
         if preconf_request.transaction.is_some() {
             self.validate(&preconf_request).await?;
+            // Move the request from pending to ready pool
+            self.delete_pending(request_id);
             self.insert_ready(request_id, preconf_request);
             Ok(())
         } else {

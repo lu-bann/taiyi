@@ -4,11 +4,13 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718};
+use alloy_consensus::{Header, Transaction, TxEnvelope};
+use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
-use alloy_primitives::{keccak256, Address, Bytes, PrimitiveSignature, U256};
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_primitives::{
+    keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
+};
+use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_client::{ClientBuilder, RpcClient};
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer::{Signature as ECDSASignature, Signer};
@@ -98,12 +100,26 @@ where
                 // wait unit the deadline to submit constraints
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
-                // calculate base fee for next slot
-                let block = self.network_state.parent_block();
-                let header = self.preconf_pool.get_header(block).await?;
-                let base_fee = header.next_block_base_fee(BaseFeeParams::ethereum()).unwrap();
+                // calculate base fee for next slot based on parent header
+                // Its fine to use latest block as we are submitting constraints for next block
+                let rlp_encoded_header =
+                    self.provider.debug_get_raw_header(BlockId::latest()).await?;
+                let header = Header::decode(&mut rlp_encoded_header.as_ref())?;
+                let base_fee = match header.next_block_base_fee(BaseFeeParams::ethereum()) {
+                    Some(base_fee) => base_fee,
+                    None => self
+                        .provider
+                        .estimate_eip1559_fees(None)
+                        .await?
+                        .max_fee_per_gas
+                        .try_into()
+                        .expect("base fee too big"),
+                };
+
+                info!("Current base fee: {base_fee}");
 
                 let signer = self.signer_client.ecdsa_signer();
+                let sender = self.signer_client.ecdsa_address();
 
                 let taiyi_core =
                     TaiyiCore::new(self.preconf_pool.taiyi_escrow_address, self.provider.clone());
@@ -115,6 +131,7 @@ where
                         }
 
                         let mut txs = Vec::new();
+                        let mut nonce = self.provider.get_transaction_count(sender).await?;
                         for preconf_req in preconf_requests {
                             if let Some(ref tx) = preconf_req.transaction {
                                 // calculate gas used
@@ -122,21 +139,22 @@ where
                                     self.preconf_pool.calculate_gas_used(tx.clone()).await?;
 
                                 // Prepend the preconf tx with an ETH transfer to the preconf tx signer
-                                let sender = self.signer_client.ecdsa_address();
-                                let receiver = preconf_req.signer().unwrap();
-                                let nonce = self.preconf_pool.get_nonce(sender).await?;
+                                let receiver =
+                                    preconf_req.signer().expect("Signer must be present");
                                 let eth_tx = TransactionRequest::default()
                                     .with_from(sender)
                                     .with_value(U256::from(gas_used * base_fee))
                                     .with_nonce(nonce)
-                                    .with_gas_limit(21_0000)
+                                    .with_gas_limit(21_000)
                                     .with_to(receiver)
-                                    // TODO: fix base fee & priority fee
-                                    .with_max_fee_per_gas(1)
+                                    // TODO: priority fee
+                                    .with_max_fee_per_gas(base_fee.into())
                                     .with_max_priority_fee_per_gas(1)
                                     .with_chain_id(self.chain_id())
                                     .build(&EthereumWallet::from(signer.clone()))
                                     .await?;
+                                // increment nonce
+                                nonce += 1;
                                 let mut tx_bytes = Vec::new();
                                 eth_tx.encode_2718(&mut tx_bytes);
                                 let tx_ref: &[u8] = tx_bytes.as_ref();
@@ -144,6 +162,7 @@ where
                                     tx_ref.try_into().expect("tx bytes too big");
                                 txs.push(tx_bytes);
 
+                                // preconf tx
                                 let mut tx_encoded = Vec::new();
                                 tx.encode_2718(&mut tx_encoded);
                                 let tx_ref: &[u8] = tx_encoded.as_ref();
@@ -151,7 +170,7 @@ where
                                     tx_ref.try_into().expect("tx bytes too big");
                                 txs.push(tx_bytes);
 
-                                // TODO: Append with a transaction that calls get_tip() on TaiyiCore contract
+                                // Append with a transaction that calls get_tip() on TaiyiCore contract
                                 let blockspace_allocation_sig_user = preconf_req.alloc_sig;
                                 let blockspace_allocation_sig_gateway = self
                                     .signer_client
@@ -179,7 +198,14 @@ where
                                 // Call getTip() on TaiyiCore contract
                                 let get_tip_tx = taiyi_core
                                     .getTip(preconf_request_type_b)
-                                    .into_transaction_request();
+                                    .into_transaction_request()
+                                    .with_nonce(nonce)
+                                    .with_gas_limit(100_000)
+                                    .with_max_fee_per_gas(base_fee.into())
+                                    .with_max_priority_fee_per_gas(1);
+                                // increment nonce
+                                nonce += 1;
+
                                 let get_tip_tx =
                                     get_tip_tx.build(&EthereumWallet::from(signer.clone())).await?;
                                 let mut tx_encoded = Vec::new();
@@ -192,46 +218,60 @@ where
                         }
 
                         // Fetch all preconf requests for which the gateway must call exhaust() on TaiyiCore contract
-                        let requests = self.preconf_pool.fetch_pending(next_slot).unwrap();
-                        for preconf_req in requests {
-                            let blockspace_allocation_sig_user = preconf_req.alloc_sig;
-                            let blockspace_allocation_sig_gateway = self
-                                .signer_client
-                                .sign_with_ecdsa(preconf_req.allocation.digest())
-                                .await
-                                .map_err(|e| {
-                                    RpcError::SignatureError(format!(
-                                        "Failed to issue commitment: {e:?}"
-                                    ))
-                                })?;
-                            let preconf_request_type_b = to_solidity_type(
-                                preconf_req,
-                                blockspace_allocation_sig_user,
-                                blockspace_allocation_sig_gateway,
-                                Bytes::default(),
-                                self.signer_client
-                                    .sign_with_ecdsa(keccak256(Bytes::default()))
+                        let requests = self.preconf_pool.fetch_pending(next_slot);
+                        if let Some(requests) = requests {
+                            info!(
+                                "Found {} preconf requests for slot {} to be exhausted",
+                                requests.len(),
+                                next_slot
+                            );
+                            for preconf_req in requests {
+                                let blockspace_allocation_sig_user = preconf_req.alloc_sig;
+                                let blockspace_allocation_sig_gateway = self
+                                    .signer_client
+                                    .sign_with_ecdsa(preconf_req.allocation.digest())
                                     .await
                                     .map_err(|e| {
                                         RpcError::SignatureError(format!(
                                             "Failed to issue commitment: {e:?}"
                                         ))
-                                    })?,
-                                self.preconf_pool.taiyi_escrow_address,
-                            );
+                                    })?;
+                                let preconf_request_type_b = to_solidity_type(
+                                    preconf_req,
+                                    blockspace_allocation_sig_user,
+                                    blockspace_allocation_sig_gateway,
+                                    Bytes::default(),
+                                    self.signer_client
+                                        .sign_with_ecdsa(keccak256(Bytes::default()))
+                                        .await
+                                        .map_err(|e| {
+                                            RpcError::SignatureError(format!(
+                                                "Failed to issue commitment: {e:?}"
+                                            ))
+                                        })?,
+                                    self.preconf_pool.taiyi_escrow_address,
+                                );
 
-                            // Call exhaust() on TaiyiCore contract
-                            let exhaust_tx = taiyi_core
-                                .exhaust(preconf_request_type_b)
-                                .into_transaction_request();
-                            let exhaust_tx =
-                                exhaust_tx.build(&EthereumWallet::from(signer.clone())).await?;
-                            let mut tx_encoded = Vec::new();
-                            exhaust_tx.encode_2718(&mut tx_encoded);
-                            let tx_ref: &[u8] = tx_encoded.as_ref();
-                            let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                tx_ref.try_into().expect("tx bytes too big");
-                            txs.push(tx_bytes);
+                                // Call exhaust() on TaiyiCore contract
+                                let exhaust_tx = taiyi_core
+                                    .exhaust(preconf_request_type_b)
+                                    .into_transaction_request()
+                                    .with_nonce(nonce)
+                                    .with_gas_limit(100_000)
+                                    .with_max_fee_per_gas(base_fee.into())
+                                    .with_max_priority_fee_per_gas(1);
+                                // increment nonce
+                                nonce += 1;
+
+                                let exhaust_tx =
+                                    exhaust_tx.build(&EthereumWallet::from(signer.clone())).await?;
+                                let mut tx_encoded = Vec::new();
+                                exhaust_tx.encode_2718(&mut tx_encoded);
+                                let tx_ref: &[u8] = tx_encoded.as_ref();
+                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                                    tx_ref.try_into().expect("tx bytes too big");
+                                txs.push(tx_bytes);
+                            }
                         }
 
                         let txs_len = txs.len();

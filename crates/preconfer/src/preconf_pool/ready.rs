@@ -85,9 +85,9 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_network::TransactionBuilder;
+    use alloy_primitives::PrimitiveSignature;
     use alloy_rpc_types::TransactionRequest;
     use taiyi_primitives::BlockspaceAllocation;
-    use alloy_primitives::PrimitiveSignature;
 
     use super::*;
 

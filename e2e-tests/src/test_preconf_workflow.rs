@@ -26,12 +26,10 @@ async fn test_estimate_fee() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
 
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-
     let target_slot = available_slot.first().unwrap().slot;
-
     let estimate_fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
-
     info!("estimate_fee: {:?}", estimate_fee);
+
     taiyi_handle.abort();
     Ok(())
 }
@@ -42,8 +40,8 @@ async fn test_health_check() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
 
     let health_check = health_check(&config.taiyi_url()).await?;
-
     info!("health_check: {:?}", health_check);
+
     taiyi_handle.abort();
     Ok(())
 }
@@ -106,7 +104,10 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
 
-    let tx_ret = message.decoded_tx().unwrap().first().unwrap().clone();
+    let decoded_txs = message.decoded_tx().unwrap();
+    assert_eq!(decoded_txs.len(), 3);
+
+    let tx_ret = message.decoded_tx().unwrap().get(1).unwrap().clone();
 
     assert_eq!(
         message.pubkey,

@@ -64,7 +64,7 @@ pub fn to_solidity_type(
         },
         blockspaceAllocationSignature: blockspace_allocation_sig_user.as_bytes().into(),
         gatewaySignedBlockspaceAllocation: blockspace_allocation_sig_gateway.as_bytes().into(),
-        rawTx: raw_tx.into(),
+        rawTx: raw_tx,
         gatewaySignedRawTx: gateway_signed_raw_tx.as_bytes().into(),
     }
 }

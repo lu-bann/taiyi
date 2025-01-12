@@ -2,7 +2,7 @@ use std::{future::Future, ops::Deref};
 
 use alloy_eips::merge::EPOCH_SLOTS;
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{Address, Bytes, FixedBytes, B256};
 use alloy_provider::Provider;
 use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_sol_types::sol;
@@ -30,7 +30,6 @@ pub struct LookaheadFetcher {
     network_state: NetworkState,
     gateway_pubkey: BlsPublicKey,
     relay_client: RelayClient,
-    context: Context,
 }
 
 impl LookaheadFetcher {
@@ -39,7 +38,6 @@ impl LookaheadFetcher {
         network_state: NetworkState,
         gateway_pubkey: PublicKey,
         relay_urls: Vec<Url>,
-        context: Context,
     ) -> Self {
         let gateway_pubkey =
             BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
@@ -48,14 +46,14 @@ impl LookaheadFetcher {
             network_state,
             gateway_pubkey,
             relay_client: RelayClient::new(relay_urls),
-            context,
         }
     }
 
     pub async fn initialze(&mut self) -> eyre::Result<()> {
         let head = self.beacon_client.get_beacon_block(BlockId::Head).await?;
         let slot = head.message().slot();
-        let epoch = slot / self.context.slots_per_epoch;
+        let epoch = slot / self.network_state.context.slots_per_epoch;
+
         // look ahead for next two epoch
         self.add_slot(epoch).await?;
         self.add_slot(epoch + 1).await?;
@@ -66,8 +64,8 @@ impl LookaheadFetcher {
     /// Add slots from the epoch if the slot is delegated to the gateway
     async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
-        for slot in
-            (epoch * self.context.slots_per_epoch)..((epoch + 1) * self.context.slots_per_epoch)
+        for slot in (epoch * self.network_state.context.slots_per_epoch)
+            ..((epoch + 1) * self.network_state.context.slots_per_epoch)
         {
             let res = self.relay_client.get_delegations(slot).await;
             match res {
@@ -131,10 +129,9 @@ pub async fn run_cl_process(
     network_state: NetworkState,
     bls_pk: PublicKey,
     relay_urls: Vec<Url>,
-    context: Context,
 ) -> impl Future<Output = eyre::Result<()>> {
     let lookahead_fetcher =
-        LookaheadFetcher::new(beacon_rpc_url, network_state, bls_pk, relay_urls, context);
+        LookaheadFetcher::new(beacon_rpc_url, network_state, bls_pk, relay_urls);
     lookahead_fetcher.run()
 }
 

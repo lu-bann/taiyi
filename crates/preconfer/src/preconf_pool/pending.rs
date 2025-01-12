@@ -67,7 +67,7 @@ impl Pending {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{Address, U256, PrimitiveSignature};
+    use alloy_primitives::{Address, PrimitiveSignature, U256};
     use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
     use uuid::Uuid;
 
