@@ -155,6 +155,9 @@ contract TaiyiCoreTest is Test {
         taiyiCore.exhaust(preconfReq);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Exhausted);
 
+        uint256 balanceAfter = taiyiCore.balanceOf(user);
+        assertEq(balanceAfter, 8 ether);
+
         assertEq(coinbase.balance, 100_000);
 
         taiyiCore.collectTip(preconfRequestHash);
