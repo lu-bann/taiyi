@@ -34,7 +34,7 @@
   },
   "chainInfo": {
     "chainId": 3151908,
-    "deploymentBlock": 4
+    "deploymentBlock": 9
   },
   "parameters": {
     "communityMultisig": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",

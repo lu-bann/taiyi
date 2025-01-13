@@ -1,9 +1,9 @@
 #![cfg(test)]
 
-use std::{path::Path, sync::Mutex, time::Duration};
+use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::U256;
+use alloy_primitives::{Address, U256};
 use alloy_provider::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
@@ -49,6 +49,7 @@ pub struct TestConfig {
     pub relay_url: String,
     pub taiyi_port: u16,
     pub context: Context,
+    pub taiyi_core: Address,
 }
 
 impl std::fmt::Debug for TestConfig {
@@ -74,7 +75,8 @@ impl TestConfig {
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
         let context = Context::try_from_file(p).unwrap();
-        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context }
+        let taiyi_core = Address::from_str("0xA791D59427B2b7063050187769AC871B497F4b3C").unwrap();
+        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context, taiyi_core }
     }
 
     pub fn taiyi_url(&self) -> String {
@@ -141,7 +143,7 @@ pub async fn start_taiyi_command_for_testing(
         "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
         "--taiyi-escrow-address",
-        "0xA791D59427B2b7063050187769AC871B497F4b3C",
+        config.taiyi_core.to_string().as_str(),
     ]); // Assuming TaiyiCommand is the main command struct
 
     // Spawn the taiyi command in a background task

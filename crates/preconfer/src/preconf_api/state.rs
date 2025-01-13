@@ -278,31 +278,36 @@ where
                 }
 
                 let txs_len = txs.len();
-                let bls_pk = self.signer_client.bls_pubkey();
-                let message = ConstraintsMessage {
-                    pubkey: BlsPublicKey::try_from(bls_pk.to_bytes().as_ref()).expect("key error"),
-                    slot: next_slot,
-                    top: true,
-                    transactions: txs.try_into().expect("tx too big"),
-                };
-                let digest = message.digest();
-                if let Ok(signature) = self.signer_client.sign_with_bls(context.clone(), digest) {
-                    let signed_constraints_message = vec![SignedConstraints { message, signature }];
-
-                    let max_retries = 5;
-                    let mut i = 0;
-
-                    info!("Submitting {txs_len} constraints to relay on  slot {next_slot}");
-                    'submit: while let Err(e) =
-                        relay_client.set_constraints(signed_constraints_message.clone()).await
+                if txs_len != 0 {
+                    let bls_pk = self.signer_client.bls_pubkey();
+                    let message = ConstraintsMessage {
+                        pubkey: BlsPublicKey::try_from(bls_pk.to_bytes().as_ref())
+                            .expect("key error"),
+                        slot: next_slot,
+                        top: false,
+                        transactions: txs.try_into().expect("tx too big"),
+                    };
+                    let digest = message.digest();
+                    if let Ok(signature) = self.signer_client.sign_with_bls(context.clone(), digest)
                     {
-                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                        i += 1;
-                        if i >= max_retries {
-                            error!("Max retries reached while submitting to relay");
-                            break 'submit;
+                        let signed_constraints_message =
+                            vec![SignedConstraints { message, signature }];
+
+                        let max_retries = 5;
+                        let mut i = 0;
+
+                        info!("Submitting {txs_len} constraints to relay on  slot {next_slot}");
+                        'submit: while let Err(e) =
+                            relay_client.set_constraints(signed_constraints_message.clone()).await
+                        {
+                            error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                            i += 1;
+                            if i >= max_retries {
+                                error!("Max retries reached while submitting to relay");
+                                break 'submit;
+                            }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                         }
-                        tokio::time::sleep(Duration::from_millis(100)).await;
                     }
                 }
             }
