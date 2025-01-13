@@ -9,6 +9,7 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "crates/cli",
+    "crates/contracts",
     "crates/preconfer",
     "crates/primitives",
     "e2e-tests",
@@ -21,6 +22,7 @@ default-members = [
     "crates/cli",
     "crates/preconfer",
     "crates/primitives",
+    "crates/contracts",
     "examples"
 ]
 resolver = "2"
@@ -34,6 +36,7 @@ taiyi-preconfer = { path = "crates/preconfer" }
 taiyi-cmd = { path = "crates/cli" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
+taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
 
 axum = { version = "0.7.9", features = ["macros"] }

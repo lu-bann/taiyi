@@ -1,13 +1,11 @@
-use std::str::FromStr;
-
 use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_provider::{Provider, ProviderBuilder};
+use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
 use clap::Parser;
+use taiyi_contracts::{AVSDirectory, SignatureWithSaltAndExpiry, TaiyiEigenlayerMiddleware};
 use tracing::info;
-use ProposerRegistry::ProposerRegistryInstance;
 
 #[derive(Debug, Parser)]
 pub struct RegisterCommand {
@@ -19,21 +17,17 @@ pub struct RegisterCommand {
     #[clap(long, env = "PRIVATE_KEY")]
     pub private_key: String,
 
-    /// taiyi proposer registry contract address
-    #[clap(long, env = "TAIYI_PROPOSER_REGISTRY_CONTRACT_ADDR")]
-    pub taiyi_proposer_registry_contract_addr: String,
+    #[clap(long, env = "SALT")]
+    pub salt: B256,
 
-    #[clap(long, env = "PROPOSER_PUBKEY")]
-    pub proposer_pubkey: String,
-}
+    #[clap(long, env = "TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS")]
+    pub taiyi_eigenlayer_middleware_address: Address,
 
-sol! {
+    #[clap(long, env = "AVS_DIRECTORY_ADDRESS")]
+    pub avs_directory_address: Address,
 
-    #[sol(rpc)]
-    contract ProposerRegistry {
-        #[derive(Debug)]
-        function registerValidator(bytes calldata pubkey);
-    }
+    #[clap(long, env = "TAIYI_AVS_ADDRESS")]
+    pub taiyi_avs_address: Address,
 }
 
 impl RegisterCommand {
@@ -47,16 +41,33 @@ impl RegisterCommand {
             .on_builtin(&self.execution_rpc_url)
             .await?;
 
-        // Parse contract address
-        let proposer_registry_address: Address =
-            self.taiyi_proposer_registry_contract_addr.parse()?;
-        let proposer_registry =
-            ProposerRegistryInstance::new(proposer_registry_address, provider.clone());
+        let taiyi_eigenlayer_contract = TaiyiEigenlayerMiddleware::new(
+            self.taiyi_eigenlayer_middleware_address,
+            provider.clone(),
+        );
 
-        let proposer_pubkey = Bytes::from_str(&self.proposer_pubkey)?;
+        let avs_directory_contract =
+            AVSDirectory::new(self.avs_directory_address, provider.clone());
 
-        // Call deposit function
-        let tx = proposer_registry.registerValidator(proposer_pubkey).into_transaction_request();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+        let expiry = now + std::time::Duration::from_secs(30 * 60);
+        let expiry = U256::from(expiry.as_secs());
+
+        let signature_digest_hash = avs_directory_contract
+            .calculateOperatorAVSRegistrationDigestHash(
+                signer.address(),
+                self.taiyi_avs_address,
+                self.salt,
+                expiry,
+            )
+            .call()
+            .await?
+            ._0;
+        let signature = Bytes::from(signer.sign_hash_sync(&signature_digest_hash)?.as_bytes());
+        let signature_entry = SignatureWithSaltAndExpiry { signature, expiry, salt: self.salt };
+
+        let tx =
+            taiyi_eigenlayer_contract.registerOperator(signature_entry).into_transaction_request();
 
         let pending_tx = provider.send_transaction(tx).await?;
 
