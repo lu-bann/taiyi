@@ -10,9 +10,10 @@ sol! {
     }
     #[sol(rpc)]
     interface TaiyiEigenlayerMiddleware {
-        function registerOperator(
+        function registerOperatorToAVS(
+            address operator,
             SignatureWithSaltAndExpiry calldata operatorSignature
-        ) public;
+        );
         function deregisterOperator() public;
     }
 }

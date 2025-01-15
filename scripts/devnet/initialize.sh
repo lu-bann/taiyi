@@ -14,9 +14,7 @@ popd
 
 # TAIYI propser registry would be 0x0A79920c296E86e7BB12Ad20ca7Ffbbd7AE5905B
 # TAIYI CORE would be 0xA791D59427B2b7063050187769AC871B497F4b3C
-if [ "$(cast code 0x0A79920c296E86e7BB12Ad20ca7Ffbbd7AE5905B --rpc-url $EXECUTION_URL)" == "0x" ]; then
-    pushd contracts
-    git submodule update --progress --init
-    bash script/deploy.sh
-    popd 
-fi
+pushd contracts
+git submodule update --progress --init
+bash script/deploy.sh
+popd 

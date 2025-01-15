@@ -20,9 +20,6 @@ pub struct RegisterCommand {
     #[clap(long, env = "SALT")]
     pub salt: B256,
 
-    #[clap(long, env = "TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS")]
-    pub taiyi_eigenlayer_middleware_address: Address,
-
     #[clap(long, env = "AVS_DIRECTORY_ADDRESS")]
     pub avs_directory_address: Address,
 
@@ -34,6 +31,7 @@ impl RegisterCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         // Create a wallet from the private key
         let signer: PrivateKeySigner = self.private_key.parse()?;
+        let operator = signer.address();
         // Connect to the Ethereum network
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
@@ -41,10 +39,8 @@ impl RegisterCommand {
             .on_builtin(&self.execution_rpc_url)
             .await?;
 
-        let taiyi_eigenlayer_contract = TaiyiEigenlayerMiddleware::new(
-            self.taiyi_eigenlayer_middleware_address,
-            provider.clone(),
-        );
+        let taiyi_eigenlayer_contract =
+            TaiyiEigenlayerMiddleware::new(self.taiyi_avs_address, provider.clone());
 
         let avs_directory_contract =
             AVSDirectory::new(self.avs_directory_address, provider.clone());
@@ -66,8 +62,9 @@ impl RegisterCommand {
         let signature = Bytes::from(signer.sign_hash_sync(&signature_digest_hash)?.as_bytes());
         let signature_entry = SignatureWithSaltAndExpiry { signature, expiry, salt: self.salt };
 
-        let tx =
-            taiyi_eigenlayer_contract.registerOperator(signature_entry).into_transaction_request();
+        let tx = taiyi_eigenlayer_contract
+            .registerOperatorToAVS(operator, signature_entry)
+            .into_transaction_request();
 
         let pending_tx = provider.send_transaction(tx).await?;
 
