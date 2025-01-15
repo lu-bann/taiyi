@@ -165,4 +165,46 @@ contract TaiyiCoreTest is Test {
         assertEq(collectedTip, 1 ether);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
     }
+
+    function testSponsorETHBatch() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        vm.deal(alice, 0.5 ether);
+        vm.deal(bob, 0.5 ether);
+
+        // Only owner can call sponsorBatch
+        vm.prank(owner);
+
+        address[] memory recipients = new address[](2);
+        recipients[0] = alice;
+        recipients[1] = bob;
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 3 ether;
+        amounts[1] = 2 ether;
+
+        // We expect total 5 ETH. Owner has enough (100 ETH).
+        // Send it along with the call
+        uint256 aliceBalanceBefore = alice.balance;
+        uint256 bobBalanceBefore = bob.balance;
+
+        taiyiCore.sponsorEthBatch{ value: 5 ether }(recipients, amounts);
+
+        uint256 aliceBalanceAfter = alice.balance;
+        uint256 bobBalanceAfter = bob.balance;
+
+        assertEq(
+            aliceBalanceAfter,
+            aliceBalanceBefore + 3 ether,
+            "Alice did not receive correct ETH"
+        );
+        assertEq(
+            bobBalanceAfter, bobBalanceBefore + 2 ether, "Bob did not receive correct ETH"
+        );
+
+        // Check leftover in contract (optional)
+        // By default, no leftover because exactly 5 ether was used
+        assertEq(address(taiyiCore).balance, 0);
+    }
 }
