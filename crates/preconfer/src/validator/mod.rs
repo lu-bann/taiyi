@@ -1,6 +1,5 @@
-use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT;
+use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::env_settings::EnvKzgSettings};
 use reqwest::Url;
-use reth_revm::primitives::EnvKzgSettings;
 
 use crate::clients::execution_client::ExecutionClient;
 
