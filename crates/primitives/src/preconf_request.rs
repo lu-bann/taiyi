@@ -52,7 +52,7 @@ pub struct BlockspaceAllocation {
     /// Tip to be paid to the proposer
     pub tip: U256,
     /// Number of blobs to reserve
-    pub num_blobs: usize,
+    pub blob_count: usize,
 }
 
 impl BlockspaceAllocation {
@@ -61,9 +61,9 @@ impl BlockspaceAllocation {
         gas_limit: u64,
         deposit: U256,
         tip: U256,
-        num_blobs: usize,
+        blob_count: usize,
     ) -> Self {
-        Self { target_slot, gas_limit, deposit, tip, num_blobs }
+        Self { target_slot, gas_limit, deposit, tip, blob_count }
     }
 
     pub fn digest(&self) -> B256 {
@@ -72,7 +72,7 @@ impl BlockspaceAllocation {
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
-        digest.extend_from_slice(&(self.num_blobs as u64).to_le_bytes());
+        digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         keccak256(&digest)
     }
 }

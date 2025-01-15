@@ -27,7 +27,7 @@ use uuid::Uuid;
 use crate::constant::{
     AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK,
     PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
-    SUBMIT_TRANSACTION_PATH,
+    SUBMIT_TRANSACTION_PATH, TAIYI_CONTRACT_ADDRESS,
 };
 
 lazy_static::lazy_static! {
@@ -75,7 +75,7 @@ impl TestConfig {
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
         let context = Context::try_from_file(p).unwrap();
-        let taiyi_core = Address::from_str("0xA791D59427B2b7063050187769AC871B497F4b3C").unwrap();
+        let taiyi_core = Address::from_str(TAIYI_CONTRACT_ADDRESS).unwrap();
         Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context, taiyi_core }
     }
 
@@ -251,7 +251,7 @@ pub async fn generate_reserve_blockspace_request(
         deposit: U256::from(fee * 21_000 / 2),
         tip: U256::from(fee * 21_000 / 2),
         gas_limit,
-        num_blobs: 0,
+        blob_count: 0,
     };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());

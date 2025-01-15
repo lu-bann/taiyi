@@ -1,30 +1,19 @@
 use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
 
-use alloy_consensus::{BlockHeader, Transaction, TxEnvelope};
-use alloy_eips::{eip2718::Decodable2718, BlockId};
-use alloy_network::{Ethereum, TransactionBuilder};
-use alloy_primitives::{hex, Address, PrimitiveSignature, U256};
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
-use alloy_rpc_types_trace::geth::{
-    CallFrame, GethDebugBuiltInTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions,
-    GethTrace,
-};
-use alloy_transport::Transport;
+use alloy_primitives::{Address, PrimitiveSignature};
+use alloy_provider::Provider;
 use axum::{
     extract::{Path, State},
     response::{IntoResponse, Json},
-    routing::{delete, get, post},
+    routing::{get, post},
     Router,
 };
-use eyre::OptionExt;
 use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, CancelPreconfRequest, CancelPreconfResponse, EstimateFeeRequest,
-    EstimateFeeResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
-    PreconfTxRequest, SubmitTransactionRequest,
+    BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfHash, PreconfResponse,
+    PreconfStatusResponse, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -92,6 +81,7 @@ impl PreconfApiServer {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn endpoint(&self) -> String {
         format!("http://{}", self.addr)
     }

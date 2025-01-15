@@ -38,9 +38,6 @@ pub mod core {
     }
 }
 
-pub use core::TaiyiCore::TaiyiCoreInstance;
-use std::str::FromStr;
-
 use alloy_primitives::{Address, Bytes, PrimitiveSignature, U256};
 use taiyi_primitives::PreconfRequest;
 
@@ -60,7 +57,7 @@ pub fn to_solidity_type(
             deposit: request.allocation.deposit,
             tip: request.allocation.tip,
             targetSlot: U256::from(request.allocation.target_slot),
-            blobCount: U256::from(request.allocation.num_blobs),
+            blobCount: U256::from(request.allocation.blob_count),
         },
         blockspaceAllocationSignature: blockspace_allocation_sig_user.as_bytes().into(),
         gatewaySignedBlockspaceAllocation: blockspace_allocation_sig_gateway.as_bytes().into(),

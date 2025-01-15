@@ -4,49 +4,34 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{Header, Transaction, TxEnvelope};
+use alloy_consensus::{Header, Transaction};
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
-use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder};
+use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{
     keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
 };
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_client::{ClientBuilder, RpcClient};
+use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
 use alloy_rpc_types::TransactionRequest;
-use alloy_signer::{Signature as ECDSASignature, Signer};
-use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::Transport;
-use alloy_transport_http::{reqwest::Client, Http};
 use ethereum_consensus::{
-    altair::genesis,
-    clock::{from_system_time, Clock},
-    deneb::{mainnet::MAX_BYTES_PER_TRANSACTION, Context},
-    primitives::BlsPublicKey,
+    clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
     ssz::prelude::ByteList,
 };
 use futures::StreamExt;
-use k256::elliptic_curve::rand_core::block;
 use reqwest::Url;
-use reth_primitives::PooledTransaction;
-use reth_revm::handler::execution;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    BlockspaceAllocation, CancelPreconfRequest, CancelPreconfResponse, ConstraintsMessage,
-    ContextExt, PreconfRequest, PreconfResponse, PreconfStatus, PreconfStatusResponse, SignableBLS,
-    SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation, ConstraintsMessage, ContextExt, PreconfRequest, PreconfResponse,
+    PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints, SubmitTransactionRequest,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
-    clients::{
-        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
-    },
+    clients::{relay_client::RelayClient, signer_client::SignerClient},
     contract::{core::TaiyiCore, to_solidity_type},
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
-    pricer::PreconfPricer,
 };
 
 #[derive(Clone)]
@@ -97,24 +82,22 @@ where
                             .as_secs(),
                     );
 
-                // wait unit the deadline to submit constraints
-                tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
-
                 // calculate base fee for next slot based on parent header
                 // Its fine to use latest block as we are submitting constraints for next block
                 let rlp_encoded_header =
                     self.provider.debug_get_raw_header(BlockId::latest()).await?;
                 let header = Header::decode(&mut rlp_encoded_header.as_ref())?;
-                let base_fee = match header.next_block_base_fee(BaseFeeParams::ethereum()) {
-                    Some(base_fee) => base_fee,
-                    None => self
-                        .provider
-                        .estimate_eip1559_fees(None)
-                        .await?
-                        .max_fee_per_gas
-                        .try_into()
-                        .expect("base fee too big"),
-                };
+                let (base_fee, priority_fee) =
+                    match header.next_block_base_fee(BaseFeeParams::ethereum()) {
+                        Some(base_fee) => (base_fee.into(), EIP1559_MIN_PRIORITY_FEE),
+                        None => {
+                            let estimate = self.provider.estimate_eip1559_fees(None).await?;
+                            (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
+                        }
+                    };
+
+                // wait unit the deadline to submit constraints
+                tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
                 info!("Current base fee: {base_fee}");
 
@@ -140,13 +123,12 @@ where
                                     preconf_req.signer().expect("Signer must be present");
                                 let eth_tx = TransactionRequest::default()
                                     .with_from(sender)
-                                    .with_value(U256::from(gas_used * base_fee))
+                                    .with_value(U256::from(gas_used as u128 * base_fee))
                                     .with_nonce(nonce)
                                     .with_gas_limit(21_000)
                                     .with_to(receiver)
-                                    // TODO: priority fee
-                                    .with_max_fee_per_gas(base_fee.into())
-                                    .with_max_priority_fee_per_gas(1)
+                                    .with_max_fee_per_gas(base_fee)
+                                    .with_max_priority_fee_per_gas(priority_fee)
                                     .with_chain_id(self.chain_id())
                                     .build(&EthereumWallet::from(signer.clone()))
                                     .await?;
@@ -199,8 +181,8 @@ where
                                     .into_transaction_request()
                                     .with_nonce(nonce)
                                     .with_gas_limit(100_000)
-                                    .with_max_fee_per_gas(base_fee.into())
-                                    .with_max_priority_fee_per_gas(1);
+                                    .with_max_fee_per_gas(base_fee)
+                                    .with_max_priority_fee_per_gas(priority_fee);
                                 // increment nonce
                                 nonce += 1;
 
@@ -261,8 +243,8 @@ where
                             .into_transaction_request()
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(base_fee.into())
-                            .with_max_priority_fee_per_gas(1);
+                            .with_max_fee_per_gas(base_fee)
+                            .with_max_priority_fee_per_gas(priority_fee);
                         // increment nonce
                         nonce += 1;
 

@@ -5,7 +5,7 @@ use ethereum_consensus::{
 use eyre::Context as _;
 use reqwest::Url;
 use taiyi_primitives::SignedConstraints;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::{PATH_BUILDER_API, PATH_BUILDER_DELEGATIONS};
 
@@ -19,7 +19,7 @@ pub struct RelayClient {
 pub const DELEGATION_ACTION: u8 = 0;
 
 /// The action type for a revocation message.
-pub const REVOCATION_ACTION: u8 = 1;
+pub const _REVOCATION_ACTION: u8 = 1;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq)]
 pub struct SignedDelegation {
@@ -88,6 +88,7 @@ fn _get_signed_delegations() -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
     fn test_get_signed_delegations() -> eyre::Result<()> {
         let res = super::_get_signed_delegations();
         let signed_delegation = serde_json::from_str::<super::SignedDelegation>(res)?;

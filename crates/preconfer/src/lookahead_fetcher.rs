@@ -1,23 +1,13 @@
-use std::{future::Future, ops::Deref};
+use std::future::Future;
 
 use alloy_eips::merge::EPOCH_SLOTS;
-use alloy_network::Ethereum;
-use alloy_primitives::{Address, Bytes, FixedBytes, B256};
-use alloy_provider::Provider;
 use alloy_rpc_types_beacon::events::HeadEvent;
-use alloy_sol_types::sol;
-use alloy_transport::Transport;
 use beacon_api_client::{mainnet::Client, BlockId};
 use blst::min_pk::PublicKey;
-use ethereum_consensus::{
-    deneb::Context,
-    primitives::{BlsPublicKey, BlsSignature},
-    ssz::prelude::*,
-};
-use futures::{future::IntoFuture, TryStreamExt};
+use ethereum_consensus::primitives::BlsPublicKey;
+use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
-use taiyi_primitives::ProposerInfo;
 use tracing::{debug, info};
 
 use crate::{

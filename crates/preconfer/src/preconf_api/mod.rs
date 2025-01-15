@@ -1,26 +1,17 @@
-use std::{
-    net::{IpAddr, SocketAddr},
-    ops::Add,
-};
+use std::net::{IpAddr, SocketAddr};
 
-use alloy_contract::{ContractInstance, Interface};
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer_local::PrivateKeySigner;
 use api::PreconfApiServer;
-use blst::min_pk::SecretKey;
 use ethereum_consensus::deneb::Context;
 use reqwest::Url;
 use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
-    clients::{
-        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
-    },
+    clients::{relay_client::RelayClient, signer_client::SignerClient},
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
-    pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
 };
 
 pub mod api;

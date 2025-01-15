@@ -1,12 +1,8 @@
-use std::{
-    str::FromStr,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
 };
 
-use alloy_primitives::{hex::FromHex, FixedBytes, B256};
 use ethereum_consensus::deneb::Context;
 use parking_lot::RwLock;
 

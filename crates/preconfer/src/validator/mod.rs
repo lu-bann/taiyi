@@ -1,10 +1,10 @@
 use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT;
 use reqwest::Url;
 use reth_revm::primitives::EnvKzgSettings;
-use taiyi_primitives::PreconfRequest;
 
-use crate::{clients::execution_client::ExecutionClient, contract::TaiyiCoreInstance};
+use crate::clients::execution_client::ExecutionClient;
 
+#[allow(dead_code)]
 /// A [`PreconfValidator`] implementation that validates ethereum transaction.
 #[derive(Debug, Clone)]
 pub struct PreconfValidator {
