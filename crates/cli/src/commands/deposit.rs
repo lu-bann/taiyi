@@ -69,7 +69,11 @@ impl DepositCommand {
             .depositIntoStrategy(self.strategy_address, token_address, self.amount)
             .send()
             .await?;
-        info!("Depositing into strategy {}", deposit_tx.tx_hash());
+        info!(
+            "Depositing into strategy at {} with tx {}",
+            self.strategy_address,
+            deposit_tx.tx_hash()
+        );
 
         let receipt = deposit_tx.get_receipt().await?;
         info!("Deposit successful! Transaction hash: {:?}", receipt.transaction_hash);
