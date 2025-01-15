@@ -10,23 +10,23 @@ use tracing::info;
 #[derive(Debug, Parser)]
 pub struct DepositCommand {
     /// The RPC URL of the Ethereum node
-    #[clap(long)]
+    #[clap(long, env = "EXECUTION_RPC_URL")]
     execution_rpc_url: String,
 
     /// The strategy contract address
-    #[clap(long)]
+    #[clap(long, env = "STRATEGY_ADDRESS")]
     strategy_address: Address,
 
     /// Amount to deposit
-    #[clap(long)]
+    #[clap(long, env = "AMOUNT")]
     amount: U256,
 
     /// Private key for signing transactions
-    #[clap(long)]
+    #[clap(long, env = "PRIVATE_KEY")]
     private_key: String,
 
     /// The strategy manager contract address
-    #[clap(long)]
+    #[clap(long, env = "STRATEGY_MANAGER_ADDRESS")]
     strategy_manager_address: Address,
 }
 
