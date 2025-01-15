@@ -11,7 +11,6 @@ use alloy_primitives::{
     keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
 };
 use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
-use alloy_rpc_types::TransactionRequest;
 use ethereum_consensus::{
     clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
     ssz::prelude::ByteList,
@@ -102,6 +101,7 @@ where
                 info!("Current base fee: {base_fee}");
 
                 let signer = self.signer_client.ecdsa_signer();
+                let wallet = EthereumWallet::from(signer.clone());
                 let sender = self.signer_client.ecdsa_address();
 
                 let taiyi_core =
@@ -109,6 +109,11 @@ where
 
                 let mut txs = Vec::new();
                 let mut nonce = self.provider.get_transaction_count(sender).await?;
+
+                // Accounts to sponsor gas for
+                let mut accounts = Vec::new();
+                // Amounts to sponsor for each account
+                let mut amounts = Vec::new();
 
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
@@ -118,29 +123,9 @@ where
                                 let gas_used =
                                     self.preconf_pool.calculate_gas_used(tx.clone()).await?;
 
-                                // Prepend the preconf tx with an ETH transfer to the preconf tx signer
-                                let receiver =
-                                    preconf_req.signer().expect("Signer must be present");
-                                let eth_tx = TransactionRequest::default()
-                                    .with_from(sender)
-                                    .with_value(U256::from(gas_used as u128 * base_fee))
-                                    .with_nonce(nonce)
-                                    .with_gas_limit(21_000)
-                                    .with_to(receiver)
-                                    .with_max_fee_per_gas(base_fee)
-                                    .with_max_priority_fee_per_gas(priority_fee)
-                                    .with_chain_id(self.chain_id())
-                                    .build(&EthereumWallet::from(signer.clone()))
-                                    .await?;
-                                // increment nonce
-                                nonce += 1;
-
-                                let mut tx_bytes = Vec::new();
-                                eth_tx.encode_2718(&mut tx_bytes);
-                                let tx_ref: &[u8] = tx_bytes.as_ref();
-                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                    tx_ref.try_into().expect("tx bytes too big");
-                                txs.push(tx_bytes);
+                                accounts
+                                    .push(preconf_req.signer().expect("Signer must be present"));
+                                amounts.push(U256::from(gas_used as u128 * base_fee));
 
                                 // preconf tx
                                 let mut tx_encoded = Vec::new();
@@ -182,12 +167,11 @@ where
                                     .with_nonce(nonce)
                                     .with_gas_limit(100_000)
                                     .with_max_fee_per_gas(base_fee)
-                                    .with_max_priority_fee_per_gas(priority_fee);
+                                    .with_max_priority_fee_per_gas(priority_fee)
+                                    .build(&wallet)
+                                    .await?;
                                 // increment nonce
                                 nonce += 1;
-
-                                let get_tip_tx =
-                                    get_tip_tx.build(&EthereumWallet::from(signer.clone())).await?;
                                 let mut tx_encoded = Vec::new();
                                 get_tip_tx.encode_2718(&mut tx_encoded);
                                 let tx_ref: &[u8] = tx_encoded.as_ref();
@@ -210,6 +194,7 @@ where
                         requests.len(),
                         next_slot
                     );
+
                     for preconf_req in requests {
                         let blockspace_allocation_sig_user = preconf_req.alloc_sig;
                         let blockspace_allocation_sig_gateway = self
@@ -244,12 +229,12 @@ where
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
-                            .with_max_priority_fee_per_gas(priority_fee);
+                            .with_max_priority_fee_per_gas(priority_fee)
+                            .build(&wallet)
+                            .await?;
                         // increment nonce
                         nonce += 1;
 
-                        let exhaust_tx =
-                            exhaust_tx.build(&EthereumWallet::from(signer.clone())).await?;
                         let mut tx_encoded = Vec::new();
                         exhaust_tx.encode_2718(&mut tx_encoded);
                         let tx_ref: &[u8] = tx_encoded.as_ref();
@@ -258,6 +243,24 @@ where
                         txs.push(tx_bytes);
                     }
                 }
+
+                //  gas sponsorship tx
+                let sponsor_tx = taiyi_core
+                    .sponsorEthBatch(accounts, amounts)
+                    .into_transaction_request()
+                    .with_nonce(nonce)
+                    .with_gas_limit(1_000_000)
+                    .with_max_fee_per_gas(base_fee)
+                    .with_max_priority_fee_per_gas(priority_fee)
+                    .build(&wallet)
+                    .await?;
+
+                let mut tx_bytes = Vec::new();
+                sponsor_tx.encode_2718(&mut tx_bytes);
+                let tx_ref: &[u8] = tx_bytes.as_ref();
+                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                    tx_ref.try_into().expect("tx bytes too big");
+                txs.append(&mut vec![tx_bytes]);
 
                 let txs_len = txs.len();
                 if txs_len != 0 {
@@ -421,10 +424,6 @@ where
             SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
         let deadline = self.network_state.context().get_deadline_of_slot(slot);
         utc_timestamp > deadline
-    }
-
-    pub fn chain_id(&self) -> u64 {
-        self.network_state.chain_id()
     }
 }
 

@@ -34,6 +34,15 @@ pub mod core {
 
                 #[derive(Debug)]
                 function exhaust(PreconfRequestBType calldata preconfRequestBType) external onlyOwner;
+
+                #[derive(Debug)]
+                function sponsorEthBatch(
+                    address[] calldata recipients,
+                    uint256[] calldata amounts
+                )
+                    external
+                    payable
+                    onlyOwner;
             }
     }
 }
