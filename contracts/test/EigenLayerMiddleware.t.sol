@@ -233,7 +233,7 @@ contract EigenlayerMiddlewareTest is Test {
     function _operatorAVSRegistration() internal impersonate(operator) {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
             _getOperatorSignature();
-        eigenLayerMiddleware.registerOperator(operatorSignature);
+        eigenLayerMiddleware.registerOperatorToAVS(operator, operatorSignature);
     }
 
     /// @notice Generates operator signature for AVS registration
