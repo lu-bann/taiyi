@@ -15,11 +15,15 @@ import { WETH9 } from "./WETH.sol";
 
 import { DeployFromScratch } from
     "../lib/eigenlayer-contracts/script/deploy/local/Deploy_From_Scratch.s.sol";
+import { IStrategy } from
+    "../lib/eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
+import { IStrategyManager } from
+    "../lib/eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
 contract Deploy is Script, Test {
     address public avsDirectory;
     address public delegationManager;
-    address public strategyManager;
+    address public strategyManagerAddr;
     address public eigenPodManager;
 
     function run(string memory configFileName) public {
@@ -27,15 +31,18 @@ contract Deploy is Script, Test {
         uint256 genesis_timestamp = vm.envUint("GENESIS_TIMESTAMP");
         console.log("genesis timestamp: ", genesis_timestamp);
 
+        string memory taiyiAddresses = "taiyiAddresses";
+
         if (is_for_dev) {
             vm.startBroadcast();
 
             Reverter reverter = new Reverter();
             emit log_address(address(reverter));
+            vm.serializeAddress(taiyiAddresses, "reverter", address(reverter));
 
             WETH9 weth = new WETH9();
             emit log_address(address(weth));
-
+            vm.serializeAddress(taiyiAddresses, "weth", address(weth));
             vm.stopBroadcast();
             DeployFromScratch deployFromScratch = new DeployFromScratch();
             deployFromScratch.run(configFileName);
@@ -45,10 +52,27 @@ contract Deploy is Script, Test {
             );
             string memory output_data = vm.readFile(outputFile);
 
+            // whitelist weth
+            address strategyWethAddr =
+                stdJson.readAddress(output_data, ".addresses.strategies.WETH");
+            strategyManagerAddr =
+                stdJson.readAddress(output_data, ".addresses.strategyManager");
+            IStrategy strategyWeth = IStrategy(strategyWethAddr);
+            IStrategy[] memory strategiesToWhitelist = new IStrategy[](1);
+            bool[] memory thirdPartyTransfersForbiddenValues = new bool[](1);
+            strategiesToWhitelist[0] = strategyWeth;
+            thirdPartyTransfersForbiddenValues[0] = true;
+            IStrategyManager strategyManager = IStrategyManager(strategyManagerAddr);
+            vm.startBroadcast();
+            strategyManager.addStrategiesToDepositWhitelist(
+                strategiesToWhitelist, thirdPartyTransfersForbiddenValues
+            );
+            vm.stopBroadcast();
+
             avsDirectory = stdJson.readAddress(output_data, ".addresses.avsDirectory");
             delegationManager =
                 stdJson.readAddress(output_data, ".addresses.delegationManager");
-            strategyManager =
+            strategyManagerAddr =
                 stdJson.readAddress(output_data, ".addresses.strategyManager");
             eigenPodManager =
                 stdJson.readAddress(output_data, ".addresses.eigenPodManager");
@@ -58,21 +82,35 @@ contract Deploy is Script, Test {
         TaiyiProposerRegistry taiyiProposerRegistry = new TaiyiProposerRegistry();
         taiyiProposerRegistry.initialize(msg.sender);
         emit log_address(address(taiyiProposerRegistry));
+        vm.serializeAddress(
+            taiyiAddresses, "taiyiProposerRegistry", address(taiyiProposerRegistry)
+        );
 
         TaiyiCore taiyiCore = new TaiyiCore(msg.sender, genesis_timestamp);
         emit log_address(address(taiyiCore));
+        vm.serializeAddress(taiyiAddresses, "taiyiCore", address(taiyiCore));
 
         EigenLayerMiddleware eigenLayerMiddleware = new EigenLayerMiddleware();
         emit log_address(address(eigenLayerMiddleware));
+        string memory addresses = vm.serializeAddress(
+            taiyiAddresses, "eigenLayerMiddleware", address(eigenLayerMiddleware)
+        );
+
+        taiyiProposerRegistry.addRestakingMiddlewareContract(
+            address(eigenLayerMiddleware)
+        );
 
         eigenLayerMiddleware.initialize(
             msg.sender,
             address(taiyiProposerRegistry),
             avsDirectory,
             delegationManager,
-            strategyManager,
+            strategyManagerAddr,
             eigenPodManager
         );
+        string memory output = "output";
+        string memory finalJ = vm.serializeString(output, taiyiAddresses, addresses);
+        vm.writeJson(finalJ, "script/output/devnet/taiyiAddresses.json");
         vm.stopBroadcast();
     }
 }
