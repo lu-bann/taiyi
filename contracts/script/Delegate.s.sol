@@ -12,20 +12,15 @@ contract ConvertWETH is Script, Test {
     function run() public {
         vm.startBroadcast();
         address operatorAddress = vm.envAddress("OPERATOR_ADDRESS");
-        bytes32 salt = vm.envBytes32("SALT");
-        ISignatureUtils.SignatureWithSaltAndExpiry memory approverSignatureAndExpiry =
-        ISignatureUtils.SignatureWithSaltAndExpiry({
-            signature: 0x00,
-            salt: salt,
-            expiry: 0
-        });
+        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry =
+            ISignatureUtils.SignatureWithExpiry({ signature: "", expiry: 0 });
 
         address payable delegationManagerAddress =
             payable(vm.envAddress("DELEGATION_MANAGER_ADDRESS"));
         IDelegationManager delegationManager =
             IDelegationManager(delegationManagerAddress);
 
-        delegationManager.delegatedTo(operatorAddress, approverSignatureAndExpiry, "");
+        delegationManager.delegateTo(operatorAddress, approverSignatureAndExpiry, "");
 
         vm.stopBroadcast();
     }

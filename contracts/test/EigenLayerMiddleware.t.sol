@@ -109,7 +109,6 @@ contract EigenlayerMiddlewareTest is Test {
     function testOperatorRegistrationAndDelegation() public {
         IDelegationManager.OperatorDetails memory operatorDetails =
             _operatorRegistration();
-
         address mockPodOwner = makeAddr("mockPodOwner");
         _delegationToOperator(mockPodOwner);
 
@@ -239,6 +238,7 @@ contract EigenlayerMiddlewareTest is Test {
     /// @notice Generates operator signature for AVS registration
     function _getOperatorSignature()
         internal
+        view
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
     {
         bytes32 digest = eigenLayerDeployer.avsDirectory()
