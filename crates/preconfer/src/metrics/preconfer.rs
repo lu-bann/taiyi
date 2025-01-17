@@ -59,7 +59,6 @@ lazy_static! {
 }
 
 pub fn init_metrics(server_port: u16) -> Result<()> {
-    PreconferMetricsService::register_metric(Box::new(RELAY_STATUS_CODE.clone()));
     PreconferMetricsService::init_metrics(server_port)
 }
 
