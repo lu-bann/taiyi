@@ -230,7 +230,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
         .with_value(U256::from(1000))
         // TODO: use the correct nonce, dont' why the nonce above is 3.
         .with_nonce(1)
-        .with_gas_limit(21_0000)
+        .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
         .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)

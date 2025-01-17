@@ -108,6 +108,7 @@ where
                     TaiyiCore::new(self.preconf_pool.taiyi_escrow_address, self.provider.clone());
 
                 let mut txs = Vec::new();
+                let mut sponsoring_tx = Vec::new();
                 let mut nonce = self.provider.get_transaction_count(sender).await?;
 
                 // Accounts to sponsor gas for
@@ -180,6 +181,24 @@ where
                                 txs.push(tx_bytes);
                             }
                         }
+
+                        //  gas sponsorship tx
+                        let sponsor_tx = taiyi_core
+                            .sponsorEthBatch(accounts, amounts)
+                            .into_transaction_request()
+                            .with_nonce(nonce)
+                            .with_gas_limit(1_000_000)
+                            .with_max_fee_per_gas(base_fee)
+                            .with_max_priority_fee_per_gas(priority_fee)
+                            .build(&wallet)
+                            .await?;
+
+                        let mut tx_bytes = Vec::new();
+                        sponsor_tx.encode_2718(&mut tx_bytes);
+                        let tx_ref: &[u8] = tx_bytes.as_ref();
+                        let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                            tx_ref.try_into().expect("tx bytes too big");
+                        sponsoring_tx.push(tx_bytes);
                     }
                     Err(err) => {
                         debug!(?err, "Error fetching preconf requests for slot");
@@ -244,25 +263,9 @@ where
                     }
                 }
 
-                //  gas sponsorship tx
-                let sponsor_tx = taiyi_core
-                    .sponsorEthBatch(accounts, amounts)
-                    .into_transaction_request()
-                    .with_nonce(nonce)
-                    .with_gas_limit(1_000_000)
-                    .with_max_fee_per_gas(base_fee)
-                    .with_max_priority_fee_per_gas(priority_fee)
-                    .build(&wallet)
-                    .await?;
+                sponsoring_tx.append(&mut txs);
 
-                let mut tx_bytes = Vec::new();
-                sponsor_tx.encode_2718(&mut tx_bytes);
-                let tx_ref: &[u8] = tx_bytes.as_ref();
-                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                    tx_ref.try_into().expect("tx bytes too big");
-                txs.append(&mut vec![tx_bytes]);
-
-                let txs_len = txs.len();
+                let txs_len = sponsoring_tx.len();
                 if txs_len != 0 {
                     let bls_pk = self.signer_client.bls_pubkey();
                     let message = ConstraintsMessage {
@@ -270,7 +273,7 @@ where
                             .expect("key error"),
                         slot: next_slot,
                         top: false,
-                        transactions: txs.try_into().expect("tx too big"),
+                        transactions: sponsoring_tx.try_into().expect("tx too big"),
                     };
                     let digest = message.digest();
                     if let Ok(signature) = self.signer_client.sign_with_bls(context.clone(), digest)
