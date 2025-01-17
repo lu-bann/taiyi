@@ -25,6 +25,9 @@ contract Deploy is Script, Test {
     address public delegationManager;
     address public strategyManagerAddr;
     address public eigenPodManager;
+    address public rewardInitiator;
+    address public stakeRegistry;
+    address public rewardCoordinator;
 
     function run(string memory configFileName) public {
         bool is_for_dev = vm.envBool("IS_FOR_DEV");
@@ -76,6 +79,11 @@ contract Deploy is Script, Test {
                 stdJson.readAddress(output_data, ".addresses.strategyManager");
             eigenPodManager =
                 stdJson.readAddress(output_data, ".addresses.eigenPodManager");
+            rewardInitiator =
+                stdJson.readAddress(output_data, ".addresses.rewardInitiator");
+            stakeRegistry = stdJson.readAddress(output_data, ".addresses.stakeRegistry");
+            rewardCoordinator =
+                stdJson.readAddress(output_data, ".addresses.rewardCoordinator");
         }
         vm.startBroadcast();
 
@@ -106,7 +114,9 @@ contract Deploy is Script, Test {
             avsDirectory,
             delegationManager,
             strategyManagerAddr,
-            eigenPodManager
+            eigenPodManager,
+            rewardInitiator,
+            rewardCoordinator
         );
         string memory output = "output";
         string memory finalJ = vm.serializeString(output, taiyiAddresses, addresses);

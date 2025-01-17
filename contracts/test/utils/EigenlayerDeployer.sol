@@ -8,6 +8,7 @@ import "forge-std/Test.sol";
 
 import "@eigenlayer-contracts/src/contracts/interfaces/IETHPOSDeposit.sol";
 
+import "@eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 import "@eigenlayer-contracts/src/contracts/core/Slasher.sol";
 import "@eigenlayer-contracts/src/contracts/core/StrategyManager.sol";
 import "@eigenlayer-contracts/src/contracts/strategies/StrategyBase.sol";
@@ -49,6 +50,7 @@ contract EigenlayerDeployer is Operators {
     AVSDirectory public avsDirectory;
     StrategyManager public strategyManager;
     EigenPodManager public eigenPodManager;
+    RewardsCoordinator public rewardsCoordinator;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
@@ -140,6 +142,7 @@ contract EigenlayerDeployer is Operators {
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
         fuzzedAddressMapping[address(strategyManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
+        fuzzedAddressMapping[address(rewardsCoordinator)] = true;
         fuzzedAddressMapping[address(delegationManager)] = true;
         fuzzedAddressMapping[address(slasher)] = true;
     }
@@ -197,6 +200,13 @@ contract EigenlayerDeployer is Operators {
                 )
             )
         );
+        rewardsCoordinator = RewardsCoordinator(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(emptyContract), address(eigenLayerProxyAdmin), ""
+                )
+            )
+        );
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit, eigenPodManager, GOERLI_GENESIS_TIME);
 
@@ -213,6 +223,15 @@ contract EigenlayerDeployer is Operators {
             ethPOSDeposit, eigenPodBeacon, strategyManager, slasher, delegationManager
         );
         AVSDirectory avsDirectoryImplementation = new AVSDirectory(delegationManager);
+        // RewardsCoordinator rewardsCoordinatorImplementation = new RewardsCoordinator(
+        //     delegationManager,
+        //     strategyManager,
+        //     7 days, // CALCULATION_INTERVAL_SECONDS
+        //     365 days, // MAX_REWARDS_DURATION
+        //     30 days, // MAX_RETROACTIVE_LENGTH
+        //     30 days, // MAX_FUTURE_LENGTH
+        //     uint32((block.timestamp / 7 days) * 7 days) // GENESIS_REWARDS_TIMESTAMP rounded down to nearest CALCULATION_INTERVAL_SECONDS
+        // );
 
         // Third, upgrade the proxy contracts to use the correct implementation
         // contracts and initialize them.
@@ -270,6 +289,16 @@ contract EigenlayerDeployer is Operators {
                 0 /*initialPausedStatus*/
             )
         );
+        // eigenLayerProxyAdmin.upgradeAndCall(
+        //     TransparentUpgradeableProxy(payable(address(rewardsCoordinator))),
+        //     address(rewardsCoordinatorImplementation),
+        //     abi.encodeWithSelector(
+        //         RewardsCoordinator.initialize.selector,
+        //         eigenLayerReputedMultisig,
+        //         eigenLayerPauserReg,
+        //         0 /*initialPausedStatus*/
+        //     )
+        // );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test strategy
         weth =

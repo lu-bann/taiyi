@@ -23,6 +23,7 @@ contract EigenlayerMiddlewareTest is Test {
     address public owner;
     address staker;
     address operator;
+    address rewardsInitiator;
     uint256 operatorSecretKey;
 
     // State variables
@@ -41,6 +42,7 @@ contract EigenlayerMiddlewareTest is Test {
         staker = eigenLayerDeployer.setUp();
         (operator, operatorSecretKey) = makeAddrAndKey("operator");
         owner = makeAddr("owner");
+        rewardsInitiator = makeAddr("rewardsInitiator");
 
         proposerRegistry = new TaiyiProposerRegistry();
         eigenLayerMiddleware = new EigenLayerMiddleware();
@@ -52,7 +54,9 @@ contract EigenlayerMiddlewareTest is Test {
             address(eigenLayerDeployer.avsDirectory()),
             address(eigenLayerDeployer.delegationManager()),
             address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager())
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator
         );
 
         proposerRegistry.initialize(owner);

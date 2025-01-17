@@ -31,12 +31,15 @@ import { IEigenPodManager } from
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
+import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
 import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
+import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
 /// @title EigenLayerMiddleware
 /// @notice Middleware contract for integrating with EigenLayer and managing
@@ -45,6 +48,7 @@ import { IServiceManager } from
 /// and strategy management
 contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceManager {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using BitmapUtils for *;
 
     // ========= STORAGE VARIABLES =========
 
@@ -63,8 +67,14 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @notice EigenLayer Strategy Manager contract
     StrategyManagerStorage public STRATEGY_MANAGER;
 
+    /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
+    IRewardsCoordinator internal REWARDS_COORDINATOR;
+
     /// @notice Set of allowed EigenLayer strategies
-    EnumerableSet.AddressSet private strategies;
+    EnumerableSet.AddressSet internal strategies;
+
+    /// @notice The address of the entity that can initiate rewards
+    address public REWARD_INITIATOR;
 
     // ========= ERRORS =========
 
@@ -75,6 +85,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     error CallerNotOperator();
     error InvalidQueryParameters();
     error UnsupportedStrategy();
+
+    event RewardsInitiatorUpdated(
+        address indexed oldInitiator, address indexed newInitiator
+    );
 
     // ========= EVENTS =========
     event AVSDirectorySet(address indexed avsDirectory);
@@ -162,32 +176,14 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         return strategies.values();
     }
 
-    // ========= INTERNAL FUNCTIONS =========
-
-    /// @notice Internal helper to check if a map entry was active at a given
-    /// timestamp
-    /// @param enabledTime Timestamp when entry was enabled
-    /// @param disabledTime Timestamp when entry was disabled
-    /// @param timestamp Timestamp to check against
-    /// @return bool True if entry was active at timestamp
-    function _wasEnabledAt(
-        uint48 enabledTime,
-        uint48 disabledTime,
-        uint48 timestamp
-    )
-        private
-        pure
-        returns (bool)
-    {
-        return enabledTime != 0 && enabledTime <= timestamp
-            && (disabledTime == 0 || disabledTime >= timestamp);
-    }
-
-    /// @notice Authorizes contract upgrades
-    /// @param newImplementation Address of new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
-
     // ========= EXTERNAL FUNCTIONS =========
+
+    /// @notice Sets the rewards initiator address
+    /// @param newRewardsInitiator The new rewards initiator address
+    /// @dev only callable by the owner
+    function setRewardsInitiator(address newRewardsInitiator) external onlyOwner {
+        _setRewardsInitiator(newRewardsInitiator);
+    }
 
     /// @notice Initialize the contract
     /// @param _owner Address of contract owner
@@ -202,7 +198,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         address _avsDirectory,
         address _delegationManager,
         address _strategyManager,
-        address _eigenPodManager
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator
     )
         public
         initializer
@@ -217,7 +215,11 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
         STRATEGY_MANAGER = StrategyManagerStorage(_strategyManager);
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
+        REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
+
+        _setRewardsInitiator(_rewardInitiator);
     }
+
     // ========= EXTERNAL FUNCTIONS =========
 
     /// @notice Register multiple validators for multiple pod owners in a single
@@ -283,6 +285,34 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     }
 
     // ========= INTERNAL FUNCTIONS =========
+
+    /// @notice Internal helper to check if a map entry was active at a given
+    /// timestamp
+    /// @param enabledTime Timestamp when entry was enabled
+    /// @param disabledTime Timestamp when entry was disabled
+    /// @param timestamp Timestamp to check against
+    /// @return bool True if entry was active at timestamp
+    function _wasEnabledAt(
+        uint48 enabledTime,
+        uint48 disabledTime,
+        uint48 timestamp
+    )
+        private
+        pure
+        returns (bool)
+    {
+        return enabledTime != 0 && enabledTime <= timestamp
+            && (disabledTime == 0 || disabledTime >= timestamp);
+    }
+
+    /// @notice Authorizes contract upgrades
+    /// @param newImplementation Address of new implementation contract
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+
+    function _setRewardsInitiator(address newRewardsInitiator) internal {
+        emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
+        REWARD_INITIATOR = newRewardsInitiator;
+    }
 
     /// @dev Internal function to set the AVS directory.
     function _setAVSDirectory(IAVSDirectory avsDirectory_) internal {
