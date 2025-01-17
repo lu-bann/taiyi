@@ -122,6 +122,8 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         return address(AVS_DIRECTORY);
     }
 
+    // todo: add storage + add reward distribution logic
+
     /// @notice Get the strategies an operator has restaked in
     /// @param operator Address of the operator
     /// @return Array of strategy addresses the operator has restaked in
