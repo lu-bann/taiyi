@@ -1,5 +1,3 @@
-#![allow(unused_imports, dead_code)]
-
 mod clients;
 mod contract;
 mod error;

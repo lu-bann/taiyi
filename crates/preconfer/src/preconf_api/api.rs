@@ -1,31 +1,20 @@
-use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
+use std::{net::SocketAddr, str::FromStr};
 
-use alloy_consensus::{BlockHeader, Transaction, TxEnvelope};
-use alloy_eips::{eip2718::Decodable2718, BlockId};
-use alloy_network::{Ethereum, TransactionBuilder};
-use alloy_primitives::{hex, Address, PrimitiveSignature, U256};
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder};
-use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
-use alloy_rpc_types_trace::geth::{
-    CallFrame, GethDebugBuiltInTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions,
-    GethTrace,
-};
-use alloy_transport::Transport;
+use alloy_primitives::{Address, PrimitiveSignature};
+use alloy_provider::Provider;
 use axum::{
     extract::{Path, State},
     middleware,
     response::{IntoResponse, Json},
-    routing::{delete, get, post},
+    routing::{get, post},
     Router,
 };
-use eyre::OptionExt;
-use reqwest::{header::HeaderMap, StatusCode};
+use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, CancelPreconfRequest, CancelPreconfResponse, EstimateFeeRequest,
-    EstimateFeeResponse, PreconfHash, PreconfRequest, PreconfResponse, PreconfStatusResponse,
-    PreconfTxRequest, SubmitTransactionRequest,
+    BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfHash, PreconfResponse,
+    PreconfStatusResponse, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -55,7 +44,10 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run(self, state: PreconfState) -> eyre::Result<()> {
+    pub async fn run<P>(self, state: PreconfState<P>) -> eyre::Result<()>
+    where
+        P: Provider + Clone + Send + Sync + 'static,
+    {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
             .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction))
@@ -85,6 +77,7 @@ impl PreconfApiServer {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn endpoint(&self) -> String {
         format!("http://{}", self.addr)
     }
@@ -95,11 +88,14 @@ pub async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "OK"}))
 }
 
-pub async fn handle_reserve_blockspace(
+pub async fn handle_reserve_blockspace<P>(
     headers: HeaderMap,
-    State(state): State<PreconfState>,
+    State(state): State<PreconfState<P>>,
     Json(request): Json<BlockspaceAllocation>,
-) -> Result<Json<Uuid>, RpcError> {
+) -> Result<Json<Uuid>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     info!("Received blockspace reservation request");
 
     // Extract the signer and signature from the headers
@@ -130,17 +126,20 @@ pub async fn handle_reserve_blockspace(
         return Err(RpcError::SignatureError("Invalid signature".to_string()));
     }
 
-    match state.reserve_blockspace(request, signer).await {
-        Ok(request_id) => Ok(Json(request_id)),
+    match state.reserve_blockspace(request, signature, signer).await {
+        Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }
 }
 
-pub async fn handle_submit_transaction(
+pub async fn handle_submit_transaction<P>(
     headers: HeaderMap,
-    State(state): State<PreconfState>,
+    State(state): State<PreconfState<P>>,
     Json(param): Json<SubmitTransactionRequest>,
-) -> Result<Json<PreconfResponse>, RpcError> {
+) -> Result<Json<PreconfResponse>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     let signature = {
         let auth = headers
             .get("x-luban-signature")
@@ -155,23 +154,32 @@ pub async fn handle_submit_transaction(
     }
 }
 
-pub async fn get_preconf_request(
-    State(state): State<PreconfState>,
+pub async fn get_preconf_request<P>(
+    State(state): State<PreconfState<P>>,
     Path(params): Path<Uuid>,
-) -> Result<Json<PreconfStatusResponse>, RpcError> {
+) -> Result<Json<PreconfStatusResponse>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     Ok(Json(state.check_preconf_request_status(params).await?))
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
-pub async fn get_slots(
-    State(state): State<PreconfState>,
-) -> Result<Json<Vec<GetSlotResponse>>, RpcError> {
+pub async fn get_slots<P>(
+    State(state): State<PreconfState<P>>,
+) -> Result<Json<Vec<GetSlotResponse>>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     Ok(Json(state.get_slots().await?))
 }
 
-pub async fn handle_estimate_tip(
-    State(_): State<PreconfState>,
+pub async fn handle_estimate_tip<P>(
+    State(_): State<PreconfState<P>>,
     Json(_request): Json<EstimateFeeRequest>,
-) -> Result<Json<EstimateFeeResponse>, RpcError> {
+) -> Result<Json<EstimateFeeResponse>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
     Ok(Json(EstimateFeeResponse { fee: 1 }))
 }

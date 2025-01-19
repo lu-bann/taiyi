@@ -1,9 +1,9 @@
 /target
 .env
 .envrc
-# Cargo.lock
 /local
 .vscode
 /node_modules
 /package-lock.json
 /package.json
+/contracts/script/output/

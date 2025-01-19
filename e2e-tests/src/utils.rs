@@ -1,9 +1,9 @@
 #![cfg(test)]
 
-use std::{path::Path, sync::Mutex, time::Duration};
+use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::U256;
+use alloy_primitives::{Address, U256};
 use alloy_provider::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
@@ -27,7 +27,7 @@ use uuid::Uuid;
 use crate::constant::{
     AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK,
     PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
-    SUBMIT_TRANSACTION_PATH,
+    SUBMIT_TRANSACTION_PATH, TAIYI_CONTRACT_ADDRESS,
 };
 
 lazy_static::lazy_static! {
@@ -49,6 +49,7 @@ pub struct TestConfig {
     pub relay_url: String,
     pub taiyi_port: u16,
     pub context: Context,
+    pub taiyi_core: Address,
 }
 
 impl std::fmt::Debug for TestConfig {
@@ -74,7 +75,8 @@ impl TestConfig {
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
         let context = Context::try_from_file(p).unwrap();
-        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context }
+        let taiyi_core = Address::from_str(TAIYI_CONTRACT_ADDRESS).unwrap();
+        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context, taiyi_core }
     }
 
     pub fn taiyi_url(&self) -> String {
@@ -141,7 +143,7 @@ pub async fn start_taiyi_command_for_testing(
         "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
         "--taiyi-escrow-address",
-        "0xA791D59427B2b7063050187769AC871B497F4b3C",
+        config.taiyi_core.to_string().as_str(),
     ]); // Assuming TaiyiCommand is the main command struct
 
     // Spawn the taiyi command in a background task
@@ -228,7 +230,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
         .with_value(U256::from(1000))
         // TODO: use the correct nonce, dont' why the nonce above is 3.
         .with_nonce(1)
-        .with_gas_limit(21_0000)
+        .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
         .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
@@ -246,9 +248,10 @@ pub async fn generate_reserve_blockspace_request(
 ) -> (BlockspaceAllocation, String) {
     let request = BlockspaceAllocation {
         target_slot,
-        deposit: U256::from(fee * 21_000),
+        deposit: U256::from(fee * 21_000 / 2),
+        tip: U256::from(fee * 21_000 / 2),
         gas_limit,
-        num_blobs: 0,
+        blob_count: 0,
     };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());

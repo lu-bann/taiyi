@@ -112,9 +112,44 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
         _collectTip(preconfRequestHash);
     }
 
+    function sponsorEthBatch(
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    )
+        external
+        payable
+        onlyOwner
+    {
+        _sponsorEthBatch(recipients, amounts);
+    }
+
     ///////////////////////////////////////////////////////////////
     /// INTERNAL FUNCTIONS
     ///////////////////////////////////////////////////////////////
+
+    /// @notice Batch transfer ETH to multiple recipients in a single transaction
+    /// @dev Transfers specified ETH amounts to corresponding recipient addresses. Used by Gateway to sponsor ETH for preconf Txs
+    /// @param recipients Array of addresses to receive ETH
+    /// @param amounts Array of ETH amounts to send to each recipient
+    function _sponsorEthBatch(
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    )
+        internal
+    {
+        require(recipients.length == amounts.length, "Mismatched array lengths");
+
+        uint256 totalRequired;
+        for (uint256 i = 0; i < amounts.length; i++) {
+            totalRequired += amounts[i];
+        }
+        require(totalRequired <= msg.value, "Insufficient ETH sent");
+
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success,) = recipients[i].call{ value: amounts[i] }("");
+            require(success, "ETH transfer failed");
+        }
+    }
 
     /// @notice Validates the given PreconfRequestBType
     /// @dev Checks the signatures of the provided PreconfRequestBType

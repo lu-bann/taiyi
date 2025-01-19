@@ -1,5 +1,5 @@
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_primitives::{keccak256, Address, PrimitiveSignature, B256, U256};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub struct PreconfRequest {
     /// blockspace allocated
     pub allocation: BlockspaceAllocation,
+    /// Signature by the user over allocation
+    pub alloc_sig: PrimitiveSignature,
     /// Preconf transaction
     pub transaction: Option<TxEnvelope>,
     /// The signer of the transaction
@@ -23,6 +25,11 @@ impl PreconfRequest {
     /// Sets the signer.
     pub fn set_signer(&mut self, signer: Address) {
         self.signer = Some(signer);
+    }
+
+    /// Set alloc signature
+    pub fn set_alloc_sig(&mut self, sig: PrimitiveSignature) {
+        self.alloc_sig = sig;
     }
 
     /// Target slot
@@ -42,13 +49,21 @@ pub struct BlockspaceAllocation {
     /// Deposit to be locked from the sender's escrow balance
     /// This must be equal to gas_limit * fee_qouted_to_user
     pub deposit: U256,
+    /// Tip to be paid to the proposer
+    pub tip: U256,
     /// Number of blobs to reserve
-    pub num_blobs: usize,
+    pub blob_count: usize,
 }
 
 impl BlockspaceAllocation {
-    pub fn new(target_slot: u64, gas_limit: u64, deposit: U256, num_blobs: usize) -> Self {
-        Self { target_slot, gas_limit, deposit, num_blobs }
+    pub fn new(
+        target_slot: u64,
+        gas_limit: u64,
+        deposit: U256,
+        tip: U256,
+        blob_count: usize,
+    ) -> Self {
+        Self { target_slot, gas_limit, deposit, tip, blob_count }
     }
 
     pub fn digest(&self) -> B256 {
@@ -56,7 +71,8 @@ impl BlockspaceAllocation {
         digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
-        digest.extend_from_slice(&(self.num_blobs as u64).to_le_bytes());
+        digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
+        digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         keccak256(&digest)
     }
 }

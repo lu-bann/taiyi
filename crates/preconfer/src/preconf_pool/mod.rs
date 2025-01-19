@@ -1,19 +1,14 @@
-use std::{collections::HashMap, ops::Add, str::FromStr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
-use alloy_primitives::{Address, PrimitiveSignature, U256};
-use alloy_provider::{utils::EIP1559_MIN_PRIORITY_FEE, RootProvider};
-use alloy_transport_http::Http;
-use k256::elliptic_curve::rand_core::le;
+use alloy_primitives::{Address, U256};
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
-use reqwest::{Client, Url};
-use reth_revm::primitives::EnvKzgSettings;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
-use tracing::{debug, error, info};
+use taiyi_primitives::PreconfRequest;
 use uuid::Uuid;
 
 use crate::{
@@ -47,7 +42,7 @@ pub struct PreconfPool {
     /// Validator to validate preconf requests.
     validator: PreconfValidator,
     /// escrow contract
-    taiyi_escrow_address: Address,
+    pub taiyi_escrow_address: Address,
 }
 
 impl PreconfPool {
@@ -88,14 +83,14 @@ impl PreconfPool {
 
         // Verify that we have enough space
         if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
-            || blockspace_avail.blobs < preconf_request.allocation.num_blobs
+            || blockspace_avail.blobs < preconf_request.allocation.blob_count
         {
             return Err(PoolError::BlockspaceNotAvailable);
         }
 
         // calculate diffs
         blockspace_avail.gas_limit -= preconf_request.allocation.gas_limit;
-        blockspace_avail.blobs -= preconf_request.allocation.num_blobs;
+        blockspace_avail.blobs -= preconf_request.allocation.blob_count;
         blockspace_avail.num_of_constraints -= 1;
 
         let request_id = Uuid::new_v4();
@@ -114,6 +109,8 @@ impl PreconfPool {
     ) -> Result<(), PoolError> {
         if preconf_request.transaction.is_some() {
             self.validate(&preconf_request).await?;
+            // Move the request from pending to ready pool
+            self.delete_pending(request_id);
             self.insert_ready(request_id, preconf_request);
             Ok(())
         } else {
@@ -194,9 +191,9 @@ impl PreconfPool {
                     ValidationError::Internal("Failed to decode 4844 transaction".to_string())
                 })?;
 
-            if preconf_request.allocation.num_blobs < transaction.tx.blob_versioned_hashes.len() {
+            if preconf_request.allocation.blob_count < transaction.tx.blob_versioned_hashes.len() {
                 return Err(ValidationError::BlobCountExceedsLimit(
-                    preconf_request.allocation.num_blobs,
+                    preconf_request.allocation.blob_count,
                     transaction.tx.blob_versioned_hashes.len(),
                 ));
             }
@@ -206,6 +203,11 @@ impl PreconfPool {
         }
 
         Ok(())
+    }
+
+    /// Returns preconf requests in pending pool for a given slot.
+    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequest>> {
+        self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
     }
 
     /// Returns a preconf request from the pending pool.
@@ -219,7 +221,7 @@ impl PreconfPool {
     }
 
     /// Inserts a preconf request into the pending pool.
-    fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+    fn _insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequest) {
         self.pool_inner.write().pending.insert(request_id, preconf_request);
     }
 
@@ -248,6 +250,10 @@ impl PreconfPool {
     pub fn blockspace_available(&self, slot: u64) -> BlockspaceAvailable {
         self.pool_inner.read().blockspace_issued.get(&slot).cloned().unwrap_or_default()
     }
+
+    pub async fn calculate_gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
+        self.validator.execution_client.gas_used(tx).await
+    }
 }
 
 #[derive(Debug)]
@@ -263,7 +269,7 @@ pub struct PreconfPoolInner {
 impl PreconfPoolInner {
     fn escrow_balance_diffs(&self, account: Address) -> Option<U256> {
         let pending_diff = self.pending.get_pending_diffs_for_account(account);
-        let ready_diff = self.pending.get_pending_diffs_for_account(account);
+        let ready_diff = self.ready.get_pending_diffs_for_account(account);
 
         match (pending_diff, ready_diff) {
             (Some(pending_diff), Some(ready_diff)) => Some(pending_diff + ready_diff),
@@ -301,7 +307,8 @@ pub enum PoolType {
     Ready,
 }
 
-// TODO: add current base fee
+#[allow(dead_code)]
+// TODO: add intermidiate state for preconf requests
 /// The current state of the pool.
 #[derive(Debug)]
 pub struct PoolState {
@@ -314,41 +321,45 @@ mod tests {
 
     use alloy_consensus::{SidecarBuilder, SimpleCoder, TxEnvelope};
     use alloy_eips::{
-        eip1559::ETHEREUM_BLOCK_GAS_LIMIT,
         eip2718::Decodable2718,
         eip4844::{BYTES_PER_BLOB, DATA_GAS_PER_BLOB},
     };
     use alloy_network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{Address, U256, U64};
+    use alloy_primitives::{Address, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
+    use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
     use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
     use tokio::time::sleep;
     use tracing::info;
     use uuid::Uuid;
 
-    use crate::{
-        error::PoolError,
-        preconf_pool::{PoolType, PreconfPoolBuilder},
-    };
+    use crate::preconf_pool::{PoolType, PreconfPoolBuilder};
 
-    #[test]
-    fn test_add_remove_request() {
+    #[tokio::test]
+    async fn test_add_remove_request() {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
+        let sender_pk = anvil.keys().first().unwrap();
+        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
+
+        let request = BlockspaceAllocation::default();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
+
         let mut preconf = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
+            allocation: request,
+            alloc_sig: signature,
             transaction: None,
             signer: Some(Address::default()),
         };
 
         let request_id = Uuid::new_v4();
-        preconf_pool.insert_pending(request_id, preconf.clone());
+        preconf_pool._insert_pending(request_id, preconf.clone());
         assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Pending);
 
         // set transaction
@@ -380,7 +391,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         info!(
@@ -401,9 +412,13 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+        let request = BlockspaceAllocation::default();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
+
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
-            transaction: Some(transaction.clone()),
+            allocation: request,
+            alloc_sig: signature,
+            transaction: Some(transaction),
             signer: Some(*sender),
         };
         let validation_result = preconf_pool.validate(&preconf_request).await;
@@ -427,7 +442,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         info!(
@@ -459,8 +474,13 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+
+        let request = BlockspaceAllocation { blob_count: 3, ..Default::default() };
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
+
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation { num_blobs: 3, ..Default::default() },
+            allocation: request,
+            alloc_sig: signature,
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -472,7 +492,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_validate_4844_err_esceed_num_blobs_limit() -> eyre::Result<()> {
+    async fn test_validate_4844_err_esceed_blob_count_limit() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
 
@@ -485,7 +505,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         info!(
@@ -517,8 +537,13 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+
+        let request = BlockspaceAllocation { blob_count: 1, ..Default::default() };
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
+
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation { num_blobs: 1, ..Default::default() },
+            allocation: request,
+            alloc_sig: signature,
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -543,7 +568,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         info!(
@@ -564,8 +589,12 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+
+        let request = BlockspaceAllocation::default();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
+            allocation: request,
+            alloc_sig: signature,
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
@@ -588,7 +617,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         info!(
@@ -609,11 +638,17 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+
+        let request = BlockspaceAllocation::default();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
+
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
+            allocation: request,
+            alloc_sig: signature,
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
+
         let validation_result = preconf_pool.validate(&preconf_request).await;
         assert!(validation_result.is_err());
         Ok(())
@@ -633,7 +668,7 @@ mod tests {
         let receiver = anvil.addresses().last().unwrap();
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer);
+        let wallet = EthereumWallet::from(signer.clone());
 
         let fees = provider.estimate_eip1559_fees(None).await?;
         let transaction = TransactionRequest::default()
@@ -677,8 +712,11 @@ mod tests {
             .await?;
 
         info!("Transaction built: {:?}", transaction);
+        let request = BlockspaceAllocation::default();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
         let preconf_request = PreconfRequest {
-            allocation: BlockspaceAllocation::default(),
+            allocation: request,
+            alloc_sig: signature,
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };

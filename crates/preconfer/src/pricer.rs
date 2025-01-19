@@ -8,11 +8,13 @@ use alloy_transport::Transport;
 
 use crate::error::PricerError;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Pricer<F> {
     pricer: F,
 }
 
+#[allow(dead_code)]
 impl<F> Pricer<F>
 where
     F: PreconfPricer + Sync,
@@ -23,9 +25,12 @@ where
 }
 
 pub trait PreconfPricer {
+    #[allow(dead_code)]
     fn get_optimal_base_gas_fee(
         &self,
     ) -> impl std::future::Future<Output = eyre::Result<u64, PricerError>> + Send;
+
+    #[allow(dead_code)]
     /// Simply scale up the current base fee by 10% per block
     fn price_preconf(
         &self,
@@ -50,6 +55,7 @@ pub struct TaiyiFeePricer {
     url: String,
 }
 
+#[allow(dead_code)]
 impl TaiyiFeePricer {
     pub fn new(url: String) -> Self {
         Self { url }
@@ -77,6 +83,7 @@ where
     phantom: PhantomData<T>,
 }
 
+#[allow(dead_code)]
 impl<T, P> ExecutionClientFeePricer<T, P>
 where
     T: Transport + Clone,
