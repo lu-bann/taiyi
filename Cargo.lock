@@ -6580,7 +6580,6 @@ dependencies = [
  "alloy-provider",
  "alloy-signer",
  "alloy-signer-local",
- "alloy-sol-types",
  "blst",
  "cb-common",
  "clap",
@@ -6591,6 +6590,7 @@ dependencies = [
  "prost",
  "reqwest 0.12.9",
  "serde",
+ "taiyi-contracts",
  "taiyi-preconfer",
  "thiserror 2.0.7",
  "tiny-bip39",
@@ -6599,6 +6599,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zeroize",
+]
+
+[[package]]
+name = "taiyi-contracts"
+version = "0.1.2"
+dependencies = [
+ "alloy-contract",
+ "alloy-rpc-client",
+ "alloy-sol-types",
 ]
 
 [[package]]

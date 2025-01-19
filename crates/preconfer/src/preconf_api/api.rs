@@ -4,6 +4,7 @@ use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use axum::{
     extract::{Path, State},
+    middleware,
     response::{IntoResponse, Json},
     routing::{get, post},
     Router,
@@ -20,13 +21,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use super::state::GetSlotResponse;
-use crate::{
-    error::RpcError,
-    metrics::preconfer::{
-        BLOCKSPACE_REQUEST_RECEIVED, PRECONF_RESPONSE_DURATION, PRECONF_TX_RECEIVED,
-    },
-    preconf_api::PreconfState,
-};
+use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
@@ -60,6 +55,7 @@ impl PreconfApiServer {
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
             .route(ESTIMATE_TIP_PATH, post(handle_estimate_tip))
+            .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
         info!("Starting rpc server...");
@@ -101,8 +97,6 @@ where
     P: Provider + Clone + Send + Sync + 'static,
 {
     info!("Received blockspace reservation request");
-
-    let start_request = Instant::now();
 
     // Extract the signer and signature from the headers
     let (signer, signature) = {
@@ -166,6 +160,7 @@ where
 {
     let start_request = Instant::now();
 
+
     let signature = {
         let auth = headers
             .get("x-luban-signature")
@@ -175,26 +170,8 @@ where
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
     match state.submit_transaction(param, signature).await {
-        Ok(response) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
-                .inc();
-            Ok(Json(response))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), SUBMIT_TRANSACTION_PATH])
-                .observe(request_latency.as_secs_f64());
-            PRECONF_TX_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), SUBMIT_TRANSACTION_PATH])
-                .inc();
-            Err(e)
-        }
+        Ok(response) => Ok(Json(response)),
+        Err(e) => Err(e),
     }
 }
 

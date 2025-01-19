@@ -29,7 +29,7 @@ contract Operators is Test {
         );
     }
 
-    function getOperatorSecretKey(uint256 index) public returns (uint256) {
+    function getOperatorSecretKey(uint256 index) public view returns (uint256) {
         return readUint(operatorConfigJson, index, "SecretKey");
     }
 

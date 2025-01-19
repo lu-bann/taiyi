@@ -258,44 +258,26 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
 
     /// @notice Allow an operator to signal opt-in to the protocol
     /// @param operatorSignature The operator's signature
-    function registerOperator(
+    function registerOperatorToAVS(
+        address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
         public
         onlyEigenCoreOperator
         onlyNonRegisteredOperator
     {
-        _registerOperator(operatorSignature);
+        _registerOperatorToAvs(operator, operatorSignature);
     }
 
     /// @notice Deregister an operator from the protocol
-    function deregisterOperator() public onlyRegisteredOperator {
-        _deregisterOperator();
+    function deregisterOperatorFromAVS(address operator) public onlyRegisteredOperator {
+        _deregisterOperatorFromAVS(operator);
     }
 
     /// @notice Updates the metadata URI for the AVS
     /// @param metadataURI The new metadata URI
     function updateAVSMetadataURI(string calldata metadataURI) public onlyOwner {
         _updateAVSMetadataURI(metadataURI);
-    }
-
-    /// @notice Deregister an operator from the AVS
-    /// @param operator Address of operator to deregister
-    function deregisterOperatorFromAVS(address operator) external override {
-        _deregisterOperatorFromAVS(operator);
-    }
-
-    /// @notice Register an operator to the AVS
-    /// @param operator Address of operator to register
-    /// @param operatorSignature Signature from operator
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    )
-        external
-        override
-    {
-        _registerOperatorToAVS(operator, operatorSignature);
     }
 
     // ========= INTERNAL FUNCTIONS =========
@@ -350,7 +332,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
             }
 
             // Register validator in proposer registry
-            proposerRegistry.registerValidator(valPubKeys[i], podOwner);
+            proposerRegistry.registerValidator(valPubKeys[i], operator);
         }
     }
 
@@ -374,40 +356,24 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     }
 
     /// @dev Internal function that registers an operator.
-    function _registerOperator(
+    function _registerOperatorToAvs(
+        address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
         internal
     {
-        AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
-        proposerRegistry.registerOperator(msg.sender, address(this));
+        AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
+        proposerRegistry.registerOperator(operator, address(this));
     }
 
     /// @dev Internal function that deregisters an operator.
-    function _deregisterOperator() internal {
-        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
-        proposerRegistry.deregisterOperator(msg.sender);
+    function _deregisterOperatorFromAVS(address operator) internal {
+        AVS_DIRECTORY.deregisterOperatorFromAVS(operator);
+        proposerRegistry.deregisterOperator(operator);
     }
 
     /// @dev Internal function that updates the AVS metadata URI.
     function _updateAVSMetadataURI(string calldata metadataURI) internal {
         AVS_DIRECTORY.updateAVSMetadataURI(metadataURI);
-    }
-
-    /// @dev Internal function that deregisters an operator from the AVS.
-    function _deregisterOperatorFromAVS(address operator) internal {
-        require(msg.sender == operator, "Only operator can deregister");
-        AVS_DIRECTORY.deregisterOperatorFromAVS(operator);
-    }
-
-    /// @dev Internal function that registers an operator to the AVS.
-    function _registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    )
-        internal
-    {
-        require(msg.sender == operator, "Only operator can register");
-        AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
     }
 }
