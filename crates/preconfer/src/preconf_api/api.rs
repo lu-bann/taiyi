@@ -1,4 +1,4 @@
-use std::{fmt::Debug, net::SocketAddr, str::FromStr, time::Instant};
+use std::{net::SocketAddr, str::FromStr};
 
 use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
@@ -9,7 +9,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use reqwest::{header::HeaderMap, StatusCode};
+use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
@@ -127,26 +127,8 @@ where
     }
 
     match state.reserve_blockspace(request, signature, signer).await {
-        Ok(request_id) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
-                .observe(request_latency.as_secs_f64());
-            BLOCKSPACE_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
-                .inc();
-            Ok(Json(request_id))
-        }
-        Err(e) => {
-            let request_latency = start_request.elapsed();
-            PRECONF_RESPONSE_DURATION
-                .with_label_values(&[StatusCode::OK.as_str(), RESERVE_BLOCKSPACE_PATH])
-                .observe(request_latency.as_secs_f64());
-            BLOCKSPACE_REQUEST_RECEIVED
-                .with_label_values(&[StatusCode::BAD_REQUEST.as_str(), RESERVE_BLOCKSPACE_PATH])
-                .inc();
-            Err(e)
-        }
+        Ok(response) => Ok(Json(response)),
+        Err(e) => Err(e),
     }
 }
 
@@ -158,9 +140,6 @@ pub async fn handle_submit_transaction<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    let start_request = Instant::now();
-
-
     let signature = {
         let auth = headers
             .get("x-luban-signature")
