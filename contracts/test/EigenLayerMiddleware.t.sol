@@ -124,7 +124,7 @@ contract EigenlayerMiddlewareTest is Test {
 
     /// @notice Tests complete validator registration flow through the middleware
     /// including pod creation, operator setup, and validator registration
-    function testRegisterValidatorInRegistry() public {
+    function testCompleteValidatorRegistrationFlow() public {
         address mockPodOwner = makeAddr("mockPodOwner");
         vm.startPrank(mockPodOwner);
         address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
@@ -165,8 +165,6 @@ contract EigenlayerMiddlewareTest is Test {
     // ============================================
 
     /// @notice Helper function to simulate a validator being active in EigenLayer by manipulating storage
-    /// @param podAddress The address of the EigenPod contract
-    /// @param pubkey The BLS public key of the validator to activate
     function _cheatValidatorPubkeyActive(
         address podAddress,
         bytes memory pubkey

@@ -45,12 +45,7 @@ interface IProposerRegistry {
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
-    /// @param middlewareContract The middleware contract address
-    function registerOperator(
-        address operatorAddress,
-        address middlewareContract
-    )
-        external;
+    function registerOperator(address operatorAddress) external;
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
@@ -128,6 +123,28 @@ interface IProposerRegistry {
     /// @param pubKeyHash Hash of the validator's public key
     /// @return The validator's information
     function getValidator(bytes32 pubKeyHash) external view returns (Validator memory);
+
+    /// @notice Returns how many validators an operator currently controls in a given AVS.
+    /// @param avs The AVS contract address (middleware)
+    /// @param operator The operator address
+    function getValidatorCountForOperatorInAVS(
+        address avs,
+        address operator
+    )
+        external
+        view
+        returns (uint256);
+
+    /// @notice Returns a list of active operators for a given AVS.
+    /// @param avs The AVS contract address (middleware)
+    function getActiveOperatorsForAVS(address avs)
+        external
+        view
+        returns (address[] memory);
+
+    /// @notice Returns the total validator count for all operators in a given AVS.
+    /// @param avs The AVS contract address (middleware)
+    function getTotalValidatorCountForAVS(address avs) external view returns (uint256);
 
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);
