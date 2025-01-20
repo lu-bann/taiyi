@@ -31,12 +31,15 @@ import { IEigenPodManager } from
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
+import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
 import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
+import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
 /// @title EigenLayerMiddleware
 /// @notice Middleware contract for integrating with EigenLayer and managing
@@ -45,11 +48,16 @@ import { IServiceManager } from
 /// and strategy management
 contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceManager {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using BitmapUtils for *;
 
     // ========= STORAGE VARIABLES =========
 
     /// @notice TaiyiProposerRegistry contract instance
     TaiyiProposerRegistry public proposerRegistry;
+
+    /// @notice The portion of the reward that belongs to Gateway vs. Validator
+    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
+    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
 
     /// @notice EigenLayer AVS Directory contract
     IAVSDirectory public AVS_DIRECTORY;
@@ -63,8 +71,14 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @notice EigenLayer Strategy Manager contract
     StrategyManagerStorage public STRATEGY_MANAGER;
 
+    /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
+    IRewardsCoordinator internal REWARDS_COORDINATOR;
+
     /// @notice Set of allowed EigenLayer strategies
-    EnumerableSet.AddressSet private strategies;
+    EnumerableSet.AddressSet internal strategies;
+
+    /// @notice The address of the entity that can initiate rewards
+    address public REWARD_INITIATOR;
 
     // ========= ERRORS =========
 
@@ -75,6 +89,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     error CallerNotOperator();
     error InvalidQueryParameters();
     error UnsupportedStrategy();
+
+    event RewardsInitiatorUpdated(
+        address indexed oldInitiator, address indexed newInitiator
+    );
 
     // ========= EVENTS =========
     event AVSDirectorySet(address indexed avsDirectory);
@@ -92,12 +110,16 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         _;
     }
 
-    /// @notice Modifier that restricts function access to operators registered
-    /// in the proposer registry
-    /// @dev Reverts with OperatorNotRegistered if msg.sender is not registered
-    /// in proposer registry
-    modifier onlyRegisteredOperator() {
-        if (!proposerRegistry.isOperatorRegistered(msg.sender)) {
+    /// @notice only rewardsInitiator can call createAVSRewardsSubmission
+    modifier onlyRewardsInitiator() {
+        _checkRewardsInitiator();
+        _;
+    }
+
+    /// @notice Modifier that restricts function access to operators registered in the proposer registry or the contract owner
+    /// @dev Reverts with OperatorNotRegistered if msg.sender is not registered in proposer registry and is not the owner
+    modifier onlyRegisteredOperatorOrOwner() {
+        if (!proposerRegistry.isOperatorRegistered(msg.sender) && msg.sender != owner()) {
             revert OperatorNotRegistered();
         }
         _;
@@ -114,78 +136,14 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         _;
     }
 
-    // ========= VIEW FUNCTIONS =========
-
-    /// @notice Get the AVS Directory contract address
-    /// @return Address of the AVS Directory contract
-    function avsDirectory() external view override returns (address) {
-        return address(AVS_DIRECTORY);
-    }
-
-    /// @notice Get the strategies an operator has restaked in
-    /// @param operator Address of the operator
-    /// @return Array of strategy addresses the operator has restaked in
-    function getOperatorRestakedStrategies(address operator)
-        external
-        view
-        override
-        returns (address[] memory)
-    {
-        address[] memory restakedStrategies = new address[](strategies.length());
-        uint256 count = 0;
-
-        for (uint256 i = 0; i < strategies.length(); i++) {
-            address strategy = strategies.at(i);
-            if (DELEGATION_MANAGER.operatorShares(operator, IStrategy(strategy)) > 0) {
-                restakedStrategies[count] = strategy;
-                count++;
-            }
-        }
-
-        // Resize array to actual count
-        assembly {
-            mstore(restakedStrategies, count)
-        }
-        return restakedStrategies;
-    }
-
-    /// @notice Get all strategies that can be restaked
-    /// @return Array of all registered strategy addresses
-    function getRestakeableStrategies()
-        external
-        view
-        override
-        returns (address[] memory)
-    {
-        return strategies.values();
-    }
-
-    // ========= INTERNAL FUNCTIONS =========
-
-    /// @notice Internal helper to check if a map entry was active at a given
-    /// timestamp
-    /// @param enabledTime Timestamp when entry was enabled
-    /// @param disabledTime Timestamp when entry was disabled
-    /// @param timestamp Timestamp to check against
-    /// @return bool True if entry was active at timestamp
-    function _wasEnabledAt(
-        uint48 enabledTime,
-        uint48 disabledTime,
-        uint48 timestamp
-    )
-        private
-        pure
-        returns (bool)
-    {
-        return enabledTime != 0 && enabledTime <= timestamp
-            && (disabledTime == 0 || disabledTime >= timestamp);
-    }
-
-    /// @notice Authorizes contract upgrades
-    /// @param newImplementation Address of new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
-
     // ========= EXTERNAL FUNCTIONS =========
+
+    /// @notice Sets the rewards initiator address
+    /// @param newRewardsInitiator The new rewards initiator address
+    /// @dev only callable by the owner
+    function setRewardsInitiator(address newRewardsInitiator) external onlyOwner {
+        _setRewardsInitiator(newRewardsInitiator);
+    }
 
     /// @notice Initialize the contract
     /// @param _owner Address of contract owner
@@ -194,13 +152,17 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @param _delegationManager Address of delegation manager contract
     /// @param _strategyManager Address of strategy manager contract
     /// @param _eigenPodManager Address of eigen pod manager contract
+    /// @param _rewardCoordinator Address of reward coordinator contract
+    /// @param _rewardInitiator Address of reward initiator
     function initialize(
         address _owner,
         address _proposerRegistry,
         address _avsDirectory,
         address _delegationManager,
         address _strategyManager,
-        address _eigenPodManager
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator
     )
         public
         initializer
@@ -215,8 +177,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
         STRATEGY_MANAGER = StrategyManagerStorage(_strategyManager);
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
+        REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
+
+        _setRewardsInitiator(_rewardInitiator);
     }
-    // ========= EXTERNAL FUNCTIONS =========
 
     /// @notice Register multiple validators for multiple pod owners in a single
     /// transaction
@@ -270,7 +234,10 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     }
 
     /// @notice Deregister an operator from the protocol
-    function deregisterOperatorFromAVS(address operator) public onlyRegisteredOperator {
+    function deregisterOperatorFromAVS(address operator)
+        public
+        onlyRegisteredOperatorOrOwner
+    {
         _deregisterOperatorFromAVS(operator);
     }
 
@@ -280,7 +247,223 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         _updateAVSMetadataURI(metadataURI);
     }
 
+    /// @notice Creates rewards submission to be split among stakers delegated to registered operators
+    /// @param rewardsSubmissions The rewards submissions to create
+    /// @dev Only callable by rewardsInitiator
+    /// @dev Requires:
+    /// - Duration <= MAX_REWARDS_DURATION
+    /// - Strategies in ascending order
+    /// - Valid submission format
+    /// - Reasonable array size to avoid gas limits
+    function createAVSRewardsSubmission(
+        IRewardsCoordinator.RewardsSubmission[] calldata rewardsSubmissions
+    )
+        public
+        virtual
+        onlyRewardsInitiator
+    {
+        _createAVSRewardsSubmission(rewardsSubmissions);
+    }
+
+    /// @notice Creates operator-directed rewards to split between operators and their delegated stakers
+    /// @param operatorDirectedRewardsSubmissions The rewards submissions to process
+    function createOperatorDirectedAVSRewardsSubmission(
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata
+            operatorDirectedRewardsSubmissions
+    )
+        public
+        virtual
+    {
+        _createOperatorDirectedAVSRewardsSubmission(operatorDirectedRewardsSubmissions);
+    }
+
+    /// @notice Forwards a call to Eigenlayer's RewardsCoordinator contract to set the address of
+    /// the entity that can call `processClaim` on behalf of this contract.
+    /// @param claimer The address of the entity that can call `processClaim` on behalf of the earner
+    /// @dev Only callable by the owner.
+    function setClaimerFor(address claimer) public virtual onlyOwner {
+        _setClaimerFor(claimer);
+    }
+
     // ========= INTERNAL FUNCTIONS =========
+
+    function _createAVSRewardsSubmission(
+        IRewardsCoordinator.RewardsSubmission[] calldata rewardsSubmissions
+    )
+        internal
+    {
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            // transfer token to ServiceManager and approve RewardsCoordinator to transfer again
+            // in createAVSRewardsSubmission() call
+            rewardsSubmissions[i].token.transferFrom(
+                msg.sender, address(this), rewardsSubmissions[i].amount
+            );
+            rewardsSubmissions[i].token.approve(
+                address(REWARDS_COORDINATOR), rewardsSubmissions[i].amount
+            );
+        }
+
+        REWARDS_COORDINATOR.createAVSRewardsSubmission(rewardsSubmissions);
+    }
+
+    /// @notice Single function that calculates the Gateway portion vs. Validator portion
+    /// and then distributes among operators in proportion to how many validators they have.
+    /// This function gets called externally by the AVS (this contract).
+    /// The logic is "full-fledged" in that it includes all the splitting steps.
+    function _createOperatorDirectedAVSRewardsSubmission(
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
+    )
+        internal
+        virtual
+        onlyRewardsInitiator
+    {
+        // 1) For each submission, we pull in tokens from msg.sender
+        // 2) We compute gateway portion and validator portion
+        // 3) We distribute gateway portion to the gateway operator(currently only one)
+        // 4) We call into the RewardsCoordinator for the validator portion, distributing to multiple operators
+        //    based on how many validators they own in this AVS.
+
+        for (uint256 i = 0; i < submissions.length; i++) {
+            IERC20 token = submissions[i].token;
+            uint256 totalAmount = 0;
+            for (uint256 j = 0; j < submissions[i].operatorRewards.length; j++) {
+                totalAmount += submissions[i].operatorRewards[j].amount;
+            }
+
+            // Transfer tokens from the external caller into this contract
+            token.transferFrom(msg.sender, address(this), totalAmount);
+
+            // Compute gateway portion
+            uint256 gatewayAmount = (totalAmount * GATEWAY_SHARE_BIPS) / 10_000;
+            uint256 validatorAmount = totalAmount - gatewayAmount;
+
+            // Gateway portion
+            if (gatewayAmount > 0) {
+                token.approve(address(REWARDS_COORDINATOR), gatewayAmount);
+
+                // For demonstration, we might credit the gateway portion to the first operator
+                // or create a special submission. Up to your design which operator gets it.
+                // Here, we just assume the first operator from the submission.
+                address gatewayOperator = submissions[i].operatorRewards[0].operator;
+
+                IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
+                    new IRewardsCoordinator.OperatorReward[](1);
+                gatewayRewards[0] = IRewardsCoordinator.OperatorReward({
+                    operator: gatewayOperator,
+                    amount: gatewayAmount
+                });
+                IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory
+                    gatewaySubmission =
+                        new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+                gatewaySubmission[0] = IRewardsCoordinator
+                    .OperatorDirectedRewardsSubmission({
+                    strategiesAndMultipliers: submissions[i].strategiesAndMultipliers,
+                    token: token,
+                    operatorRewards: gatewayRewards,
+                    startTimestamp: submissions[i].startTimestamp,
+                    duration: submissions[i].duration,
+                    description: string(
+                        abi.encodePacked(submissions[i].description, " (Gateway portion)")
+                    )
+                });
+
+                REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
+                    address(this), gatewaySubmission
+                );
+            }
+
+            // Validator portion
+            if (validatorAmount > 0) {
+                token.approve(address(REWARDS_COORDINATOR), validatorAmount);
+
+                // Fetch all operators for this AVS (the "this" address)
+                address[] memory activeOperators =
+                    proposerRegistry.getActiveOperatorsForAVS(address(this));
+                uint256 totalValidatorCount =
+                    proposerRegistry.getTotalValidatorCountForAVS(address(this));
+
+                IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory
+                    validatorSubmissions = new IRewardsCoordinator
+                        .OperatorDirectedRewardsSubmission[](activeOperators.length);
+
+                for (uint256 opIndex = 0; opIndex < activeOperators.length; opIndex++) {
+                    // figure out how many validators belong to this operator
+                    uint256 opValidatorCount = proposerRegistry
+                        .getValidatorCountForOperatorInAVS(
+                        address(this), activeOperators[opIndex]
+                    );
+                    if (opValidatorCount == 0) {
+                        // skip or set to 0
+                        IRewardsCoordinator.OperatorReward[] memory zeroReward =
+                            new IRewardsCoordinator.OperatorReward[](1);
+                        zeroReward[0] = IRewardsCoordinator.OperatorReward({
+                            operator: activeOperators[opIndex],
+                            amount: 0
+                        });
+                        validatorSubmissions[opIndex] = IRewardsCoordinator
+                            .OperatorDirectedRewardsSubmission({
+                            strategiesAndMultipliers: submissions[i].strategiesAndMultipliers,
+                            token: token,
+                            operatorRewards: zeroReward,
+                            startTimestamp: submissions[i].startTimestamp,
+                            duration: submissions[i].duration,
+                            description: string(
+                                abi.encodePacked(submissions[i].description, " (Validator 0)")
+                            )
+                        });
+                    } else {
+                        uint256 operatorShare =
+                            (validatorAmount * opValidatorCount) / totalValidatorCount;
+
+                        IRewardsCoordinator.OperatorReward[] memory eachOpReward =
+                            new IRewardsCoordinator.OperatorReward[](1);
+                        eachOpReward[0] = IRewardsCoordinator.OperatorReward({
+                            operator: activeOperators[opIndex],
+                            amount: operatorShare
+                        });
+
+                        validatorSubmissions[opIndex] = IRewardsCoordinator
+                            .OperatorDirectedRewardsSubmission({
+                            strategiesAndMultipliers: submissions[i].strategiesAndMultipliers,
+                            token: token,
+                            operatorRewards: eachOpReward,
+                            startTimestamp: submissions[i].startTimestamp,
+                            duration: submissions[i].duration,
+                            description: string(
+                                abi.encodePacked(
+                                    submissions[i].description, " (Validator portion)"
+                                )
+                            )
+                        });
+                    }
+                }
+
+                REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
+                    address(this), validatorSubmissions
+                );
+            }
+        }
+    }
+
+    function _setClaimerFor(address claimer) internal {
+        REWARDS_COORDINATOR.setClaimerFor(claimer);
+    }
+
+    function _checkRewardsInitiator() internal view {
+        require(
+            msg.sender == REWARD_INITIATOR,
+            "EigenLayerMiddleware.onlyRewardsInitiator: caller is not the rewards initiator"
+        );
+    }
+
+    /// @notice Authorizes contract upgrades
+    /// @param newImplementation Address of new implementation contract
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+
+    function _setRewardsInitiator(address newRewardsInitiator) internal {
+        emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
+        REWARD_INITIATOR = newRewardsInitiator;
+    }
 
     /// @dev Internal function to set the AVS directory.
     function _setAVSDirectory(IAVSDirectory avsDirectory_) internal {
@@ -375,5 +558,51 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @dev Internal function that updates the AVS metadata URI.
     function _updateAVSMetadataURI(string calldata metadataURI) internal {
         AVS_DIRECTORY.updateAVSMetadataURI(metadataURI);
+    }
+
+    // ========= VIEW FUNCTIONS =========
+
+    /// @notice Get the AVS Directory contract address
+    /// @return Address of the AVS Directory contract
+    function avsDirectory() external view override returns (address) {
+        return address(AVS_DIRECTORY);
+    }
+
+    /// @notice Get the strategies an operator has restaked in
+    /// @param operator Address of the operator
+    /// @return Array of strategy addresses the operator has restaked in
+    function getOperatorRestakedStrategies(address operator)
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        address[] memory restakedStrategies = new address[](strategies.length());
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < strategies.length(); i++) {
+            address strategy = strategies.at(i);
+            if (DELEGATION_MANAGER.operatorShares(operator, IStrategy(strategy)) > 0) {
+                restakedStrategies[count] = strategy;
+                count++;
+            }
+        }
+
+        // Resize array to actual count
+        assembly {
+            mstore(restakedStrategies, count)
+        }
+        return restakedStrategies;
+    }
+
+    /// @notice Get all strategies that can be restaked
+    /// @return Array of all registered strategy addresses
+    function getRestakeableStrategies()
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        return strategies.values();
     }
 }

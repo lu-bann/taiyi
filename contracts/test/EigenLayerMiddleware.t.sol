@@ -23,6 +23,7 @@ contract EigenlayerMiddlewareTest is Test {
     address public owner;
     address staker;
     address operator;
+    address rewardsInitiator;
     uint256 operatorSecretKey;
 
     // State variables
@@ -41,6 +42,7 @@ contract EigenlayerMiddlewareTest is Test {
         staker = eigenLayerDeployer.setUp();
         (operator, operatorSecretKey) = makeAddrAndKey("operator");
         owner = makeAddr("owner");
+        rewardsInitiator = makeAddr("rewardsInitiator");
 
         proposerRegistry = new TaiyiProposerRegistry();
         eigenLayerMiddleware = new EigenLayerMiddleware();
@@ -52,7 +54,9 @@ contract EigenlayerMiddlewareTest is Test {
             address(eigenLayerDeployer.avsDirectory()),
             address(eigenLayerDeployer.delegationManager()),
             address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager())
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator
         );
 
         proposerRegistry.initialize(owner);
@@ -120,7 +124,7 @@ contract EigenlayerMiddlewareTest is Test {
 
     /// @notice Tests complete validator registration flow through the middleware
     /// including pod creation, operator setup, and validator registration
-    function testRegisterValidatorInRegistry() public {
+    function testCompleteValidatorRegistrationFlow() public {
         address mockPodOwner = makeAddr("mockPodOwner");
         vm.startPrank(mockPodOwner);
         address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
@@ -161,8 +165,6 @@ contract EigenlayerMiddlewareTest is Test {
     // ============================================
 
     /// @notice Helper function to simulate a validator being active in EigenLayer by manipulating storage
-    /// @param podAddress The address of the EigenPod contract
-    /// @param pubkey The BLS public key of the validator to activate
     function _cheatValidatorPubkeyActive(
         address podAddress,
         bytes memory pubkey

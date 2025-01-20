@@ -32,11 +32,17 @@ contract TaiyiProposerRegistry is
     ///                      STATE
     /// ----------------------------------------------------------
 
-    /// @notice Mapping from BLS public key hash to Validator structs
-    mapping(bytes32 => Validator) public validators;
-
     /// @notice Duration required for validators to complete opt-out process
     uint256 public constant OPT_OUT_COOLDOWN = 1 days;
+
+    // Maps each operator => which AVS they belong to => validator count
+    mapping(address => mapping(address => uint256)) private _operatorToAVSValidatorCount;
+
+    // Tracks the set of operators for each AVS
+    mapping(address => EnumerableSet.AddressSet) private _avsToOperators;
+
+    /// @notice Mapping from BLS public key hash to Validator structs
+    mapping(bytes32 => Validator) public validators;
 
     /// @notice Mapping of operator addresses to their Operator structs
     mapping(address => Operator) public registeredOperators;
@@ -70,9 +76,6 @@ contract TaiyiProposerRegistry is
         require(
             restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
         );
-        require(
-            restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
-        );
         _;
     }
 
@@ -100,23 +103,13 @@ contract TaiyiProposerRegistry is
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
-    /// @param middlewareContract The middleware contract address
-    function registerOperator(
-        address operatorAddress,
-        address middlewareContract
-    )
-        external
-        onlyRestakingMiddlewareContracts
-    {
-        _registerOperator(operatorAddress, middlewareContract);
+    function registerOperator(address operatorAddress) external {
+        _registerOperator(operatorAddress);
     }
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
-    function deregisterOperator(address operatorAddress)
-        external
-        onlyRestakingMiddlewareContracts
-    {
+    function deregisterOperator(address operatorAddress) external {
         _deregisterOperator(operatorAddress);
     }
 
@@ -129,7 +122,6 @@ contract TaiyiProposerRegistry is
     )
         external
         payable
-        onlyRestakingMiddlewareContracts
     {
         _registerValidator(pubkey, operator);
     }
@@ -143,7 +135,6 @@ contract TaiyiProposerRegistry is
     )
         external
         payable
-        onlyRestakingMiddlewareContracts
     {
         _batchRegisterValidators(pubkeys, operator);
     }
@@ -165,6 +156,13 @@ contract TaiyiProposerRegistry is
     ///                       INTERNAL FUNCTIONS
     /// ----------------------------------------------------------
 
+    /// @notice Hashes a BLS public key
+    /// @param pubkey The BLS public key to hash
+    /// @return The hash of the public key
+    function _hashBLSPubKey(bytes calldata pubkey) internal pure returns (bytes32) {
+        return keccak256(pubkey);
+    }
+
     /// @dev Internal function that adds a new middleware contract to the
     /// registry
     function _addRestakingMiddlewareContract(address middlewareContract) internal {
@@ -183,6 +181,7 @@ contract TaiyiProposerRegistry is
         address middlewareContract
     )
         internal
+        onlyRestakingMiddlewareContracts
     {
         require(
             registeredOperators[operatorAddress].operatorAddress == address(0),
@@ -191,23 +190,37 @@ contract TaiyiProposerRegistry is
 
         Operator memory operatorData = Operator({
             operatorAddress: operatorAddress,
-            restakingMiddlewareContract: middlewareContract
+            restakingMiddlewareContract: msg.sender
         });
 
         registeredOperators[operatorAddress] = operatorData;
+
+        _avsToOperators[msg.sender].add(operatorAddress);
     }
 
     /// @dev Internal function that deregisters an existing operator
-    function _deregisterOperator(address operatorAddress) internal {
+    function _deregisterOperator(address operatorAddress)
+        internal
+        onlyRestakingMiddlewareContracts
+    {
         require(
             registeredOperators[operatorAddress].operatorAddress != address(0),
             "Operator not registered"
         );
+
+        _avsToOperators[msg.sender].remove(operatorAddress);
+
         delete registeredOperators[operatorAddress];
     }
 
     /// @dev Internal function that registers a single validator
-    function _registerValidator(bytes calldata pubkey, address operator) internal {
+    function _registerValidator(
+        bytes calldata pubkey,
+        address operator
+    )
+        internal
+        onlyRestakingMiddlewareContracts
+    {
         require(
             registeredOperators[operator].operatorAddress != address(0),
             "Operator not registered"
@@ -226,6 +239,11 @@ contract TaiyiProposerRegistry is
             optOutTimestamp: 0
         });
 
+        address avs = registeredOperators[operator].restakingMiddlewareContract;
+        require(avs == msg.sender, "Unauthorized middleware");
+        require(avs != address(0), "AVS not registered");
+        _operatorToAVSValidatorCount[avs][operator] += 1;
+
         emit ValidatorRegistered(pubkeyHash, operator);
     }
 
@@ -235,6 +253,7 @@ contract TaiyiProposerRegistry is
         address operator
     )
         internal
+        onlyRestakingMiddlewareContracts
     {
         require(
             registeredOperators[operator].operatorAddress != address(0),
@@ -242,22 +261,7 @@ contract TaiyiProposerRegistry is
         );
 
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            bytes memory pubkey = pubkeys[i];
-            bytes32 pubkeyHash = keccak256(pubkey);
-
-            require(
-                validators[pubkeyHash].status == ValidatorStatus.NotRegistered,
-                "Validator already registered"
-            );
-
-            validators[pubkeyHash] = Validator({
-                pubkey: pubkey,
-                operator: operator,
-                status: ValidatorStatus.Active,
-                optOutTimestamp: 0
-            });
-
-            emit ValidatorRegistered(pubkeyHash, operator);
+            this.registerValidator(pubkeys[i], operator);
         }
     }
 
@@ -373,10 +377,54 @@ contract TaiyiProposerRegistry is
         return validators[pubKeyHash].operator;
     }
 
-    /// @notice Hashes a BLS public key
-    /// @param pubkey The BLS public key to hash
-    /// @return The hash of the public key
-    function _hashBLSPubKey(bytes calldata pubkey) internal pure returns (bytes32) {
-        return keccak256(pubkey);
+    /// @notice Gets the number of validators registered to an operator for a specific AVS
+    /// @param avs The address of the AVS contract
+    /// @param operator The address of the operator
+    /// @return The number of validators registered to the operator for the AVS
+    function getValidatorCountForOperatorInAVS(
+        address avs,
+        address operator
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return _operatorToAVSValidatorCount[avs][operator];
+    }
+
+    /// @notice Gets all active operators registered with a specific AVS
+    /// @param avs The address of the AVS contract
+    /// @return An array of operator addresses registered with the AVS
+    function getActiveOperatorsForAVS(address avs)
+        external
+        view
+        override
+        returns (address[] memory)
+    {
+        uint256 length = _avsToOperators[avs].length();
+        address[] memory results = new address[](length);
+        for (uint256 i = 0; i < length; i++) {
+            results[i] = _avsToOperators[avs].at(i);
+        }
+        return results;
+    }
+
+    /// @notice Gets the total number of validators registered across all operators for an AVS
+    /// @param avs The address of the AVS contract
+    /// @return The total number of validators registered with the AVS
+    function getTotalValidatorCountForAVS(address avs)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 totalCount = 0;
+        uint256 length = _avsToOperators[avs].length();
+        for (uint256 i = 0; i < length; i++) {
+            address op = _avsToOperators[avs].at(i);
+            totalCount += _operatorToAVSValidatorCount[avs][op];
+        }
+        return totalCount;
     }
 }
