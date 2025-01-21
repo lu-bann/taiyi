@@ -35,7 +35,7 @@ contract TaiyiProposerRegistryTest is Test {
     function testRegisterOperator() public {
         // Must be called by the restaking contract
         vm.prank(middleware);
-        registry.registerOperator(operator, address(0xdead));
+        registry.registerOperator(operator);
 
         // Check that it was registered
         (address opAddr, address restakingContract) = getOperatorData(operator);
@@ -49,23 +49,23 @@ contract TaiyiProposerRegistryTest is Test {
     function testRegisterOperatorRevertsIfAlreadyRegistered() public {
         // First time success
         vm.prank(middleware);
-        registry.registerOperator(operator, address(0xdead));
+        registry.registerOperator(operator);
 
         // Second time revert
         vm.prank(middleware);
         vm.expectRevert(bytes("Operator already registered"));
-        registry.registerOperator(operator, address(0xdead));
+        registry.registerOperator(operator);
     }
 
     function testRegisterOperatorRevertsIfNotCalledByMiddleware() public {
         vm.expectRevert(bytes("Unauthorized middleware"));
-        registry.registerOperator(operator, address(0xdead));
+        registry.registerOperator(operator);
     }
 
     function testDeregisterOperator() public {
         // Register
         vm.prank(middleware);
-        registry.registerOperator(operator2, address(0xbeef));
+        registry.registerOperator(operator2);
 
         // Deregister
         vm.prank(middleware);

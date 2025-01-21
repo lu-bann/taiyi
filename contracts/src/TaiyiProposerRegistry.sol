@@ -35,6 +35,9 @@ contract TaiyiProposerRegistry is
     /// @notice Duration required for validators to complete opt-out process
     uint256 public constant OPT_OUT_COOLDOWN = 1 days;
 
+    /// @dev Mapping AVS => AVSType, so we know how to categorize operators
+    mapping(address => AVSType) private _avsTypes;
+
     // Maps each operator => which AVS they belong to => validator count
     mapping(address => mapping(address => uint256)) private _operatorToAVSValidatorCount;
 
@@ -156,6 +159,11 @@ contract TaiyiProposerRegistry is
     ///                       INTERNAL FUNCTIONS
     /// ----------------------------------------------------------
 
+    /// @dev Let owner manually set AVSType for any AVS
+    function setAVSType(address avs, AVSType avsType) external onlyOwner {
+        _avsTypes[avs] = avsType;
+    }
+
     /// @notice Hashes a BLS public key
     /// @param pubkey The BLS public key to hash
     /// @return The hash of the public key
@@ -176,10 +184,7 @@ contract TaiyiProposerRegistry is
     }
 
     /// @dev Internal function that registers a new operator
-    function _registerOperator(
-        address operatorAddress,
-        address middlewareContract
-    )
+    function _registerOperator(address operatorAddress)
         internal
         onlyRestakingMiddlewareContracts
     {
@@ -319,6 +324,11 @@ contract TaiyiProposerRegistry is
     ///                          VIEW
     /// ----------------------------------------------------------
 
+    /// @dev Returns the AVSType for a given AVS
+    function getAVSType(address avs) public view returns (AVSType) {
+        return _avsTypes[avs];
+    }
+
     /// @notice Gets the operator address for a given validator public key
     /// @param pubkey The BLS public key of the validator
     /// @return The operator address associated with the validator
@@ -393,15 +403,25 @@ contract TaiyiProposerRegistry is
         return _operatorToAVSValidatorCount[avs][operator];
     }
 
-    /// @notice Gets all active operators registered with a specific AVS
-    /// @param avs The address of the AVS contract
-    /// @return An array of operator addresses registered with the AVS
-    function getActiveOperatorsForAVS(address avs)
+    /// @notice New function that returns active operators specifically for
+    ///         GATEWAY-type or VALIDATOR-type AVSs.
+    /// @param avs The address of the AVS
+    /// @param avsType The AVSType (GATEWAY or VALIDATOR)
+    /// @return an array of operator addresses for that AVS
+    ///
+    /// Simple Visual:
+    ///   AVS -> [Operator1, Operator2, ...]
+    ///   Filter by avsType if needed
+    function getActiveOperatorsForAVS(
+        address avs,
+        AVSType avsType
+    )
         external
         view
-        override
         returns (address[] memory)
     {
+        // only return operators if the AVSType matches
+        require(_avsTypes[avs] == avsType, "Mismatched AVSType");
         uint256 length = _avsToOperators[avs].length();
         address[] memory results = new address[](length);
         for (uint256 i = 0; i < length; i++) {
@@ -410,15 +430,20 @@ contract TaiyiProposerRegistry is
         return results;
     }
 
-    /// @notice Gets the total number of validators registered across all operators for an AVS
-    /// @param avs The address of the AVS contract
-    /// @return The total number of validators registered with the AVS
-    function getTotalValidatorCountForAVS(address avs)
+    /// @notice Returns the total number of validators registered for a specific AVS
+    /// @param avs The address of the AVS to check
+    /// @return The total count of validators across all operators for this AVS
+    /// @dev Iterates through all operators registered with this AVS and sums their validator counts
+    function getTotalValidatorCountForAVS(
+        address avs,
+        AVSType avsType
+    )
         external
         view
-        override
         returns (uint256)
     {
+        // only return operators if the AVSType matches
+        require(_avsTypes[avs] == avsType, "Mismatched AVSType");
         uint256 totalCount = 0;
         uint256 length = _avsToOperators[avs].length();
         for (uint256 i = 0; i < length; i++) {

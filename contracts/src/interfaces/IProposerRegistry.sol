@@ -12,6 +12,12 @@ interface IProposerRegistry {
         OptingOut
     }
 
+    /// @dev Different types of AVS for clearer operator organization
+    enum AVSType {
+        GATEWAY,
+        VALIDATOR
+    }
+
     // Validator struct containing all necessary information
     struct Validator {
         bytes pubkey;
