@@ -2,9 +2,12 @@
 pragma solidity ^0.8.25;
 
 import "./EigenLayerMiddleware.sol";
+
+import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 /// @title GatewayAVS
 /// @notice Contract for managing gateway-specific AVS functionality and reward distribution
@@ -40,7 +43,7 @@ contract GatewayAVS {
 
         /// Get all active gateway operators registered for this AVS
         address[] memory operators = parentMiddleware.proposerRegistry()
-            .getActiveOperatorsForAVS(address(this), AVSType.GATEWAY);
+            .getActiveOperatorsForAVS(address(this), IProposerRegistry.AVSType.GATEWAY);
         require(operators.length > 0, "GatewayAVS: No operators");
 
         /// Calculate per-operator reward amount

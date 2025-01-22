@@ -6,7 +6,8 @@ import { OwnableUpgradeable } from
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
@@ -31,11 +32,11 @@ import { IEigenPodManager } from
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
+import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
-import { irewardscoordinator } from
-    "@eigenlayer-contracts/src/contracts/interfaces/irewardscoordinator.sol";
 
 import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
@@ -79,7 +80,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     StrategyManagerStorage public STRATEGY_MANAGER;
 
     /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
-    IRewardsCoordinator internal REWARDS_COORDINATOR;
+    IRewardsCoordinator public REWARDS_COORDINATOR;
 
     /// @notice Set of allowed EigenLayer strategies
     EnumerableSet.AddressSet internal strategies;
@@ -96,6 +97,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     );
     event GatewayAVSDeployed(address gatewayAVS);
     event ValidatorAVSDeployed(address validatorAVS);
+    event AVSDirectorySet(address indexed avsDirectory);
 
     error ValidatorNotActiveWithinEigenCore();
     error OperatorAlreadyRegistered();
@@ -103,13 +105,6 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     error CallerNotOperator();
     error InvalidQueryParameters();
     error UnsupportedStrategy();
-
-    event RewardsInitiatorUpdated(
-        address indexed oldInitiator, address indexed newInitiator
-    );
-
-    // ========= EVENTS =========
-    event AVSDirectorySet(address indexed avsDirectory);
 
     // ========= MODIFIERS =========
 
@@ -265,23 +260,6 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @param metadataURI The new metadata URI
     function updateAVSMetadataURI(string calldata metadataURI) public onlyOwner {
         _updateAVSMetadataURI(metadataURI);
-    }
-
-    /// @notice Creates rewards submission to be split among stakers delegated to registered operators
-    /// @param rewardsSubmissions The rewards submissions to create
-    /// @dev Only callable by rewardsInitiator
-    /// @dev Requires:
-    /// - Duration <= MAX_REWARDS_DURATION
-    /// - Strategies in ascending order
-    /// - Valid submission format
-    /// - Reasonable array size to avoid gas limits
-    function createAVSRewardsSubmission(
-        IRewardsCoordinator.RewardsSubmission[] calldata rewardsSubmissions
-    )
-        public
-        virtual
-    {
-        _createAVSRewardsSubmission(rewardsSubmissions);
     }
 
     /// @notice Creates operator-directed rewards to split between operators and their delegated stakers

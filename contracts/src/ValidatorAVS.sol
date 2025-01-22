@@ -2,9 +2,12 @@
 pragma solidity ^0.8.25;
 
 import "./EigenLayerMiddleware.sol";
+
+import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 /// @title ValidatorAVS
 /// @notice A standalone AVS for validator distribution. Receives a
@@ -37,10 +40,10 @@ contract ValidatorAVS {
         token.approve(address(parentMiddleware.REWARDS_COORDINATOR()), validatorAmount);
 
         // Get validator operators and total count for this AVS
-        address[] memory operators =
-            parentMiddleware.proposerRegistry().getActiveOperatorsForAVS(address(this));
+        address[] memory operators = parentMiddleware.proposerRegistry()
+            .getActiveOperatorsForAVS(address(this), IProposerRegistry.AVSType.VALIDATOR);
         uint256 totalValidatorCount = parentMiddleware.proposerRegistry()
-            .getTotalValidatorCountForAVS(address(this));
+            .getTotalValidatorCountForAVS(address(this), IProposerRegistry.AVSType.VALIDATOR);
 
         // Build array of OperatorRewards proportionally
         IRewardsCoordinator.OperatorReward[] memory opRewards =

@@ -143,14 +143,23 @@ interface IProposerRegistry {
 
     /// @notice Returns a list of active operators for a given AVS.
     /// @param avs The AVS contract address (middleware)
-    function getActiveOperatorsForAVS(address avs)
+    function getActiveOperatorsForAVS(
+        address avs,
+        AVSType avsType
+    )
         external
         view
         returns (address[] memory);
 
     /// @notice Returns the total validator count for all operators in a given AVS.
     /// @param avs The AVS contract address (middleware)
-    function getTotalValidatorCountForAVS(address avs) external view returns (uint256);
+    function getTotalValidatorCountForAVS(
+        address avs,
+        AVSType avsType
+    )
+        external
+        view
+        returns (uint256);
 
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);

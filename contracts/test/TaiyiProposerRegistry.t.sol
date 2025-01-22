@@ -40,7 +40,7 @@ contract TaiyiProposerRegistryTest is Test {
         // Check that it was registered
         (address opAddr, address restakingContract) = getOperatorData(operator);
         assertEq(opAddr, operator);
-        assertEq(restakingContract, address(0xdead));
+        assertEq(restakingContract, middleware);
 
         bool isReg = registry.isOperatorRegistered(operator);
         assertTrue(isReg);
