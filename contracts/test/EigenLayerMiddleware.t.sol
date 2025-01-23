@@ -10,6 +10,9 @@ import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
 import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
+
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "forge-std/Test.sol";
 import { BLS12381 } from "src/libs/BLS12381.sol";
 

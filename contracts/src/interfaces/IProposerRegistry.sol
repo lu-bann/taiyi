@@ -24,11 +24,14 @@ interface IProposerRegistry {
         ValidatorStatus status;
         uint256 optOutTimestamp;
         address operator;
+        bytes delegatee;
     }
 
     struct Operator {
         address operatorAddress;
         address restakingMiddlewareContract;
+        AVSType avsType;
+        bytes pubKeys;
     }
 
     // Events
@@ -65,9 +68,11 @@ interface IProposerRegistry {
     /// @notice Registers a single validator
     /// @param pubkey The BLS public key of the validator
     /// @param operator The operator address for the validator
+    /// @param delegatee The address that will be delegated to for this validator
     function registerValidator(
         bytes calldata pubkey,
-        address operator
+        address operator,
+        address delegatee
     )
         external
         payable;

@@ -35,6 +35,9 @@ contract TaiyiProposerRegistry is
     /// @notice Duration required for validators to complete opt-out process
     uint256 public constant OPT_OUT_COOLDOWN = 1 days;
 
+    /// @notice Mapping from operator BLS public key to their operator data
+    mapping(bytes => Operator) public operatorBlsKeyToData;
+
     /// @dev Mapping AVS => AVSType, so we know how to categorize operators
     mapping(address => AVSType) private _avsTypes;
 
@@ -106,8 +109,18 @@ contract TaiyiProposerRegistry is
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
-    function registerOperator(address operatorAddress) external {
-        _registerOperator(operatorAddress);
+    function registerOperator(
+        address operatorAddress,
+        AVSType avsType,
+        bytes blsKey
+    )
+        external
+    {
+        if (avsType == AVSType.GATEWAY) {
+            _registerGatewayAVSOperator(operatorAddress, blsKey);
+        } else {
+            _registerValidatorAVSOperator(operatorAddress);
+        }
     }
 
     /// @notice Deregisters an existing operator
@@ -183,8 +196,7 @@ contract TaiyiProposerRegistry is
         restakingMiddlewareContracts.remove(middlewareContract);
     }
 
-    /// @dev Internal function that registers a new operator
-    function _registerOperator(address operatorAddress)
+    function _registerValidatorAVSOperator(address operatorAddress)
         internal
         onlyRestakingMiddlewareContracts
     {
@@ -195,12 +207,38 @@ contract TaiyiProposerRegistry is
 
         Operator memory operatorData = Operator({
             operatorAddress: operatorAddress,
-            restakingMiddlewareContract: msg.sender
+            restakingMiddlewareContract: msg.sender,
+            avsType: AVSType.VALIDATOR,
+            blsKey: bytes("")
         });
 
         registeredOperators[operatorAddress] = operatorData;
-
         _avsToOperators[msg.sender].add(operatorAddress);
+    }
+
+    /// @dev Internal function that registers a new operator
+    function _registerGatewayAVSOperator(
+        address operatorAddress,
+        bytes pubKeys
+    )
+        internal
+        onlyRestakingMiddlewareContracts
+    {
+        require(
+            registeredOperators[operatorAddress].operatorAddress == address(0),
+            "Operator already registered"
+        );
+
+        Operator memory operatorData = Operator({
+            operatorAddress: operatorAddress,
+            restakingMiddlewareContract: msg.sender,
+            avsType: AVSType.GATEWAY,
+            blsKey: blsKey
+        });
+
+        registeredOperators[operatorAddress] = operatorData;
+        _avsToOperators[msg.sender].add(operatorAddress);
+        operatorBlsKeyToData[blsKey] = operatorData;
     }
 
     /// @dev Internal function that deregisters an existing operator
@@ -221,7 +259,8 @@ contract TaiyiProposerRegistry is
     /// @dev Internal function that registers a single validator
     function _registerValidator(
         bytes calldata pubkey,
-        address operator
+        address operator,
+        bytes calldata delegatee
     )
         internal
         onlyRestakingMiddlewareContracts
@@ -230,6 +269,7 @@ contract TaiyiProposerRegistry is
             registeredOperators[operator].operatorAddress != address(0),
             "Operator not registered"
         );
+        require(delegatee.length > 0, "Invalid delegatee");
 
         bytes32 pubkeyHash = keccak256(pubkey);
         require(
@@ -241,7 +281,8 @@ contract TaiyiProposerRegistry is
             pubkey: pubkey,
             operator: operator,
             status: ValidatorStatus.Active,
-            optOutTimestamp: 0
+            optOutTimestamp: 0,
+            delegatee: delegatee
         });
 
         address avs = registeredOperators[operator].restakingMiddlewareContract;
@@ -346,9 +387,25 @@ contract TaiyiProposerRegistry is
     /// @notice Checks if an operator is registered in the registry
     /// @param operatorAddress The address of the operator to check
     /// @return bool True if the operator is registered, false otherwise
-    function isOperatorRegistered(address operatorAddress) public view returns (bool) {
-        return
-            registeredOperators[operatorAddress].restakingMiddlewareContract != address(0);
+    function isOperatorRegisteredInValidatorAVS(address operatorAddress)
+        public
+        view
+        returns (bool)
+    {
+        return registeredOperators[operatorAddress].avsType
+            == IProposerRegistry.AVSType.VALIDATOR;
+    }
+
+    /// @notice Checks if an operator is registered in the registry
+    /// @param operatorAddress The address of the operator to check
+    /// @return bool True if the operator is registered, false otherwise
+    function isOperatorRegisteredInGatewayAVS(address operatorAddress)
+        public
+        view
+        returns (bool)
+    {
+        return registeredOperators[operatorAddress].avsType
+            == IProposerRegistry.AVSType.GATEWAY;
     }
 
     /// @notice Gets validator status by public key hash

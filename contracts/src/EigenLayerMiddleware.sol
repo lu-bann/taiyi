@@ -45,12 +45,13 @@ import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.so
 import { GatewayAVS } from "./GatewayAVS.sol";
 import { ValidatorAVS } from "./ValidatorAVS.sol";
 
-/// @title EigenLayerMiddleware
-/// @notice Middleware contract for integrating with EigenLayer and managing
-/// operators/strategies
-/// @dev Implements IServiceManager interface and handles operator registration
-/// and strategy management
-contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceManager {
+/// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
+/// @dev Both GatewayAVS and ValidatorAVS should inherit from this contract.
+abstract contract EigenLayerMiddleware is
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    IServiceManager
+{
     using EnumerableSet for EnumerableSet.AddressSet;
     using BitmapUtils for *;
 
@@ -88,16 +89,14 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// @notice The address of the entity that can initiate rewards
     address public REWARD_INITIATOR;
 
-    // ========= ERRORS =========
-
-    error SenderNotPodOwnerOrOperator();
+    // ========= EVENTS =========
 
     event RewardsInitiatorUpdated(
         address indexed oldInitiator, address indexed newInitiator
     );
-    event GatewayAVSDeployed(address gatewayAVS);
-    event ValidatorAVSDeployed(address validatorAVS);
     event AVSDirectorySet(address indexed avsDirectory);
+
+    // ========= ERRORS =========
 
     error ValidatorNotActiveWithinEigenCore();
     error OperatorAlreadyRegistered();
@@ -188,13 +187,6 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
-
-        // Deploy the two AVS contracts
-        gatewayAVS = new GatewayAVS(address(this));
-        validatorAVS = new ValidatorAVS(address(this));
-
-        emit GatewayAVSDeployed(address(gatewayAVS));
-        emit ValidatorAVSDeployed(address(validatorAVS));
     }
 
     /// @notice Register multiple validators for multiple pod owners in a single
@@ -206,15 +198,16 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     /// validators specified in the corresponding
     /// valPubKeys array
     /// @dev Length of valPubKeys array must match length of podOwners array
-    function registerValidator(
+    function registerValidators(
         bytes[][] calldata valPubKeys,
-        address[] calldata podOwners
+        address[] calldata podOwners,
+        address[] calldata delegatedGateways
     )
         external
     {
         uint256 len = podOwners.length;
         for (uint256 i = 0; i < len; ++i) {
-            _registerValidators(valPubKeys[i], podOwners[i]);
+            _registerValidators(valPubKeys[i], podOwners[i], delegatedGateways[i]);
         }
     }
 
@@ -241,9 +234,8 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         address operator,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
-        public
-        onlyEigenCoreOperator
-        onlyNonRegisteredOperator
+        external
+        virtual
     {
         _registerOperatorToAvs(operator, operatorSignature);
     }
@@ -257,7 +249,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     }
 
     /// @notice Updates the metadata URI for the AVS
-    /// @param metadataURI The new metadata URI
+    /// @param metadataURI The new metadta URI
     function updateAVSMetadataURI(string calldata metadataURI) public onlyOwner {
         _updateAVSMetadataURI(metadataURI);
     }
@@ -322,72 +314,7 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     )
         internal
         virtual
-        onlyRewardsInitiator
-    {
-        // We expect exactly 2 submissions: the first for Gateway, the second for Validator
-        require(
-            submissions.length == 2,
-            "EigenLayerMiddleware: Must pass exactly 2 submissions"
-        );
-
-        // Verify that the first submission is for the Gateway portion by checking its description
-        require(
-            keccak256(bytes(submissions[0].description)) == keccak256(bytes("gateway")),
-            "EigenLayerMiddleware: First submission must be the Gateway portion"
-        );
-        // Verify that the second submission is for the Validator portion by checking its description
-        require(
-            keccak256(bytes(submissions[1].description)) == keccak256(bytes("validator")),
-            "EigenLayerMiddleware: Second submission must be the Validator portion"
-        );
-
-        // Handle Gateway submission
-        _handleAVSSubmission(
-            submissions[0],
-            address(gatewayAVS),
-            gatewayAVS.handleGatewayRewards,
-            "Gateway"
-        );
-
-        // Handle Validator submission
-        _handleAVSSubmission(
-            submissions[1],
-            address(validatorAVS),
-            validatorAVS.handleValidatorRewards,
-            "Validator"
-        );
-    }
-
-    function _handleAVSSubmission(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission,
-        address avsAddress,
-        function(
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory,
-            uint256,
-            address
-        ) external handleRewards,
-        string memory avsType
-    )
-        private
-    {
-        // Calculate total reward amount
-        uint256 totalAmount;
-        for (uint256 i = 0; i < submission.operatorRewards.length; i++) {
-            totalAmount += submission.operatorRewards[i].amount;
-        }
-
-        // First approve AVS to handle the allocated amount
-        submission.token.approve(avsAddress, totalAmount);
-
-        // Then transfer tokens from caller to this contract
-        require(
-            submission.token.transferFrom(msg.sender, address(this), totalAmount),
-            string(abi.encodePacked(avsType, " token transfer failed"))
-        );
-
-        // Invoke AVS logic
-        handleRewards(submission, totalAmount, msg.sender);
-    }
+    { }
 
     function _setClaimerFor(address claimer) internal {
         REWARDS_COORDINATOR.setClaimerFor(claimer);
@@ -405,8 +332,8 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
     function _setRewardsInitiator(address newRewardsInitiator) internal {
-        emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
         REWARD_INITIATOR = newRewardsInitiator;
+        emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
     }
 
     /// @dev Internal function to set the AVS directory.
@@ -426,42 +353,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         address podOwner
     )
         internal
-    {
-        // Check caller is either pod owner or their delegated operator
-        if (
-            msg.sender != podOwner
-                && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)
-        ) {
-            revert SenderNotPodOwnerOrOperator();
-        }
-
-        // Get the operator delegated to by the pod owner
-        address operator = DELEGATION_MANAGER.delegatedTo(podOwner);
-
-        // Verify operator is registered in proposer registry
-        require(
-            proposerRegistry.isOperatorRegistered(operator), "Operator not registered"
-        );
-
-        // Verify pod owner has an EigenPod
-        require(EIGEN_POD_MANAGER.hasPod(podOwner), "No Pod exists");
-        IEigenPod pod = EIGEN_POD_MANAGER.getPod(podOwner);
-
-        // Register each validator if they are active in EigenLayer
-        uint256 len = valPubKeys.length;
-        for (uint256 i = 0; i < len; ++i) {
-            // Check validator is active in EigenLayer core
-            if (
-                pod.validatorPubkeyToInfo(valPubKeys[i]).status
-                    != IEigenPod.VALIDATOR_STATUS.ACTIVE
-            ) {
-                revert ValidatorNotActiveWithinEigenCore();
-            }
-
-            // Register validator in proposer registry
-            proposerRegistry.registerValidator(valPubKeys[i], operator);
-        }
-    }
+        pure
+        virtual
+    { }
 
     /// @dev Internal function that registers a strategy.
     function _registerStrategy(address strategy) internal {
@@ -488,10 +382,9 @@ contract EigenLayerMiddleware is OwnableUpgradeable, UUPSUpgradeable, IServiceMa
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
         internal
-    {
-        AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
-        proposerRegistry.registerOperator(operator);
-    }
+        pure
+        virtual
+    { }
 
     /// @dev Internal function that deregisters an operator.
     function _deregisterOperatorFromAVS(address operator) internal {
