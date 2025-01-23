@@ -5,8 +5,12 @@ import { IDelegationManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
-import { EigenLayerMiddleware } from "src/EigenLayerMiddleware.sol";
+
 import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
+import { EigenLayerMiddleware } from "src/abstract/EigenLayerMiddleware.sol";
+
+import { GatewayAVS } from "src/eigenlayer-avs/GatewayAVS.sol";
+import { ValidatorAVS } from "src/eigenlayer-avs/ValidatorAVS.sol";
 import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
@@ -20,6 +24,8 @@ contract EigenlayerMiddlewareTest is Test {
     using BLS12381 for BLS12381.G1Point;
 
     EigenLayerMiddleware public eigenLayerMiddleware;
+    ValidatorAVS public validatorAVS;
+    GatewayAVS public gatewayAVS;
     TaiyiProposerRegistry public proposerRegistry;
     EigenlayerDeployer public eigenLayerDeployer;
 
@@ -28,6 +34,7 @@ contract EigenlayerMiddlewareTest is Test {
     address operator;
     address rewardsInitiator;
     uint256 operatorSecretKey;
+    bytes operatorBLSPubKey;
 
     // State variables
     BLS12381.G1Point internal operatorPublicKey;
@@ -47,11 +54,22 @@ contract EigenlayerMiddlewareTest is Test {
         owner = makeAddr("owner");
         rewardsInitiator = makeAddr("rewardsInitiator");
 
+        // Create mock BLS key
+        operatorBLSPubKey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            operatorBLSPubKey[i] = 0xab;
+        }
+
         proposerRegistry = new TaiyiProposerRegistry();
-        eigenLayerMiddleware = new EigenLayerMiddleware();
+        validatorAVS = new ValidatorAVS();
+        gatewayAVS = new GatewayAVS();
 
         vm.startPrank(owner);
-        eigenLayerMiddleware.initialize(
+
+        proposerRegistry.initialize(owner);
+
+        // Initialize GatewayAVS
+        gatewayAVS.initializeGatewayAVS(
             owner,
             address(proposerRegistry),
             address(eigenLayerDeployer.avsDirectory()),
@@ -62,8 +80,30 @@ contract EigenlayerMiddlewareTest is Test {
             rewardsInitiator
         );
 
-        proposerRegistry.initialize(owner);
-        proposerRegistry.addRestakingMiddlewareContract(address(eigenLayerMiddleware));
+        // Initialize ValidatorAVS
+        validatorAVS.initializeValidatorAVS(
+            owner,
+            address(proposerRegistry),
+            address(eigenLayerDeployer.avsDirectory()),
+            address(eigenLayerDeployer.delegationManager()),
+            address(eigenLayerDeployer.strategyManager()),
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator
+        );
+
+        // Register AVS contracts with the registry
+        proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
+        proposerRegistry.addRestakingMiddlewareContract(address(gatewayAVS));
+
+        // Set AVS types in the registry
+        proposerRegistry.setAVSType(
+            address(validatorAVS), IProposerRegistry.AVSType.VALIDATOR
+        );
+        proposerRegistry.setAVSType(
+            address(gatewayAVS), IProposerRegistry.AVSType.GATEWAY
+        );
+
         vm.stopPrank();
     }
 
@@ -92,12 +132,21 @@ contract EigenlayerMiddlewareTest is Test {
         assertEq(eigenLayerDeployer.delegationManager().delegatedTo(staker), operator);
     }
 
-    function testOperatorAVSRegistration() public {
+    function testGatewayOperatorAVSRegistration() public {
         _operatorRegistration();
-        _operatorAVSRegistration();
+        _gatewayOperatorAVSRegistration();
         assertTrue(
-            proposerRegistry.isOperatorRegistered(address(operator)),
-            "Operator registration failed"
+            proposerRegistry.isOperatorRegisteredInGatewayAVS(operator),
+            "Gateway operator registration failed"
+        );
+    }
+
+    function testValidatorOperatorAVSRegistration() public {
+        _operatorRegistration();
+        _validatorOperatorAVSRegistration();
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInValidatorAVS(operator),
+            "Validator operator registration failed"
         );
     }
 
@@ -106,23 +155,10 @@ contract EigenlayerMiddlewareTest is Test {
         address mockPodOwner = makeAddr("mockPodOwner");
 
         vm.startPrank(mockPodOwner);
-        address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
         vm.stopPrank();
 
         assertTrue(podAddress != address(0), "Pod should have been created");
-    }
-
-    /// @notice Tests operator registration and pod owner delegation workflow
-    function testOperatorRegistrationAndDelegation() public {
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            _operatorRegistration();
-        address mockPodOwner = makeAddr("mockPodOwner");
-        _delegationToOperator(mockPodOwner);
-
-        // Verify delegation
-        address delegatedTo =
-            eigenLayerDeployer.delegationManager().delegatedTo(mockPodOwner);
-        assertEq(delegatedTo, operator, "Pod owner should be delegated to the operator");
     }
 
     /// @notice Tests complete validator registration flow through the middleware
@@ -130,18 +166,20 @@ contract EigenlayerMiddlewareTest is Test {
     function testCompleteValidatorRegistrationFlow() public {
         address mockPodOwner = makeAddr("mockPodOwner");
         vm.startPrank(mockPodOwner);
-        address podAddress = eigenLayerMiddleware.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
         vm.stopPrank();
 
         // Set up operator and delegation
         _operatorRegistration();
         _delegationToOperator(mockPodOwner);
-        _operatorAVSRegistration();
+        _validatorOperatorAVSRegistration();
 
-        // Create test validator pubkey
+        // Create test validator pubkey and delegatee
         bytes memory validatorPubkey = new bytes(48);
+        bytes memory delegatedGatewayPubKey = new bytes(48);
         for (uint256 i = 0; i < 48; i++) {
             validatorPubkey[i] = 0xab;
+            delegatedGatewayPubKey[i] = 0xcd;
         }
         _cheatValidatorPubkeyActive(podAddress, validatorPubkey);
 
@@ -153,14 +191,22 @@ contract EigenlayerMiddlewareTest is Test {
         address[] memory podOwners = new address[](1);
         podOwners[0] = mockPodOwner;
 
+        bytes[] memory delegatedGateways = new bytes[](1);
+        delegatedGateways[0] = delegatedGatewayPubKey;
+
         vm.prank(mockPodOwner);
-        eigenLayerMiddleware.registerValidator(valPubKeys, podOwners);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
 
         // Verify registration status
         bytes32 pubkeyHash = keccak256(validatorPubkey);
         IProposerRegistry.ValidatorStatus validatorStatus =
             proposerRegistry.getValidatorStatus(pubkeyHash);
         assertEq(uint8(validatorStatus), uint8(IProposerRegistry.ValidatorStatus.Active));
+
+        // Verify delegatee
+        IProposerRegistry.Validator memory validator =
+            proposerRegistry.getValidator(pubkeyHash);
+        assertEq(keccak256(validator.delegatee), keccak256(delegatedGatewayPubKey));
     }
 
     // ============================================
@@ -233,11 +279,20 @@ contract EigenlayerMiddlewareTest is Test {
         );
     }
 
-    /// @notice Registers operator with AVS using signed message
-    function _operatorAVSRegistration() internal impersonate(operator) {
+    /// @notice Registers operator with Gateway AVS using signed message
+    function _gatewayOperatorAVSRegistration() internal impersonate(operator) {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
             _getOperatorSignature();
-        eigenLayerMiddleware.registerOperatorToAVS(operator, operatorSignature);
+        gatewayAVS.registerOperatorToAVSWithPubKey(
+            operator, operatorSignature, operatorBLSPubKey
+        );
+    }
+
+    /// @notice Registers operator with Validator AVS using signed message
+    function _validatorOperatorAVSRegistration() internal impersonate(operator) {
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+            _getOperatorSignature();
+        validatorAVS.registerOperatorToAVS(operator, operatorSignature);
     }
 
     /// @notice Generates operator signature for AVS registration
@@ -249,7 +304,7 @@ contract EigenlayerMiddlewareTest is Test {
         bytes32 digest = eigenLayerDeployer.avsDirectory()
             .calculateOperatorAVSRegistrationDigestHash({
             operator: operator,
-            avs: address(eigenLayerMiddleware),
+            avs: address(validatorAVS),
             salt: bytes32(0),
             expiry: type(uint256).max
         });

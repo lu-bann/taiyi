@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "./EigenLayerMiddleware.sol";
+import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
 
-import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import { IAVSDirectory } from
     "@eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
+import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
 /// @title ValidatorAVS
 /// @notice A standalone AVS for validator distribution. Receives a
-///         validator-portion from the parent EigenLayerMiddleware
+///         validator-portion from the EigenLayerMiddleware
 ///         and splits it by operator validator counts.
-contract ValidatorAVS {
+contract ValidatorAVS is EigenLayerMiddleware {
     /// @notice The address of the gateway AVS contract
     /// @dev Used to verify operator registration in gateway AVS
     address public gatewayAVSAddress;
@@ -38,20 +41,22 @@ contract ValidatorAVS {
     // ========= MODIFIER =========
     /// @notice Modifier that restricts function access to either the pod owner or their delegated operator
     /// @dev Reverts with SenderNotPodOwnerOrOperator if msg.sender is neither the pod owner nor their delegated operator
-    modifier onlyPodOwnerOrOperator() {
+    modifier onlyPodOwnerOrOperator(address podOwner) {
         if (
             msg.sender != podOwner
                 && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)
         ) {
             revert SenderNotPodOwnerOrOperator();
         }
+        _;
     }
 
     /// @notice Modifier that restricts function access to only the gateway AVS contract
     /// @dev Reverts if msg.sender is not the gateway AVS contract address
     modifier onlyGatewayAVS() {
         require(
-            msg.sender == gatewayAVSAddress, "ValidatorAVS: caller is not gateway AVS"
+            msg.sender == super.getGatewayAVSAddress(),
+            "ValidatorAVS: caller is not gateway AVS"
         );
         _;
     }
@@ -65,13 +70,11 @@ contract ValidatorAVS {
         address _strategyManager,
         address _eigenPodManager,
         address _rewardCoordinator,
-        address _rewardInitiator,
-        address _gatewayAVSAddress
+        address _rewardInitiator
     )
         external
         initializer
     {
-        // Reuse base class initializer
         super.initialize(
             _owner,
             _proposerRegistry,
@@ -82,7 +85,6 @@ contract ValidatorAVS {
             _rewardCoordinator,
             _rewardInitiator
         );
-        gatewayAVSAddress = _gatewayAVSAddress;
     }
 
     // ========= OVERRIDE FUNCTIONS =========
@@ -95,7 +97,7 @@ contract ValidatorAVS {
         public
         override
     {
-        revert UseGatewayAVSForRewards(gatewayAVSAddress);
+        revert UseGatewayAVSForRewards(super.getGatewayAVSAddress());
     }
 
     /// @dev Internal function that registers an operator.
@@ -106,7 +108,6 @@ contract ValidatorAVS {
         internal
         override
         onlyEigenCoreOperator
-        onlyNonRegisteredOperator
     {
         AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
         proposerRegistry.registerOperator(
@@ -156,7 +157,7 @@ contract ValidatorAVS {
     )
         internal
         override
-        onlyPodOwnerOrOperator
+        onlyPodOwnerOrOperator(podOwner)
     {
         require(
             delegatedGatewayPubKey.length > 0,
@@ -173,8 +174,7 @@ contract ValidatorAVS {
 
         // Check if operator is registered with the gateway AVS
         if (
-            AVS_DIRECTORY.avsOperatorStatus(gatewayAVSAddress, operator)
-                != IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED
+            !proposerRegistry.isOperatorActiveInAVS(super.getGatewayAVSAddress(), operator)
         ) {
             revert OperatorIsNotYetRegisteredInTaiyiGatewayAVS();
         }
@@ -219,8 +219,7 @@ contract ValidatorAVS {
         onlyGatewayAVS
     {
         // Approve RewardsCoordinator to pull the validator portion
-        IERC20 token = submission.token;
-        token.approve(address(REWARDS_COORDINATOR()), validatorAmount);
+        submission.token.approve(address(REWARDS_COORDINATOR), validatorAmount);
 
         // Get validator operators and total count for this AVS
         address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
@@ -240,9 +239,7 @@ contract ValidatorAVS {
             );
 
             // Share of the total validatorAmount = amount * (opCount/totalCount)
-            uint256 share = (totalValidatorCount == 0)
-                ? 0
-                : validatorAmount * (opValidatorCount / totalValidatorCount);
+            uint256 share = validatorAmount * (opValidatorCount / totalValidatorCount);
 
             opRewards[i] = IRewardsCoordinator.OperatorReward({
                 operator: operators[i],
@@ -266,7 +263,7 @@ contract ValidatorAVS {
             )
         });
 
-        REWARDS_COORDINATOR().createOperatorDirectedAVSRewardsSubmission(
+        REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
             address(this), validatorSubmissions
         );
     }

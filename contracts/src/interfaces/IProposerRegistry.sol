@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { BLS12381 } from "../libs/BLS12381.sol";
+import { IGatewayAVS } from "./IGatewayAVS.sol";
+import { IValidatorAVS } from "./IValidatorAVS.sol";
 
 interface IProposerRegistry {
     // Enum to represent the status of a proposer
@@ -31,7 +32,7 @@ interface IProposerRegistry {
         address operatorAddress;
         address restakingMiddlewareContract;
         AVSType avsType;
-        bytes pubKeys;
+        bytes blsKey;
     }
 
     // Events
@@ -54,25 +55,27 @@ interface IProposerRegistry {
 
     /// @notice Registers a new operator
     /// @param operatorAddress The address of the operator to register
-    function registerOperator(address operatorAddress) external;
+    /// @param avsType The type of AVS (GATEWAY or VALIDATOR)
+    /// @param blsKey The BLS public key for the operator (only for GATEWAY type)
+    function registerOperator(
+        address operatorAddress,
+        AVSType avsType,
+        bytes calldata blsKey
+    )
+        external;
 
     /// @notice Deregisters an existing operator
     /// @param operatorAddress The address of the operator to deregister
     function deregisterOperator(address operatorAddress) external;
 
-    /// @notice Checks if an operator is registered in the registry
-    /// @param operatorAddress The address of the operator to check
-    /// @return bool True if the operator is registered, false otherwise
-    function isOperatorRegistered(address operatorAddress) external view returns (bool);
-
     /// @notice Registers a single validator
     /// @param pubkey The BLS public key of the validator
     /// @param operator The operator address for the validator
-    /// @param delegatee The address that will be delegated to for this validator
+    /// @param delegatee The delegatee public key for this validator
     function registerValidator(
         bytes calldata pubkey,
         address operator,
-        address delegatee
+        bytes calldata delegatee
     )
         external
         payable;
@@ -82,7 +85,8 @@ interface IProposerRegistry {
     /// @param operator The operator address for all validators
     function batchRegisterValidators(
         bytes[] calldata pubkeys,
-        address operator
+        address operator,
+        bytes[] calldata delegatee
     )
         external
         payable;
@@ -90,16 +94,39 @@ interface IProposerRegistry {
     /// @notice Initiates the opt-out process for a validator
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
-    function initOptOut(
-        bytes32 pubKeyHash,
-        uint256 signatureExpiry
-    )
-        // BLS12381.G2Point calldata signature
-        external;
+    function initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry) external;
 
-    /// @notice Confirms the opt-out process after the cooldown period
+    /// @notice Confirms validator opt-out after cooldown period
     /// @param pubKeyHash The hash of the validator's BLS public key
     function confirmOptOut(bytes32 pubKeyHash) external;
+
+    /// @notice Gets the GatewayAVS address
+    /// @return The address of the GatewayAVS contract
+    function gatewayAVSAddress() external view returns (address);
+
+    /// @notice Checks if an operator is active in a specific AVS
+    /// @param avs The address of the AVS to check
+    /// @param operator The address of the operator to check
+    /// @return bool True if the operator is active in the AVS
+    function isOperatorActiveInAVS(
+        address avs,
+        address operator
+    )
+        external
+        view
+        returns (bool);
+
+    /// @notice Gets the ValidatorAVS address
+    /// @return The address of the ValidatorAVS contract
+    function validatorAVSAddress() external view returns (address);
+
+    /// @notice Gets the GatewayAVS contract instance
+    /// @return The GatewayAVS contract instance
+    function gatewayAVS() external view returns (IGatewayAVS);
+
+    /// @notice Gets the ValidatorAVS contract instance
+    /// @return The ValidatorAVS contract instance
+    function validatorAVS() external view returns (IValidatorAVS);
 
     /// @notice Gets operator address for a validator
     /// @param pubKeyHash Hash of the validator's public key
@@ -135,9 +162,10 @@ interface IProposerRegistry {
     /// @return The validator's information
     function getValidator(bytes32 pubKeyHash) external view returns (Validator memory);
 
-    /// @notice Returns how many validators an operator currently controls in a given AVS.
-    /// @param avs The AVS contract address (middleware)
-    /// @param operator The operator address
+    /// @notice Gets the number of validators registered to an operator for a specific AVS
+    /// @param avs The address of the AVS contract
+    /// @param operator The address of the operator
+    /// @return The number of validators registered to the operator for the AVS
     function getValidatorCountForOperatorInAVS(
         address avs,
         address operator
@@ -146,8 +174,15 @@ interface IProposerRegistry {
         view
         returns (uint256);
 
-    /// @notice Returns a list of active operators for a given AVS.
-    /// @param avs The AVS contract address (middleware)
+    function getRegisteredOperator(address operatorAddr)
+        external
+        view
+        returns (Operator memory);
+
+    /// @notice Returns active operators for a specific AVS type
+    /// @param avs The address of the AVS
+    /// @param avsType The AVSType (GATEWAY or VALIDATOR)
+    /// @return Array of operator addresses
     function getActiveOperatorsForAVS(
         address avs,
         AVSType avsType
@@ -156,8 +191,10 @@ interface IProposerRegistry {
         view
         returns (address[] memory);
 
-    /// @notice Returns the total validator count for all operators in a given AVS.
-    /// @param avs The AVS contract address (middleware)
+    /// @notice Returns the total validator count for a specific AVS type
+    /// @param avs The address of the AVS
+    /// @param avsType The AVSType (GATEWAY or VALIDATOR)
+    /// @return The total count of validators
     function getTotalValidatorCountForAVS(
         address avs,
         AVSType avsType
@@ -165,6 +202,32 @@ interface IProposerRegistry {
         external
         view
         returns (uint256);
+
+    /// @notice Returns the AVS type for a given AVS address
+    /// @param avs The address of the AVS
+    /// @return The AVS type
+    function getAVSType(address avs) external view returns (AVSType);
+
+    /// @notice Checks if an operator is registered in the ValidatorAVS
+    /// @param operatorAddress The address of the operator to check
+    /// @return True if registered in ValidatorAVS
+    function isOperatorRegisteredInValidatorAVS(address operatorAddress)
+        external
+        view
+        returns (bool);
+
+    /// @notice Checks if an operator is registered in the GatewayAVS
+    /// @param operatorAddress The address of the operator to check
+    /// @return True if registered in GatewayAVS
+    function isOperatorRegisteredInGatewayAVS(address operatorAddress)
+        external
+        view
+        returns (bool);
+
+    /// @notice Sets the AVS type for a given AVS address
+    /// @param avs The address of the AVS
+    /// @param avsType The type to set
+    function setAVSType(address avs, AVSType avsType) external;
 
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);

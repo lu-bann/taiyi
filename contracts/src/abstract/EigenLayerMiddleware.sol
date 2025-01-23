@@ -13,8 +13,9 @@ import { EnumerableMap } from
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
-import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
-import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IGatewayAVS } from "../interfaces/IGatewayAVS.sol";
+import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { IValidatorAVS } from "../interfaces/IValidatorAVS.sol";
 
 import { AVSDirectoryStorage } from
     "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";
@@ -37,13 +38,10 @@ import { IRewardsCoordinator } from
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
-
 import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
-import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
-import { GatewayAVS } from "./GatewayAVS.sol";
-import { ValidatorAVS } from "./ValidatorAVS.sol";
+import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
 /// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
 /// @dev Both GatewayAVS and ValidatorAVS should inherit from this contract.
@@ -57,16 +55,8 @@ abstract contract EigenLayerMiddleware is
 
     // ========= STORAGE VARIABLES =========
 
-    /// @notice TaiyiProposerRegistry contract instance
-    TaiyiProposerRegistry public proposerRegistry;
-
-    /// @notice The portion of the reward that belongs to Gateway vs. Validator
-    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
-    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
-
-    /// @notice Deployed child AVS contracts
-    GatewayAVS public gatewayAVS;
-    ValidatorAVS public validatorAVS;
+    /// @notice ProposerRegistry contract instance
+    IProposerRegistry public proposerRegistry;
 
     /// @notice EigenLayer AVS Directory contract
     IAVSDirectory public AVS_DIRECTORY;
@@ -127,19 +117,12 @@ abstract contract EigenLayerMiddleware is
     /// @notice Modifier that restricts function access to operators registered in the proposer registry or the contract owner
     /// @dev Reverts with OperatorNotRegistered if msg.sender is not registered in proposer registry and is not the owner
     modifier onlyRegisteredOperatorOrOwner() {
-        if (!proposerRegistry.isOperatorRegistered(msg.sender) && msg.sender != owner()) {
+        if (
+            !proposerRegistry.isOperatorRegisteredInGatewayAVS(msg.sender)
+                && !proposerRegistry.isOperatorRegisteredInValidatorAVS(msg.sender)
+                && msg.sender != owner()
+        ) {
             revert OperatorNotRegistered();
-        }
-        _;
-    }
-
-    /// @notice Modifier that restricts function access to operators not registered
-    /// in the proposer registry
-    /// @dev Reverts with OperatorAlreadyRegistered if msg.sender is already registered
-    /// in proposer registry
-    modifier onlyNonRegisteredOperator() {
-        if (proposerRegistry.isOperatorRegistered(msg.sender)) {
-            revert OperatorAlreadyRegistered();
         }
         _;
     }
@@ -179,7 +162,7 @@ abstract contract EigenLayerMiddleware is
         __UUPSUpgradeable_init();
         transferOwnership(_owner);
 
-        proposerRegistry = TaiyiProposerRegistry(_proposerRegistry);
+        proposerRegistry = IProposerRegistry(_proposerRegistry);
 
         AVS_DIRECTORY = IAVSDirectory(_avsDirectory);
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
@@ -201,7 +184,7 @@ abstract contract EigenLayerMiddleware is
     function registerValidators(
         bytes[][] calldata valPubKeys,
         address[] calldata podOwners,
-        address[] calldata delegatedGateways
+        bytes[] calldata delegatedGateways
     )
         external
     {
@@ -350,10 +333,10 @@ abstract contract EigenLayerMiddleware is
     /// @param podOwner Address of the EigenPod owner
     function _registerValidators(
         bytes[] calldata valPubKeys,
-        address podOwner
+        address podOwner,
+        bytes calldata delegatedGatewayPubKey
     )
         internal
-        pure
         virtual
     { }
 
@@ -382,7 +365,6 @@ abstract contract EigenLayerMiddleware is
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
         internal
-        pure
         virtual
     { }
 
@@ -401,7 +383,7 @@ abstract contract EigenLayerMiddleware is
 
     /// @notice Get the AVS Directory contract address
     /// @return Address of the AVS Directory contract
-    function avsDirectory() external view override returns (address) {
+    function avsDirectory() external view returns (address) {
         return address(AVS_DIRECTORY);
     }
 
@@ -411,7 +393,6 @@ abstract contract EigenLayerMiddleware is
     function getOperatorRestakedStrategies(address operator)
         external
         view
-        override
         returns (address[] memory)
     {
         address[] memory restakedStrategies = new address[](strategies.length());
@@ -434,12 +415,31 @@ abstract contract EigenLayerMiddleware is
 
     /// @notice Get all strategies that can be restaked
     /// @return Array of all registered strategy addresses
-    function getRestakeableStrategies()
-        external
-        view
-        override
-        returns (address[] memory)
-    {
+    function getRestakeableStrategies() external view returns (address[] memory) {
         return strategies.values();
+    }
+
+    /// @notice Gets the GatewayAVS address from the registry
+    /// @return The address of the GatewayAVS contract
+    function getGatewayAVSAddress() public view returns (address) {
+        return address(proposerRegistry.gatewayAVS());
+    }
+
+    /// @notice Gets the ValidatorAVS address from the registry by AVS type
+    /// @return The address of the ValidatorAVS contract
+    function getValidatorAVSAddress() public view returns (address) {
+        return address(proposerRegistry.validatorAVS());
+    }
+
+    /// @notice Gets the GatewayAVS contract instance from the registry
+    /// @return The GatewayAVS contract instance
+    function getGatewayAVS() public view returns (IGatewayAVS) {
+        return IGatewayAVS(proposerRegistry.gatewayAVS());
+    }
+
+    /// @notice Gets the ValidatorAVS contract instance from the registry
+    /// @return The ValidatorAVS contract instance
+    function getValidatorAVS() public view returns (IValidatorAVS) {
+        return IValidatorAVS(proposerRegistry.validatorAVS());
     }
 }

@@ -2,10 +2,11 @@
 pragma solidity ^0.8.25;
 
 import { TaiyiCore } from "../src/TaiyiCore.sol";
+import { ValidatorAVS } from "../src/eigenlayer-avs/ValidatorAVS.sol";
 
-import { EigenLayerMiddleware } from "../src/EigenLayerMiddleware.sol";
 import "../src/TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
+import { EigenLayerMiddleware } from "../src/abstract/EigenLayerMiddleware.sol";
 import "../src/interfaces/ITaiyiCore.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
@@ -98,7 +99,18 @@ contract Deploy is Script, Test {
         emit log_address(address(taiyiCore));
         vm.serializeAddress(taiyiAddresses, "taiyiCore", address(taiyiCore));
 
-        EigenLayerMiddleware eigenLayerMiddleware = new EigenLayerMiddleware();
+        // Todo: change this to two contracts
+        ValidatorAVS eigenLayerMiddleware = new ValidatorAVS();
+        eigenLayerMiddleware.initializeValidatorAVS(
+            msg.sender,
+            address(taiyiProposerRegistry),
+            avsDirectory,
+            delegationManager,
+            strategyManagerAddr,
+            eigenPodManager,
+            rewardCoordinator,
+            rewardInitiator
+        );
         emit log_address(address(eigenLayerMiddleware));
         string memory addresses = vm.serializeAddress(
             taiyiAddresses, "eigenLayerMiddleware", address(eigenLayerMiddleware)

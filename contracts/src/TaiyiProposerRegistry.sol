@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import { GatewayAVS } from "./eigenlayer-avs/GatewayAVS.sol";
+import { ValidatorAVS } from "./eigenlayer-avs/ValidatorAVS.sol";
+import { IGatewayAVS } from "./interfaces/IGatewayAVS.sol";
+
 import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
-import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IValidatorAVS } from "./interfaces/IValidatorAVS.sol";
 import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 
@@ -57,6 +61,18 @@ contract TaiyiProposerRegistry is
     /// functions
     EnumerableSet.AddressSet private restakingMiddlewareContracts;
 
+    /// @notice GatewayAVS contract instance
+    GatewayAVS private _gatewayAVS;
+
+    /// @notice ValidatorAVS contract instance
+    ValidatorAVS private _validatorAVS;
+
+    /// @notice GatewayAVS address
+    address public override gatewayAVSAddress;
+
+    /// @notice ValidatorAVS address
+    address public override validatorAVSAddress;
+
     /// ----------------------------------------------------------
     ///                INITIALIZER & UPGRADE LOGIC
     /// ----------------------------------------------------------
@@ -67,6 +83,18 @@ contract TaiyiProposerRegistry is
     function initialize(address _owner) external initializer {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
+
+        _gatewayAVS = new GatewayAVS();
+        _validatorAVS = new ValidatorAVS();
+
+        gatewayAVSAddress = address(_gatewayAVS);
+        validatorAVSAddress = address(_validatorAVS);
+
+        addRestakingMiddlewareContract(address(_gatewayAVS));
+        addRestakingMiddlewareContract(address(_validatorAVS));
+
+        _avsTypes[address(_gatewayAVS)] = AVSType.GATEWAY;
+        _avsTypes[address(_validatorAVS)] = AVSType.VALIDATOR;
     }
 
     /// @notice Authorizes an upgrade to a new implementation
@@ -92,7 +120,7 @@ contract TaiyiProposerRegistry is
     /// @notice Adds a new middleware contract to the registry
     /// @param middlewareContract Address of middleware contract to add
     function addRestakingMiddlewareContract(address middlewareContract)
-        external
+        public
         onlyOwner
     {
         _addRestakingMiddlewareContract(middlewareContract);
@@ -112,7 +140,7 @@ contract TaiyiProposerRegistry is
     function registerOperator(
         address operatorAddress,
         AVSType avsType,
-        bytes blsKey
+        bytes calldata blsKey
     )
         external
     {
@@ -134,12 +162,13 @@ contract TaiyiProposerRegistry is
     /// @param operator The operator address for the validator
     function registerValidator(
         bytes calldata pubkey,
-        address operator
+        address operator,
+        bytes calldata delegatee
     )
         external
         payable
     {
-        _registerValidator(pubkey, operator);
+        _registerValidator(pubkey, operator, delegatee);
     }
 
     /// @notice Registers multiple validators in a single transaction
@@ -147,12 +176,13 @@ contract TaiyiProposerRegistry is
     /// @param operator The operator address for all validators
     function batchRegisterValidators(
         bytes[] calldata pubkeys,
-        address operator
+        address operator,
+        bytes[] calldata delegatee
     )
         external
         payable
     {
-        _batchRegisterValidators(pubkeys, operator);
+        _batchRegisterValidators(pubkeys, operator, delegatee);
     }
 
     /// @notice Initiates the opt-out process for a validator
@@ -219,7 +249,7 @@ contract TaiyiProposerRegistry is
     /// @dev Internal function that registers a new operator
     function _registerGatewayAVSOperator(
         address operatorAddress,
-        bytes pubKeys
+        bytes calldata pubKeys
     )
         internal
         onlyRestakingMiddlewareContracts
@@ -233,12 +263,12 @@ contract TaiyiProposerRegistry is
             operatorAddress: operatorAddress,
             restakingMiddlewareContract: msg.sender,
             avsType: AVSType.GATEWAY,
-            blsKey: blsKey
+            blsKey: pubKeys
         });
 
         registeredOperators[operatorAddress] = operatorData;
         _avsToOperators[msg.sender].add(operatorAddress);
-        operatorBlsKeyToData[blsKey] = operatorData;
+        operatorBlsKeyToData[pubKeys] = operatorData;
     }
 
     /// @dev Internal function that deregisters an existing operator
@@ -296,7 +326,8 @@ contract TaiyiProposerRegistry is
     /// @dev Internal function that batch-registers multiple validators
     function _batchRegisterValidators(
         bytes[] calldata pubkeys,
-        address operator
+        address operator,
+        bytes[] calldata delegatee
     )
         internal
         onlyRestakingMiddlewareContracts
@@ -307,7 +338,7 @@ contract TaiyiProposerRegistry is
         );
 
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            this.registerValidator(pubkeys[i], operator);
+            this.registerValidator(pubkeys[i], operator, delegatee[i]);
         }
     }
 
@@ -364,6 +395,21 @@ contract TaiyiProposerRegistry is
     /// ----------------------------------------------------------
     ///                          VIEW
     /// ----------------------------------------------------------
+
+    /// @notice Checks if an operator is active in a specific AVS
+    /// @param avs The address of the AVS to check
+    /// @param operator The address of the operator to check
+    /// @return bool True if the operator is active in the AVS
+    function isOperatorActiveInAVS(
+        address avs,
+        address operator
+    )
+        external
+        view
+        returns (bool)
+    {
+        return _avsToOperators[avs].contains(operator);
+    }
 
     /// @dev Returns the AVSType for a given AVS
     function getAVSType(address avs) public view returns (AVSType) {
@@ -508,5 +554,26 @@ contract TaiyiProposerRegistry is
             totalCount += _operatorToAVSValidatorCount[avs][op];
         }
         return totalCount;
+    }
+
+    function getRegisteredOperator(address operatorAddr)
+        external
+        view
+        override
+        returns (Operator memory)
+    {
+        return registeredOperators[operatorAddr];
+    }
+
+    /// @notice Gets the GatewayAVS contract instance
+    /// @return The GatewayAVS contract instance
+    function gatewayAVS() external view override returns (IGatewayAVS) {
+        return IGatewayAVS(gatewayAVSAddress);
+    }
+
+    /// @notice Gets the ValidatorAVS contract instance
+    /// @return The ValidatorAVS contract instance
+    function validatorAVS() external view override returns (IValidatorAVS) {
+        return IValidatorAVS(validatorAVSAddress);
     }
 }

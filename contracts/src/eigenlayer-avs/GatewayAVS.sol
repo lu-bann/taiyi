@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "./EigenLayerMiddleware.sol";
+import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
-import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IRewardsCoordinator } from
@@ -20,6 +22,10 @@ contract GatewayAVS is EigenLayerMiddleware {
         require(tx.origin == address(this), "Only this contract can be tx.origin");
         _;
     }
+
+    /// @notice The portion of the reward that belongs to Gateway vs. Validator
+    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
+    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
 
     /// @notice Initialize upgradeable contract.
     function initializeGatewayAVS(
@@ -62,7 +68,6 @@ contract GatewayAVS is EigenLayerMiddleware {
     )
         external
         onlyEigenCoreOperator
-        onlyNonRegisteredOperator
     {
         AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
         proposerRegistry.registerOperator(
@@ -82,8 +87,11 @@ contract GatewayAVS is EigenLayerMiddleware {
         revert UseRegisterOperatorToAVSWithPubKey();
     }
 
-    /// @notice Creates operator-directed rewards to split between operators and their delegated stakers
-    /// @param operatorDirectedRewardsSubmissions The rewards submissions to process
+    /// @notice Processes operator rewards for both Gateway and Validator AVS components
+    /// @dev Expects exactly 2 submissions in a specific order - Gateway first, then Validator
+    /// @dev Each submission contains operator addresses and their corresponding reward amounts
+    /// @param submissions Array containing reward submissions for Gateway and Validator
+    // Todo: for operators who self delegate into GatewayAVS, we need to handle the case where for reward distribution where the fee earned won't be distributred to the validator avs
     function _createOperatorDirectedAVSRewardsSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
     )
@@ -91,96 +99,64 @@ contract GatewayAVS is EigenLayerMiddleware {
         override
         onlyRewardsInitiator
     {
-        // We expect exactly 2 submissions: the first for Gateway, the second for Validator
+        // Validate submission count
         require(
             submissions.length == 2,
             "EigenLayerMiddleware: Must pass exactly 2 submissions"
         );
 
-        // Verify that the first submission is for the Gateway portion by checking its description
+        // Validate Gateway submission is first
         require(
             keccak256(bytes(submissions[0].description)) == keccak256(bytes("gateway")),
             "EigenLayerMiddleware: First submission must be the Gateway portion"
         );
-        // Verify that the second submission is for the Validator portion by checking its description
+        // Validate Validator submission is second
         require(
             keccak256(bytes(submissions[1].description)) == keccak256(bytes("validator")),
             "EigenLayerMiddleware: Second submission must be the Validator portion"
         );
 
-        // Handle Gateway submission
-        _handleAVSSubmission(
-            submissions[0],
-            address(gatewayAVS),
-            gatewayAVS.handleGatewayRewards,
-            "Gateway"
-        );
+        // 1) Handle Gateway portion
+        uint256 validatorAmount = _handleGatewaySubmission(submissions[0]);
 
-        // Handle Validator submission
-        _handleAVSSubmission(
-            submissions[1],
-            address(validatorAVS),
-            validatorAVS.handleValidatorRewards,
-            "Validator"
-        );
+        // 2) Handle Validator portion
+        super.getValidatorAVS().handleValidatorRewards(submissions[1], validatorAmount);
     }
 
-    function _handleAVSSubmission(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission,
-        address avsAddress,
-        function(
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory,
-            uint256
-        ) external handleRewards,
-        string memory avsType
+    function _handleGatewaySubmission(
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission
     )
         private
+        returns (uint256 validatorAmount)
     {
-        // Calculate total reward amount
+        // Calculate total gateway amount
         uint256 totalAmount;
         for (uint256 i = 0; i < submission.operatorRewards.length; i++) {
             totalAmount += submission.operatorRewards[i].amount;
         }
 
-        // First approve AVS to handle the allocated amount
-        submission.token.approve(avsAddress, totalAmount);
-
-        // Then transfer tokens from caller to this contract
+        // Approve this contract to handle the allocated amount, then transfer it here
+        submission.token.approve(address(this), totalAmount);
         require(
             submission.token.transferFrom(msg.sender, address(this), totalAmount),
-            string(abi.encodePacked(avsType, " token transfer failed"))
+            "Gateway token transfer failed"
         );
 
-        // Invoke AVS logic
-        handleRewards(submission, totalAmount, msg.sender);
-    }
+        uint256 gatewayAmount = (totalAmount * GATEWAY_SHARE_BIPS) / 10_000;
+        validatorAmount = totalAmount - gatewayAmount;
 
-    /// @notice Handles distribution of gateway rewards to operators
-    /// @dev Splits rewards evenly among all registered gateway operators
-    /// @param submission Base operator-directed reward submission data
-    /// @param gatewayAmount Total amount allocated for gateway rewards
-    function handleGatewayRewards(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission,
-        uint256 gatewayAmount
-    )
-        internal
-    {
-        /// Only parent middleware can call this function
-        require(msg.sender == address(parentMiddleware), "GatewayAVS: Invalid caller");
+        submission.token.approve(address(REWARDS_COORDINATOR), gatewayAmount);
 
-        /// Approve rewards coordinator to transfer gateway rewards
-        IERC20 token = submission.token;
-        token.approve(address(parentMiddleware.REWARDS_COORDINATOR()), gatewayAmount);
-
-        /// Get all active gateway operators registered for this AVS
-        address[] memory operators = parentMiddleware.proposerRegistry()
-            .getActiveOperatorsForAVS(address(this), IProposerRegistry.AVSType.GATEWAY);
+        // Get all active gateway operators registered for this AVS
+        address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
+            address(this), IProposerRegistry.AVSType.GATEWAY
+        );
         require(operators.length > 0, "GatewayAVS: No operators");
 
-        /// Calculate per-operator reward amount
+        // Calculate per-operator reward amount
         uint256 perOperator = gatewayAmount / operators.length;
 
-        /// Create array of operator rewards with even distribution
+        // Create array of operator rewards with even distribution
         IRewardsCoordinator.OperatorReward[] memory opRewards =
             new IRewardsCoordinator.OperatorReward[](operators.length);
 
@@ -191,26 +167,24 @@ contract GatewayAVS is EigenLayerMiddleware {
             });
         }
 
-        // TODO: Sweep any leftover dust from uneven division to treasury or redistribute
+        // Todo: Sweep any leftover dust from uneven division to treasury or redistribute
 
-        /// Create final submission array with single entry
+        // Create final submission array with single entry
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory gatewaySubmissions =
             new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
 
-        /// Configure submission with operator rewards and metadata
+        // Configure submission with operator rewards and metadata
         gatewaySubmissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: submission.strategiesAndMultipliers,
             token: submission.token,
             operatorRewards: opRewards,
             startTimestamp: submission.startTimestamp,
             duration: submission.duration,
-            description: string(
-                abi.encodePacked(submission.description, " (Gateway portion)")
-            )
+            description: string(abi.encodePacked(submission.description, "(Gateway portion)"))
         });
 
-        /// Submit rewards distribution to coordinator
-        parentMiddleware.REWARDS_COORDINATOR().createOperatorDirectedAVSRewardsSubmission(
+        // Submit rewards distribution to coordinator
+        REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
             address(this), gatewaySubmissions
         );
     }
