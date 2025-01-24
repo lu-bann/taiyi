@@ -32,6 +32,38 @@ contract TaiyiProposerRegistry is
     using BLS12381 for BLS12381.G1Point;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /// @notice Error thrown when trying to deregister an operator with active validators
+    error CannotDeregisterActiveValidator();
+
+    /// @notice Error thrown when trying to deregister an operator with validators in cooldown
+    error CannotDeregisterInCooldown();
+
+    /// @notice Error thrown when trying to deregister an operator with pending opt-out validators
+    error CannotDeregisterPendingOptOut();
+
+    /// @notice Error thrown when trying to deregister an operator with validators not opted out
+    error CannotDeregisterNotOptedOut();
+
+    /// @notice Emitted when an operator is deregistered from the registry
+    /// @param operatorAddress The address of the deregistered operator
+    /// @param avsAddress The address of the AVS contract that deregistered the operator
+    event OperatorDeregistered(
+        address indexed operatorAddress, address indexed avsAddress
+    );
+
+    /// @notice Emitted when validators are opted out during operator deregistration
+    /// @param operatorAddress The address of the operator whose validators were opted out
+    /// @param pubkeys The BLS public keys of the opted out validators
+    event ValidatorsOptedOut(address indexed operatorAddress, bytes[] pubkeys);
+
+    /// @notice Emitted when an operator is registered with the registry
+    /// @param operatorAddress The address of the registered operator
+    /// @param avsAddress The address of the AVS contract that registered the operator
+    /// @param pubKeys The BLS public keys of the registered operator
+    event OperatorRegistered(
+        address indexed operatorAddress, address indexed avsAddress, bytes pubKeys
+    );
+
     /// ----------------------------------------------------------
     ///                      STATE
     /// ----------------------------------------------------------
@@ -42,11 +74,11 @@ contract TaiyiProposerRegistry is
     /// @notice Mapping from operator BLS public key to their operator data
     mapping(bytes => Operator) public operatorBlsKeyToData;
 
+    /// @dev Maps operator address to array of their validator pubkey hashes
+    mapping(address => bytes32[]) public operatorToValidatorPubkeys;
+
     /// @dev Mapping AVS => AVSType, so we know how to categorize operators
     mapping(address => AVSType) private _avsTypes;
-
-    // Maps each operator => which AVS they belong to => validator count
-    mapping(address => mapping(address => uint256)) private _operatorToAVSValidatorCount;
 
     // Tracks the set of operators for each AVS
     mapping(address => EnumerableSet.AddressSet) private _avsToOperators;
@@ -269,9 +301,14 @@ contract TaiyiProposerRegistry is
         registeredOperators[operatorAddress] = operatorData;
         _avsToOperators[msg.sender].add(operatorAddress);
         operatorBlsKeyToData[pubKeys] = operatorData;
+        emit OperatorRegistered(operatorAddress, msg.sender, pubKeys);
     }
 
-    /// @dev Internal function that deregisters an existing operator
+    /// @notice Internal function to deregister an operator from the registry
+    /// @dev This function can only be called by authorized middleware contracts
+    /// @dev Checks that all validators associated with operator are either opted out or past cooldown
+    /// @dev Removes operator from AVS mapping and deletes their registration record
+    /// @param operatorAddress The address of the operator to deregister
     function _deregisterOperator(address operatorAddress)
         internal
         onlyRestakingMiddlewareContracts
@@ -281,9 +318,49 @@ contract TaiyiProposerRegistry is
             "Operator not registered"
         );
 
-        _avsToOperators[msg.sender].remove(operatorAddress);
+        // Loop through all validators associated with this operator.
+        bytes32[] memory operatorValidatorPubkeys =
+            operatorToValidatorPubkeys[operatorAddress];
+        bytes[] memory optedOutPubkeys = new bytes[](operatorValidatorPubkeys.length);
+        uint256 optedOutCount = 0;
 
+        for (uint256 i = 0; i < operatorValidatorPubkeys.length; i++) {
+            bytes32 pubkeyHash = operatorValidatorPubkeys[i];
+            Validator storage val = validators[pubkeyHash];
+
+            ValidatorStatus status = val.status;
+            if (status == ValidatorStatus.Active) {
+                revert CannotDeregisterActiveValidator();
+            }
+
+            if (status == ValidatorStatus.OptingOut) {
+                if (block.timestamp < val.optOutTimestamp + OPT_OUT_COOLDOWN) {
+                    revert CannotDeregisterInCooldown();
+                }
+                revert CannotDeregisterPendingOptOut();
+            }
+
+            if (status != ValidatorStatus.OptedOut) {
+                revert CannotDeregisterNotOptedOut();
+            }
+
+            optedOutPubkeys[optedOutCount] = val.pubkey;
+            optedOutCount++;
+        }
+
+        // Remove from both AVS-to-operators sets
+        _avsToOperators[gatewayAVSAddress].remove(operatorAddress);
+        _avsToOperators[validatorAVSAddress].remove(operatorAddress);
+
+        // Clear operator's validator associations
+        delete operatorToValidatorPubkeys[operatorAddress];
+
+        // Finally, delete the operator's record
         delete registeredOperators[operatorAddress];
+
+        // Emit events
+        emit OperatorDeregistered(operatorAddress, msg.sender);
+        emit ValidatorsOptedOut(operatorAddress, optedOutPubkeys);
     }
 
     /// @dev Internal function that registers a single validator
@@ -317,8 +394,8 @@ contract TaiyiProposerRegistry is
 
         address avs = registeredOperators[operator].restakingMiddlewareContract;
         require(avs == msg.sender, "Unauthorized middleware");
-        require(avs != address(0), "AVS not registered");
-        _operatorToAVSValidatorCount[avs][operator] += 1;
+
+        operatorToValidatorPubkeys[operator].push(pubkeyHash);
 
         emit ValidatorRegistered(pubkeyHash, operator);
     }
@@ -353,15 +430,18 @@ contract TaiyiProposerRegistry is
     {
         Validator storage validator = validators[pubKeyHash];
 
-        require(validator.operator != address(0), "Validator not registered");
+        require(
+            validator.operator == msg.sender,
+            "Only the validator's operator may trigger opt-out"
+        );
         require(validator.status == ValidatorStatus.Active, "Invalid status");
         require(block.timestamp <= signatureExpiry, "Signature expired");
 
-        /// If you have actual BLS signature verification, uncomment:
-        /// bytes memory message = abi.encodePacked(pubKeyHash,
-        /// signatureExpiry);
-        /// require(BLS12381.verifySignature(validator.pubkey, message,
-        /// signature), "Invalid signature");
+        // for actual BLS signature verification, uncomment:
+        // bytes memory message = abi.encodePacked(pubKeyHash,
+        // signatureExpiry);
+        // require(BLS12381.verifySignature(validator.pubkey, message,
+        // signature), "Invalid signature");
 
         validator.status = ValidatorStatus.OptingOut;
         validator.optOutTimestamp = block.timestamp;
@@ -373,20 +453,15 @@ contract TaiyiProposerRegistry is
     /// period
     function _confirmOptOut(bytes32 pubKeyHash) internal {
         Validator storage validator = validators[pubKeyHash];
-        require(validator.operator != address(0), "Validator not registered");
+
+        require(validator.operator != msg.sender, "Validator not registered");
         require(validator.status == ValidatorStatus.OptingOut, "Validator not opting out");
-        require(
-            block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN,
-            "Cooldown period not elapsed"
-        );
         require(
             block.timestamp >= validator.optOutTimestamp + OPT_OUT_COOLDOWN,
             "Cooldown period not elapsed"
         );
 
         validator.status = ValidatorStatus.OptedOut;
-        validator.operator = address(0);
-        validator.optOutTimestamp = 0;
 
         emit ValidatorOptedOut(pubKeyHash, msg.sender);
         emit ValidatorStatusChanged(pubKeyHash, ValidatorStatus.OptedOut);
@@ -503,7 +578,13 @@ contract TaiyiProposerRegistry is
         override
         returns (uint256)
     {
-        return _operatorToAVSValidatorCount[avs][operator];
+        // Check if operator is registered with the given AVS
+        Operator memory op = registeredOperators[operator];
+        if (op.restakingMiddlewareContract == avs) {
+            return operatorToValidatorPubkeys[operator].length;
+        } else {
+            return 0;
+        }
     }
 
     /// @notice New function that returns active operators specifically for
@@ -551,7 +632,7 @@ contract TaiyiProposerRegistry is
         uint256 length = _avsToOperators[avs].length();
         for (uint256 i = 0; i < length; i++) {
             address op = _avsToOperators[avs].at(i);
-            totalCount += _operatorToAVSValidatorCount[avs][op];
+            totalCount += operatorToValidatorPubkeys[op].length;
         }
         return totalCount;
     }

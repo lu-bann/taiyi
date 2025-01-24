@@ -78,10 +78,11 @@ contract GatewayAVS is EigenLayerMiddleware {
     /// @notice This function is required by IServiceManager but should not be used.
     /// Users must call registerOperatorToAVSWithBLS instead to provide BLS key.
     function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+        address,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory
     )
         external
+        pure
         override
     {
         revert UseRegisterOperatorToAVSWithPubKey();

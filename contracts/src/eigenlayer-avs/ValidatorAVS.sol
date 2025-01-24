@@ -95,6 +95,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata
     )
         public
+        view
         override
     {
         revert UseGatewayAVSForRewards(super.getGatewayAVSAddress());
