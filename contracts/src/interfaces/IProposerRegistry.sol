@@ -43,7 +43,17 @@ interface IProposerRegistry {
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
-    function initialize(address _owner) external;
+    function initialize(
+        address _owner,
+        address _aveDirectory,
+        address _delegationManager,
+        address _strategyManager,
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
+    )
+        external;
 
     /// @notice Adds a new middleware contract to the registry
     /// @param middlewareContract Address of middleware contract to add
@@ -177,7 +187,7 @@ interface IProposerRegistry {
     function getRegisteredOperator(address operatorAddr)
         external
         view
-        returns (Operator memory);
+        returns (Operator memory, Operator memory);
 
     /// @notice Returns active operators for a specific AVS type
     /// @param avs The address of the AVS
@@ -208,18 +218,14 @@ interface IProposerRegistry {
     /// @return The AVS type
     function getAVSType(address avs) external view returns (AVSType);
 
-    /// @notice Checks if an operator is registered in the ValidatorAVS
+    /// @notice Checks if an operator is registered in the AVS
     /// @param operatorAddress The address of the operator to check
-    /// @return True if registered in ValidatorAVS
-    function isOperatorRegisteredInValidatorAVS(address operatorAddress)
-        external
-        view
-        returns (bool);
-
-    /// @notice Checks if an operator is registered in the GatewayAVS
-    /// @param operatorAddress The address of the operator to check
-    /// @return True if registered in GatewayAVS
-    function isOperatorRegisteredInGatewayAVS(address operatorAddress)
+    /// @param avsType The type of AVS
+    /// @return True if registered in the AVS
+    function isOperatorRegisteredInAVS(
+        address operatorAddress,
+        AVSType avsType
+    )
         external
         view
         returns (bool);

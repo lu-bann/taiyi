@@ -2,14 +2,15 @@
 pragma solidity ^0.8.25;
 
 import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
-import { ISignatureUtils } from
-    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol"; // Optional: for mulDiv or other helpers
 
 /// @title GatewayAVS
 /// @notice Manages gateway-specific AVS functionality and reward distribution.
@@ -21,36 +22,6 @@ contract GatewayAVS is EigenLayerMiddleware {
     modifier onlyThisContractAsTxOrigin() {
         require(tx.origin == address(this), "Only this contract can be tx.origin");
         _;
-    }
-
-    /// @notice The portion of the reward that belongs to Gateway vs. Validator
-    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
-    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
-
-    /// @notice Initialize upgradeable contract.
-    function initializeGatewayAVS(
-        address _owner,
-        address _proposerRegistry,
-        address _avsDirectory,
-        address _delegationManager,
-        address _strategyManager,
-        address _eigenPodManager,
-        address _rewardCoordinator,
-        address _rewardInitiator
-    )
-        external
-        initializer
-    {
-        super.initialize(
-            _owner,
-            _proposerRegistry,
-            _avsDirectory,
-            _delegationManager,
-            _strategyManager,
-            _eigenPodManager,
-            _rewardCoordinator,
-            _rewardInitiator
-        );
     }
 
     /// @notice Special registration function for operators to register with GatewayAVS
@@ -90,6 +61,7 @@ contract GatewayAVS is EigenLayerMiddleware {
 
     /// @notice Processes operator rewards for both Gateway and Validator AVS components
     /// @dev Expects exactly 2 submissions in a specific order - Gateway first, then Validator
+    /// @dev Rewards for Validator AVS will be empty since we handle the distribution in _handleGatewaySubmission in this contract
     /// @dev Each submission contains operator addresses and their corresponding reward amounts
     /// @param submissions Array containing reward submissions for Gateway and Validator
     // Todo: for operators who self delegate into GatewayAVS, we need to handle the case where for reward distribution where the fee earned won't be distributred to the validator avs
@@ -117,6 +89,18 @@ contract GatewayAVS is EigenLayerMiddleware {
             "EigenLayerMiddleware: Second submission must be the Validator portion"
         );
 
+        // Enforce that the second submission's operator rewards are always zero.
+        // The validator portion is determined by _handleGatewaySubmission, which
+        // calculates how many tokens go to the validator side.
+        IRewardsCoordinator.OperatorReward[] memory validatorRewards =
+            submissions[1].operatorRewards;
+        for (uint256 i = 0; i < validatorRewards.length; i++) {
+            require(
+                validatorRewards[i].amount == 0,
+                "GatewayAVS: Validator submission reward must be zero"
+            );
+        }
+
         // 1) Handle Gateway portion
         uint256 validatorAmount = _handleGatewaySubmission(submissions[0]);
 
@@ -136,17 +120,14 @@ contract GatewayAVS is EigenLayerMiddleware {
             totalAmount += submission.operatorRewards[i].amount;
         }
 
-        // Approve this contract to handle the allocated amount, then transfer it here
-        submission.token.approve(address(this), totalAmount);
+        // Transfer tokens from reward initiator to this contract
         require(
             submission.token.transferFrom(msg.sender, address(this), totalAmount),
             "Gateway token transfer failed"
         );
 
-        uint256 gatewayAmount = (totalAmount * GATEWAY_SHARE_BIPS) / 10_000;
+        uint256 gatewayAmount = Math.mulDiv(totalAmount, GATEWAY_SHARE_BIPS, 10_000);
         validatorAmount = totalAmount - gatewayAmount;
-
-        submission.token.approve(address(REWARDS_COORDINATOR), gatewayAmount);
 
         // Get all active gateway operators registered for this AVS
         address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
@@ -154,17 +135,26 @@ contract GatewayAVS is EigenLayerMiddleware {
         );
         require(operators.length > 0, "GatewayAVS: No operators");
 
-        // Calculate per-operator reward amount
-        uint256 perOperator = gatewayAmount / operators.length;
+        // Calculate per-operator reward amount - multiply first to avoid precision loss
+        uint256 numOperators = operators.length;
+        uint256 baseShare = gatewayAmount / numOperators;
+        uint256 leftover = gatewayAmount % numOperators;
+        require(baseShare > 0, "GatewayAVS: Reward per operator is zero");
 
         // Create array of operator rewards with even distribution
         IRewardsCoordinator.OperatorReward[] memory opRewards =
-            new IRewardsCoordinator.OperatorReward[](operators.length);
+            new IRewardsCoordinator.OperatorReward[](numOperators);
 
-        for (uint256 i = 0; i < operators.length; i++) {
+        // Assign each operator a baseShare, plus one extra token until leftover is exhausted
+        for (uint256 i = 0; i < numOperators; i++) {
+            uint256 share = baseShare;
+            if (i < leftover) {
+                // Give one extra token to the first 'leftover' operators
+                share += 1;
+            }
             opRewards[i] = IRewardsCoordinator.OperatorReward({
                 operator: operators[i],
-                amount: perOperator
+                amount: share
             });
         }
 
@@ -184,9 +174,20 @@ contract GatewayAVS is EigenLayerMiddleware {
             description: string(abi.encodePacked(submission.description, "(Gateway portion)"))
         });
 
+        // Approve RewardsCoordinator to spend the gateway portion
+        submission.token.approve(address(REWARDS_COORDINATOR), gatewayAmount);
+
         // Submit rewards distribution to coordinator
         REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
             address(this), gatewaySubmissions
+        );
+
+        // Transfer validator portion to ValidatorAVS
+        require(
+            submission.token.transferFrom(
+                msg.sender, address(super.getValidatorAVS()), validatorAmount
+            ),
+            "Validator token transfer failed"
         );
     }
 }

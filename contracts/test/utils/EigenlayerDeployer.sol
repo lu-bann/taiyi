@@ -111,6 +111,11 @@ contract EigenlayerDeployer is Operators {
     address operationsMultisig;
     address executorMultisig;
 
+    address private constant rewards_coordinator_updater =
+        address(0x1234567890123456789012345678901234567890);
+    uint32 private constant rewards_coordinator_activation_delay = 86_400;
+    uint16 private constant rewards_coordinator_default_operator_split_bips = 5000;
+
     // addresses excluded from fuzzing due to abnormal behavior. TODO: @Sidu28
     // define this better and give it a clearer name
     mapping(address => bool) fuzzedAddressMapping;
@@ -223,15 +228,15 @@ contract EigenlayerDeployer is Operators {
             ethPOSDeposit, eigenPodBeacon, strategyManager, slasher, delegationManager
         );
         AVSDirectory avsDirectoryImplementation = new AVSDirectory(delegationManager);
-        // RewardsCoordinator rewardsCoordinatorImplementation = new RewardsCoordinator(
-        //     delegationManager,
-        //     strategyManager,
-        //     7 days, // CALCULATION_INTERVAL_SECONDS
-        //     365 days, // MAX_REWARDS_DURATION
-        //     30 days, // MAX_RETROACTIVE_LENGTH
-        //     30 days, // MAX_FUTURE_LENGTH
-        //     uint32((block.timestamp / 7 days) * 7 days) // GENESIS_REWARDS_TIMESTAMP rounded down to nearest CALCULATION_INTERVAL_SECONDS
-        // );
+        RewardsCoordinator rewardsCoordinatorImplementation = new RewardsCoordinator(
+            delegationManager,
+            strategyManager,
+            7 days, // CALCULATION_INTERVAL_SECONDS
+            365 days, // MAX_REWARDS_DURATION
+            30 days, // MAX_RETROACTIVE_LENGTH
+            30 days, // MAX_FUTURE_LENGTH
+            uint32((block.timestamp / 7 days) * 7 days) // GENESIS_REWARDS_TIMESTAMP rounded down to nearest CALCULATION_INTERVAL_SECONDS
+        );
 
         // Third, upgrade the proxy contracts to use the correct implementation
         // contracts and initialize them.
@@ -289,16 +294,19 @@ contract EigenlayerDeployer is Operators {
                 0 /*initialPausedStatus*/
             )
         );
-        // eigenLayerProxyAdmin.upgradeAndCall(
-        //     TransparentUpgradeableProxy(payable(address(rewardsCoordinator))),
-        //     address(rewardsCoordinatorImplementation),
-        //     abi.encodeWithSelector(
-        //         RewardsCoordinator.initialize.selector,
-        //         eigenLayerReputedMultisig,
-        //         eigenLayerPauserReg,
-        //         0 /*initialPausedStatus*/
-        //     )
-        // );
+        eigenLayerProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(rewardsCoordinator))),
+            address(rewardsCoordinatorImplementation),
+            abi.encodeWithSelector(
+                RewardsCoordinator.initialize.selector,
+                eigenLayerReputedMultisig, // initialOwner
+                eigenLayerPauserReg, // pauserRegistry
+                0, // initialPausedStatus
+                rewards_coordinator_updater, // rewardsUpdater
+                rewards_coordinator_activation_delay, // activationDelay
+                rewards_coordinator_default_operator_split_bips // defaultOperatorSplitBips
+            )
+        );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test strategy
         weth =

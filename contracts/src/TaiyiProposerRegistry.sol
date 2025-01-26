@@ -12,6 +12,8 @@ import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 
 import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { Initializable } from
+    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { EnumerableSet } from
@@ -26,6 +28,7 @@ import { EnumerableSet } from
 contract TaiyiProposerRegistry is
     IProposerRegistry,
     BLSSignatureChecker,
+    Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
@@ -87,7 +90,7 @@ contract TaiyiProposerRegistry is
     mapping(bytes32 => Validator) public validators;
 
     /// @notice Mapping of operator addresses to their Operator structs
-    mapping(address => Operator) public registeredOperators;
+    mapping(address => mapping(AVSType => Operator)) public registeredOperators;
 
     /// @notice Set of middleware contracts authorized to call updating
     /// functions
@@ -112,12 +115,49 @@ contract TaiyiProposerRegistry is
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
     /// minimal example, but kept for compatibility)
-    function initialize(address _owner) external initializer {
+    function initialize(
+        address _owner,
+        address _aveDirectory,
+        address _delegationManager,
+        address _strategyManager,
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
+    )
+        external
+        initializer
+    {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
 
         _gatewayAVS = new GatewayAVS();
         _validatorAVS = new ValidatorAVS();
+
+        // Initialize the AVS contracts
+        _gatewayAVS.initialize(
+            _owner,
+            address(this),
+            _aveDirectory,
+            _delegationManager,
+            _strategyManager,
+            _eigenPodManager,
+            _rewardCoordinator,
+            _rewardInitiator,
+            _gatewayShareBips
+        );
+
+        _validatorAVS.initialize(
+            _owner,
+            address(this),
+            _aveDirectory,
+            _delegationManager,
+            _strategyManager,
+            _eigenPodManager,
+            _rewardCoordinator,
+            _rewardInitiator,
+            _gatewayShareBips
+        );
 
         gatewayAVSAddress = address(_gatewayAVS);
         validatorAVSAddress = address(_validatorAVS);
@@ -142,6 +182,12 @@ contract TaiyiProposerRegistry is
         require(
             restakingMiddlewareContracts.contains(msg.sender), "Unauthorized middleware"
         );
+        _;
+    }
+
+    /// @notice Restricts function access to only the ValidatorAVS contract
+    modifier onlyValidatorAVS() {
+        require(msg.sender == validatorAVSAddress, "Only ValidatorAVS can call");
         _;
     }
 
@@ -218,10 +264,11 @@ contract TaiyiProposerRegistry is
     }
 
     /// @notice Initiates the opt-out process for a validator
+    /// @dev Only callable by the ValidatorAVS contract
     /// @param pubKeyHash The hash of the validator's BLS public key
     /// @param signatureExpiry The expiry time of the signature
     function initOptOut(bytes32 pubKeyHash, uint256 signatureExpiry) external {
-        _initOptOut(pubKeyHash, signatureExpiry);
+        _initOptOut(pubKeyHash, signatureExpiry, IProposerRegistry.AVSType.VALIDATOR);
     }
 
     /// @notice Confirms validator opt-out after cooldown period
@@ -263,7 +310,8 @@ contract TaiyiProposerRegistry is
         onlyRestakingMiddlewareContracts
     {
         require(
-            registeredOperators[operatorAddress].operatorAddress == address(0),
+            registeredOperators[operatorAddress][AVSType.VALIDATOR].operatorAddress
+                == address(0),
             "Operator already registered"
         );
 
@@ -274,7 +322,7 @@ contract TaiyiProposerRegistry is
             blsKey: bytes("")
         });
 
-        registeredOperators[operatorAddress] = operatorData;
+        registeredOperators[operatorAddress][AVSType.VALIDATOR] = operatorData;
         _avsToOperators[msg.sender].add(operatorAddress);
     }
 
@@ -287,7 +335,8 @@ contract TaiyiProposerRegistry is
         onlyRestakingMiddlewareContracts
     {
         require(
-            registeredOperators[operatorAddress].operatorAddress == address(0),
+            registeredOperators[operatorAddress][AVSType.GATEWAY].operatorAddress
+                == address(0),
             "Operator already registered"
         );
 
@@ -298,7 +347,7 @@ contract TaiyiProposerRegistry is
             blsKey: pubKeys
         });
 
-        registeredOperators[operatorAddress] = operatorData;
+        registeredOperators[operatorAddress][AVSType.GATEWAY] = operatorData;
         _avsToOperators[msg.sender].add(operatorAddress);
         operatorBlsKeyToData[pubKeys] = operatorData;
         emit OperatorRegistered(operatorAddress, msg.sender, pubKeys);
@@ -313,54 +362,66 @@ contract TaiyiProposerRegistry is
         internal
         onlyRestakingMiddlewareContracts
     {
+        AVSType avsType = getAVSType(msg.sender);
         require(
-            registeredOperators[operatorAddress].operatorAddress != address(0),
+            registeredOperators[operatorAddress][avsType].operatorAddress != address(0),
             "Operator not registered"
         );
 
-        // Loop through all validators associated with this operator.
-        bytes32[] memory operatorValidatorPubkeys =
-            operatorToValidatorPubkeys[operatorAddress];
-        bytes[] memory optedOutPubkeys = new bytes[](operatorValidatorPubkeys.length);
-        uint256 optedOutCount = 0;
+        if (avsType == AVSType.VALIDATOR) {
+            // For ValidatorAVS, we need to check and handle all associated validators
+            bytes32[] memory operatorValidatorPubkeys =
+                operatorToValidatorPubkeys[operatorAddress];
+            bytes[] memory optedOutPubkeys = new bytes[](operatorValidatorPubkeys.length);
+            uint256 optedOutCount = 0;
 
-        for (uint256 i = 0; i < operatorValidatorPubkeys.length; i++) {
-            bytes32 pubkeyHash = operatorValidatorPubkeys[i];
-            Validator storage val = validators[pubkeyHash];
+            for (uint256 i = 0; i < operatorValidatorPubkeys.length; i++) {
+                bytes32 pubkeyHash = operatorValidatorPubkeys[i];
+                Validator storage val = validators[pubkeyHash];
 
-            ValidatorStatus status = val.status;
-            if (status == ValidatorStatus.Active) {
-                revert CannotDeregisterActiveValidator();
-            }
-
-            if (status == ValidatorStatus.OptingOut) {
-                if (block.timestamp < val.optOutTimestamp + OPT_OUT_COOLDOWN) {
-                    revert CannotDeregisterInCooldown();
+                ValidatorStatus status = val.status;
+                if (status == ValidatorStatus.Active) {
+                    revert CannotDeregisterActiveValidator();
                 }
-                revert CannotDeregisterPendingOptOut();
+
+                if (status == ValidatorStatus.OptingOut) {
+                    if (block.timestamp < val.optOutTimestamp + OPT_OUT_COOLDOWN) {
+                        revert CannotDeregisterInCooldown();
+                    }
+                    revert CannotDeregisterPendingOptOut();
+                }
+
+                if (status != ValidatorStatus.OptedOut) {
+                    revert CannotDeregisterNotOptedOut();
+                }
+
+                optedOutPubkeys[optedOutCount] = val.pubkey;
+                optedOutCount++;
             }
 
-            if (status != ValidatorStatus.OptedOut) {
-                revert CannotDeregisterNotOptedOut();
-            }
+            // Clear operator's validator associations
+            delete operatorToValidatorPubkeys[operatorAddress];
 
-            optedOutPubkeys[optedOutCount] = val.pubkey;
-            optedOutCount++;
+            // Emit ValidatorsOptedOut event only for ValidatorAVS
+            emit ValidatorsOptedOut(operatorAddress, optedOutPubkeys);
         }
 
-        // Remove from both AVS-to-operators sets
-        _avsToOperators[gatewayAVSAddress].remove(operatorAddress);
-        _avsToOperators[validatorAVSAddress].remove(operatorAddress);
+        // Common deregistration logic for both AVS types
+        _avsToOperators[msg.sender].remove(operatorAddress);
 
-        // Clear operator's validator associations
-        delete operatorToValidatorPubkeys[operatorAddress];
+        // If Gateway operator, clear BLS key mapping
+        if (avsType == AVSType.GATEWAY) {
+            bytes memory blsKey = registeredOperators[operatorAddress][avsType].blsKey;
+            if (blsKey.length > 0) {
+                delete operatorBlsKeyToData[blsKey];
+            }
+        }
 
-        // Finally, delete the operator's record
-        delete registeredOperators[operatorAddress];
+        // Delete the operator's record
+        delete registeredOperators[operatorAddress][avsType];
 
-        // Emit events
+        // Emit deregistration event
         emit OperatorDeregistered(operatorAddress, msg.sender);
-        emit ValidatorsOptedOut(operatorAddress, optedOutPubkeys);
     }
 
     /// @dev Internal function that registers a single validator
@@ -373,8 +434,8 @@ contract TaiyiProposerRegistry is
         onlyRestakingMiddlewareContracts
     {
         require(
-            registeredOperators[operator].operatorAddress != address(0),
-            "Operator not registered"
+            registeredOperators[operator][AVSType.VALIDATOR].operatorAddress != address(0),
+            "Operator not registered with VALIDATOR AVS"
         );
         require(delegatee.length > 0, "Invalid delegatee");
 
@@ -392,7 +453,8 @@ contract TaiyiProposerRegistry is
             delegatee: delegatee
         });
 
-        address avs = registeredOperators[operator].restakingMiddlewareContract;
+        address avs =
+            registeredOperators[operator][AVSType.VALIDATOR].restakingMiddlewareContract;
         require(avs == msg.sender, "Unauthorized middleware");
 
         operatorToValidatorPubkeys[operator].push(pubkeyHash);
@@ -410,30 +472,39 @@ contract TaiyiProposerRegistry is
         onlyRestakingMiddlewareContracts
     {
         require(
-            registeredOperators[operator].operatorAddress != address(0),
-            "Operator not registered"
+            registeredOperators[operator][AVSType.VALIDATOR].operatorAddress != address(0),
+            "Operator not registered with VALIDATOR AVS"
         );
 
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            this.registerValidator(pubkeys[i], operator, delegatee[i]);
+            _registerValidator(pubkeys[i], operator, delegatee[i]);
         }
     }
 
-    /// @dev Internal function that initiates the opt-out process for a
-    /// validator
+    /// @dev Internal function that initiates the opt-out process for a validator
     function _initOptOut(
         bytes32 pubKeyHash,
-        uint256 signatureExpiry
+        uint256 signatureExpiry,
+        AVSType avsType
     )
-        //BLS12381.G2Point calldata signature
         internal
+        onlyValidatorAVS
     {
         Validator storage validator = validators[pubKeyHash];
 
+        // Get the operator from the validator struct
+        address operator = validator.operator;
+
+        // Get the middleware contract associated with the operator
+        address operatorMiddleware =
+            registeredOperators[operator][avsType].restakingMiddlewareContract;
+
+        // Ensure the request is coming from the correct middleware contract
         require(
-            validator.operator == msg.sender,
-            "Only the validator's operator may trigger opt-out"
+            msg.sender == operatorMiddleware,
+            "Only the AVS middleware contract can initiate opt-out"
         );
+
         require(validator.status == ValidatorStatus.Active, "Invalid status");
         require(block.timestamp <= signatureExpiry, "Signature expired");
 
@@ -471,21 +542,6 @@ contract TaiyiProposerRegistry is
     ///                          VIEW
     /// ----------------------------------------------------------
 
-    /// @notice Checks if an operator is active in a specific AVS
-    /// @param avs The address of the AVS to check
-    /// @param operator The address of the operator to check
-    /// @return bool True if the operator is active in the AVS
-    function isOperatorActiveInAVS(
-        address avs,
-        address operator
-    )
-        external
-        view
-        returns (bool)
-    {
-        return _avsToOperators[avs].contains(operator);
-    }
-
     /// @dev Returns the AVSType for a given AVS
     function getAVSType(address avs) public view returns (AVSType) {
         return _avsTypes[avs];
@@ -505,28 +561,34 @@ contract TaiyiProposerRegistry is
         return validator.operator;
     }
 
-    /// @notice Checks if an operator is registered in the registry
-    /// @param operatorAddress The address of the operator to check
-    /// @return bool True if the operator is registered, false otherwise
-    function isOperatorRegisteredInValidatorAVS(address operatorAddress)
-        public
+    /// @notice Checks if an operator is active in a specific AVS
+    /// @param avs The address of the AVS to check
+    /// @param operator The address of the operator to check
+    /// @return bool True if the operator is active in the AVS
+    function isOperatorActiveInAVS(
+        address avs,
+        address operator
+    )
+        external
         view
         returns (bool)
     {
-        return registeredOperators[operatorAddress].avsType
-            == IProposerRegistry.AVSType.VALIDATOR;
+        return _avsToOperators[avs].contains(operator);
     }
 
-    /// @notice Checks if an operator is registered in the registry
+    /// @notice Checks if an operator is registered in an AVS given the operator address and the AVSType
     /// @param operatorAddress The address of the operator to check
+    /// @param avsType The type of AVS
     /// @return bool True if the operator is registered, false otherwise
-    function isOperatorRegisteredInGatewayAVS(address operatorAddress)
+    function isOperatorRegisteredInAVS(
+        address operatorAddress,
+        AVSType avsType
+    )
         public
         view
         returns (bool)
     {
-        return registeredOperators[operatorAddress].avsType
-            == IProposerRegistry.AVSType.GATEWAY;
+        return registeredOperators[operatorAddress][avsType].operatorAddress != address(0);
     }
 
     /// @notice Gets validator status by public key hash
@@ -579,7 +641,8 @@ contract TaiyiProposerRegistry is
         returns (uint256)
     {
         // Check if operator is registered with the given AVS
-        Operator memory op = registeredOperators[operator];
+        AVSType avsType = _avsTypes[avs];
+        Operator memory op = registeredOperators[operator][avsType];
         if (op.restakingMiddlewareContract == avs) {
             return operatorToValidatorPubkeys[operator].length;
         } else {
@@ -592,10 +655,6 @@ contract TaiyiProposerRegistry is
     /// @param avs The address of the AVS
     /// @param avsType The AVSType (GATEWAY or VALIDATOR)
     /// @return an array of operator addresses for that AVS
-    ///
-    /// Simple Visual:
-    ///   AVS -> [Operator1, Operator2, ...]
-    ///   Filter by avsType if needed
     function getActiveOperatorsForAVS(
         address avs,
         AVSType avsType
@@ -637,13 +696,20 @@ contract TaiyiProposerRegistry is
         return totalCount;
     }
 
+    /// @notice Gets the registered operator details for both GATEWAY and VALIDATOR AVS types
+    /// @param operatorAddr The address of the operator to query
+    /// @return A tuple containing two Operator structs - first for GATEWAY type, second for VALIDATOR type
+    /// @dev Returns empty Operator structs if operator is not registered for either type
     function getRegisteredOperator(address operatorAddr)
         external
         view
         override
-        returns (Operator memory)
+        returns (Operator memory, Operator memory)
     {
-        return registeredOperators[operatorAddr];
+        return (
+            registeredOperators[operatorAddr][AVSType.GATEWAY],
+            registeredOperators[operatorAddr][AVSType.VALIDATOR]
+        );
     }
 
     /// @notice Gets the GatewayAVS contract instance

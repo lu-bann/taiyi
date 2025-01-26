@@ -79,6 +79,10 @@ abstract contract EigenLayerMiddleware is
     /// @notice The address of the entity that can initiate rewards
     address public REWARD_INITIATOR;
 
+    /// @notice The portion of the reward that belongs to Gateway vs. Validator
+    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
+    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
+
     // ========= EVENTS =========
 
     event RewardsInitiatorUpdated(
@@ -118,9 +122,12 @@ abstract contract EigenLayerMiddleware is
     /// @dev Reverts with OperatorNotRegistered if msg.sender is not registered in proposer registry and is not the owner
     modifier onlyRegisteredOperatorOrOwner() {
         if (
-            !proposerRegistry.isOperatorRegisteredInGatewayAVS(msg.sender)
-                && !proposerRegistry.isOperatorRegisteredInValidatorAVS(msg.sender)
-                && msg.sender != owner()
+            !proposerRegistry.isOperatorRegisteredInAVS(
+                msg.sender, IProposerRegistry.AVSType.GATEWAY
+            )
+                && !proposerRegistry.isOperatorRegisteredInAVS(
+                    msg.sender, IProposerRegistry.AVSType.VALIDATOR
+                ) && msg.sender != owner()
         ) {
             revert OperatorNotRegistered();
         }
@@ -153,14 +160,14 @@ abstract contract EigenLayerMiddleware is
         address _strategyManager,
         address _eigenPodManager,
         address _rewardCoordinator,
-        address _rewardInitiator
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
     )
         public
         initializer
     {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
-        transferOwnership(_owner);
 
         proposerRegistry = IProposerRegistry(_proposerRegistry);
 
@@ -170,6 +177,7 @@ abstract contract EigenLayerMiddleware is
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
+        GATEWAY_SHARE_BIPS = _gatewayShareBips;
     }
 
     /// @notice Register multiple validators for multiple pod owners in a single
@@ -255,6 +263,15 @@ abstract contract EigenLayerMiddleware is
     /// @dev Only callable by the owner.
     function setClaimerFor(address claimer) public virtual onlyOwner {
         _setClaimerFor(claimer);
+    }
+
+    function processClaim(
+        IRewardsCoordinator.RewardsMerkleClaim calldata claim,
+        address recipient
+    )
+        external
+    {
+        _processClaim(claim, recipient);
     }
 
     // ========= INTERNAL FUNCTIONS =========
@@ -372,6 +389,16 @@ abstract contract EigenLayerMiddleware is
     function _deregisterOperatorFromAVS(address operator) internal {
         AVS_DIRECTORY.deregisterOperatorFromAVS(operator);
         proposerRegistry.deregisterOperator(operator);
+    }
+
+    /// @dev Internal function that processes a claim.
+    function _processClaim(
+        IRewardsCoordinator.RewardsMerkleClaim calldata claim,
+        address recipient
+    )
+        internal
+    {
+        IRewardsCoordinator(REWARDS_COORDINATOR).processClaim(claim, recipient);
     }
 
     /// @dev Internal function that updates the AVS metadata URI.

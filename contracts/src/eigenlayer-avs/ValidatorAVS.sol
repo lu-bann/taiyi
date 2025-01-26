@@ -61,32 +61,6 @@ contract ValidatorAVS is EigenLayerMiddleware {
         _;
     }
 
-    /// @notice Initialize upgradeable contract.
-    function initializeValidatorAVS(
-        address _owner,
-        address _proposerRegistry,
-        address _avsDirectory,
-        address _delegationManager,
-        address _strategyManager,
-        address _eigenPodManager,
-        address _rewardCoordinator,
-        address _rewardInitiator
-    )
-        external
-        initializer
-    {
-        super.initialize(
-            _owner,
-            _proposerRegistry,
-            _avsDirectory,
-            _delegationManager,
-            _strategyManager,
-            _eigenPodManager,
-            _rewardCoordinator,
-            _rewardInitiator
-        );
-    }
-
     // ========= OVERRIDE FUNCTIONS =========
 
     /// @notice Override of createOperatorDirectedAVSRewardsSubmission that redirects to GatewayAVS
@@ -129,7 +103,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
     ///      acts as its own GatewayAVS operator.
     ///
     ///      For each validator registered, the contract emits a ValidatorOperatorRegistered event.
-    ///      Off-chain, a service in "commit boost" listens to this event, and uses the information
+    ///      Off-chain, a service in Commit-boost listens to this event, and uses the information
     ///      to send delegation messages to the Relay, adhering to the preconf constraint API found at:
     ///      https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate
     ///
@@ -165,17 +139,24 @@ contract ValidatorAVS is EigenLayerMiddleware {
             "ValidatorAVS: Must choose a valid Gateway delegate"
         );
 
-        // Get the operator delegated to by the pod owner. EigenPod owner could be self-delegated
+        // Get the operator delegated to by the pod owner.
+        // EigenPod owner could be self-delegated
         address operator = DELEGATION_MANAGER.delegatedTo(podOwner);
 
         // Check if operator is registered in proposer registry
-        if (!proposerRegistry.isOperatorRegisteredInGatewayAVS(operator)) {
+        if (
+            !proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.VALIDATOR
+            )
+        ) {
             revert OperatorIsNotYetRegisteredInTaiyiProposerRegistry();
         }
 
         // Check if operator is registered with the gateway AVS
         if (
-            !proposerRegistry.isOperatorActiveInAVS(super.getGatewayAVSAddress(), operator)
+            !proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.GATEWAY
+            )
         ) {
             revert OperatorIsNotYetRegisteredInTaiyiGatewayAVS();
         }
@@ -219,16 +200,16 @@ contract ValidatorAVS is EigenLayerMiddleware {
         external
         onlyGatewayAVS
     {
-        // Approve RewardsCoordinator to pull the validator portion
-        submission.token.approve(address(REWARDS_COORDINATOR), validatorAmount);
-
         // Get validator operators and total count for this AVS
         address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
             address(this), IProposerRegistry.AVSType.VALIDATOR
         );
+        require(operators.length > 0, "ValidatorAVS: No operators");
+
         uint256 totalValidatorCount = proposerRegistry.getTotalValidatorCountForAVS(
             address(this), IProposerRegistry.AVSType.VALIDATOR
         );
+        require(totalValidatorCount > 0, "ValidatorAVS: No validators registered");
 
         // Build array of OperatorRewards proportionally
         IRewardsCoordinator.OperatorReward[] memory opRewards =
@@ -238,9 +219,11 @@ contract ValidatorAVS is EigenLayerMiddleware {
             uint256 opValidatorCount = proposerRegistry.getValidatorCountForOperatorInAVS(
                 address(this), operators[i]
             );
+            require(opValidatorCount > 0, "ValidatorAVS: Operator has no validators");
 
             // Share of the total validatorAmount = amount * (opCount/totalCount)
-            uint256 share = validatorAmount * (opValidatorCount / totalValidatorCount);
+            uint256 share = (validatorAmount * opValidatorCount) / totalValidatorCount;
+            require(share > 0, "ValidatorAVS: Operator share is zero");
 
             opRewards[i] = IRewardsCoordinator.OperatorReward({
                 operator: operators[i],
@@ -264,8 +247,63 @@ contract ValidatorAVS is EigenLayerMiddleware {
             )
         });
 
+        // Approve RewardsCoordinator to spend the validator portion
+        submission.token.approve(address(REWARDS_COORDINATOR), validatorAmount);
+
         REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
             address(this), validatorSubmissions
         );
+    }
+
+    /// @notice Initiates the opt-out process for a validator
+    /// @param pubkey The BLS public key of the validator to opt out
+    /// @param signatureExpiry The expiry timestamp for the opt-out signature
+    function initiateValidatorOptOut(bytes32 pubkey, uint256 signatureExpiry) external {
+        // Check if caller is a registered operator
+        require(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                msg.sender, IProposerRegistry.AVSType.VALIDATOR
+            ),
+            "Not a registered operator"
+        );
+
+        // Call the registry to initiate opt-out
+        proposerRegistry.initOptOut(pubkey, signatureExpiry);
+    }
+
+    /// @notice Confirms the opt-out process for a validator after cooldown
+    /// @param pubkey The BLS public key of the validator to confirm opt-out
+    function confirmValidatorOptOut(bytes32 pubkey) external {
+        proposerRegistry.confirmOptOut(pubkey);
+    }
+
+    /// @notice Batch initiates opt-out for multiple validators
+    /// @param pubkeys Array of BLS public keys of validators to opt out
+    /// @param signatureExpiry The expiry timestamp for the opt-out signatures
+    function batchInitiateValidatorOptOut(
+        bytes32[] calldata pubkeys,
+        uint256 signatureExpiry
+    )
+        external
+    {
+        // Check if caller is a registered operator
+        require(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                msg.sender, IProposerRegistry.AVSType.VALIDATOR
+            ),
+            "Not a registered operator"
+        );
+
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            proposerRegistry.initOptOut(pubkeys[i], signatureExpiry);
+        }
+    }
+
+    /// @notice Batch confirms opt-out for multiple validators after cooldown
+    /// @param pubkeys Array of BLS public keys of validators to confirm opt-out
+    function batchConfirmValidatorOptOut(bytes32[] calldata pubkeys) external {
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            proposerRegistry.confirmOptOut(pubkeys[i]);
+        }
     }
 }

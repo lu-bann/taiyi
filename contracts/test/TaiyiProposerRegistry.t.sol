@@ -2,39 +2,63 @@
 pragma solidity ^0.8.25;
 
 import "../src/TaiyiProposerRegistry.sol";
+
+import "../src/eigenlayer-avs/GatewayAVS.sol";
+import "../src/eigenlayer-avs/ValidatorAVS.sol";
 import "../src/interfaces/IProposerRegistry.sol";
+
+import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 contract TaiyiProposerRegistryTest is Test {
     TaiyiProposerRegistry public registry;
 
-    address owner = makeAddr("owner");
-    address middleware = makeAddr("middleware");
-    address operator = makeAddr("operator");
-    address operator2 = makeAddr("operator2");
-    bytes mockBlsKey;
+    uint256 constant GATEWAY_SHARE_BIPS = 8000; // 80%
+
+    address public owner;
+    address public operator;
+    bytes public mockBlsPubKey;
+    EigenlayerDeployer public eigenLayerDeployer;
+    address public rewardsInitiator;
 
     function setUp() public {
-        // Deploy the registry
+        owner = makeAddr("owner");
+        operator = makeAddr("operator");
+        mockBlsPubKey = abi.encodePacked("mockBlsPubKey");
+        rewardsInitiator = makeAddr("rewardInitiator");
+
+        eigenLayerDeployer = new EigenlayerDeployer();
+        eigenLayerDeployer.setUp();
+
+        vm.startPrank(owner);
+
+        // Deploy and initialize registry
         registry = new TaiyiProposerRegistry();
-        registry.initialize(owner);
+        registry.initialize(
+            owner,
+            address(eigenLayerDeployer.avsDirectory()),
+            address(eigenLayerDeployer.delegationManager()),
+            address(eigenLayerDeployer.strategyManager()),
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator,
+            GATEWAY_SHARE_BIPS
+        );
 
-        // Create mock BLS key
-        mockBlsKey = new bytes(48);
-        for (uint256 i = 0; i < 48; i++) {
-            mockBlsKey[i] = 0xab;
-        }
-
-        // Add a restaking contract
-        vm.prank(owner);
-        registry.addRestakingMiddlewareContract(middleware);
+        vm.stopPrank();
     }
 
-    function test_Initialization() public view {
+    function testInitialization() public view {
         assertEq(registry.owner(), owner);
-        assertEq(registry.gatewayAVSAddress(), address(0));
-        assertEq(registry.validatorAVSAddress(), address(0));
+        assertTrue(
+            registry.isOperatorActiveInAVS(registry.gatewayAVSAddress(), address(0))
+                == false
+        );
+        assertTrue(
+            registry.isOperatorActiveInAVS(registry.validatorAVSAddress(), address(0))
+                == false
+        );
     }
 
     /// @notice Test middleware management functions
@@ -48,37 +72,59 @@ contract TaiyiProposerRegistryTest is Test {
 
         vm.expectRevert("Unauthorized middleware");
         vm.prank(newMiddleware);
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
     }
 
     /// @notice Test Gateway operator registration
     function test_GatewayOperatorRegistration() public {
-        vm.prank(middleware);
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
+        vm.prank(registry.gatewayAVSAddress());
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
 
-        IProposerRegistry.Operator memory op = registry.getRegisteredOperator(operator);
-        assertEq(op.operatorAddress, operator);
-        assertEq(uint256(op.avsType), uint256(IProposerRegistry.AVSType.GATEWAY));
-        assertEq(keccak256(op.blsKey), keccak256(mockBlsKey));
-        assertTrue(registry.isOperatorRegisteredInGatewayAVS(operator));
+        (
+            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory validatorOp
+        ) = registry.getRegisteredOperator(operator);
+        validatorOp;
+        assertEq(gatewayOp.operatorAddress, operator);
+        assertEq(uint256(gatewayOp.avsType), uint256(IProposerRegistry.AVSType.GATEWAY));
+        assertEq(keccak256(gatewayOp.blsKey), keccak256(mockBlsPubKey));
+        assertTrue(
+            registry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.GATEWAY
+            )
+        );
     }
 
     /// @notice Test Validator operator registration
     function test_ValidatorOperatorRegistration() public {
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
-        IProposerRegistry.Operator memory op = registry.getRegisteredOperator(operator);
-        assertEq(op.operatorAddress, operator);
-        assertEq(uint256(op.avsType), uint256(IProposerRegistry.AVSType.VALIDATOR));
-        assertEq(op.blsKey.length, 0);
-        assertTrue(registry.isOperatorRegisteredInValidatorAVS(operator));
+        (
+            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory validatorOp
+        ) = registry.getRegisteredOperator(operator);
+        gatewayOp;
+        assertEq(validatorOp.operatorAddress, operator);
+        assertEq(
+            uint256(validatorOp.avsType), uint256(IProposerRegistry.AVSType.VALIDATOR)
+        );
+        assertEq(validatorOp.blsKey.length, 0);
+        assertTrue(
+            registry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.VALIDATOR
+            )
+        );
     }
 
     /// @notice Test validator registration with delegatee
     function test_ValidatorRegistrationWithDelegatee() public {
         // Register operator first
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Create validator data
@@ -90,7 +136,7 @@ contract TaiyiProposerRegistryTest is Test {
         }
 
         // Register validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         // Verify registration
@@ -101,12 +147,17 @@ contract TaiyiProposerRegistryTest is Test {
         assertEq(keccak256(validator.pubkey), keccak256(validatorPubkey));
         assertEq(keccak256(validator.delegatee), keccak256(delegatee));
         assertEq(uint8(validator.status), uint8(IProposerRegistry.ValidatorStatus.Active));
+        assertTrue(
+            registry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.VALIDATOR
+            )
+        );
     }
 
     /// @notice Test batch validator registration
     function test_BatchValidatorRegistration() public {
         // Register operator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Create multiple validator data
@@ -122,8 +173,16 @@ contract TaiyiProposerRegistryTest is Test {
             }
         }
 
+        // Verify operator is registered before batch registration
+        assertTrue(
+            registry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.VALIDATOR
+            ),
+            "Operator should be registered"
+        );
+
         // Batch register
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.batchRegisterValidators(pubkeys, operator, delegatees);
 
         // Verify all registrations
@@ -144,7 +203,7 @@ contract TaiyiProposerRegistryTest is Test {
     /// @notice Test validator opt-out process
     function test_ValidatorOptOut() public {
         // Setup validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
@@ -154,13 +213,15 @@ contract TaiyiProposerRegistryTest is Test {
             delegatee[i] = 0xef;
         }
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         bytes32 pubkeyHash = keccak256(validatorPubkey);
 
         // Init opt-out
+        vm.startPrank(registry.validatorAVSAddress(), operator);
         registry.initOptOut(pubkeyHash, block.timestamp + 1 days);
+        vm.stopPrank();
         assertEq(
             uint8(registry.getValidatorStatus(pubkeyHash)),
             uint8(IProposerRegistry.ValidatorStatus.OptingOut)
@@ -196,46 +257,77 @@ contract TaiyiProposerRegistryTest is Test {
 
     /// @notice Test operator counting and querying
     function test_OperatorQueries() public {
-        // Register operators
-        vm.startPrank(middleware);
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
-        registry.registerOperator(operator2, IProposerRegistry.AVSType.VALIDATOR, "");
+        // Register operator in Gateway AVS
+        vm.startPrank(registry.gatewayAVSAddress());
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
         vm.stopPrank();
 
-        // Test operator queries
+        // Register operator in Validator AVS
+        vm.startPrank(registry.validatorAVSAddress());
+        registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
+        vm.stopPrank();
+
+        // Test Gateway operator queries
         address[] memory gatewayOps = registry.getActiveOperatorsForAVS(
             registry.gatewayAVSAddress(), IProposerRegistry.AVSType.GATEWAY
         );
         assertEq(gatewayOps.length, 1);
         assertEq(gatewayOps[0], operator);
 
+        // Test Validator operator queries
         address[] memory validatorOps = registry.getActiveOperatorsForAVS(
             registry.validatorAVSAddress(), IProposerRegistry.AVSType.VALIDATOR
         );
         assertEq(validatorOps.length, 1);
-        assertEq(validatorOps[0], operator2);
+        assertEq(validatorOps[0], operator);
+
+        // Verify operator data
+        (
+            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory validatorOpData
+        ) = registry.getRegisteredOperator(operator);
+
+        // Verify Gateway operator data
+        assertEq(gatewayOpData.operatorAddress, operator);
+        assertEq(uint8(gatewayOpData.avsType), uint8(IProposerRegistry.AVSType.GATEWAY));
+        assertEq(keccak256(gatewayOpData.blsKey), keccak256(mockBlsPubKey));
+
+        // Verify Validator operator data
+        assertEq(validatorOpData.operatorAddress, operator);
+        assertEq(
+            uint8(validatorOpData.avsType), uint8(IProposerRegistry.AVSType.VALIDATOR)
+        );
+        assertEq(validatorOpData.blsKey.length, 0);
     }
 
     function test_RegisterOperatorRevertsIfAlreadyRegistered() public {
         // First time success
-        vm.prank(middleware);
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
+        vm.prank(registry.gatewayAVSAddress());
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
 
         // Second time revert
-        vm.prank(middleware);
+        vm.prank(registry.gatewayAVSAddress());
         vm.expectRevert(bytes("Operator already registered"));
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
     }
 
     function test_RegisterOperatorRevertsIfNotCalledByMiddleware() public {
         vm.expectRevert(bytes("Unauthorized middleware"));
-        registry.registerOperator(operator, IProposerRegistry.AVSType.GATEWAY, mockBlsKey);
+        registry.registerOperator(
+            operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
+        );
     }
 
     /// @notice Test operator deregistration with active validators
     function test_DeregisterOperatorRevertsWithActiveValidators() public {
         // Setup operator and validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
@@ -245,11 +337,11 @@ contract TaiyiProposerRegistryTest is Test {
             delegatee[i] = 0xef;
         }
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         // Attempt to deregister with active validator should fail
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         vm.expectRevert(TaiyiProposerRegistry.CannotDeregisterActiveValidator.selector);
         registry.deregisterOperator(operator);
     }
@@ -257,7 +349,7 @@ contract TaiyiProposerRegistryTest is Test {
     /// @notice Test operator deregistration with validators in cooldown
     function test_DeregisterOperatorRevertsInCooldown() public {
         // Setup operator and validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
@@ -267,15 +359,17 @@ contract TaiyiProposerRegistryTest is Test {
             delegatee[i] = 0xef;
         }
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         // Initiate opt-out
         bytes32 pubkeyHash = keccak256(validatorPubkey);
+        vm.startPrank(registry.validatorAVSAddress(), operator);
         registry.initOptOut(pubkeyHash, block.timestamp + 1 days);
+        vm.stopPrank();
 
         // Attempt to deregister during cooldown should fail
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         vm.expectRevert(TaiyiProposerRegistry.CannotDeregisterInCooldown.selector);
         registry.deregisterOperator(operator);
     }
@@ -283,7 +377,7 @@ contract TaiyiProposerRegistryTest is Test {
     /// @notice Test successful operator deregistration after validator opt-out
     function test_SuccessfulDeregistrationAfterOptOut() public {
         // Setup operator and validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
@@ -293,45 +387,56 @@ contract TaiyiProposerRegistryTest is Test {
             delegatee[i] = 0xef;
         }
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         // Complete opt-out process
         bytes32 pubkeyHash = keccak256(validatorPubkey);
+        vm.prank(registry.validatorAVSAddress());
         registry.initOptOut(pubkeyHash, block.timestamp + 1 days);
         vm.warp(block.timestamp + registry.OPT_OUT_COOLDOWN() + 1);
         registry.confirmOptOut(pubkeyHash);
 
         // Verify events are emitted correctly
-        vm.expectEmit(true, true, false, true);
-        emit TaiyiProposerRegistry.OperatorDeregistered(operator, middleware);
-
         vm.expectEmit(true, false, false, true);
         bytes[] memory expectedPubkeys = new bytes[](1);
         expectedPubkeys[0] = validatorPubkey;
         emit TaiyiProposerRegistry.ValidatorsOptedOut(operator, expectedPubkeys);
 
+        vm.expectEmit(true, true, false, true);
+        emit TaiyiProposerRegistry.OperatorDeregistered(
+            operator, registry.validatorAVSAddress()
+        );
+
         // Deregister operator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.deregisterOperator(operator);
 
         // Verify operator is fully deregistered
-        assertFalse(registry.isOperatorRegisteredInGatewayAVS(operator));
-        assertFalse(registry.isOperatorRegisteredInValidatorAVS(operator));
-        assertFalse(registry.isOperatorActiveInAVS(middleware, operator));
+        assertFalse(
+            registry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.AVSType.VALIDATOR
+            )
+        );
+        assertFalse(
+            registry.isOperatorActiveInAVS(registry.gatewayAVSAddress(), operator)
+        );
 
         // Verify operator data is cleared
-        IProposerRegistry.Operator memory opData =
-            registry.getRegisteredOperator(operator);
-        assertEq(opData.operatorAddress, address(0));
-        assertEq(opData.restakingMiddlewareContract, address(0));
-        assertEq(opData.blsKey.length, 0);
+        (
+            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory validatorOpData
+        ) = registry.getRegisteredOperator(operator);
+        gatewayOpData;
+        assertEq(validatorOpData.operatorAddress, address(0));
+        assertEq(validatorOpData.restakingMiddlewareContract, address(0));
+        assertEq(validatorOpData.blsKey.length, 0);
     }
 
     /// @notice Test post-deregistration restrictions
     function test_PostDeregistrationRestrictions() public {
         // Setup and deregister operator with opted out validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
@@ -341,38 +446,43 @@ contract TaiyiProposerRegistryTest is Test {
             delegatee[i] = 0xef;
         }
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         bytes32 pubkeyHash = keccak256(validatorPubkey);
+        vm.prank(registry.validatorAVSAddress());
         registry.initOptOut(pubkeyHash, block.timestamp + 1 days);
         vm.warp(block.timestamp + registry.OPT_OUT_COOLDOWN() + 1);
         registry.confirmOptOut(pubkeyHash);
 
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.deregisterOperator(operator);
 
         // Attempt post-deregistration actions
-        vm.startPrank(middleware);
+        vm.startPrank(registry.validatorAVSAddress());
 
         // Should not be able to register new validators
         bytes memory newValidatorPubkey = new bytes(48);
-        vm.expectRevert("Operator not registered");
+        vm.expectRevert("Operator not registered with VALIDATOR AVS");
         registry.registerValidator(newValidatorPubkey, operator, delegatee);
 
-        // Should not be able to register as operator again without clearing previous state
-        vm.expectRevert("Operator already registered");
+        // Should be able to register as operator again since they were deregistered
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Verify validator count is zero
-        assertEq(registry.getValidatorCountForOperatorInAVS(middleware, operator), 0);
+        assertEq(
+            registry.getValidatorCountForOperatorInAVS(
+                registry.validatorAVSAddress(), operator
+            ),
+            0
+        );
         vm.stopPrank();
     }
 
     /// @notice Test deregistration with multiple validators
     function test_DeregistrationWithMultipleValidators() public {
         // Setup operator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Register multiple validators
@@ -390,14 +500,16 @@ contract TaiyiProposerRegistryTest is Test {
             }
             pubkeyHashes[i] = keccak256(pubkeys[i]);
 
-            vm.prank(middleware);
+            vm.prank(registry.validatorAVSAddress());
             registry.registerValidator(pubkeys[i], operator, delegatees[i]);
         }
 
         // Opt out all validators
+        vm.startPrank(registry.validatorAVSAddress(), operator);
         for (uint256 i = 0; i < validatorCount; i++) {
             registry.initOptOut(pubkeyHashes[i], block.timestamp + 1 days);
         }
+        vm.stopPrank();
 
         // Wait cooldown and confirm opt-out for all
         vm.warp(block.timestamp + registry.OPT_OUT_COOLDOWN() + 1);
@@ -406,14 +518,16 @@ contract TaiyiProposerRegistryTest is Test {
         }
 
         // Verify events for multiple validators
-        vm.expectEmit(true, true, false, true);
-        emit TaiyiProposerRegistry.OperatorDeregistered(operator, middleware);
-
         vm.expectEmit(true, false, false, true);
         emit TaiyiProposerRegistry.ValidatorsOptedOut(operator, pubkeys);
 
+        vm.expectEmit(true, true, false, true);
+        emit TaiyiProposerRegistry.OperatorDeregistered(
+            operator, registry.validatorAVSAddress()
+        );
+
         // Deregister operator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.deregisterOperator(operator);
 
         // Verify all validators are properly cleared
@@ -428,7 +542,7 @@ contract TaiyiProposerRegistryTest is Test {
 
     function testRegisterValidatorWithDelegatee() public {
         // Register operator first
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Create test validator pubkey and delegatee
@@ -440,7 +554,7 @@ contract TaiyiProposerRegistryTest is Test {
         }
 
         // Register validator
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerValidator(validatorPubkey, operator, delegatee);
 
         // Verify registration
@@ -455,14 +569,14 @@ contract TaiyiProposerRegistryTest is Test {
 
     function testRegisterValidatorFailsWithEmptyDelegatee() public {
         // Register operator first
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         bytes memory validatorPubkey = new bytes(48);
         bytes memory emptyDelegatee = "";
 
         // Should revert when trying to register with empty delegatee
-        vm.prank(middleware);
+        vm.prank(registry.validatorAVSAddress());
         vm.expectRevert("Invalid delegatee");
         registry.registerValidator(validatorPubkey, operator, emptyDelegatee);
     }
@@ -478,8 +592,16 @@ contract TaiyiProposerRegistryTest is Test {
             bytes memory blsKey
         )
     {
-        IProposerRegistry.Operator memory op =
-            registry.getRegisteredOperator(operatorAddr);
-        return (op.operatorAddress, op.restakingMiddlewareContract, op.avsType, op.blsKey);
+        (
+            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory validatorOp
+        ) = registry.getRegisteredOperator(operatorAddr);
+        validatorOp;
+        return (
+            gatewayOp.operatorAddress,
+            gatewayOp.restakingMiddlewareContract,
+            gatewayOp.avsType,
+            gatewayOp.blsKey
+        );
     }
 }

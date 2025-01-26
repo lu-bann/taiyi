@@ -89,7 +89,16 @@ contract Deploy is Script, Test {
         vm.startBroadcast();
 
         TaiyiProposerRegistry taiyiProposerRegistry = new TaiyiProposerRegistry();
-        taiyiProposerRegistry.initialize(msg.sender);
+        taiyiProposerRegistry.initialize(
+            msg.sender,
+            avsDirectory,
+            delegationManager,
+            strategyManagerAddr,
+            eigenPodManager,
+            rewardCoordinator,
+            rewardInitiator,
+            8000 // 80% to gateway
+        );
         emit log_address(address(taiyiProposerRegistry));
         vm.serializeAddress(
             taiyiAddresses, "taiyiProposerRegistry", address(taiyiProposerRegistry)
@@ -101,15 +110,15 @@ contract Deploy is Script, Test {
 
         // Todo: change this to two contracts
         ValidatorAVS eigenLayerMiddleware = new ValidatorAVS();
-        eigenLayerMiddleware.initializeValidatorAVS(
+        taiyiProposerRegistry.initialize(
             msg.sender,
-            address(taiyiProposerRegistry),
             avsDirectory,
             delegationManager,
             strategyManagerAddr,
             eigenPodManager,
             rewardCoordinator,
-            rewardInitiator
+            rewardInitiator,
+            8000 // 80% to gateway
         );
         emit log_address(address(eigenLayerMiddleware));
         string memory addresses = vm.serializeAddress(
@@ -128,7 +137,8 @@ contract Deploy is Script, Test {
             strategyManagerAddr,
             eigenPodManager,
             rewardInitiator,
-            rewardCoordinator
+            rewardCoordinator,
+            8000 // 80% to gateway
         );
         string memory output = "output";
         string memory finalJ = vm.serializeString(output, taiyiAddresses, addresses);
