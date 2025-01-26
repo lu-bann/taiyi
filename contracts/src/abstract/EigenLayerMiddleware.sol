@@ -5,7 +5,6 @@ import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { EnumerableMap } from
@@ -32,7 +31,6 @@ import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
-
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
@@ -40,7 +38,6 @@ import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
-
 import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
 /// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
@@ -85,9 +82,6 @@ abstract contract EigenLayerMiddleware is
 
     // ========= EVENTS =========
 
-    event RewardsInitiatorUpdated(
-        address indexed oldInitiator, address indexed newInitiator
-    );
     event AVSDirectorySet(address indexed avsDirectory);
 
     // ========= ERRORS =========
@@ -265,6 +259,14 @@ abstract contract EigenLayerMiddleware is
         _setClaimerFor(claimer);
     }
 
+    function createAVSRewardsSubmission(
+        IRewardsCoordinator.RewardsSubmission[] calldata submissions
+    )
+        external
+    {
+        _createAVSRewardsSubmission(submissions);
+    }
+
     function processClaim(
         IRewardsCoordinator.RewardsMerkleClaim calldata claim,
         address recipient
@@ -308,6 +310,13 @@ abstract contract EigenLayerMiddleware is
             )
         });
     }
+
+    function _createAVSRewardsSubmission(
+        IRewardsCoordinator.RewardsSubmission[] calldata submissions
+    )
+        internal
+        virtual
+    { }
 
     function _createOperatorDirectedAVSRewardsSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions

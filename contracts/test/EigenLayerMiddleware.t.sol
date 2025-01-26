@@ -400,6 +400,7 @@ contract EigenlayerMiddlewareTest is Test {
         // Setup reward token and get shares
         (ERC20PresetFixedSupply rewardToken, uint256 gatewayShare, uint256 validatorShare)
         = _setupRewardToken();
+        validatorShare;
 
         // Setup operators
         (
