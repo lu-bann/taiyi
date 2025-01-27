@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
@@ -29,10 +29,11 @@ import { IDelegationManager } from
 import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
-import { ISignatureUtils } from
-    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";

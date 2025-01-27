@@ -110,16 +110,6 @@ contract Deploy is Script, Test {
 
         // Todo: change this to two contracts
         ValidatorAVS eigenLayerMiddleware = new ValidatorAVS();
-        taiyiProposerRegistry.initialize(
-            msg.sender,
-            avsDirectory,
-            delegationManager,
-            strategyManagerAddr,
-            eigenPodManager,
-            rewardCoordinator,
-            rewardInitiator,
-            8000 // 80% to gateway
-        );
         emit log_address(address(eigenLayerMiddleware));
         string memory addresses = vm.serializeAddress(
             taiyiAddresses, "eigenLayerMiddleware", address(eigenLayerMiddleware)
