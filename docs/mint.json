@@ -60,7 +60,18 @@
           "icon": "computer",
           "pages": [
             "node_operator_setup_guide/helder_devnet",
-            "node_operator_setup_guide/holesky_testnet"
+            {
+              "group": "Holesky Testnet",
+              "icon": "ethereum",
+              "pages": [
+                "node_operator_setup_guide/holesky/overview",
+                "node_operator_setup_guide/holesky/system_requirements",
+                "node_operator_setup_guide/holesky/installation_and_configuration",
+                "node_operator_setup_guide/holesky/protocol_opt_in",
+                "node_operator_setup_guide/holesky/monitoring",
+                "node_operator_setup_guide/holesky/taiyi_cli"
+              ]
+            }
           ]
         },
         "send_your_first_preconfirmation",
@@ -139,6 +150,13 @@
           ]
         },
         "learn/glossary"
+      ]
+    },
+    {
+      "group": "Network Information",
+      "pages": [
+        "network_info/supported_endpoints",
+        "network_info/contract_addresses"
       ]
     },
     {

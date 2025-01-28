@@ -1,0 +1,124 @@
+---
+title: 'Installation & Configuration'
+description: 'Step-by-step guide for deploying and registering your Taiyi node on Holesky testnet.'
+icon: 'wrench'
+---
+
+## Prerequisites
+
+Before proceeding, ensure you have:
+- Completed the [system requirements](/node_operator_setup_guide/holesky/system_requirements)
+- A running validator your server
+
+## 1. Deploy Core Components
+
+### Build commit-boost
+
+```bash
+git clone https://github.com/Commit-Boost/commit-boost-client.git
+cd commit-boost-client
+cargo build --release # target binary: ./target/release/commit-boost-signer
+```
+
+### Build taiyi-boost
+
+```bash
+git clone git@github.com:lu-bann/taiyi.git
+cd taiyi
+cargo build --release # target binary: ./target/release/taiyi-boost
+```
+
+### Configure commit-boost
+
+Create `cb-config.toml`:
+
+```toml
+chain = "Holesky"
+
+[pbs]
+port = 18550
+timeout_get_header_ms = 950
+timeout_get_payload_ms = 4000
+
+trusted_preconfer = "0xa7c828460fc5c8d24c60f9f30c8836659b60a610fe8b87b26a71e9b765a9d0cae16b1a963f65b3b7abe264cda187c113"
+beacon_node = "http://127.0.0.1:4000"
+chain_id = 7014190335
+
+[[relays]]
+id = "helix"
+url = "http://0xadc0fe12e62c14a505ea1e655dbe4d36fa505ed57b634ba37912153d29edd45c5bc5a77764e68b98c53e3f6f8ce9fa3b@relay.holesky.luban.wtf"
+```
+
+### Set Environment Variables
+
+```bash
+export CB_JWTS="pbs=<your-jwt-secret>"
+export CB_SIGNER_PORT=8327
+export CB_SIGNER_URL=http://127.0.0.1:8327
+export CB_SIGNER_JWT=<your-jwt-secret>
+export CB_CONFIG=/path/to/cb-config.toml
+export CB_SIGNER_LOADER_KEYS_DIR=/path/to/keys
+export CB_SIGNER_LOADER_SECRETS_DIR=/path/to/secrets
+```
+
+### Start Services
+
+```bash
+<path-to>/commit-boost-signer
+<path-to>/taiyi-boost
+```
+
+## 2. Configure Your Validator
+
+### Update Relay Configuration
+
+For example, with Lighthouse beacon node:
+```bash
+lighthouse beacon --builder=https://relay.holesky.luban.wtf ...# your other config
+```
+<Note>
+For a complete list of relay and gateway endpoints, see the [Supported Endpoints](/network_info/supported_endpoints) page.
+</Note>
+
+## 3. Register with Taiyi Protocol
+
+### Install Taiyi CLI
+
+Build from source:
+```bash
+git clone https://github.com/lu-bann/taiyi.git
+cd taiyi
+cargo build --release --bin taiyi-cli
+```
+
+### Delegate to taiyi Gateway
+
+Use the taiyi-cli to delegate your validator to the taiyi gateway:
+
+```bash
+taiyi-cli delegate \
+  --relay-url https://relay.holesky.luban.wtf \
+  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --network holesky \
+  local-keystore \
+  --path /path/to/validators \
+  --password-path /path/to/secrets
+```
+
+<Note>
+For detailed information about other commands, see the [Taiyi-CLI](/node_operator_setup_guide/holesky/taiyi_cli).
+</Note>
+
+
+<Note>
+For a complete list of supported endpoints and network information, see the [Supported Endpoints](/network_info/supported_endpoints) page.
+</Note>
+
+## Next Steps
+
+With your node components installed and configured, you're ready to proceed to the [Protocol Opt-in](/node_operator_setup_guide/holesky/protocol_opt_in) process where you'll:
+
+1. Deposit stake into EigenLayer's strategy contract
+2. Register as a Taiyi operator
+3. Delegate your validator keys to the Gateway
+4. Verify your registration and stake
