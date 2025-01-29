@@ -35,6 +35,12 @@ interface IProposerRegistry {
         bytes blsKey;
     }
 
+    /// @notice Struct to store operator BLS key data
+    struct OperatorBLSData {
+        address operator;
+        AVSType avsType;
+    }
+
     // Events
     event ValidatorOptedIn(bytes32 indexed pubKeyHash, address indexed controller);
     event ValidatorOptedOut(bytes32 indexed pubKeyHash, address indexed controller);
@@ -43,17 +49,7 @@ interface IProposerRegistry {
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
-    function initialize(
-        address _owner,
-        address _aveDirectory,
-        address _delegationManager,
-        address _strategyManager,
-        address _eigenPodManager,
-        address _rewardCoordinator,
-        address _rewardInitiator,
-        uint256 _gatewayShareBips
-    )
-        external;
+    function initialize(address _owner) external;
 
     /// @notice Adds a new middleware contract to the registry
     /// @param middlewareContract Address of middleware contract to add
@@ -172,14 +168,10 @@ interface IProposerRegistry {
     /// @return The validator's information
     function getValidator(bytes32 pubKeyHash) external view returns (Validator memory);
 
-    /// @notice Gets the number of validators registered to an operator for a specific AVS
-    /// @param avs The address of the AVS contract
+    /// @notice Gets the number of validators registered to an operator
     /// @param operator The address of the operator
-    /// @return The number of validators registered to the operator for the AVS
-    function getValidatorCountForOperatorInAVS(
-        address avs,
-        address operator
-    )
+    /// @return The number of validators registered to the operator
+    function getValidatorCountForOperatorInAVS(address operator)
         external
         view
         returns (uint256);
@@ -191,27 +183,16 @@ interface IProposerRegistry {
 
     /// @notice Returns active operators for a specific AVS type
     /// @param avs The address of the AVS
-    /// @param avsType The AVSType (GATEWAY or VALIDATOR)
     /// @return Array of operator addresses
-    function getActiveOperatorsForAVS(
-        address avs,
-        AVSType avsType
-    )
+    function getActiveOperatorsForAVS(address avs)
         external
         view
         returns (address[] memory);
 
     /// @notice Returns the total validator count for a specific AVS type
     /// @param avs The address of the AVS
-    /// @param avsType The AVSType (GATEWAY or VALIDATOR)
     /// @return The total count of validators
-    function getTotalValidatorCountForAVS(
-        address avs,
-        AVSType avsType
-    )
-        external
-        view
-        returns (uint256);
+    function getTotalValidatorCountForAVS(address avs) external view returns (uint256);
 
     /// @notice Returns the AVS type for a given AVS address
     /// @param avs The address of the AVS

@@ -8,12 +8,12 @@
          "timelock": "0xD8F3183DEF51A987222D845be228e0Bbb932C222"
     },
     "strategies": [
-         {
+        {
               "token_address": "0xA791D59427B2b7063050187769AC871B497F4b3C",
-              "token_symbol": "WETH",
+            "token_symbol": "WETH",
               "max_per_deposit": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
               "max_deposits": 115792089237316195423570985008687907853269984665640564039457584007913129639935
-            }
+        }
     ],
     "strategyManager": {
          "init_paused_status": 0,

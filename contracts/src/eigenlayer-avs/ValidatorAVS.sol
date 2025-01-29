@@ -201,14 +201,12 @@ contract ValidatorAVS is EigenLayerMiddleware {
         onlyGatewayAVS
     {
         // Get validator operators and total count for this AVS
-        address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
-            address(this), IProposerRegistry.AVSType.VALIDATOR
-        );
+        address[] memory operators =
+            proposerRegistry.getActiveOperatorsForAVS(address(this));
         require(operators.length > 0, "ValidatorAVS: No operators");
 
-        uint256 totalValidatorCount = proposerRegistry.getTotalValidatorCountForAVS(
-            address(this), IProposerRegistry.AVSType.VALIDATOR
-        );
+        uint256 totalValidatorCount =
+            proposerRegistry.getTotalValidatorCountForAVS(address(this));
         require(totalValidatorCount > 0, "ValidatorAVS: No validators registered");
 
         // Build array of OperatorRewards proportionally
@@ -216,9 +214,8 @@ contract ValidatorAVS is EigenLayerMiddleware {
             new IRewardsCoordinator.OperatorReward[](operators.length);
 
         for (uint256 i = 0; i < operators.length; i++) {
-            uint256 opValidatorCount = proposerRegistry.getValidatorCountForOperatorInAVS(
-                address(this), operators[i]
-            );
+            uint256 opValidatorCount =
+                proposerRegistry.getValidatorCountForOperatorInAVS(operators[i]);
             require(opValidatorCount > 0, "ValidatorAVS: Operator has no validators");
 
             // Share of the total validatorAmount = amount * (opCount/totalCount)

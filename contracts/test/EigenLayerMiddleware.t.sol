@@ -75,14 +75,20 @@ contract EigenlayerMiddlewareTest is Test {
             operatorBLSPubKey[i] = 0xab;
         }
 
-        proposerRegistry = new TaiyiProposerRegistry();
+        vm.startPrank(owner);
+
+        // Deploy AVS contracts first
         validatorAVS = new ValidatorAVS();
         gatewayAVS = new GatewayAVS();
 
-        vm.startPrank(owner);
+        // Deploy the TaiyiProposerRegistry contract
+        proposerRegistry = new TaiyiProposerRegistry();
+        proposerRegistry.initialize(owner);
 
-        proposerRegistry.initialize(
+        // Initialize AVS contracts
+        validatorAVS.initialize(
             owner,
+            address(proposerRegistry),
             address(eigenLayerDeployer.avsDirectory()),
             address(eigenLayerDeployer.delegationManager()),
             address(eigenLayerDeployer.strategyManager()),
@@ -92,9 +98,20 @@ contract EigenlayerMiddlewareTest is Test {
             GATEWAY_SHARE_BIPS
         );
 
-        // Retrieve addresses from registry
-        gatewayAVS = GatewayAVS(proposerRegistry.gatewayAVSAddress());
-        validatorAVS = ValidatorAVS(proposerRegistry.validatorAVSAddress());
+        gatewayAVS.initialize(
+            owner,
+            address(proposerRegistry),
+            address(eigenLayerDeployer.avsDirectory()),
+            address(eigenLayerDeployer.delegationManager()),
+            address(eigenLayerDeployer.strategyManager()),
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator,
+            GATEWAY_SHARE_BIPS
+        );
+
+        // Set AVS contracts in registry
+        proposerRegistry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
 
         // Register AVS contracts with the registry
         proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
@@ -387,9 +404,7 @@ contract EigenlayerMiddlewareTest is Test {
 
         // Verify validator count
         assertEq(
-            proposerRegistry.getValidatorCountForOperatorInAVS(
-                address(validatorAVS), operator
-            ),
+            proposerRegistry.getValidatorCountForOperatorInAVS(operator),
             validatorCount,
             "Wrong validator count"
         );
@@ -475,6 +490,9 @@ contract EigenlayerMiddlewareTest is Test {
 
         uint256 beforeBal =
             rewardToken.balanceOf(address(eigenLayerDeployer.rewardsCoordinator()));
+
+        vm.expectEmit(true, true, false, true);
+        emit GatewayAVS.ValidatorAmountForwarded(200 ether); // 1000 ether * 20%
 
         // Submit rewards as rewardsInitiator
         vm.prank(rewardsInitiator);

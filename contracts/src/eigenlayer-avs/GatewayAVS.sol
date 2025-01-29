@@ -18,6 +18,8 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol"; // Optional:
 contract GatewayAVS is EigenLayerMiddleware {
     error UseRegisterOperatorToAVSWithPubKey();
 
+    event ValidatorAmountForwarded(uint256 validatorAmount);
+
     /// @notice Restricts function access to only this contract as tx.origin
     modifier onlyThisContractAsTxOrigin() {
         require(tx.origin == address(this), "Only this contract can be tx.origin");
@@ -103,7 +105,7 @@ contract GatewayAVS is EigenLayerMiddleware {
 
         // 1) Handle Gateway portion
         uint256 validatorAmount = _handleGatewaySubmission(submissions[0]);
-
+        emit ValidatorAmountForwarded(validatorAmount);
         // 2) Handle Validator portion
         super.getValidatorAVS().handleValidatorRewards(submissions[1], validatorAmount);
     }
@@ -130,9 +132,8 @@ contract GatewayAVS is EigenLayerMiddleware {
         validatorAmount = totalAmount - gatewayAmount;
 
         // Get all active gateway operators registered for this AVS
-        address[] memory operators = proposerRegistry.getActiveOperatorsForAVS(
-            address(this), IProposerRegistry.AVSType.GATEWAY
-        );
+        address[] memory operators =
+            proposerRegistry.getActiveOperatorsForAVS(address(this));
         require(operators.length > 0, "GatewayAVS: No operators");
 
         // Calculate per-operator reward amount - multiply first to avoid precision loss

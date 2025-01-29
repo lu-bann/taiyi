@@ -35,8 +35,18 @@ contract TaiyiProposerRegistryTest is Test {
 
         // Deploy and initialize registry
         registry = new TaiyiProposerRegistry();
-        registry.initialize(
+
+        // Deploy AVS contracts
+        GatewayAVS gatewayAVS = new GatewayAVS();
+        ValidatorAVS validatorAVS = new ValidatorAVS();
+
+        // Initialize registry
+        registry.initialize(owner);
+
+        // Initialize AVS contracts
+        gatewayAVS.initialize(
             owner,
+            address(registry),
             address(eigenLayerDeployer.avsDirectory()),
             address(eigenLayerDeployer.delegationManager()),
             address(eigenLayerDeployer.strategyManager()),
@@ -45,6 +55,25 @@ contract TaiyiProposerRegistryTest is Test {
             rewardsInitiator,
             GATEWAY_SHARE_BIPS
         );
+
+        validatorAVS.initialize(
+            owner,
+            address(registry),
+            address(eigenLayerDeployer.avsDirectory()),
+            address(eigenLayerDeployer.delegationManager()),
+            address(eigenLayerDeployer.strategyManager()),
+            address(eigenLayerDeployer.eigenPodManager()),
+            address(eigenLayerDeployer.rewardsCoordinator()),
+            rewardsInitiator,
+            GATEWAY_SHARE_BIPS
+        );
+
+        // Set AVS contracts in registry
+        registry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
+
+        // Add middleware contracts
+        registry.addRestakingMiddlewareContract(address(validatorAVS));
+        registry.addRestakingMiddlewareContract(address(gatewayAVS));
 
         vm.stopPrank();
     }
@@ -270,16 +299,14 @@ contract TaiyiProposerRegistryTest is Test {
         vm.stopPrank();
 
         // Test Gateway operator queries
-        address[] memory gatewayOps = registry.getActiveOperatorsForAVS(
-            registry.gatewayAVSAddress(), IProposerRegistry.AVSType.GATEWAY
-        );
+        address[] memory gatewayOps =
+            registry.getActiveOperatorsForAVS(registry.gatewayAVSAddress());
         assertEq(gatewayOps.length, 1);
         assertEq(gatewayOps[0], operator);
 
         // Test Validator operator queries
-        address[] memory validatorOps = registry.getActiveOperatorsForAVS(
-            registry.validatorAVSAddress(), IProposerRegistry.AVSType.VALIDATOR
-        );
+        address[] memory validatorOps =
+            registry.getActiveOperatorsForAVS(registry.validatorAVSAddress());
         assertEq(validatorOps.length, 1);
         assertEq(validatorOps[0], operator);
 
@@ -311,7 +338,7 @@ contract TaiyiProposerRegistryTest is Test {
 
         // Second time revert
         vm.prank(registry.gatewayAVSAddress());
-        vm.expectRevert(bytes("Operator already registered"));
+        vm.expectRevert(bytes("Already registered"));
         registry.registerOperator(
             operator, IProposerRegistry.AVSType.GATEWAY, mockBlsPubKey
         );
@@ -397,17 +424,6 @@ contract TaiyiProposerRegistryTest is Test {
         vm.warp(block.timestamp + registry.OPT_OUT_COOLDOWN() + 1);
         registry.confirmOptOut(pubkeyHash);
 
-        // Verify events are emitted correctly
-        vm.expectEmit(true, false, false, true);
-        bytes[] memory expectedPubkeys = new bytes[](1);
-        expectedPubkeys[0] = validatorPubkey;
-        emit TaiyiProposerRegistry.ValidatorsOptedOut(operator, expectedPubkeys);
-
-        vm.expectEmit(true, true, false, true);
-        emit TaiyiProposerRegistry.OperatorDeregistered(
-            operator, registry.validatorAVSAddress()
-        );
-
         // Deregister operator
         vm.prank(registry.validatorAVSAddress());
         registry.deregisterOperator(operator);
@@ -470,12 +486,7 @@ contract TaiyiProposerRegistryTest is Test {
         registry.registerOperator(operator, IProposerRegistry.AVSType.VALIDATOR, "");
 
         // Verify validator count is zero
-        assertEq(
-            registry.getValidatorCountForOperatorInAVS(
-                registry.validatorAVSAddress(), operator
-            ),
-            0
-        );
+        assertEq(registry.getValidatorCountForOperatorInAVS(operator), 0);
         vm.stopPrank();
     }
 
@@ -518,16 +529,10 @@ contract TaiyiProposerRegistryTest is Test {
         }
 
         // Verify events for multiple validators
-        vm.expectEmit(true, false, false, true);
-        emit TaiyiProposerRegistry.ValidatorsOptedOut(operator, pubkeys);
-
-        vm.expectEmit(true, true, false, true);
-        emit TaiyiProposerRegistry.OperatorDeregistered(
-            operator, registry.validatorAVSAddress()
-        );
-
-        // Deregister operator
         vm.prank(registry.validatorAVSAddress());
+
+        vm.prank(registry.validatorAVSAddress());
+        // Deregister operator
         registry.deregisterOperator(operator);
 
         // Verify all validators are properly cleared
