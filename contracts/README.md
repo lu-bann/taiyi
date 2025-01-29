@@ -61,43 +61,22 @@ The dual AVS design leverages two separate AVSs with distinct responsibilities a
 classDiagram
     class EigenLayerMiddleware {
         <<abstract>>
-        +registerOperatorToAVS()
-        +getGatewayAVS()
-        +getValidatorAVS()
+
     }
 
     class TaiyiProposerRegistry {
-        +registerOperator()
-        +gatewayAVS()
-        +validatorAVS()
-        +getRegisteredOperator()
+
     }
 
     class GatewayAVS {
-        +registerOperatorToAVSWithPubKey()
-        +_handleGatewaySubmission()
-        +_createOperatorDirectedAVSRewardsSubmission()
+
     }
 
     class ValidatorAVS {
-        +registerOperatorToAVS()
-        +batchConfirmValidatorOptOut()
+
     }
 
-    class IRewardsCoordinator {
-        <<interface>>
-        +createOperatorDirectedAVSRewardsSubmission()
-    }
 
-    class ISignatureUtils {
-        <<interface>>
-        +SignatureWithSaltAndExpiry
-    }
-
-    class IAVSDirectory {
-        <<interface>>
-        +registerOperatorToAVS()
-    }
 
     EigenLayerMiddleware <|-- GatewayAVS : inherits
     EigenLayerMiddleware <|-- ValidatorAVS : inherits
@@ -105,14 +84,9 @@ classDiagram
     TaiyiProposerRegistry --> GatewayAVS : manages
     TaiyiProposerRegistry --> ValidatorAVS : manages
     
-    GatewayAVS --> IRewardsCoordinator : uses
-    ValidatorAVS --> IRewardsCoordinator : uses
+
     
-    GatewayAVS --> ISignatureUtils : uses
-    ValidatorAVS --> ISignatureUtils : uses
-    
-    GatewayAVS --> IAVSDirectory : registers with
-    ValidatorAVS --> IAVSDirectory : registers with
+
     
     GatewayAVS --> ValidatorAVS : coordinates rewards
 ```
