@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
-/// @custom:attribution Based on canonical WETH9 implementation (https://github.com/gnosis/canonical-weth/blob/master/contracts/WETH9.sol)
 
+/// @custom:attribution Based on canonical WETH9 implementation (https://github.com/gnosis/canonical-weth/blob/master/contracts/WETH9.sol)
 contract WETH9 {
     string public name = "Wrapped Ether";
     string public symbol = "WETH";

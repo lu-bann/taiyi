@@ -7,7 +7,7 @@
   evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
-  optimizer = false
+  optimizer = true
   optimizer_runs = 10_000
   out = "out"
   script = "script"
@@ -15,7 +15,7 @@
   solc = "0.8.25"
   src = "src"
   test = "test"
-  via_ir = false
+  via_ir = true
 
 remappings = [
   "forge-std/=lib/forge-std/src/",
@@ -31,6 +31,13 @@ remappings = [
   "lib/eigenlayer-contracts/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
   "lib/eigenlayer-contracts/:ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/",
   "lib/eigenlayer-contracts/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/",
+  
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable/",
+  "lib/eigenlayer-middleware/:@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/",
+  "lib/eigenlayer-middleware/:@openzeppelin-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-middleware/:ds-test/=lib/eigenlayer-middleware/lib/ds-test/src/",
+  "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
 
   "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
 ]
