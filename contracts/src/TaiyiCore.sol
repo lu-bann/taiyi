@@ -48,15 +48,10 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// CONSTRUCTOR
     ///////////////////////////////////////////////////////////////
 
-    constructor(
-        address initialOwner,
-        uint256 genesisTimestamp
-    )
+    constructor(address initialOwner)
         //address proposerRegistry
         Ownable(initialOwner)
-    {
-        GENESIS_TIMESTAMP = genesisTimestamp;
-    }
+    { }
 
     ///////////////////////////////////////////////////////////////
     /// VIEW FUNCTIONS
