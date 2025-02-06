@@ -1,6 +1,5 @@
 use clap::Parser;
-use fraud_proof_cli::tracing_util::init_tracing_subscriber;
-use fraud_proof_cli::Cli;
+use fraud_proof_cli::{tracing_util::init_tracing_subscriber, Cli};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -5,18 +5,18 @@ edition = "2021"
 
 [workspace]
 members = [
+    "bin/fraud-proof-cli",
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
-    "bin/fraud-proof-cli",
     "crates/cli",
     "crates/contracts",
     "crates/preconfer",
     "crates/primitives",
-    "e2e-tests",
-    "examples",
     "crates/sp1-interactive-fraud-proof",
     "crates/sp1-non-interactive-fraud-proof",
+    "e2e-tests",
+    "examples",
 ]
 default-members = [
     "bin/taiyi",

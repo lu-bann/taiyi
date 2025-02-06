@@ -65,7 +65,7 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
         let (pk, vk) = client.setup(ELF);
         info!("Generated setup keys");
 
-        let proof = client.prove(&pk, &stdin).core().run().unwrap();
+        let proof = client.prove(&pk, &stdin).core().run()?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");
@@ -96,8 +96,7 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
             .strategy(FulfillmentStrategy::Hosted)
             .skip_simulation(true)
             .plonk()
-            .run()
-            .unwrap();
+            .run()?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");
