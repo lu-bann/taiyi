@@ -16,6 +16,7 @@ members = [
     "e2e-tests",
     "examples",
     "crates/sp1-interactive-fraud-proof",
+    "crates/sp1-non-interactive-fraud-proof",
 ]
 default-members = [
     "bin/taiyi",

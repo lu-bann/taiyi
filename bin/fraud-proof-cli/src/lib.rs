@@ -1,4 +1,5 @@
-pub mod prove;
+pub mod prove_ifp;
+pub mod prove_nifp;
 pub mod tracing_util;
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -6,13 +7,15 @@ pub mod tracing_util;
 #[command(bin_name = "fraud-proof-cli")]
 #[command(author, version, about, long_about = None)]
 pub enum Cli {
-    Prove(prove::ProveArgs),
+    ProveIFP(prove_ifp::ProveArgs),
+    ProveNIFP(prove_nifp::ProveArgs),
 }
 
 impl Cli {
     pub fn verbosity(&self) -> u8 {
         match self {
-            Cli::Prove(args) => args.v,
+            Cli::ProveIFP(args) => args.v,
+            Cli::ProveNIFP(args) => args.v,
         }
     }
 }

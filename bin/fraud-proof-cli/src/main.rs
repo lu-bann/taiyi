@@ -8,7 +8,8 @@ async fn main() -> anyhow::Result<()> {
     init_tracing_subscriber(cli.verbosity())?;
 
     match cli {
-        Cli::Prove(args) => fraud_proof_cli::prove::prove(args).await?,
+        Cli::ProveIFP(args) => fraud_proof_cli::prove_ifp::prove(args).await?,
+        Cli::ProveNIFP(args) => fraud_proof_cli::prove_nifp::prove(args).await?,
     }
 
     Ok(())

@@ -7518,6 +7518,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp1-nifp-program"
+version = "1.1.0"
+dependencies = [
+ "sp1-zkvm",
+]
+
+[[package]]
 name = "sp1-primitives"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
