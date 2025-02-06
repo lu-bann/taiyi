@@ -60,11 +60,30 @@
           "icon": "computer",
           "pages": [
             "node_operator_setup_guide/helder_devnet",
-            "node_operator_setup_guide/holesky_testnet"
+            {
+              "group": "Holesky Testnet",
+              "icon": "ethereum",
+              "pages": [
+                "node_operator_setup_guide/holesky/overview",
+                "node_operator_setup_guide/holesky/system_requirements",
+                "node_operator_setup_guide/holesky/installation_and_configuration",
+                "node_operator_setup_guide/holesky/protocol_opt_in"
+              ]
+            }
           ]
         },
         "send_your_first_preconfirmation",
-        "using_preconf_aggregator"
+        "using_preconf_aggregator",
+        {
+            "group": "Taiyi CLI guide",
+            "icon": "terminal",
+            "pages": [
+              "taiyi-cli/register",
+              "taiyi-cli/deposit",
+              "taiyi-cli/delegate",
+              "taiyi-cli/deregister"
+            ]
+        }
       ]
     },
     {
@@ -129,7 +148,7 @@
                   "icon": "circle-nodes",
                   "pages": [
                     "learn/architecture/on_chain_components/overview",
-                    "learn/architecture/on_chain_components/taiyi_restaking_manager",
+                    "learn/architecture/on_chain_components/avs_middleware_contracts",
                     "learn/architecture/on_chain_components/taiyi_proposer_registry"
                   ]
                 },
@@ -139,6 +158,13 @@
           ]
         },
         "learn/glossary"
+      ]
+    },
+    {
+      "group": "Network Information",
+      "pages": [
+        "network_info/supported_endpoints",
+        "network_info/contract_addresses"
       ]
     },
     {
