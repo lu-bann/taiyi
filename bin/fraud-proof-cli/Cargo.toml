@@ -1,0 +1,19 @@
+[package]
+name = "fraud-proof-cli"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+sp1-sdk = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-log = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+
+[build-dependencies]
+sp1-build = { workspace = true }

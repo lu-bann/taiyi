@@ -8,19 +8,20 @@ members = [
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
+    "bin/fraud-proof-cli",
     "crates/cli",
     "crates/contracts",
     "crates/preconfer",
     "crates/primitives",
     "e2e-tests",
     "examples",
-    "crates/sp1-interactive-fraud-proof/script",
-    "crates/sp1-interactive-fraud-proof/program",
+    "crates/sp1-interactive-fraud-proof",
 ]
 default-members = [
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
+    "bin/fraud-proof-cli",
     "crates/cli",
     "crates/preconfer",
     "crates/primitives",
@@ -106,6 +107,7 @@ parking_lot = "0.12.3"
 futures = "0.3.31"
 tracing = "0.1.41"
 tracing-core = "0.1.33"
+tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 blst = "0.3.13"
 lru = "0.12.5"
@@ -140,3 +142,4 @@ lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthous
 http-body-util = "0.1.2"
 tower = "0.5.2"
 sha2 = "0.10.8"
+anyhow = "1.0.95"
