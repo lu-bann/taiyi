@@ -25,8 +25,6 @@ contract TaiyiCoreTest is Test {
     uint256 internal ownerPrivatekey;
     uint256 internal coinbasePrivatekey;
 
-    uint256 internal constant genesisTimestamp = 1_606_824_023;
-
     address user;
     address owner;
     address coinbase;
@@ -43,10 +41,8 @@ contract TaiyiCoreTest is Test {
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
 
-        vm.warp(genesisTimestamp);
-
         // TODO: remove this address(0) with proposer registry address
-        taiyiCore = new TaiyiCore(owner, genesisTimestamp);
+        taiyiCore = new TaiyiCore(owner);
     }
 
     function assertPreconfRequestStatus(
@@ -105,7 +101,6 @@ contract TaiyiCoreTest is Test {
 
         uint256 balances = taiyiCore.balanceOf(user);
         console.log("User balance:", balances);
-        vm.warp(genesisTimestamp + 12 * targetSlot);
 
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
 

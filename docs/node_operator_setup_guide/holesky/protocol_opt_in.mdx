@@ -1,0 +1,300 @@
+---
+title: 'Onchain Registration'
+description: 'Step-by-step guide for deploying and registering your Taiyi node on Holesky testnet.'
+icon: 'server'
+---
+<Note>
+For a complete list of contract addresses used in this guide, see the [Contract Addresses](/network_info/contract_addresses) page.
+</Note>
+
+## 1. Deposit Stake
+
+First, you need to deposit WETH into the EigenLayer strategy contract. This stake serves as collateral for your node's operations.
+
+<Frame>
+  <img 
+    src="/images/eigen-staker.png" 
+    alt="EigenLayer Core Contracts showing Strategy Manager receiving deposits from Stakers"
+    caption="EigenLayer Core Contracts - Staking Flow"
+  />
+</Frame>
+
+*Source: [EigenLayer AVS Book - Stakers](https://eigenlabs.gitbook.io/avs-book/learn/eigenlayer-a-visual-guide/actors/stakers)*
+
+```bash
+# Convert ETH to WETH first if needed
+# Then approve and deposit WETH
+taiyi-cli deposit \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --strategy-address <WETH_STRATEGY_ADDRESS> \
+  --amount <AMOUNT> \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --strategy-manager-address <STRATEGY_MANAGER_ADDRESS>
+```
+
+<Note>
+You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
+- WETH Strategy: `0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9`
+- Strategy Manager: `0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6`
+</Note>
+
+
+<Accordion title="Code">
+  Source: [`crates/cli/src/commands/deposit.rs`](https://github.com/lu-bann/taiyi/tree/main/crates/cli/src/commands/deposit.rs)
+  ```rust
+#[derive(Debug, Parser)]
+pub struct DepositCommand {
+    /// The RPC URL of the Ethereum node
+    #[clap(long, env = "EXECUTION_RPC_URL")]
+    execution_rpc_url: String,
+
+    /// The strategy contract address
+    #[clap(long, env = "STRATEGY_ADDRESS")]
+    strategy_address: Address,
+
+    /// Amount to deposit
+    #[clap(long, env = "AMOUNT")]
+    amount: U256,
+
+    /// Private key for signing transactions
+    #[clap(long, env = "PRIVATE_KEY")]
+    private_key: String,
+
+    /// The strategy manager contract address
+    #[clap(long, env = "STRATEGY_MANAGER_ADDRESS")]
+    strategy_manager_address: Address,
+}
+```
+</Accordion>
+
+<Accordion title="Contract Interfaces">
+  ```solidity
+  interface IERC20 {
+      function approve(
+          address spender, 
+          uint256 amount
+      ) external returns (bool);
+  }
+
+  interface IStrategyManager {
+      function depositIntoStrategy(
+          address strategy,
+          address token,
+          uint256 amount
+      ) external returns (uint256 shares);
+  }
+  ```
+</Accordion>
+
+This command:
+1. Approves the Strategy Manager to spend your WETH
+2. Deposits WETH into the EigenLayer strategy
+3. Records your stake in the protocol
+
+## 2. Register as Operator
+
+After staking, register yourself into the Taiyi protocol. This step establishes your identity in the protocol.
+
+<Frame>
+  <img 
+    src="/images/eigen-operator.png" 
+    alt="EigenLayer Core Contracts showing Operator registration through Delegation Manager"
+    caption="EigenLayer Operator Registration Flow"
+  />
+</Frame>
+
+*Source: [EigenLayer AVS Book - Operators](https://eigenlabs.gitbook.io/avs-book/learn/eigenlayer-a-visual-guide/actors/operators)*
+
+<Note>
+Before registering as a Taiyi operator, you must first register as an EigenLayer operator. If you have already staked in Step 1, you will be automatically self-delegated as an operator. 
+
+According to the [EigenLayer documentation](https://docs.eigenlayer.xyz/eigenlayer/operator-guides/operator-introduction): 
+
+*"an address can function as both a Restaker, engaging in either liquid or native restaking, and as an Operator simultaneously... Most Operators will receive token delegations sourced from other Restakers within the network, otherwise Operators can choose to self-delegate by allocating their restaked token balance."*
+
+</Note>
+
+```bash
+taiyi-cli register \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
+  --avs-directory-address <AVS_DIRECTORY_ADDRESS> \
+  --taiyi-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS>
+```
+
+<Note>
+You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
+- AVS Directory: `0x055733000064333CaDDbC92763c58BF0192fFeBf`
+- Taiyi Validator AVS: `0x3b9b6a197ED476bf784b451b219aD52f71913bC9`
+</Note>
+
+<Accordion title="Code">
+  ```rust
+  #[derive(Debug, Parser)]
+  pub struct RegisterCommand {
+      /// rpc url
+      #[clap(long, env = "EXECUTION_RPC_URL")]
+      pub execution_rpc_url: String,
+
+    /// Private key in hex format
+    #[clap(long, env = "PRIVATE_KEY")]
+    pub private_key: String,
+
+    #[clap(long, env = "SALT")]
+    pub salt: B256,
+
+    #[clap(long, env = "AVS_DIRECTORY_ADDRESS")]
+    pub avs_directory_address: Address,
+
+    #[clap(long, env = "TAIYI_AVS_ADDRESS")]
+    pub taiyi_avs_address: Address,
+}
+  ```
+</Accordion>
+
+<Accordion title="Contract Interfaces">
+  ```solidity
+  interface IAVSDirectory {
+      function calculateOperatorAVSRegistrationDigestHash(
+          address operator,
+          address avs,
+          bytes32 salt,
+          uint256 expiry
+      ) external view returns (bytes32);
+  }
+
+  interface ITaiyiAVS {
+      function registerOperatorToAVS(
+          address operator,
+          SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry
+      ) external;
+  }
+  ```
+</Accordion>
+
+This command:
+1. Creates a registration signature with the AVS Directory
+2. Registers your operator address with Taiyi AVS
+3. Links your stake to the Taiyi service
+
+## 3. Delegate Validator Keys
+
+Finally, delegate your validator keys to the Taiyi Gateway. This allows your validator to participate in the network.
+
+<Frame>
+  <img 
+    src="/images/preconf-api.png" 
+    alt="Preconfirmation API Flow showing delegation and constraint management"
+    caption="Preconfirmation API Flow - Delegation and Constraint Management"
+  />
+</Frame>
+
+*Source: [Preconfirmations API Specification](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate)*
+
+
+```bash
+taiyi-cli delegate \
+  --relay-url https://relay.holesky.luban.wtf \
+  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --network holesky \
+  local-keystore \
+  --path /path/to/validators \
+  --password-path /path/to/secrets
+```
+
+<Note>
+For additional key source options and detailed usage of the delegate command, see the [Taiyi CLI Delegate Command](/taiyi-cli/delegate) documentation.
+</Note>
+
+
+<Accordion title="Code">
+  ```rust
+#[derive(Debug, Parser)]
+pub struct DelegateCommand {
+    /// Relay url
+    #[clap(long, env = "RELAY_URL")]
+    pub relay_url: Url,
+    /// Relay request timeout
+    #[clap(long, env = "RELAY_REQUEST_TIMEOUT", default_value = "30")]
+    pub relay_request_timeout: u64,
+    /// Preconfer BLS public key
+    #[clap(long, env = "GATEWAY_PUBKEY")]
+    pub gateway_pubkey: String,
+    /// Chain Network
+    #[clap(long, env = "NETWORK", default_value = "mainnet")]
+    pub network: Network,
+    /// The action to perform, delegate or revoke
+    #[clap(long, env = "ACTION", default_value = "delegate")]
+    pub action: Action,
+    /// The source of the private key.
+    #[clap(subcommand)]
+    pub source: KeySource,
+}
+```
+</Accordion>
+
+This step follows the `/constraints/v0/builder/delegate` endpoint specification from the [Preconfirmations API](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate) to perform the gateway delegation. The process involves:
+
+1. Proposer (your validator) electing the Gateway through delegation
+2. Gateway managing preconfirmation constraints
+3. Relay coordinating between proposer, gateway, and builder
+4. Builder receiving constraints and submitting compliant blocks
+
+## 4. Verification
+
+After completing registration:
+
+1. Check your stake:
+```bash
+taiyi-cli query-stake \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --address <YOUR_ADDRESS>
+```
+
+<Accordion title="Code">
+  Source: [`crates/cli/src/commands.rs`](https://github.com/lu-bann/taiyi/blob/main/crates/cli/src/commands/query.rs)
+  ```rust
+  pub struct QueryStakeCommand {
+      execution_rpc_url: String,
+      address: Address,
+  }
+  ```
+
+  **Contract Functions**:
+  ```solidity
+  function getDeposits(address account) external view returns (
+      address[] memory strategies,
+      uint256[] memory shares
+  );
+  ```
+</Accordion>
+
+2. Verify registration:
+```bash
+taiyi-cli query-registration \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --address <YOUR_ADDRESS>
+```
+
+<Accordion title="Code">
+  Source: [`crates/cli/src/commands.rs`](https://github.com/lu-bann/taiyi/blob/main/crates/cli/src/commands/query.rs)
+  ```rust
+  pub struct QueryRegistrationCommand {
+      execution_rpc_url: String,
+      address: Address,
+  }
+  ```
+
+  **Contract Functions**:
+  ```solidity
+  function getOperatorStatus(address operator) external view returns (
+      bool isRegistered,
+      uint256 validatorCount
+  );
+  ```
+</Accordion>
+
+## Next Steps
+
+After registration, set up [monitoring](/node_operator_setup_guide/holesky/monitoring).
