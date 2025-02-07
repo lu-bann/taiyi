@@ -23,6 +23,7 @@ remappings = [
   "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
   "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
+  "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
 
   # context specific remappings
   "lib/eigenlayer-contracts/:@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/",
