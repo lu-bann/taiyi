@@ -38,8 +38,64 @@ operating system:
 
 The Minimum Supported Rust Version (MSRV) of this project is 1.82.0. If you already have a version of Rust installed,
 you can check your version by running `rustc --version`. To update your version of Rust, run `rustup update`.
+## 1. Build Core Components
 
-## 1. Configure Your Validator
+### Build commit-boost
+
+```bash
+git clone https://github.com/Commit-Boost/commit-boost-client.git
+cd commit-boost-client
+cargo build --release # target binary: ./target/release/commit-boost-signer
+```
+
+### Build taiyi-boost
+
+```bash
+git clone git@github.com:lu-bann/taiyi.git
+cd taiyi
+cargo build --release # target binary: ./target/release/taiyi-boost
+```
+
+### Configure commit-boost
+
+Create `cb-config.toml`:
+
+```toml
+chain = "Holesky"
+
+[pbs]
+port = 18550
+timeout_get_header_ms = 950
+timeout_get_payload_ms = 4000
+
+trusted_preconfer = "0xa7c828460fc5c8d24c60f9f30c8836659b60a610fe8b87b26a71e9b765a9d0cae16b1a963f65b3b7abe264cda187c113"
+beacon_node = "http://127.0.0.1:4000"
+chain_id = 7014190335
+
+[[relays]]
+id = "helix"
+url = "http://0xadc0fe12e62c14a505ea1e655dbe4d36fa505ed57b634ba37912153d29edd45c5bc5a77764e68b98c53e3f6f8ce9fa3b@relay.holesky.luban.wtf"
+```
+
+### Set Environment Variables
+
+```bash
+export CB_JWTS="pbs=<your-jwt-secret>"
+export CB_SIGNER_PORT=8327
+export CB_SIGNER_URL=http://127.0.0.1:8327
+export CB_SIGNER_JWT=<your-jwt-secret>
+export CB_CONFIG=/path/to/cb-config.toml
+export CB_SIGNER_LOADER_KEYS_DIR=/path/to/keys
+export CB_SIGNER_LOADER_SECRETS_DIR=/path/to/secrets
+```
+
+### Start Services
+
+```bash
+<path-to>/commit-boost-signer
+<path-to>/taiyi-boost
+```
+## 2. Configure Your Validator
 
 ### Update Relay Configuration
 
@@ -55,7 +111,7 @@ lighthouse beacon \
   For a complete list of relay and gateway endpoints, see the [Supported Endpoints](/network_info/supported_endpoints) page.
 </Note>
 
-## 2. Register with Taiyi Protocol
+## 3. Tool Installation 
 
 ### Install Taiyi CLI
 
