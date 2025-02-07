@@ -32,6 +32,10 @@ contract ParameterManager is
         challengeMaxDuration = _challengeMaxDuration;
     }
 
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
+
     /// @inheritdoc IParameterManager
     function setChallengeBond(uint256 _challengeBond) external onlyOwner {
         challengeBond = _challengeBond;
