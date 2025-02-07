@@ -25,9 +25,7 @@ interface IInteractiveChallenger {
     error ChallengeExpired();
 
     event ChallengeOpened(
-        bytes32 indexed id,
-        address indexed challenger,
-        address indexed commitmentSigner
+        bytes32 indexed id, address indexed challenger, address indexed commitmentSigner
     );
     event ChallengeDefended(bytes32 indexed id);
     event ChallengeSucceded(bytes32 indexed id);
@@ -55,9 +53,7 @@ interface IInteractiveChallenger {
 
     /// @notice Set the verification key for the interactive fraud proof program.
     /// @param _interactiveFraudProofVKey The verification key.
-    function setInteractiveFraudProofVKey(
-        bytes32 _interactiveFraudProofVKey
-    ) external;
+    function setInteractiveFraudProofVKey(bytes32 _interactiveFraudProofVKey) external;
 
     /// @notice The entrypoint for defending an open challenge using a SP1 proof of execution
     /// @param id The id of the challenge to defend against
@@ -67,5 +63,6 @@ interface IInteractiveChallenger {
         bytes32 id,
         bytes calldata proofValues,
         bytes calldata proofBytes
-    ) external;
+    )
+        external;
 }

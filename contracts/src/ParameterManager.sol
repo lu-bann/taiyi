@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {IParameterManager} from "./interfaces/IParameterManager.sol";
-import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { IParameterManager } from "./interfaces/IParameterManager.sol";
+import { OwnableUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract ParameterManager is
-    IParameterManager,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
+contract ParameterManager is IParameterManager, OwnableUpgradeable, UUPSUpgradeable {
     /// @dev The bond required to open a challenge.
     uint256 public challengeBond;
 
@@ -25,16 +23,17 @@ contract ParameterManager is
         address _owner,
         uint256 _challengeBond,
         uint256 _challengeMaxDuration
-    ) public initializer {
+    )
+        public
+        initializer
+    {
         __Ownable_init(_owner);
 
         challengeBond = _challengeBond;
         challengeMaxDuration = _challengeMaxDuration;
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
     /// @inheritdoc IParameterManager
     function setChallengeBond(uint256 _challengeBond) external onlyOwner {
@@ -42,9 +41,7 @@ contract ParameterManager is
     }
 
     /// @inheritdoc IParameterManager
-    function setChallengeMaxDuration(
-        uint256 _challengeMaxDuration
-    ) external onlyOwner {
+    function setChallengeMaxDuration(uint256 _challengeMaxDuration) external onlyOwner {
         challengeMaxDuration = _challengeMaxDuration;
     }
 }

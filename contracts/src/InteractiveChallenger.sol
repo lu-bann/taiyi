@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {IInteractiveChallenger} from "./interfaces/IInteractiveChallenger.sol";
-import {Ownable} from "@openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ISP1Verifier} from "@sp1-contracts/ISP1Verifier.sol";
+import { IInteractiveChallenger } from "./interfaces/IInteractiveChallenger.sol";
+import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
 contract InteractiveChallenger is IInteractiveChallenger, Ownable {
     /// @notice The address of the SP1 verifier contract.
@@ -21,7 +21,9 @@ contract InteractiveChallenger is IInteractiveChallenger, Ownable {
         address _initialOwner,
         address _verifierGateway,
         bytes32 _interactiveFraudProofVKey
-    ) Ownable(_initialOwner) {
+    )
+        Ownable(_initialOwner)
+    {
         verifierGateway = _verifierGateway;
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
     }
@@ -32,9 +34,10 @@ contract InteractiveChallenger is IInteractiveChallenger, Ownable {
     }
 
     /// @inheritdoc IInteractiveChallenger
-    function setInteractiveFraudProofVKey(
-        bytes32 _interactiveFraudProofVKey
-    ) external onlyOwner {
+    function setInteractiveFraudProofVKey(bytes32 _interactiveFraudProofVKey)
+        external
+        onlyOwner
+    {
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
     }
 
@@ -68,15 +71,15 @@ contract InteractiveChallenger is IInteractiveChallenger, Ownable {
         bytes32 id,
         bytes calldata proofValues,
         bytes calldata proofBytes
-    ) external {
+    )
+        external
+    {
         // TODO[Martin]: Define values we want to verify before calling the SP1 contract
         // TODO[Martin]: Define proofValues which we want to read onchain and which we want to pass in as function arguments
 
         // Verify the proof
         ISP1Verifier(verifierGateway).verifyProof(
-            interactiveFraudProofVKey,
-            proofValues,
-            proofBytes
+            interactiveFraudProofVKey, proofValues, proofBytes
         );
 
         // TODO[Martin]: Define values we want to verify after calling the SP1 contract
