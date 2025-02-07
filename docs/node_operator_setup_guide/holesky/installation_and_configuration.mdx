@@ -7,28 +7,34 @@ icon: 'wrench'
 ## Prerequisites
 
 Before proceeding, ensure you have:
-- Completed the [system requirements](/node_operator_setup_guide/holesky/system_requirements)
-- An Ethereum validator node on the Holesky testnet
+
+* Completed the [system requirements](/node_operator_setup_guide/holesky/system_requirements)
+
+* An Ethereum validator node on the Holesky testnet
 
 ## Dependencies
+
 First, install Rust using rustup
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
-> **Tips**
+
+> **Tips**- During installation, when prompted, enter `1` for the default installation.
 >
-> - During installation, when prompted, enter `1` for the default installation.
 > - After Rust installation completes, try running `cargo version` . If it cannot
 >   be found, run `source $HOME/.cargo/env`. After that, running `cargo version` should return the version, for example `cargo 1.68.2`.
+>
 > - It's generally advisable to append `source $HOME/.cargo/env` to `~/.bashrc`.
 
 With Rust installed, follow the instructions below to install dependencies relevant to your
 operating system:
 
-- **Ubuntu**: `apt-get install libclang-dev pkg-config build-essential`
-- **macOS**: `brew install llvm pkg-config`
-- **Windows**: `choco install llvm` or `winget install LLVM.LLVM`
+* **Ubuntu**: `apt-get install libclang-dev pkg-config build-essential`
+
+* **macOS**: `brew install llvm pkg-config`
+
+* **Windows**: `choco install llvm` or `winget install LLVM.LLVM`
 
 The Minimum Supported Rust Version (MSRV) of this project is 1.82.0. If you already have a version of Rust installed,
 you can check your version by running `rustc --version`. To update your version of Rust, run `rustup update`.
@@ -38,13 +44,15 @@ you can check your version by running `rustc --version`. To update your version 
 ### Update Relay Configuration
 
 For example, with Lighthouse beacon node:
+
 ```bash
 lighthouse beacon \
     --builder=https://relay.holesky.luban.wtf \
     ...# your other config
 ```
+
 <Note>
-For a complete list of relay and gateway endpoints, see the [Supported Endpoints](/network_info/supported_endpoints) page.
+  For a complete list of relay and gateway endpoints, see the [Supported Endpoints](/network_info/supported_endpoints) page.
 </Note>
 
 ## 2. Register with Taiyi Protocol
@@ -52,19 +60,15 @@ For a complete list of relay and gateway endpoints, see the [Supported Endpoints
 ### Install Taiyi CLI
 
 Build from source:
+
 ```bash
 git clone https://github.com/lu-bann/taiyi.git
 cd taiyi
 cargo build --release --bin taiyi-cli
 ```
-
+ 
 <Note>
-For detailed information about other commands, see the [Taiyi-CLI](/node_operator_setup_guide/holesky/taiyi_cli).
-</Note>
-
-
-<Note>
-For a complete list of supported endpoints and network information, see the [Supported Endpoints](/network_info/supported_endpoints) page.
+  For detailed information about other commands, see the [Taiyi-CLI](/node_operator_setup_guide/holesky/taiyi_cli).
 </Note>
 
 ## Next Steps
@@ -72,6 +76,9 @@ For a complete list of supported endpoints and network information, see the [Sup
 With your node components installed and configured, you're ready to proceed to the [Protocol Opt-in](/node_operator_setup_guide/holesky/protocol_opt_in) process where you'll:
 
 1. Deposit stake into EigenLayer's strategy contract
+
 2. Register as a Taiyi operator
+
 3. Delegate your validator keys to the Gateway
+
 4. Verify your registration and stake
