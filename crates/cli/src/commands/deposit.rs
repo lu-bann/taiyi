@@ -4,7 +4,10 @@ use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
-use taiyi_contracts::{IStrategy, IStrategyManager, IERC20};
+use taiyi_contracts::{
+    IStrategy, IStrategyManager,
+    IERC20::{self, balanceOfReturn},
+};
 use tracing::info;
 
 #[derive(Debug, Parser)]
@@ -52,6 +55,19 @@ impl DepositCommand {
 
         // Create ERC20 interface for the token
         let token = IERC20::new(token_address, provider.clone());
+
+        // Check user's balance before proceeding
+        let signer_address = signer.address();
+        let balanceOfReturn { _0: balance } = token.balanceOf(signer_address).call().await?;
+        info!("Strategy Token Balance of signer: {:?}", balance);
+        if balance < self.amount {
+            return Err(eyre::eyre!(
+                "Insufficient balance. Required: {}, Available: {}",
+                self.amount,
+                balance
+            ));
+        }
+        info!("Balance check passed. Available: {}, Required: {}", balance, self.amount);
 
         // Create StrategyManager interface (you'll need to get this address from your deployment or config)
         let strategy_manager =
