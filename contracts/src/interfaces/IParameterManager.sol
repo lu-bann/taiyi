@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 interface IParameterManager {
     /// @notice Get the challenge bond required to open a challenge.
-    function getChallengeBond() external view returns (uint256);
+    function challengeBond() external view returns (uint256);
 
     /// @notice Get the maximum duration a challenge can be open for.
-    function getChallengeMaxDuration() external view returns (uint256);
+    function challengeMaxDuration() external view returns (uint256);
 
     /// @notice Set the challenge bond.
     /// @param _challengeBond The bond required to open a challenge.
