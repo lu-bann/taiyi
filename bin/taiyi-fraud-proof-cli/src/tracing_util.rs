@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Result};
+use eyre::eyre;
 use tracing::Level;
 use tracing_log::{log::LevelFilter, LogTracer};
 
-pub fn init_tracing_subscriber(verbosity_level: u8) -> Result<()> {
+pub fn init_tracing_subscriber(verbosity_level: u8) -> eyre::Result<()> {
     LogTracer::builder()
         .with_max_level(match verbosity_level {
             0 => LevelFilter::Info,
@@ -18,5 +18,5 @@ pub fn init_tracing_subscriber(verbosity_level: u8) -> Result<()> {
             _ => Level::TRACE,
         })
         .finish();
-    tracing::subscriber::set_global_default(subscriber).map_err(|e| anyhow!(e))
+    tracing::subscriber::set_global_default(subscriber).map_err(|e| eyre!(e))
 }

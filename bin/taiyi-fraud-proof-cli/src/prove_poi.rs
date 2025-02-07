@@ -1,5 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
+use eyre::eyre;
 use serde::Deserialize;
 use sp1_sdk::{include_elf, network::FulfillmentStrategy, Prover, ProverClient, SP1Stdin};
 use tracing::info;
@@ -29,9 +30,9 @@ pub struct InputData {
     pub n: u32,
 }
 
-const ELF: &[u8] = include_elf!("sp1-ifp-program");
+const ELF: &[u8] = include_elf!("sp1-poi");
 
-pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
+pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
     // 1. Read input data
     info!("Reading input data from {}", args.input_data_path);
     let path = PathBuf::from(&args.input_data_path);
@@ -50,7 +51,9 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
         let client = ProverClient::builder().cpu().build();
 
         info!("Executing program");
-        let (mut public_values, report) = client.execute(ELF, &stdin).run()?;
+        let (mut public_values, report) = client.execute(ELF, &stdin).run().map_err(|err| {
+            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
+        })?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -65,7 +68,9 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
         let (pk, vk) = client.setup(ELF);
         info!("Generated setup keys");
 
-        let proof = client.prove(&pk, &stdin).core().run()?;
+        let proof = client.prove(&pk, &stdin).core().run().map_err(|err| {
+            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
+        })?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");
@@ -76,7 +81,9 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
         let client = ProverClient::builder().network().build();
 
         info!("Executing program");
-        let (mut public_values, report) = client.execute(ELF, &stdin).run()?;
+        let (mut public_values, report) = client.execute(ELF, &stdin).run().map_err(|err| {
+            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
+        })?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -96,7 +103,10 @@ pub async fn prove(args: ProveArgs) -> anyhow::Result<()> {
             .strategy(FulfillmentStrategy::Hosted)
             .skip_simulation(true)
             .plonk()
-            .run()?;
+            .run()
+            .map_err(|err| {
+                eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
+            })?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");

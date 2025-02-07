@@ -3343,22 +3343,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fraud-proof-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "sp1-build",
- "sp1-sdk",
- "tokio",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7500,13 +7484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp1-ifp-program"
-version = "1.1.0"
-dependencies = [
- "sp1-zkvm",
-]
-
-[[package]]
 name = "sp1-lib"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7518,7 +7495,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp1-nifp-program"
+name = "sp1-poi"
+version = "1.1.0"
+dependencies = [
+ "sp1-zkvm",
+]
+
+[[package]]
+name = "sp1-poni"
 version = "1.1.0"
 dependencies = [
  "sp1-zkvm",
@@ -8296,6 +8280,22 @@ dependencies = [
  "taiyi-preconfer",
  "taiyi-primitives",
  "tokio",
+]
+
+[[package]]
+name = "taiyi-fraud-proof-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "eyre",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "tokio",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]

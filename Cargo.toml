@@ -5,16 +5,16 @@ edition = "2021"
 
 [workspace]
 members = [
-    "bin/fraud-proof-cli",
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
+    "bin/taiyi-fraud-proof-cli",
     "crates/cli",
     "crates/contracts",
     "crates/preconfer",
     "crates/primitives",
-    "crates/sp1-interactive-fraud-proof",
-    "crates/sp1-non-interactive-fraud-proof",
+    "crates/sp1-poi",
+    "crates/sp1-poni",
     "e2e-tests",
     "examples",
 ]
@@ -22,7 +22,7 @@ default-members = [
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
-    "bin/fraud-proof-cli",
+    "bin/taiyi-fraud-proof-cli",
     "crates/cli",
     "crates/preconfer",
     "crates/primitives",
@@ -143,4 +143,3 @@ lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthous
 http-body-util = "0.1.2"
 tower = "0.5.2"
 sha2 = "0.10.8"
-anyhow = "1.0.95"
