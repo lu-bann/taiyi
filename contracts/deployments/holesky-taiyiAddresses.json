@@ -1,9 +1,0 @@
-{
-  "taiyiAddresses": {
-    "gatewayAVS": "0x03C3A31af8CAC3fd98b452d9e29Beb919fad7e9b",
-    "taiyiCore": "0xBbb2A884390b5e77449116fE41860010c430eEc2",
-    "taiyiProposerRegistry": "0xD3406EC02A955B7D04FF7f586435464b5542b9b0",
-    "validatorAVS": "0x3b9b6a197ED476bf784b451b219aD52f71913bC9",
-    "PreconfRequestLib": "0x3a9147837ef7b3c530b78455fb1faf9ad62746d0"
-  }
-}

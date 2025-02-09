@@ -9,7 +9,7 @@ kurtosis files download $ENCLAVE_NAME el_cl_genesis_data
 kurtosis files download $ENCLAVE_NAME 1-lighthouse-reth-0-63-0
 export GENESIS_TIMESTAMP=`jq -r '.timestamp' ./el_cl_genesis_data/genesis.json`
 export PRIVATE_KEY="c5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2"
-export NETWORK="devnet"
+export IS_FOR_DEV=true
 popd
 
 # TAIYI propser registry would be 0x0A79920c296E86e7BB12Ad20ca7Ffbbd7AE5905B

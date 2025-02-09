@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+    "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
 import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from
@@ -30,7 +30,10 @@ import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigen
 import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 
+import { EigenLayerMiddlewareStorage } from "../storage/EigenLayerMiddlewareStorage.sol";
 import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinatorTypes } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
@@ -46,40 +49,11 @@ import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.so
 abstract contract EigenLayerMiddleware is
     OwnableUpgradeable,
     UUPSUpgradeable,
-    IServiceManager
+    IServiceManager,
+    EigenLayerMiddlewareStorage
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using BitmapUtils for *;
-
-    // ========= STORAGE VARIABLES =========
-
-    /// @notice ProposerRegistry contract instance
-    IProposerRegistry public proposerRegistry;
-
-    /// @notice EigenLayer AVS Directory contract
-    IAVSDirectory public AVS_DIRECTORY;
-
-    /// @notice EigenLayer EigenPodManager contract
-    IEigenPodManager public EIGEN_POD_MANAGER;
-
-    /// @notice EigenLayer Delegation Manager contract
-    DelegationManagerStorage public DELEGATION_MANAGER;
-
-    /// @notice EigenLayer Strategy Manager contract
-    StrategyManagerStorage public STRATEGY_MANAGER;
-
-    /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
-    IRewardsCoordinator public REWARDS_COORDINATOR;
-
-    /// @notice Set of allowed EigenLayer strategies
-    EnumerableSet.AddressSet internal strategies;
-
-    /// @notice The address of the entity that can initiate rewards
-    address public REWARD_INITIATOR;
-
-    /// @notice The portion of the reward that belongs to Gateway vs. Validator
-    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
-    uint256 public GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
 
     // ========= EVENTS =========
 
@@ -129,6 +103,12 @@ abstract contract EigenLayerMiddleware is
         _;
     }
 
+    // Replace constructor with disable-initializers
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     // ========= EXTERNAL FUNCTIONS =========
 
     /// @notice Sets the rewards initiator address
@@ -159,6 +139,7 @@ abstract contract EigenLayerMiddleware is
         uint256 _gatewayShareBips
     )
         public
+        virtual
         initializer
     {
         __Ownable_init(_owner);
@@ -296,11 +277,13 @@ abstract contract EigenLayerMiddleware is
         IRewardsCoordinator.OperatorReward[] memory singleReward =
             new IRewardsCoordinator.OperatorReward[](1);
 
-        singleReward[0] =
-            IRewardsCoordinator.OperatorReward({ operator: operator, amount: amount });
+        singleReward[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: operator,
+            amount: amount
+        });
 
         // Return final
-        return IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: baseSubmission.strategiesAndMultipliers,
             token: token,
             operatorRewards: singleReward,
@@ -422,6 +405,46 @@ abstract contract EigenLayerMiddleware is
     /// @return Address of the AVS Directory contract
     function avsDirectory() external view returns (address) {
         return address(AVS_DIRECTORY);
+    }
+
+    /// @notice Get the AVS Directory contract instance
+    function getAVSDirectory() public view returns (IAVSDirectory) {
+        return AVS_DIRECTORY;
+    }
+
+    /// @notice Get the ProposerRegistry contract instance
+    function getProposerRegistry() public view returns (IProposerRegistry) {
+        return proposerRegistry;
+    }
+
+    /// @notice Get the EigenPodManager contract instance
+    function getEigenPodManager() public view returns (IEigenPodManager) {
+        return EIGEN_POD_MANAGER;
+    }
+
+    /// @notice Get the DelegationManager contract instance
+    function getDelegationManager() public view returns (DelegationManagerStorage) {
+        return DELEGATION_MANAGER;
+    }
+
+    /// @notice Get the StrategyManager contract instance
+    function getStrategyManager() public view returns (StrategyManagerStorage) {
+        return STRATEGY_MANAGER;
+    }
+
+    /// @notice Get the RewardsCoordinator contract instance
+    function getRewardsCoordinator() public view returns (IRewardsCoordinator) {
+        return REWARDS_COORDINATOR;
+    }
+
+    /// @notice Get the rewards initiator address
+    function getRewardsInitiator() public view returns (address) {
+        return REWARD_INITIATOR;
+    }
+
+    /// @notice Get the gateway share in BIPS
+    function getGatewayShareBips() public view returns (uint256) {
+        return GATEWAY_SHARE_BIPS;
     }
 
     /// @notice Get the strategies an operator has restaked in

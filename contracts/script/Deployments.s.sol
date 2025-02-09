@@ -32,12 +32,13 @@ contract Deploy is Script, Test {
     address public rewardCoordinator;
 
     function run(string memory configFileName) public {
-        string memory network = vm.envString("NETWORK");
+        bool is_for_dev = vm.envBool("IS_FOR_DEV");
+        uint256 genesis_timestamp = vm.envUint("GENESIS_TIMESTAMP");
+        console.log("genesis timestamp: ", genesis_timestamp);
 
         string memory taiyiAddresses = "taiyiAddresses";
 
-        if (keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("devnet")))
-        {
+        if (is_for_dev) {
             vm.startBroadcast();
 
             Reverter reverter = new Reverter();
@@ -68,9 +69,7 @@ contract Deploy is Script, Test {
             thirdPartyTransfersForbiddenValues[0] = true;
             IStrategyManager strategyManager = IStrategyManager(strategyManagerAddr);
             vm.startBroadcast();
-            strategyManager.addStrategiesToDepositWhitelist(
-                strategiesToWhitelist, thirdPartyTransfersForbiddenValues
-            );
+            strategyManager.addStrategiesToDepositWhitelist(strategiesToWhitelist);
             vm.stopBroadcast();
 
             avsDirectory = stdJson.readAddress(output_data, ".addresses.avsDirectory");
@@ -81,20 +80,10 @@ contract Deploy is Script, Test {
             eigenPodManager =
                 stdJson.readAddress(output_data, ".addresses.eigenPodManager");
 
-            rewardCoordinator =
-                stdJson.readAddress(output_data, ".addresses.rewardsCoordinator");
-        } else if (
-            keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("holesky"))
-        ) {
-            // holesky address reference: https://github.com/Layr-Labs/eigenlayer-contracts/blob/dev/script/configs/holesky.json
-            avsDirectory = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
-            delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
-            strategyManagerAddr = 0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6;
-            eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
-            rewardCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+            // Todo: Remove arbitrary addresses and update them with the correct ones in DeployFromScratch.s.sol
+            rewardInitiator = address(0xd8F3183DEf51a987222d845Be228E0bBB932c292); // Arbitrary address
+            rewardCoordinator = address(0x1234567890123456789012345678901234567890); // Arbitrary address
         }
-
-        rewardInitiator = msg.sender; // temporary solution
         vm.startBroadcast();
 
         // Deploy AVS contracts first
@@ -147,7 +136,8 @@ contract Deploy is Script, Test {
         emit log_address(address(validatorAVS));
         vm.serializeAddress(taiyiAddresses, "validatorAVS", address(validatorAVS));
 
-        TaiyiCore taiyiCore = new TaiyiCore(msg.sender);
+        TaiyiCore taiyiCore = new TaiyiCore();
+        taiyiCore.initialize(msg.sender);
         emit log_address(address(taiyiCore));
         vm.serializeAddress(taiyiAddresses, "taiyiCore", address(taiyiCore));
 

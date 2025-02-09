@@ -12,7 +12,7 @@
   out = "out"
   script = "script"
   fs_permissions = [{ access = "read-write", path = "./" }]
-  solc = "0.8.25"
+  solc = "0.8.27"
   src = "src"
   test = "test"
   via_ir = true
@@ -25,21 +25,21 @@ remappings = [
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
 
   # context specific remappings
-  "lib/eigenlayer-contracts/:@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable/",
-  "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/",
-  "lib/eigenlayer-contracts/:@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
-  "lib/eigenlayer-contracts/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
+  "lib/eigenlayer-contracts/:@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/",
+  "lib/eigenlayer-contracts/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
+  "lib/eigenlayer-contracts/:@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
   "lib/eigenlayer-contracts/:ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/",
   "lib/eigenlayer-contracts/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/",
   
-  "lib/eigenlayer-middleware/:@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable/",
-  "lib/eigenlayer-middleware/:@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/",
-  "lib/eigenlayer-middleware/:@openzeppelin-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/",
-  "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/contracts/",
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
   "lib/eigenlayer-middleware/:ds-test/=lib/eigenlayer-middleware/lib/ds-test/src/",
   "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
 
-  "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+  "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
 ]
 
 [profile.ci]
@@ -54,7 +54,7 @@ remappings = [
   out = "out"
   script = "script"
   fs_permissions = [{ access = "read-write", path = "./" }]
-  solc = "0.8.25"
+  solc = "0.8.27"
   src = "src"
   test = "test"
   via_ir = true

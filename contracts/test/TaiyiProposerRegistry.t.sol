@@ -8,6 +8,9 @@ import "../src/eigenlayer-avs/ValidatorAVS.sol";
 import "../src/interfaces/IProposerRegistry.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
+
+import { TransparentUpgradeableProxy } from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
@@ -33,47 +36,63 @@ contract TaiyiProposerRegistryTest is Test {
 
         vm.startPrank(owner);
 
-        // Deploy and initialize registry
-        registry = new TaiyiProposerRegistry();
-
-        // Deploy AVS contracts
-        GatewayAVS gatewayAVS = new GatewayAVS();
-        ValidatorAVS validatorAVS = new ValidatorAVS();
-
-        // Initialize registry
-        registry.initialize(owner);
-
-        // Initialize AVS contracts
-        gatewayAVS.initialize(
+        // Deploy TaiyiProposerRegistry as an upgradeable instance
+        TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
+        TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
+            address(registryImpl),
             owner,
-            address(registry),
-            address(eigenLayerDeployer.avsDirectory()),
-            address(eigenLayerDeployer.delegationManager()),
-            address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager()),
-            address(eigenLayerDeployer.rewardsCoordinator()),
-            rewardsInitiator,
-            GATEWAY_SHARE_BIPS
+            abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
         );
+        registry = TaiyiProposerRegistry(address(registryProxy));
 
-        validatorAVS.initialize(
+        // Deploy GatewayAVS as an upgradeable proxy
+        GatewayAVS gatewayImpl = new GatewayAVS();
+        TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
+            address(gatewayImpl),
             owner,
-            address(registry),
-            address(eigenLayerDeployer.avsDirectory()),
-            address(eigenLayerDeployer.delegationManager()),
-            address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager()),
-            address(eigenLayerDeployer.rewardsCoordinator()),
-            rewardsInitiator,
-            GATEWAY_SHARE_BIPS
+            abi.encodeWithSelector(
+                GatewayAVS.initialize.selector,
+                owner,
+                address(registry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
         );
+        GatewayAVS gatewayAVSInstance = GatewayAVS(address(gatewayProxy));
+
+        // Deploy ValidatorAVS as an upgradeable proxy
+        ValidatorAVS validatorImpl = new ValidatorAVS();
+        TransparentUpgradeableProxy validatorProxy = new TransparentUpgradeableProxy(
+            address(validatorImpl),
+            owner,
+            abi.encodeWithSelector(
+                ValidatorAVS.initialize.selector,
+                owner,
+                address(registry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
+        );
+        ValidatorAVS validatorAVSInstance = ValidatorAVS(address(validatorProxy));
 
         // Set AVS contracts in registry
-        registry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
+        registry.setAVSContracts(
+            address(gatewayAVSInstance), address(validatorAVSInstance)
+        );
 
         // Add middleware contracts
-        registry.addRestakingMiddlewareContract(address(validatorAVS));
-        registry.addRestakingMiddlewareContract(address(gatewayAVS));
+        registry.addRestakingMiddlewareContract(address(validatorAVSInstance));
+        registry.addRestakingMiddlewareContract(address(gatewayAVSInstance));
 
         vm.stopPrank();
     }

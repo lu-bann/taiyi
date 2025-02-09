@@ -17,7 +17,7 @@ icon: 'list-check'
 
 ## Hardware Requirements
 
-The hardware requirements vary depending on whether you're running a [Gateway AVS](/learn/architecture/on_chain_components/avs_middleware_contracts#gatewayavs), [Validator AVS](/learn/architecture/on_chain_components/avs_middleware_contracts#validatoravs), or both:
+The hardware requirements vary depending on whether you're running a Gateway AVS, Validator AVS, or both:
 
 <CodeGroup>
 ```bash Validator AVS (Recommended)
@@ -35,6 +35,10 @@ Network: 1Gbps stable connection
 ```
 </CodeGroup>
 
+<Note>
+Storage requirements will grow over time. Ensure you have room for chain data expansion and transaction history.
+</Note>
+
 ## Software Requirements
 
 ### Deployment Environment
@@ -42,8 +46,8 @@ Network: 1Gbps stable connection
 - Docker Compose v2.0.0 or later
 
 ### Node Requirements
-- A synced Geth client
-- A synced Beacon Node
+- Execution Client (Geth/Reth)
+- Consensus Client (Lighthouse/Prysm)
 
 ### Taiyi Components
 
@@ -73,6 +77,13 @@ graph LR
     style BB fill:#dfd,stroke:#333
     style TB fill:#f9f,stroke:#333
 ```
+
+**<u>Required Components (Setup by Operator)</u>**
+- **Commit-boost**: Local builder service that handles block building and validation, integrating with the Taiyi network for preconfirmations.
+  [Source](https://github.com/Commit-Boost/commit-boost-client)
+
+- **Taiyi-boost**: Core component that manages preconfirmation services and interfaces with the Helix relay network.
+  [Source](https://github.com/lu-bann/taiyi/tree/dev/bin/taiyi-boost)
 
 **<u>Pre-deployed Components (No Setup Required)</u>**
 

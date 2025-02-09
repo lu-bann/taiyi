@@ -84,7 +84,7 @@ contract DeployTest is Test {
             preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature()
         );
 
-        console.log("user balance:    ", taiyiEscrow.balances(user));
+        console.log("user balance:    ", taiyiEscrow.balanceOf(user));
         vm.stopBroadcast();
     }
 }
