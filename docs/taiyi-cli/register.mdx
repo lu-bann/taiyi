@@ -1,0 +1,93 @@
+---
+title: 'Register command'
+description: 'Taiyi-CLI register command to register as a Taiyi AVS Operator in the AVS Directory'
+icon: 'user-plus'
+---
+
+# Registration
+
+## Command Structure
+
+```bash
+taiyi-cli register-validator [OPTIONS]
+```
+
+## Global Options
+
+| Option | Description | Environment Variable | Default |
+|--------|-------------|---------------------|---------|
+| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
+| `--private-key` | Operator's private key in hex format | `PRIVATE_KEY` | - |
+| `--salt` | Unique salt for registration | `SALT` | - |
+| `--avs-directory-address` | AVS Directory contract address | `AVS_DIRECTORY_ADDRESS` | - |
+| `--taiyi-avs-address` | Taiyi AVS contract address | `TAIYI_AVS_ADDRESS` | - |
+
+## Registration Example
+
+```bash
+taiyi-cli register \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --private-key 0x123... \
+  --salt 0x456... \
+  --avs-directory-address 0x789... \
+  --taiyi-avs-address 0xabc...
+```
+
+## Contract Addresses
+
+For Holesky testnet:
+- AVS Directory: `<AVS_DIRECTORY_ADDRESS>`
+- Taiyi AVS: `<TAIYI_AVS_ADDRESS>`
+
+## Registration Process
+
+1. The command calculates a registration digest hash using:
+   - Operator address (derived from private key)
+   - Taiyi AVS address
+   - Salt
+   - Expiry time (30 minutes from current time)
+
+2. Signs the digest hash with the operator's private key
+
+3. Submits the registration transaction to the Taiyi AVS contract
+
+4. Waits for transaction confirmation
+
+## Important Notes
+
+1. **Private Key Security**: 
+   - Never share your private key
+   - Preferably use environment variables instead of command line arguments
+   - Ensure secure key management practices
+
+2. **Salt Requirements**:
+   - Must be unique for each registration
+   - Store the salt value for future reference
+   - Cannot reuse salt values
+
+3. **Transaction Costs**:
+   - Registration requires gas fees
+   - Ensure sufficient ETH balance in operator account
+
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Transaction Failure**: 
+   - Verify contract addresses are correct
+   - Ensure sufficient ETH for gas
+   - Check if operator is already registered
+
+2. **Invalid Private Key**:
+   - Ensure private key is in correct hex format
+   - Verify key has necessary permissions
+
+3. **RPC Connection Issues**:
+   - Verify RPC URL is accessible
+   - Try alternative RPC endpoints
+
+4. **Salt Conflicts**:
+   - Use a new unique salt value
+   - Verify salt hasn't been used before
+
+For additional support, check the [operator documentation](/node_operator_setup_guide/holesky/operator) or join our community channels.

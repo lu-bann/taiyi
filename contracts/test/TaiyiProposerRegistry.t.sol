@@ -30,6 +30,7 @@ contract TaiyiProposerRegistryTest is Test {
         operator = makeAddr("operator");
         mockBlsPubKey = abi.encodePacked("mockBlsPubKey");
         rewardsInitiator = makeAddr("rewardInitiator");
+        address proxyAdmin = makeAddr("proxyAdmin"); // Create separate admin for proxies
 
         eigenLayerDeployer = new EigenlayerDeployer();
         eigenLayerDeployer.setUp();
@@ -40,7 +41,7 @@ contract TaiyiProposerRegistryTest is Test {
         TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
         TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
             address(registryImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
         );
         registry = TaiyiProposerRegistry(address(registryProxy));
@@ -49,7 +50,7 @@ contract TaiyiProposerRegistryTest is Test {
         GatewayAVS gatewayImpl = new GatewayAVS();
         TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
             address(gatewayImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
                 GatewayAVS.initialize.selector,
                 owner,
@@ -69,7 +70,7 @@ contract TaiyiProposerRegistryTest is Test {
         ValidatorAVS validatorImpl = new ValidatorAVS();
         TransparentUpgradeableProxy validatorProxy = new TransparentUpgradeableProxy(
             address(validatorImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
                 ValidatorAVS.initialize.selector,
                 owner,

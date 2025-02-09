@@ -17,7 +17,7 @@ icon: 'list-check'
 
 ## Hardware Requirements
 
-The hardware requirements vary depending on whether you're running a Gateway AVS, Validator AVS, or both:
+The hardware requirements vary depending on whether you're running a [Gateway AVS](/learn/architecture/on_chain_components/avs_middleware_contracts#gatewayavs), [Validator AVS](/learn/architecture/on_chain_components/avs_middleware_contracts#validatoravs), or both:
 
 <CodeGroup>
 ```bash Validator AVS (Recommended)
@@ -35,10 +35,6 @@ Network: 1Gbps stable connection
 ```
 </CodeGroup>
 
-<Note>
-Storage requirements will grow over time. Ensure you have room for chain data expansion and transaction history.
-</Note>
-
 ## Software Requirements
 
 ### Deployment Environment
@@ -46,8 +42,8 @@ Storage requirements will grow over time. Ensure you have room for chain data ex
 - Docker Compose v2.0.0 or later
 
 ### Node Requirements
-- Execution Client (Geth/Reth)
-- Consensus Client (Lighthouse/Prysm)
+- A synced Geth client
+- A synced Beacon Node
 
 ### Taiyi Components
 
@@ -78,13 +74,6 @@ graph LR
     style TB fill:#f9f,stroke:#333
 ```
 
-**<u>Required Components (Setup by Operator)</u>**
-- **Commit-boost**: Local builder service that handles block building and validation, integrating with the Taiyi network for preconfirmations.
-  [Source](https://github.com/Commit-Boost/commit-boost-client)
-
-- **Taiyi-boost**: Core component that manages preconfirmation services and interfaces with the Helix relay network.
-  [Source](https://github.com/lu-bann/taiyi/tree/dev/bin/taiyi-boost)
-
 **<u>Pre-deployed Components (No Setup Required)</u>**
 
 *Note: These components are already deployed on Holesky and managed by the Luban team*
@@ -108,4 +97,3 @@ Now that you've confirmed your system meets all requirements, proceed to the [In
 2. Configure your execution and consensus clients
 3. Install and configure the Taiyi components
 4. Prepare your environment for protocol registration
-

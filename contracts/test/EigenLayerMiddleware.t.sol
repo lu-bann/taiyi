@@ -77,6 +77,7 @@ contract EigenlayerMiddlewareTest is Test {
         (operator, operatorSecretKey) = makeAddrAndKey("operator");
         owner = makeAddr("owner");
         rewardsInitiator = makeAddr("rewardInitiator");
+        address proxyAdmin = makeAddr("proxyAdmin"); // Create separate admin for proxies
 
         // Create mock BLS key
         operatorBLSPubKey = new bytes(48);
@@ -90,7 +91,7 @@ contract EigenlayerMiddlewareTest is Test {
         TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
         TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
             address(registryImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
         );
         proposerRegistry = TaiyiProposerRegistry(address(registryProxy));
@@ -99,7 +100,7 @@ contract EigenlayerMiddlewareTest is Test {
         ValidatorAVS validatorImpl = new ValidatorAVS();
         TransparentUpgradeableProxy validatorProxy = new TransparentUpgradeableProxy(
             address(validatorImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
                 ValidatorAVS.initialize.selector,
                 owner,
@@ -119,7 +120,7 @@ contract EigenlayerMiddlewareTest is Test {
         GatewayAVS gatewayImpl = new GatewayAVS();
         TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
             address(gatewayImpl),
-            owner,
+            proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
                 GatewayAVS.initialize.selector,
                 owner,

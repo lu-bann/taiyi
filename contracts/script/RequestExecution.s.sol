@@ -14,7 +14,7 @@ import { Helper } from "../src/utils/Helper.sol";
 import { Test, console } from "forge-std/Test.sol";
 
 contract DeployTest is Test {
-    using PreconfRequestLib for *;
+    using PreconfRequestLib for BlockspaceAllocation;
     using Helper for *;
 
     TaiyiCore public taiyiCore;

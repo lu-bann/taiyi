@@ -13,8 +13,9 @@ import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 
 import { BlockspaceAllocation } from "./types/PreconfRequestBTypes.sol";
 import { Helper } from "./utils/Helper.sol";
-import { ReentrancyGuard } from
-    "@openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
+
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from
     "@openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -22,7 +23,7 @@ import { MessageHashUtils } from
 abstract contract TaiyiEscrow is
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     TaiyiEscrowStorage
 {
     using PreconfRequestLib for *;

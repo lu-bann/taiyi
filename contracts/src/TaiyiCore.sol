@@ -31,8 +31,7 @@ contract TaiyiCore is
     TaiyiEscrow,
     TaiyiCoreStorage
 {
-    using PreconfRequestLib for PreconfRequestBType;
-    using PreconfRequestLib for BlockspaceAllocation;
+    using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
 
@@ -93,6 +92,7 @@ contract TaiyiCore is
     function initialize(address initialOwner) external initializer {
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }

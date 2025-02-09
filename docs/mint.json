@@ -67,15 +67,23 @@
                 "node_operator_setup_guide/holesky/overview",
                 "node_operator_setup_guide/holesky/system_requirements",
                 "node_operator_setup_guide/holesky/installation_and_configuration",
-                "node_operator_setup_guide/holesky/protocol_opt_in",
-                "node_operator_setup_guide/holesky/monitoring",
-                "node_operator_setup_guide/holesky/taiyi_cli"
+                "node_operator_setup_guide/holesky/onchain_registration"
               ]
             }
           ]
         },
         "send_your_first_preconfirmation",
-        "using_preconf_aggregator"
+        "using_preconf_aggregator",
+        {
+            "group": "Taiyi CLI guide",
+            "icon": "terminal",
+            "pages": [
+              "taiyi-cli/register",
+              "taiyi-cli/deposit",
+              "taiyi-cli/delegate",
+              "taiyi-cli/deregister"
+            ]
+        }
       ]
     },
     {

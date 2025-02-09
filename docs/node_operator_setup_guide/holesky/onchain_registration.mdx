@@ -1,5 +1,5 @@
 ---
-title: 'Protocol Opt-in'
+title: 'Onchain Registration'
 description: 'Step-by-step guide for deploying and registering your Taiyi node on Holesky testnet.'
 icon: 'server'
 ---
@@ -8,6 +8,20 @@ For a complete list of contract addresses used in this guide, see the [Contract 
 </Note>
 
 ## 1. Deposit Stake
+
+Before depositing into the EigenLayer strategy contract, ensure you have sufficient WETH tokens in your account. You can check your WETH balance on Holesky testnet at [Etherscan](https://holesky.etherscan.io/address/0x94373a4919B3240D86eA41593D5eBa789FEF3848#readContract).
+
+To check your balance:
+1. Go to the WETH contract on Etherscan
+2. Navigate to the "Read Contract" tab
+3. Find the `balanceOf` function
+4. Enter your wallet address
+5. Click "Query" to see your balance
+
+If you need to acquire WETH:
+1. First obtain some Holesky ETH from a faucet
+2. Convert your ETH to WETH by interacting with the WETH contract
+
 
 First, you need to deposit WETH into the EigenLayer strategy contract. This stake serves as collateral for your node's operations.
 
@@ -26,11 +40,18 @@ First, you need to deposit WETH into the EigenLayer strategy contract. This stak
 # Then approve and deposit WETH
 taiyi-cli deposit \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
-  --strategy-address 0x7ca911e83d892be3b4538e4a6c4f0665e4f3118c \
-  --amount 1000000000000000000 \  # 1 WETH
+  --strategy-address <WETH_STRATEGY_ADDRESS> \
+  --amount <AMOUNT> \
   --private-key <YOUR_PRIVATE_KEY> \
-  --strategy-manager-address 0x779d1b5730356c7c5f249e821886f6b0ff30b667
+  --strategy-manager-address <STRATEGY_MANAGER_ADDRESS>
 ```
+
+<Note>
+You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
+- WETH Strategy: `0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9`
+- Strategy Manager: `0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6`
+</Note>
+
 
 <Accordion title="Code">
   Source: [`crates/cli/src/commands/deposit.rs`](https://github.com/lu-bann/taiyi/tree/main/crates/cli/src/commands/deposit.rs)
@@ -108,13 +129,19 @@ According to the [EigenLayer documentation](https://docs.eigenlayer.xyz/eigenlay
 </Note>
 
 ```bash
-taiyi-cli register \
+taiyi-cli register-validator \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
   --private-key <YOUR_PRIVATE_KEY> \
   --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
-  --avs-directory-address 0x89f5c4f5e1a47d06039748c5387874f1e3367c4c \
-  --taiyi-avs-address 0x0b4e72a8c7b55f02c44e6c51cad94f9a6c9e2e52
+  --avs-directory-address <AVS_DIRECTORY_ADDRESS> \
+  --taiyi-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS>
 ```
+
+<Note>
+You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
+- AVS Directory: `0x055733000064333CaDDbC92763c58BF0192fFeBf`
+- Taiyi Validator AVS: `0x3b9b6a197ED476bf784b451b219aD52f71913bC9`
+</Note>
 
 <Accordion title="Code">
   ```rust
@@ -189,6 +216,11 @@ taiyi-cli delegate \
   --path /path/to/validators \
   --password-path /path/to/secrets
 ```
+
+<Note>
+For additional key source options and detailed usage of the delegate command, see the [Taiyi CLI Delegate Command](/taiyi-cli/delegate) documentation.
+</Note>
+
 
 <Accordion title="Code">
   ```rust
@@ -276,7 +308,3 @@ taiyi-cli query-registration \
   );
   ```
 </Accordion>
-
-## Next Steps
-
-After registration, set up [monitoring](/node_operator_setup_guide/holesky/monitoring).

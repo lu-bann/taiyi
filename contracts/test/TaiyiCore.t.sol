@@ -42,6 +42,7 @@ contract TaiyiCoreTest is Test {
         (user, userPrivatekey) = makeAddrAndKey("user");
         (owner, ownerPrivatekey) = makeAddrAndKey("owner");
         (coinbase, coinbasePrivatekey) = makeAddrAndKey("coinbase");
+        address proxyAdmin = makeAddr("proxyAdmin");
 
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
@@ -51,7 +52,7 @@ contract TaiyiCoreTest is Test {
         taiyiCore = new TaiyiCore();
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(taiyiCore),
-            owner,
+            proxyAdmin,
             abi.encodeWithSelector(TaiyiCore.initialize.selector, owner)
         );
 

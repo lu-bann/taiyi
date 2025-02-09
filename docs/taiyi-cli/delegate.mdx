@@ -1,6 +1,6 @@
 ---
-title: 'Taiyi-CLI'
-description: 'Taiyi-CLI is a command-line tool for managing Taiyi nodes on Holesky testnet.'
+title: 'Delegate command'
+description: 'Taiyi-CLI delegate command to delegate validator preconfirmation rights for taiyi gateway to relay'
 icon: 'user-plus'
 ---
 
@@ -85,20 +85,6 @@ Options:
 - `--client-key-path`: Client key path
 - `--ca-cert-path`: CA certificate path (optional)
 
-## Revoking Delegation
-
-To revoke a previous delegation, add the `--action revoke` flag:
-
-```bash
-taiyi-cli delegate \
-  --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
-  --network holesky \
-  --action revoke \
-  local-keystore \
-  --path /path/to/validators \
-  --password-path /path/to/secrets
-```
 
 ## Network Information
 
@@ -115,5 +101,4 @@ Common issues and solutions:
 3. **Authentication Failed**: Verify keystore path and password
 4. **Network Mismatch**: Confirm correct `--network` parameter
 
-For additional support, check the [monitoring guide](/node_operator_setup_guide/holesky/monitoring) or join our community channels.
-
+For additional support, check the [operator documentation](/node_operator_setup_guide/holesky/operator) or join our community channels.

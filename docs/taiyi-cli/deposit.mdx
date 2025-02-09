@@ -1,0 +1,104 @@
+---
+title: 'Deposit command'
+description: 'Taiyi-CLI deposit command to deposit strategy tokens into an Taiyi AVS'
+icon: 'wallet'
+---
+
+# Deposit
+
+## Command Structure
+
+```bash
+taiyi-cli deposit [OPTIONS]
+```
+
+## Global Options
+
+| Option | Description | Environment Variable | Default |
+|--------|-------------|---------------------|---------|
+| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
+| `--strategy-address` | Strategy contract address | `STRATEGY_ADDRESS` | - |
+| `--amount` | Amount of tokens to deposit | `AMOUNT` | - |
+| `--private-key` | Private key in hex format | `PRIVATE_KEY` | - |
+| `--strategy-manager-address` | Strategy Manager contract address | `STRATEGY_MANAGER_ADDRESS` | - |
+
+## Deposit Example
+
+```bash
+taiyi-cli deposit \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --strategy-address 0x123... \
+  --amount 1000000000000000000 \
+  --private-key 0x456... \
+  --strategy-manager-address 0x789...
+```
+
+## Contract Addresses
+
+For Holesky testnet:
+- Strategy Manager: `<STRATEGY_MANAGER_ADDRESS>`
+- Available Strategies:
+  - stETH Strategy: `<STETH_STRATEGY_ADDRESS>`
+  - rETH Strategy: `<RETH_STRATEGY_ADDRESS>`
+  - cbETH Strategy: `<CBETH_STRATEGY_ADDRESS>`
+
+## Deposit Process
+
+1. **Token Approval**:
+   - Retrieves the underlying token address from the strategy contract
+   - Approves the Strategy Manager to spend tokens
+   - Waits for approval transaction confirmation
+
+2. **Token Deposit**:
+   - Deposits approved tokens into the specified strategy
+   - Waits for deposit transaction confirmation
+
+## Important Notes
+
+1. **Token Requirements**:
+   - Ensure you have sufficient underlying tokens
+   - Amount should be specified in wei (10^18 for most tokens)
+   - Check token decimals before depositing
+
+2. **Gas Fees**:
+   - Two transactions required (approve + deposit)
+   - Ensure sufficient ETH for gas fees
+   - Gas costs vary by network congestion
+
+3. **Security Considerations**:
+   - Never share your private key
+   - Use environment variables for sensitive data
+   - Verify contract addresses before depositing
+
+## Strategy Information
+
+Each strategy accepts different tokens:
+- stETH Strategy: Accepts stETH tokens
+- rETH Strategy: Accepts rETH tokens
+- cbETH Strategy: Accepts cbETH tokens
+
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Insufficient Balance**:
+   - Check token balance
+   - Verify ETH balance for gas
+   - Confirm amount is in correct denomination
+
+2. **Transaction Failures**:
+   - Verify contract addresses
+   - Check token approval status
+   - Ensure strategy is not paused
+
+3. **RPC Issues**:
+   - Verify RPC endpoint is accessible
+   - Try alternative RPC providers
+   - Check network connectivity
+
+4. **Token Approval**:
+   - Ensure approval transaction is confirmed
+   - Check if previous approval exists
+   - Verify approval amount is sufficient
+
+For additional support, check the [operator documentation](/node_operator_setup_guide/holesky/operator) or join our community channels.
