@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { TaiyiProposerRegistryStorage } from "./TaiyiProposerRegistryStorage.sol";
 import { GatewayAVS } from "./eigenlayer-avs/GatewayAVS.sol";
 import { ValidatorAVS } from "./eigenlayer-avs/ValidatorAVS.sol";
 import { IGatewayAVS } from "./interfaces/IGatewayAVS.sol";
@@ -11,6 +10,7 @@ import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 import { OperatorManagement } from "./libs/OperatorManagement.sol";
 import { ValidatorManagement } from "./libs/ValidatorManagement.sol";
+import { TaiyiProposerRegistryStorage } from "./storage/TaiyiProposerRegistryStorage.sol";
 import { console } from "forge-std/console.sol";
 
 import { OwnableUpgradeable } from
@@ -24,7 +24,6 @@ import { EnumerableSet } from
 
 /// @title TaiyiProposerRegistry
 /// @notice Registry contract for managing validators and operators in the Taiyi protocol
-/// @dev Follows the "internal-call" pattern seen in EigenLayerMiddleware
 contract TaiyiProposerRegistry is
     IProposerRegistry,
     BLSSignatureChecker,
@@ -37,10 +36,6 @@ contract TaiyiProposerRegistry is
     using ValidatorManagement for ValidatorManagement.ValidatorState;
     using OperatorManagement for OperatorManagement.OperatorState;
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    /// @dev State variables
-    ValidatorManagement.ValidatorState private validatorState;
-    OperatorManagement.OperatorState private operatorState;
 
     /// @notice Error thrown when trying to deregister an operator with active validators
     error CannotDeregisterActiveValidator();
@@ -58,6 +53,12 @@ contract TaiyiProposerRegistry is
     event OperatorDeregistered(address indexed operator, address indexed avsContract);
 
     // ============ External Functions ============
+
+    // Replace constructor with disable-initializers
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner

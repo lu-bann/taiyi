@@ -4,13 +4,16 @@ pragma solidity ^0.8.25;
 import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
-import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import { IAVSDirectory } from
     "@eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
 import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IEigenPodTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
 import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinatorTypes } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
@@ -20,10 +23,6 @@ import { ISignatureUtils } from
 ///         validator-portion from the EigenLayerMiddleware
 ///         and splits it by operator validator counts.
 contract ValidatorAVS is EigenLayerMiddleware {
-    /// @notice The address of the gateway AVS contract
-    /// @dev Used to verify operator registration in gateway AVS
-    address public gatewayAVSAddress;
-
     // ========= EVENTS =========
     event ValidatorOperatorRegistered(
         address indexed operator,
@@ -44,7 +43,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
     modifier onlyPodOwnerOrOperator(address podOwner) {
         if (
             msg.sender != podOwner
-                && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)
+                && msg.sender != getDelegationManager().delegatedTo(podOwner)
         ) {
             revert SenderNotPodOwnerOrOperator();
         }
@@ -55,13 +54,42 @@ contract ValidatorAVS is EigenLayerMiddleware {
     /// @dev Reverts if msg.sender is not the gateway AVS contract address
     modifier onlyGatewayAVS() {
         require(
-            msg.sender == super.getGatewayAVSAddress(),
+            msg.sender == getGatewayAVSAddress(),
             "ValidatorAVS: caller is not gateway AVS"
         );
         _;
     }
 
     // ========= OVERRIDE FUNCTIONS =========
+
+    function initialize(
+        address _owner,
+        address _proposerRegistry,
+        address _avsDirectory,
+        address _delegationManager,
+        address _strategyManager,
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
+    )
+        public
+        override
+        initializer
+    {
+        // Delegates initialization to the parent contract.
+        super.initialize(
+            _owner,
+            _proposerRegistry,
+            _avsDirectory,
+            _delegationManager,
+            _strategyManager,
+            _eigenPodManager,
+            _rewardCoordinator,
+            _rewardInitiator,
+            _gatewayShareBips
+        );
+    }
 
     /// @notice Override of createOperatorDirectedAVSRewardsSubmission that redirects to GatewayAVS
     /// @dev This function always reverts and directs users to use GatewayAVS for reward distribution
@@ -141,11 +169,11 @@ contract ValidatorAVS is EigenLayerMiddleware {
 
         // Get the operator delegated to by the pod owner.
         // EigenPod owner could be self-delegated
-        address operator = DELEGATION_MANAGER.delegatedTo(podOwner);
+        address operator = getDelegationManager().delegatedTo(podOwner);
 
         // Check if operator is registered in proposer registry
         if (
-            !proposerRegistry.isOperatorRegisteredInAVS(
+            !getProposerRegistry().isOperatorRegisteredInAVS(
                 operator, IProposerRegistry.AVSType.VALIDATOR
             )
         ) {
@@ -154,7 +182,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
 
         // Check if operator is registered with the gateway AVS
         if (
-            !proposerRegistry.isOperatorRegisteredInAVS(
+            !getProposerRegistry().isOperatorRegisteredInAVS(
                 operator, IProposerRegistry.AVSType.GATEWAY
             )
         ) {
@@ -162,8 +190,8 @@ contract ValidatorAVS is EigenLayerMiddleware {
         }
 
         // Verify pod owner has an EigenPod
-        require(EIGEN_POD_MANAGER.hasPod(podOwner), "No Pod exists");
-        IEigenPod pod = EIGEN_POD_MANAGER.getPod(podOwner);
+        require(getEigenPodManager().hasPod(podOwner), "No Pod exists");
+        IEigenPod pod = getEigenPodManager().getPod(podOwner);
 
         // Register each validator if they are active in EigenLayer
         uint256 len = valPubKeys.length;
@@ -171,7 +199,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
             // Check validator is active in EigenLayer core
             if (
                 pod.validatorPubkeyToInfo(valPubKeys[i]).status
-                    != IEigenPod.VALIDATOR_STATUS.ACTIVE
+                    != IEigenPodTypes.VALIDATOR_STATUS.ACTIVE
             ) {
                 revert ValidatorNotActiveWithinEigenCore();
             }
@@ -222,7 +250,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
             uint256 share = (validatorAmount * opValidatorCount) / totalValidatorCount;
             require(share > 0, "ValidatorAVS: Operator share is zero");
 
-            opRewards[i] = IRewardsCoordinator.OperatorReward({
+            opRewards[i] = IRewardsCoordinatorTypes.OperatorReward({
                 operator: operators[i],
                 amount: share
             });
@@ -233,7 +261,8 @@ contract ValidatorAVS is EigenLayerMiddleware {
             validatorSubmissions =
                 new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
 
-        validatorSubmissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        validatorSubmissions[0] = IRewardsCoordinatorTypes
+            .OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: submission.strategiesAndMultipliers,
             token: submission.token,
             operatorRewards: opRewards,

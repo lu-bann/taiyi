@@ -3,25 +3,31 @@ pragma solidity ^0.8.25;
 
 import "forge-std/console.sol";
 
+import { TaiyiEscrowStorage } from "./storage/TaiyiEscrowStorage.sol";
+import { OwnableUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
 
 import { BlockspaceAllocation } from "./types/PreconfRequestBTypes.sol";
 import { Helper } from "./utils/Helper.sol";
-import { ReentrancyGuard } from
-    "@openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
+
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from
     "@openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
 
-contract TaiyiEscrow is ReentrancyGuard {
+abstract contract TaiyiEscrow is
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    TaiyiEscrowStorage
+{
     using PreconfRequestLib for *;
     using ECDSA for bytes32;
-
-    mapping(address => uint256) public balances;
-    mapping(address => uint256) public lockBlock;
-
-    uint256 public constant LOCK_PERIOD = 64;
-    uint256 public maxUint256 = type(uint256).max;
 
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
@@ -51,7 +57,7 @@ contract TaiyiEscrow is ReentrancyGuard {
     function deposit() public payable {
         require(msg.value > 0, "Deposit amount must be greater than zero");
         balances[msg.sender] += msg.value;
-        lockBlock[msg.sender] = maxUint256;
+        lockBlock[msg.sender] = MAX_UINT256;
         emit Deposited(msg.sender, msg.value);
     }
 
@@ -74,14 +80,14 @@ contract TaiyiEscrow is ReentrancyGuard {
     function withdraw(uint256 amount) public nonReentrant {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         require(
-            lockBlock[msg.sender] != maxUint256
+            lockBlock[msg.sender] != MAX_UINT256
                 && block.number >= lockBlock[msg.sender] + LOCK_PERIOD,
             "Withdrawal is locked"
         );
         balances[msg.sender] -= amount;
         (bool sent,) = payable(msg.sender).call{ value: amount }("");
         require(sent, "Failed to send Ether");
-        lockBlock[msg.sender] = maxUint256;
+        lockBlock[msg.sender] = MAX_UINT256;
         emit Withdrawn(msg.sender, amount);
     }
 
