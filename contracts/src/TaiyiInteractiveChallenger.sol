@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { IInteractiveChallenger } from "./interfaces/IInteractiveChallenger.sol";
+import { ITaiyiInteractiveChallenger } from "./interfaces/ITaiyiInteractiveChallenger.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
-contract InteractiveChallenger is IInteractiveChallenger, Ownable {
+contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     /// @notice The address of the SP1 verifier contract.
     /// @dev This can either be a specific SP1Verifier for a specific version, or the
     ///      SP1VerifierGateway which can be used to verify proofs for any version of SP1.
@@ -28,12 +28,12 @@ contract InteractiveChallenger is IInteractiveChallenger, Ownable {
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function setVerifierGateway(address _verifierGateway) external onlyOwner {
         verifierGateway = _verifierGateway;
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function setInteractiveFraudProofVKey(bytes32 _interactiveFraudProofVKey)
         external
         onlyOwner
@@ -41,33 +41,33 @@ contract InteractiveChallenger is IInteractiveChallenger, Ownable {
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function getChallenges() external view returns (Challenge[] memory) {
         revert("Not implemented");
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function getOpenChallenges() external view returns (Challenge[] memory) {
         revert("Not implemented");
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function getChallenge(bytes32 id) external view returns (Challenge memory) {
         revert("Not implemented");
     }
 
-    /// @inheritdoc IInteractiveChallenger
+    /// @inheritdoc ITaiyiInteractiveChallenger
     function createChallenge() external payable {
         revert("Not implemented");
     }
 
-    /// @inheritdoc IInteractiveChallenger
-    function resolveExpiredChallenge() external {
+    /// @inheritdoc ITaiyiInteractiveChallenger
+    function resolveExpiredChallenge(bytes32 id) external {
         revert("Not implemented");
     }
 
-    /// @inheritdoc IInteractiveChallenger
-    function defendWithProof(
+    /// @inheritdoc ITaiyiInteractiveChallenger
+    function prove(
         bytes32 id,
         bytes calldata proofValues,
         bytes calldata proofBytes

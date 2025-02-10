@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface IParameterManager {
+interface ITaiyiParameterManager {
     /// @notice Get the challenge bond required to open a challenge.
     function challengeBond() external view returns (uint256);
 
@@ -15,4 +15,8 @@ interface IParameterManager {
     /// @notice Set the challenge maxiumum duration.
     /// @param _challengeMaxDuration The maximum duration of a challenge.
     function setChallengeMaxDuration(uint256 _challengeMaxDuration) external;
+
+    /// @notice Set the blockhash lookback.
+    /// @param _blockhashLookback The blockhash lookback window.
+    function setBlockhashLookback(uint256 _blockhashLookback) external;
 }
