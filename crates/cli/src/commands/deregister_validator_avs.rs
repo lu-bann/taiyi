@@ -8,7 +8,7 @@ use taiyi_contracts::TaiyiEigenlayerMiddleware;
 use tracing::info;
 
 #[derive(Debug, Parser)]
-pub struct DeregisterCommand {
+pub struct DeregisterValidatorAVSCommand {
     /// rpc url
     #[clap(long, env = "EXECUTION_RPC_URL")]
     pub execution_rpc_url: String,
@@ -21,7 +21,7 @@ pub struct DeregisterCommand {
     pub taiyi_eigenlayer_middleware_address: Address,
 }
 
-impl DeregisterCommand {
+impl DeregisterValidatorAVSCommand {
     pub async fn execute(&self) -> Result<()> {
         // Create a wallet from the private key
         let signer: PrivateKeySigner = self.private_key.parse()?;

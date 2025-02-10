@@ -8,7 +8,7 @@ use taiyi_contracts::{AVSDirectory, SignatureWithSaltAndExpiry, TaiyiEigenlayerM
 use tracing::info;
 
 #[derive(Debug, Parser)]
-pub struct RegisterCommand {
+pub struct RegisterValidatorAVSCommand {
     /// rpc url
     #[clap(long, env = "EXECUTION_RPC_URL")]
     pub execution_rpc_url: String,
@@ -27,7 +27,7 @@ pub struct RegisterCommand {
     pub taiyi_avs_address: Address,
 }
 
-impl RegisterCommand {
+impl RegisterValidatorAVSCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         // Create a wallet from the private key
         let signer: PrivateKeySigner = self.private_key.parse()?;
