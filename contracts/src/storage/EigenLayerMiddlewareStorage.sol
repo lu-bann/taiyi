@@ -15,6 +15,9 @@ import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+
+import { EnumerableMap } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
@@ -49,6 +52,7 @@ import { EnumerableSet } from
 
 contract EigenLayerMiddlewareStorage {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableMap for EnumerableMap.AddressToUintMap;
 
     /// @notice ProposerRegistry contract instance
     IProposerRegistry internal proposerRegistry;

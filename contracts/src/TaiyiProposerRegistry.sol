@@ -19,6 +19,9 @@ import { Initializable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+
+import { EnumerableMap } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
@@ -298,6 +301,30 @@ contract TaiyiProposerRegistry is
     /// @notice Gets the ValidatorAVS contract instance
     function validatorAVS() external view override returns (IValidatorAVS) {
         return IValidatorAVS(_validatorAVSAddress);
+    }
+
+    /// @notice Returns the operator's public key and other info for a specific AVS type
+    /// @inheritdoc IProposerRegistry
+    function operatorInfo(
+        address operator,
+        AVSType avsType
+    )
+        external
+        view
+        returns (bytes memory pubKey, bool isActive)
+    {
+        (Operator memory gatewayData, Operator memory validatorData) =
+            this.getRegisteredOperator(operator);
+
+        if (avsType == AVSType.GATEWAY) {
+            pubKey = gatewayData.blsKey;
+            isActive = gatewayData.operatorAddress != address(0);
+        } else {
+            pubKey = validatorData.blsKey;
+            isActive = validatorData.operatorAddress != address(0);
+        }
+
+        return (pubKey, isActive);
     }
 
     // ============ Internal Functions ============
