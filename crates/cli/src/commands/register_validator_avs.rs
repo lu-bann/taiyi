@@ -4,7 +4,9 @@ use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
-use taiyi_contracts::{AVSDirectory, SignatureWithSaltAndExpiry, TaiyiEigenlayerMiddleware};
+use taiyi_contracts::{
+    AVSDirectory, SignatureWithSaltAndExpiry, TaiyiValidatorAVSEigenlayerMiddleware,
+};
 use tracing::info;
 
 #[derive(Debug, Parser)]
@@ -40,7 +42,7 @@ impl RegisterValidatorAVSCommand {
             .await?;
 
         let taiyi_eigenlayer_contract =
-            TaiyiEigenlayerMiddleware::new(self.taiyi_avs_address, provider.clone());
+            TaiyiValidatorAVSEigenlayerMiddleware::new(self.taiyi_avs_address, provider.clone());
 
         let avs_directory_contract =
             AVSDirectory::new(self.avs_directory_address, provider.clone());

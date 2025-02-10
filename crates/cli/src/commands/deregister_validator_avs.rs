@@ -4,7 +4,7 @@ use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
-use taiyi_contracts::TaiyiEigenlayerMiddleware;
+use taiyi_contracts::TaiyiValidatorAVSEigenlayerMiddleware;
 use tracing::info;
 
 #[derive(Debug, Parser)]
@@ -32,7 +32,7 @@ impl DeregisterValidatorAVSCommand {
             .on_builtin(&self.execution_rpc_url)
             .await?;
 
-        let taiyi_eigenlayer_contract = TaiyiEigenlayerMiddleware::new(
+        let taiyi_eigenlayer_contract = TaiyiValidatorAVSEigenlayerMiddleware::new(
             self.taiyi_eigenlayer_middleware_address,
             provider.clone(),
         );
