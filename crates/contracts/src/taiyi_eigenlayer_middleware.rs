@@ -9,11 +9,12 @@ sol! {
         uint256 expiry;
     }
     #[sol(rpc)]
-    interface TaiyiEigenlayerMiddleware {
+    interface TaiyiValidatorAVSEigenlayerMiddleware {
         function registerOperatorToAVS(
             address operator,
             SignatureWithSaltAndExpiry calldata operatorSignature
         );
         function deregisterOperator() public;
+        function registerValidators(bytes[][] calldata valPubKeys,address[] calldata podOwners,bytes[] calldata delegatedGateways) external;
     }
 }
