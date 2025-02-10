@@ -52,8 +52,6 @@ contract Deploy is Script, Test {
 
         if (keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("devnet")))
         {
-            // Add this line to fund the deployer
-            vm.deal(deployer, 1000 ether);
             vm.startBroadcast();
 
             Reverter reverter = new Reverter();
@@ -64,16 +62,6 @@ contract Deploy is Script, Test {
             emit log_address(address(weth));
             vm.serializeAddress(taiyiAddresses, "weth", address(weth));
             vm.stopBroadcast();
-
-            // Replace `operationsMultisig` with deployer address
-            // so that this contract could call the addStrategiesToDepositWhitelist()
-            // See [StrategyManager.addStrategiesToDepositWhitelist()] which has a modifier
-            // that only allows the whitelister to call it
-            vm.writeJson(
-                vm.toString(deployer),
-                "script/configs/eigenlayer-deploy-config-devnet.json",
-                ".multisig_addresses.operationsMultisig"
-            );
 
             DeployFromScratch deployFromScratch = new DeployFromScratch();
             deployFromScratch.run(configFileName);
@@ -127,7 +115,12 @@ contract Deploy is Script, Test {
             new ERC1967Proxy(address(registryImpl), registryInitData);
         TaiyiProposerRegistry registry = TaiyiProposerRegistry(address(registryProxy));
         emit log_address(address(registry));
-        vm.serializeAddress("taiyiAddresses", "taiyiProposerRegistry", address(registry));
+        vm.serializeAddress(
+            "taiyiAddresses", "taiyiProposerRegistryImpl", address(registryImpl)
+        );
+        vm.serializeAddress(
+            "taiyiAddresses", "taiyiProposerRegistryProxy", address(registryProxy)
+        );
 
         // Deploy GatewayAVS implementation and proxy
         GatewayAVS gatewayImpl = new GatewayAVS();
@@ -147,7 +140,8 @@ contract Deploy is Script, Test {
             new ERC1967Proxy(address(gatewayImpl), gatewayInitData);
         GatewayAVS gateway = GatewayAVS(address(gatewayProxy));
         emit log_address(address(gateway));
-        vm.serializeAddress("taiyiAddresses", "gatewayAVS", address(gateway));
+        vm.serializeAddress("taiyiAddresses", "gatewayAVSImpl", address(gatewayImpl));
+        vm.serializeAddress("taiyiAddresses", "gatewayAVSProxy", address(gatewayProxy));
 
         // Deploy ValidatorAVS implementation and proxy
         ValidatorAVS validatorImpl = new ValidatorAVS();
@@ -167,7 +161,10 @@ contract Deploy is Script, Test {
             new ERC1967Proxy(address(validatorImpl), validatorInitData);
         ValidatorAVS validator = ValidatorAVS(address(validatorProxy));
         emit log_address(address(validator));
-        vm.serializeAddress("taiyiAddresses", "validatorAVS", address(validator));
+        vm.serializeAddress("taiyiAddresses", "validatorAVSImpl", address(validatorImpl));
+        vm.serializeAddress(
+            "taiyiAddresses", "validatorAVSProxy", address(validatorProxy)
+        );
 
         // Set AVS contracts in registry
         registry.setAVSContracts(address(gateway), address(validator));
@@ -183,7 +180,8 @@ contract Deploy is Script, Test {
         ERC1967Proxy coreProxy = new ERC1967Proxy(address(coreImpl), coreInitData);
         TaiyiCore core = TaiyiCore(payable(address(coreProxy)));
         emit log_address(address(core));
-        vm.serializeAddress("taiyiAddresses", "taiyiCore", address(core));
+        vm.serializeAddress("taiyiAddresses", "taiyiCoreImpl", address(coreImpl));
+        vm.serializeAddress("taiyiAddresses", "taiyiCoreProxy", address(coreProxy));
 
         string memory addresses = vm.serializeAddress(
             "taiyiAddresses", "eigenLayerMiddleware", address(validator)
