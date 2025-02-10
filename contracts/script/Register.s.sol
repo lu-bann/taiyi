@@ -8,7 +8,7 @@ import { IDelegationManager } from
 import { Script } from "forge-std/Script.sol";
 import { Test, console } from "forge-std/Test.sol";
 
-contract Register is Script, Test {
+contract RegisterOperator is Script, Test {
     function run() public {
         vm.startBroadcast();
         address delegationApprover = vm.envAddress("DELEGATION_APPROVER");
