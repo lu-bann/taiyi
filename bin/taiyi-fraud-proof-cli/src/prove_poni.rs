@@ -1,6 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
-use eyre::eyre;
+use eyre::format_err;
 use serde::Deserialize;
 use sp1_sdk::{include_elf, network::FulfillmentStrategy, Prover, ProverClient, SP1Stdin};
 use tracing::info;
@@ -51,9 +51,8 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
         let client = ProverClient::builder().cpu().build();
 
         info!("Executing program");
-        let (mut public_values, report) = client.execute(ELF, &stdin).run().map_err(|err| {
-            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
-        })?;
+        let (mut public_values, report) =
+            client.execute(ELF, &stdin).run().map_err(|err| format_err!(err))?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -68,9 +67,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
         let (pk, vk) = client.setup(ELF);
         info!("Generated setup keys");
 
-        let proof = client.prove(&pk, &stdin).core().run().map_err(|err| {
-            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
-        })?;
+        let proof = client.prove(&pk, &stdin).core().run().map_err(|err| format_err!(err))?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");
@@ -81,9 +78,8 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
         let client = ProverClient::builder().network().build();
 
         info!("Executing program");
-        let (mut public_values, report) = client.execute(ELF, &stdin).run().map_err(|err| {
-            eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
-        })?;
+        let (mut public_values, report) =
+            client.execute(ELF, &stdin).run().map_err(|err| format_err!(err))?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -104,9 +100,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
             .skip_simulation(true)
             .plonk()
             .run()
-            .map_err(|err| {
-                eyre!(Box::<dyn std::error::Error + Send + Sync + 'static>::from(err))
-            })?;
+            .map_err(|err| format_err!(err))?;
         info!("Generated proof");
 
         client.verify(&proof, &vk).expect("verification failed");
