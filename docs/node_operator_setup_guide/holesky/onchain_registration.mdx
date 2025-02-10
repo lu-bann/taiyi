@@ -105,9 +105,9 @@ This command:
 2. Deposits WETH into the EigenLayer strategy
 3. Records your stake in the protocol
 
-## 2. Register as Operator
+## 2. Register as Taiyi Validator AVS Operator
 
-After staking, register yourself into the Taiyi protocol. This step establishes your identity in the protocol.
+After staking, register yourself into the Taiyi protocol as an Operator. This step establishes your operator identity in the taiyi validator avs protocol.
 
 <Frame>
   <img 
@@ -129,7 +129,7 @@ According to the [EigenLayer documentation](https://docs.eigenlayer.xyz/eigenlay
 </Note>
 
 ```bash
-taiyi-cli register-validator \
+taiyi-cli register-validator-avs \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
   --private-key <YOUR_PRIVATE_KEY> \
   --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
@@ -192,7 +192,22 @@ This command:
 2. Registers your operator address with Taiyi AVS
 3. Links your stake to the Taiyi service
 
-## 3. Delegate Validator Keys
+
+## 3. Register Validators
+
+After registering as an Operator, you can register your validator keys to the Taiyi service. This allows your validator to participate in the preconf game.
+
+```bash
+taiyi-cli register-validators \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --taiyi-validator-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS> \
+  --validator-pubkeys 0x0000000000000000000000000000000000000000000000000000000000000000,0x0000000000000000000000000000000000000000000000000000000000000001,... \
+  --pod-owners 0x0000000000000000000000000000000000000000,0x0000000000000000000000000000000000000001,... \
+  --delegated-gateways 0x0000000000000000000000000000000000000000000000000000000000000000,0x0000000000000000000000000000000000000000000000000000000000000001,... \
+```
+
+## 4. Delegate Validator Keys
 
 Finally, delegate your validator keys to the Taiyi Gateway. This allows your validator to participate in the network.
 
