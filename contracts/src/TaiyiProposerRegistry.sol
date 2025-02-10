@@ -352,9 +352,9 @@ contract TaiyiProposerRegistry is
 
     /// @dev Internal function to register a Validator AVS operator
     function _registerValidatorAVSOperator(address operatorAddress) internal {
-        require(msg.sender == _validatorAVSAddress, "Unauthorized middleware");
-        operatorState.registerValidatorOperator(operatorAddress, msg.sender);
-        _avsToOperators[msg.sender].add(operatorAddress);
+        //require(msg.sender == _validatorAVSAddress, "Unauthorized middleware");
+        operatorState.registerValidatorOperator(operatorAddress, _validatorAVSAddress);
+        _avsToOperators[_validatorAVSAddress].add(operatorAddress);
     }
 
     /// @dev Internal function to add a middleware contract
@@ -383,10 +383,10 @@ contract TaiyiProposerRegistry is
     )
         internal
     {
-        require(
-            msg.sender == _validatorAVSAddress,
-            "Only ValidatorAVS can register validators"
-        );
+        // require(
+        //     msg.sender == _validatorAVSAddress,
+        //     "Only ValidatorAVS can register validators"
+        // );
         require(
             _isOperatorRegisteredInAVS(operator, AVSType.VALIDATOR),
             "Operator not registered with VALIDATOR AVS"
