@@ -218,4 +218,17 @@ interface IProposerRegistry {
 
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);
+
+    /// @notice Returns the operator's public key and other info for a specific AVS type
+    /// @param operator The operator's address
+    /// @param avsType The type of AVS to get info for
+    /// @return pubKey The operator's public key for the AVS type
+    /// @return isActive Whether the operator is active
+    function operatorInfo(
+        address operator,
+        AVSType avsType
+    )
+        external
+        view
+        returns (bytes memory pubKey, bool isActive);
 }

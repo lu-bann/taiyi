@@ -11,6 +11,7 @@ import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { Time } from "@openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 import { IGatewayAVS } from "../interfaces/IGatewayAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
@@ -62,7 +63,8 @@ abstract contract EigenLayerMiddleware is
     // ========= ERRORS =========
 
     error ValidatorNotActiveWithinEigenCore();
-    error OperatorAlreadyRegistered();
+    error StrategyAlreadyRegistered();
+    error StrategyNotRegistered();
     error OperatorNotRegistered();
     error CallerNotOperator();
     error InvalidQueryParameters();
@@ -353,7 +355,7 @@ abstract contract EigenLayerMiddleware is
     /// @dev Internal function that registers a strategy.
     function _registerStrategy(address strategy) internal {
         if (strategies.contains(strategy)) {
-            revert OperatorAlreadyRegistered();
+            revert StrategyAlreadyRegistered();
         }
         if (!STRATEGY_MANAGER.strategyIsWhitelistedForDeposit(IStrategy(strategy))) {
             revert UnsupportedStrategy();
@@ -364,7 +366,7 @@ abstract contract EigenLayerMiddleware is
     /// @dev Internal function that deregisters a strategy.
     function _deregisterStrategy(address strategy) internal {
         if (!strategies.contains(strategy)) {
-            revert OperatorNotRegistered();
+            revert StrategyNotRegistered();
         }
         strategies.remove(strategy);
     }
@@ -447,11 +449,64 @@ abstract contract EigenLayerMiddleware is
         return GATEWAY_SHARE_BIPS;
     }
 
+    /// @notice Query the stake amount for an operator across all strategies
+    /// @param operator The address of the operator to query
+    /// @return strategyAddresses Array of strategy addresses
+    /// @return stakeAmounts Array of corresponding stake amounts
+    function getStrategiesAndStakes(address operator)
+        external
+        view
+        returns (address[] memory strategyAddresses, uint256[] memory stakeAmounts)
+    {
+        address[] memory strategies = getOperatorRestakedStrategies(operator);
+        strategyAddresses = strategies;
+        stakeAmounts = new uint256[](strategies.length);
+
+        for (uint256 i = 0; i < strategies.length; i++) {
+            address strategy = strategies[i];
+            uint256 strategyShare =
+                DELEGATION_MANAGER.operatorShares(operator, IStrategy(strategy));
+            stakeAmounts[i] = IStrategy(strategy).sharesToUnderlyingView(strategyShare);
+        }
+        return (strategyAddresses, stakeAmounts);
+    }
+
+    /// @notice Query the registration status of an operator
+    /// @param operator The address of the operator to query
+    /// @return isRegistered True if the operator is registered in EigenLayer
+    function verifyRegistration(address operator)
+        external
+        view
+        returns (bool isRegistered, IProposerRegistry.AVSType avsType)
+    {
+        // First check if operator is registered in delegation manager
+        bool isDelegated = DELEGATION_MANAGER.isOperator(operator);
+
+        // Check registration in both AVS types
+        bool isGateway = proposerRegistry.isOperatorRegisteredInAVS(
+            operator, IProposerRegistry.AVSType.GATEWAY
+        );
+        bool isValidator = proposerRegistry.isOperatorRegisteredInAVS(
+            operator, IProposerRegistry.AVSType.VALIDATOR
+        );
+
+        if (isDelegated && (isGateway || isValidator)) {
+            isRegistered = true;
+        }
+        if (isGateway && !isValidator) {
+            avsType = IProposerRegistry.AVSType.GATEWAY;
+        } else if (!isGateway && isValidator) {
+            avsType = IProposerRegistry.AVSType.VALIDATOR;
+        }
+
+        return (isRegistered, avsType);
+    }
+
     /// @notice Get the strategies an operator has restaked in
     /// @param operator Address of the operator
     /// @return Array of strategy addresses the operator has restaked in
     function getOperatorRestakedStrategies(address operator)
-        external
+        public
         view
         returns (address[] memory)
     {
