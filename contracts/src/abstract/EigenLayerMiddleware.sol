@@ -477,7 +477,7 @@ abstract contract EigenLayerMiddleware is
     function verifyRegistration(address operator)
         external
         view
-        returns (bool isRegistered)
+        returns (bool isRegistered, IProposerRegistry.AVSType avsType)
     {
         // First check if operator is registered in delegation manager
         bool isDelegated = DELEGATION_MANAGER.isOperator(operator);
@@ -490,10 +490,16 @@ abstract contract EigenLayerMiddleware is
             operator, IProposerRegistry.AVSType.VALIDATOR
         );
 
-        // Operator is considered registered if they are registered in either AVS
-        isRegistered = isDelegated && (isGateway || isValidator);
+        if (isDelegated && (isGateway || isValidator)) {
+            isRegistered = true;
+        }
+        if (isGateway && !isValidator) {
+            avsType = IProposerRegistry.AVSType.GATEWAY;
+        } else if (!isGateway && isValidator) {
+            avsType = IProposerRegistry.AVSType.VALIDATOR;
+        }
 
-        return isRegistered;
+        return (isRegistered, avsType);
     }
 
     /// @notice Get the strategies an operator has restaked in
