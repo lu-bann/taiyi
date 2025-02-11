@@ -174,6 +174,9 @@ contract ValidatorAVS is EigenLayerMiddleware {
         internal
         view
     {
+        // Cache the delegated key hash to avoid computing it multiple times
+        bytes32 delegatedKeyHash = keccak256(delegatedGatewayPubKey);
+
         // Get all gateway operators
         address[] memory gatewayOperators =
             proposerRegistry.getActiveOperatorsForAVS(getGatewayAVSAddress());
@@ -182,10 +185,9 @@ contract ValidatorAVS is EigenLayerMiddleware {
         for (uint256 i = 0; i < gatewayOperators.length; i++) {
             (bytes memory operatorGatewayPubKey, bool isActive) = proposerRegistry
                 .operatorInfo(gatewayOperators[i], IProposerRegistry.AVSType.GATEWAY);
-            if (
-                isActive
-                    && keccak256(operatorGatewayPubKey) == keccak256(delegatedGatewayPubKey)
-            ) {
+
+            // Check key hash first as it's cheaper than checking isActive
+            if (keccak256(operatorGatewayPubKey) == delegatedKeyHash && isActive) {
                 isValidGatewayDelegatee = true;
                 break;
             }
