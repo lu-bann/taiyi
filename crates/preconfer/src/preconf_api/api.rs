@@ -13,8 +13,8 @@ use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeRequest, PreconfFeeResponse, PreconfHash, PreconfResponse,
-    PreconfStatusResponse, SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfHash, PreconfResponse, PreconfStatusResponse,
+    SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -54,7 +54,7 @@ impl PreconfApiServer {
             .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
-            .route(ESTIMATE_TIP_PATH, post(handle_estimate_tip))
+            .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
@@ -174,9 +174,9 @@ where
     Ok(Json(state.get_slots().await?))
 }
 
-pub async fn handle_estimate_tip<P>(
+pub async fn handle_preconf_fee<P>(
     State(_): State<PreconfState<P>>,
-    Json(_request): Json<PreconfFeeRequest>,
+    Json(_request): Json<u64>,
 ) -> Result<Json<PreconfFeeResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,

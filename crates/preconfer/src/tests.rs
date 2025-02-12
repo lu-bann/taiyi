@@ -14,8 +14,7 @@ mod tests {
     use ethereum_consensus::deneb::Context;
     use reqwest::Url;
     use taiyi_primitives::{
-        BlockspaceAllocation, PreconfFeeRequest, PreconfFeeResponse, PreconfResponse,
-        SubmitTransactionRequest,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SubmitTransactionRequest,
     };
     use tracing::info;
     use uuid::Uuid;
@@ -112,7 +111,7 @@ mod tests {
             Url::parse(&server_endpoint).unwrap().join(ESTIMATE_TIP_PATH).unwrap();
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
-            .json(&PreconfFeeRequest { slot: *network_state.available_slots().last().unwrap() })
+            .json(network_state.available_slots().last().unwrap())
             .send()
             .await?;
         let status = response.status();

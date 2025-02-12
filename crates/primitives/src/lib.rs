@@ -14,7 +14,7 @@ pub use cancel_preconf::{CancelPreconfRequest, CancelPreconfResponse};
 pub use check_preconf_response::{PreconfStatus, PreconfStatusResponse};
 pub use constraints::{ConstraintsMessage, SignableBLS, SignedConstraints};
 pub use context_ext::ContextExt;
-pub use estimate_fee::{PreconfFeeRequest, PreconfFeeResponse};
+pub use estimate_fee::PreconfFeeResponse;
 pub use preconf_hash::PreconfHash;
 pub use preconf_request::{BlockspaceAllocation, PreconfRequest, SubmitTransactionRequest};
 pub use preconf_response::PreconfResponse;
