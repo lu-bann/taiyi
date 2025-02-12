@@ -286,9 +286,9 @@ impl PreconfPoolInner {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockspaceAvailable {
-    gas_limit: u64,
-    blobs: usize,
-    num_of_constraints: u32,
+    pub gas_limit: u64,
+    pub blobs: usize,
+    pub num_of_constraints: u32,
 }
 
 impl Default for BlockspaceAvailable {

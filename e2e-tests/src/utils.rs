@@ -16,7 +16,7 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::GetSlotResponse;
+use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{
     BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
     SignedConstraints, SubmitTransactionRequest,
@@ -162,11 +162,11 @@ pub async fn start_taiyi_command_for_testing(
     Ok(handle)
 }
 
-pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResponse>> {
+pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
     let res_b = res.bytes().await?;
-    let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
+    let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     Ok(available_slots)
 }
 
