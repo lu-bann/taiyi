@@ -318,6 +318,8 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
+        // TODO: Check gas_fee & blob_gas_fee against the pricing service
+
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
         // Current + 1 slot transactions should use Type A transactions directly
