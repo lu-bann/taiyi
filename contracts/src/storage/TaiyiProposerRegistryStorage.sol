@@ -10,55 +10,39 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 // Storage layout for TaiyiProposerRegistry
-// ╭------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------╮
-// | Name                         | Type                                                                                             | Slot | Offset | Bytes | Contract                                            |
-// +===============================================================================================================================================================================================================+
-// | registeredOperators          | mapping(address => mapping(enum IProposerRegistry.AVSType => struct IProposerRegistry.Operator)) | 0    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | validators                   | mapping(bytes32 => struct IProposerRegistry.Validator)                                           | 1    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | operatorToValidatorPubkeys   | mapping(address => bytes[])                                                                      | 2    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | operatorBlsKeyToData         | mapping(bytes => struct IProposerRegistry.OperatorBLSData)                                       | 3    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _avsToOperators              | mapping(address => struct EnumerableSet.AddressSet)                                              | 4    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _avsTypes                    | mapping(address => enum IProposerRegistry.AVSType)                                               | 5    | 0      | 32    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | restakingMiddlewareContracts | struct EnumerableSet.AddressSet                                                                  | 6    | 0      | 64    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _gatewayAVS                  | contract GatewayAVS                                                                              | 8    | 0      | 20    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _validatorAVS                | contract ValidatorAVS                                                                            | 9    | 0      | 20    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _gatewayAVSAddress           | address                                                                                          | 10   | 0      | 20    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | _validatorAVSAddress         | address                                                                                          | 11   | 0      | 20    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | validatorState               | struct ValidatorManagement.ValidatorState                                                        | 12   | 0      | 64    | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | operatorState                | struct OperatorManagement.OperatorState                                                          | 14   | 0      | 128   | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// |------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------|
-// | __gap                        | uint256[50]                                                                                      | 18   | 0      | 1600  | src/TaiyiProposerRegistry.sol:TaiyiProposerRegistry |
-// ╰------------------------------+--------------------------------------------------------------------------------------------------+------+--------+-------+-----------------------------------------------------╯
+// ╭------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------╮
+// | Name                         | Type                                                   | Slot | Offset | Bytes | Contract                                                                  |
+// +===========================================================================================================================================================================================+
+// | validators                   | mapping(bytes32 => struct IProposerRegistry.Validator) | 0    | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _avsToOperators              | mapping(address => struct EnumerableSet.AddressSet)    | 1    | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _avsTypes                    | mapping(address => enum IProposerRegistry.AVSType)     | 2    | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | restakingMiddlewareContracts | struct EnumerableSet.AddressSet                        | 3    | 0      | 64    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _gatewayAVS                  | contract GatewayAVS                                    | 5    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _validatorAVS                | contract ValidatorAVS                                  | 6    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _gatewayAVSAddress           | address                                                | 7    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _validatorAVSAddress         | address                                                | 8    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | validatorState               | struct ValidatorManagement.ValidatorState              | 9    | 0      | 64    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | operatorState                | struct OperatorManagement.OperatorState                | 11   | 0      | 128   | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | __gap                        | uint256[50]                                            | 15   | 0      | 1600  | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// ╰------------------------------+--------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------╯
 
 /// @title TaiyiProposerRegistryStorage
 /// @notice Storage contract for TaiyiProposerRegistry, containing all state variables
 contract TaiyiProposerRegistryStorage {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /// @notice Mapping from operator address to AVS type to operator data
-    mapping(address => mapping(IProposerRegistry.AVSType => IProposerRegistry.Operator))
-        internal registeredOperators;
-
     /// @notice Mapping from validator pubkey hash to validator data
     mapping(bytes32 => IProposerRegistry.Validator) internal validators;
-
-    /// @notice Mapping from operator address to validator pubkeys
-    mapping(address => bytes[]) internal operatorToValidatorPubkeys;
-
-    /// @notice Mapping from operator BLS key to operator data
-    mapping(bytes => IProposerRegistry.OperatorBLSData) internal operatorBlsKeyToData;
 
     /// @notice Mapping from AVS contract to operator addresses
     mapping(address => EnumerableSet.AddressSet) internal _avsToOperators;

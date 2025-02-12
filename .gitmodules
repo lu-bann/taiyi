@@ -23,3 +23,6 @@
 [submodule "contracts/lib/core"]
 	path = contracts/lib/core
 	url = https://github.com/symbioticfi/core
+[submodule "contracts/lib/middleware-sdk"]
+	path = contracts/lib/middleware-sdk
+	url = https://github.com/symbioticfi/middleware-sdk
