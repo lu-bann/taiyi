@@ -16,5 +16,9 @@ sol! {
             external
             view
             returns (bytes memory pubKey, bool isActive);
+        function getValidatorsForOperator(address operator)
+            external
+            view
+            returns (bytes[] memory);
     }
 }
