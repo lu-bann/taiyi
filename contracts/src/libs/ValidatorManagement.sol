@@ -53,6 +53,17 @@ library ValidatorManagement {
         delete self.operatorToPubkeys[operator];
     }
 
+    function getOperatorValidators(
+        ValidatorState storage self,
+        address operator
+    )
+        internal
+        view
+        returns (bytes[] memory)
+    {
+        return self.operatorToPubkeys[operator];
+    }
+
     function initOptOut(
         ValidatorState storage self,
         bytes32 pubKeyHash,
@@ -100,16 +111,5 @@ library ValidatorManagement {
         returns (IProposerRegistry.Validator memory)
     {
         return self.validators[pubKeyHash];
-    }
-
-    function getOperatorValidators(
-        ValidatorState storage self,
-        address operator
-    )
-        internal
-        view
-        returns (bytes[] memory)
-    {
-        return self.operatorToPubkeys[operator];
     }
 }
