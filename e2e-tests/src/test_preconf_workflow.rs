@@ -70,7 +70,7 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, fee.fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, fee).await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -150,7 +150,7 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, fee.fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, fee).await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -186,7 +186,7 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, fee.fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, fee).await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -237,7 +237,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, fee.fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, fee).await;
 
     // Reserve blockspace
     let res =

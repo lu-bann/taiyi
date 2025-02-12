@@ -17,7 +17,7 @@ use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::GetSlotResponse;
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
+    BlockspaceAllocation, ContextExt, PreconfFeeRequest, PreconfFeeResponse, PreconfRequest,
     PreconfResponse, SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
@@ -169,14 +169,14 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResp
     Ok(available_slots)
 }
 
-pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
+pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
-    let request = EstimateFeeRequest { slot };
+    let request = PreconfFeeRequest { slot };
     let res =
         client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&request).send().await?;
     let res_b = res.bytes().await?;
-    let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
-    Ok(estimate_fee)
+    let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
+    Ok(preconf_fee)
 }
 
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
@@ -244,8 +244,9 @@ pub async fn generate_reserve_blockspace_request(
     signer_private: PrivateKeySigner,
     target_slot: u64,
     gas_limit: u64,
-    fee: u128,
+    preocnf_fee: PreconfFeeResponse,
 ) -> (BlockspaceAllocation, String) {
+    let fee = preocnf_fee.gas_fee;
     let request = BlockspaceAllocation {
         target_slot,
         deposit: U256::from(fee * 21_000 / 2),

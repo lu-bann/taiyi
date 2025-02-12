@@ -13,7 +13,7 @@ use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfHash, PreconfResponse,
+    BlockspaceAllocation, PreconfFeeRequest, PreconfFeeResponse, PreconfHash, PreconfResponse,
     PreconfStatusResponse, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
@@ -176,10 +176,10 @@ where
 
 pub async fn handle_estimate_tip<P>(
     State(_): State<PreconfState<P>>,
-    Json(_request): Json<EstimateFeeRequest>,
-) -> Result<Json<EstimateFeeResponse>, RpcError>
+    Json(_request): Json<PreconfFeeRequest>,
+) -> Result<Json<PreconfFeeResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    Ok(Json(EstimateFeeResponse { fee: 1 }))
+    Ok(Json(PreconfFeeResponse { gas_fee: 1, blob_gas_fee: 1 }))
 }
