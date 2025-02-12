@@ -60,11 +60,11 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         .on_builtin(&config.execution_url)
         .await?;
 
-    // Deposit to TaiyiCore
-    taiyi_deposit(provider.clone(), 100_000).await?;
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address()).await?;
-    assert_eq!(balance, U256::from(100_000));
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -97,10 +97,10 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
+    assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
-    assert_eq!(status, 200);
     assert_eq!(preconf_response.data.request_id, request_id);
 
     // TODO: verify the commitment signature with gateway pub key
@@ -234,9 +234,11 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
         .wallet(EthereumWallet::new(signer.clone()))
         .on_builtin(&config.execution_url)
         .await?;
-    taiyi_deposit(provider.clone(), 100_000).await?;
+
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
     let balance = taiyi_balance(provider.clone(), signer.address()).await?;
-    assert_eq!(balance, U256::from(100_000));
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot + 5;
     info!("Target slot: {:?}", target_slot);

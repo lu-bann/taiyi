@@ -63,15 +63,11 @@ impl PreconfPool {
         preconf_request: PreconfRequest,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
-        if !self
-            .has_enough_balance(
-                preconf_request.signer.expect("signer"),
-                preconf_request.allocation.deposit,
-            )
-            .await?
-        {
-            return Err(PoolError::InsufficientEscrowBalance);
-        }
+        self.has_enough_balance(
+            preconf_request.signer.expect("signer"),
+            preconf_request.allocation.deposit,
+        )
+        .await?;
 
         let mut pool_inner = self.pool_inner.write();
 
@@ -122,7 +118,7 @@ impl PreconfPool {
         &self,
         account: Address,
         deposit: U256,
-    ) -> Result<bool, PoolError> {
+    ) -> Result<(), PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
         let escrow_balance =
             self.validator.execution_client.balance_of(account, self.taiyi_escrow_address).await;
@@ -131,7 +127,11 @@ impl PreconfPool {
             Ok(balance) => {
                 let effective_balance =
                     balance - U256::from(pending_diffs_for_account.unwrap_or_default());
-                Ok(effective_balance >= deposit)
+                if effective_balance < deposit {
+                    Err(PoolError::InsufficientEscrowBalance(effective_balance, deposit))
+                } else {
+                    Ok(())
+                }
             }
             Err(_) => Err(PoolError::EscrowBalanceNotFoundForAccount(account)),
         }
