@@ -5,8 +5,10 @@ mod utils;
 
 pub use commands::{
     deposit::DepositCommand, deregister_validator_avs::DeregisterValidatorAVSCommand,
-    offchain_delegate::DelegateCommand, preconfer::PreconferCommand,
-    register_validator_avs::RegisterValidatorAVSCommand,
+    get_strategies_stakes::GetStrategiesStakesCommand,
+    get_validators_for_operators::GetValidatorsForOperatorsCommand,
+    offchain_delegate::DelegateCommand, operator_info::OperatorInfoCommand,
+    preconfer::PreconferCommand, register_validator_avs::RegisterValidatorAVSCommand,
     register_validators::RegisterValidatorsCommand,
 };
 pub use utils::initialize_tracing_log;

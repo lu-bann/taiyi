@@ -221,6 +221,14 @@ contract TaiyiProposerRegistry is
         return validatorState.getOperatorValidators(operator).length;
     }
 
+    function getValidatorsForOperator(address operator)
+        external
+        view
+        returns (bytes[] memory)
+    {
+        return validatorState.getOperatorValidators(operator);
+    }
+
     /// @notice Gets registered operator data
     function getRegisteredOperator(address operatorAddr)
         external
