@@ -20,7 +20,7 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use super::state::GetSlotResponse;
+use super::state::SlotInfo;
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
@@ -167,7 +167,7 @@ where
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
 pub async fn get_slots<P>(
     State(state): State<PreconfState<P>>,
-) -> Result<Json<Vec<GetSlotResponse>>, RpcError>
+) -> Result<Json<Vec<SlotInfo>>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {

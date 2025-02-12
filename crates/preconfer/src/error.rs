@@ -113,8 +113,8 @@ pub enum PoolError {
     InsufficientGasLimit(u64, u64),
     #[error("requested blobs {0} exceeds max available blobs {1}")]
     InsufficientBlobs(usize, usize),
-    #[error("Insufficient escrow balance")]
-    InsufficientEscrowBalance,
+    #[error("Insufficient escrow balance, present: {0}, required: {1}")]
+    InsufficientEscrowBalance(U256, U256),
     #[error("Blockspace not available")]
     BlockspaceNotAvailable,
     #[error("Transaction not found")]
