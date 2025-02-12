@@ -1,5 +1,6 @@
 pub mod deposit;
 pub mod deregister_validator_avs;
+pub mod get_strategies_stakes;
 pub mod offchain_delegate;
 pub mod operator_info;
 pub mod preconfer;

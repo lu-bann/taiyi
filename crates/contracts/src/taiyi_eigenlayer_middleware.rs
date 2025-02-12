@@ -16,5 +16,6 @@ sol! {
         );
         function deregisterOperator() public;
         function registerValidators(bytes[][] calldata valPubKeys,address[] calldata podOwners,bytes[] calldata delegatedGateways) external;
+        function getStrategiesAndStakes(address operator) external view returns (address[] memory strategyAddresses, uint256[] memory stakeAmounts);
     }
 }
