@@ -3,6 +3,7 @@
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
@@ -169,7 +170,7 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResp
     Ok(available_slots)
 }
 
-pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
+pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
     let res =
         client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&slot).send().await?;
@@ -243,15 +244,18 @@ pub async fn generate_reserve_blockspace_request(
     signer_private: PrivateKeySigner,
     target_slot: u64,
     gas_limit: u64,
+    blob_count: u64,
     preocnf_fee: PreconfFeeResponse,
 ) -> (BlockspaceAllocation, String) {
-    let fee = preocnf_fee.gas_fee;
+    let fee = preocnf_fee.gas_fee * (gas_limit as u128)
+        + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
+    let fee = U256::from(fee / 2);
     let request = BlockspaceAllocation {
         target_slot,
-        deposit: U256::from(fee * 21_000 / 2),
-        tip: U256::from(fee * 21_000 / 2),
+        deposit: fee,
+        tip: fee,
         gas_limit,
-        blob_count: 0,
+        blob_count: blob_count.try_into().unwrap(),
     };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
