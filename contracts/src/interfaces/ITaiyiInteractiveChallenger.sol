@@ -28,6 +28,7 @@ interface ITaiyiInteractiveChallenger {
     error ChallengeAlreadyExists();
     error ChallengeDoesNotExist();
     error ChallengeExpired();
+    error ChallengeNotExpired();
 
     event ChallengeOpened(
         bytes32 indexed id, address indexed challenger, address indexed commitmentSigner
@@ -36,11 +37,11 @@ interface ITaiyiInteractiveChallenger {
     event ChallengeSucceded(bytes32 indexed id);
 
     /// @notice Get all challenges.
-    /// @return An array of challenges.
+    /// @return challenges An array of challenges.
     function getChallenges() external view returns (Challenge[] memory);
 
     /// @notice Get all open challenges.
-    /// @return An array of open challenges.
+    /// @return challenges An array of open challenges.
     function getOpenChallenges() external view returns (Challenge[] memory);
     function getChallenge(bytes32 id) external view returns (Challenge memory);
 

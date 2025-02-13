@@ -63,6 +63,11 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function resolveExpiredChallenge(bytes32 id) external {
+        // Checks:
+        // 1. The challenge must exist
+        // 2. The challenge must be open (not failed or succeeded)
+        // 3. The challenge must be expired
+
         revert("Not implemented");
     }
 
@@ -74,7 +79,13 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     )
         external
     {
-        // TODO[Martin]: Define values we want to verify before calling the SP1 contract
+        address prover = msg.sender;
+
+        // Checks:
+        // 1. The challenge must exist
+        // 2. The challenge must be open (not failed or succeeded)
+        // 3. The challenge must not be expired
+
         // TODO[Martin]: Define proofValues which we want to read onchain and which we want to pass in as function arguments
 
         // Verify the proof
@@ -82,8 +93,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             interactiveFraudProofVKey, proofValues, proofBytes
         );
 
-        // TODO[Martin]: Define values we want to verify after calling the SP1 contract
-
         revert("Not implemented");
+
+        emit ChallengeSucceded(id);
     }
 }
