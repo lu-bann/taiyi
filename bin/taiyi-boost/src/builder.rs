@@ -18,7 +18,7 @@ use cb_common::{
         error::{PbsError, ValidationError},
         GetHeaderParams, GetHeaderResponse, RelayClient, SignedBlindedBeaconBlock,
         SignedExecutionPayloadHeader, SubmitBlindedBlockResponse, Version, EMPTY_TX_ROOT_HASH,
-        HEADER_SLOT_UUID_KEY, HEADER_START_TIME_UNIX_MS,
+        HEADER_START_TIME_UNIX_MS,
     },
     signature::verify_signed_message,
     types::Chain,
@@ -88,9 +88,6 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         req_headers: HeaderMap,
         state: PbsState<SidecarBuilderState>,
     ) -> Result<()> {
-        let (slot, _) = state.get_slot_and_uuid();
-        state.data.constraints.prune(slot);
-
         register_validator(registrations, req_headers, state).await
     }
 
@@ -123,7 +120,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         }
 
         // get builder constraints from one of the relays
-        for relay in state.relays() {
+        for relay in state.all_relays() {
             let builder_constraints_url = relay
                 .builder_api_url(BUILDER_CONSTRAINTS_PATH)
                 .expect("failed to build builder_constraints url");
@@ -214,7 +211,6 @@ async fn get_header_with_proofs(
     Path(params): Path<GetHeaderParams>,
     req_headers: HeaderMap,
 ) -> Result<Option<GetHeaderWithProofsResponse>> {
-    let slot_uuid = state.get_or_update_slot_uuid(params.slot);
     let ms_into_slot = ms_into_slot(params.slot, state.config.chain);
 
     info!(parent_hash=%params.parent_hash, validator_pubkey=%params.pubkey, ms_into_slot);
@@ -236,19 +232,13 @@ async fn get_header_with_proofs(
 
     // prepare headers, except for start time which is set in `send_one_get_header`
     let mut send_headers = HeaderMap::new();
-    // TODO: error handling
-    send_headers.insert(
-        HEADER_SLOT_UUID_KEY,
-        HeaderValue::from_str(&slot_uuid.to_string())
-            .expect("failed to convert slot_uuid to string"),
-    );
     send_headers.insert(
         USER_AGENT,
         get_user_agent_with_version(&req_headers)
             .expect("failed to get user agent with version from request headers"),
     );
 
-    let relays = state.relays();
+    let relays = state.all_relays();
     let mut handles = Vec::with_capacity(relays.len());
     for relay in relays {
         handles.push(send_timed_get_header(
@@ -303,7 +293,7 @@ async fn get_header_with_proofs(
         }
     }
 
-    if let Some(winning_bid) = state.add_bids(params.slot, relay_bids) {
+    if let Some(winning_bid) = relay_bids.iter().max_by_key(|bid| bid.value()).cloned() {
         let header_with_proofs = GetHeaderWithProofsResponse {
             data: SignedExecutionPayloadHeaderWithProofs {
                 // If there are no proofs, default to empty. This should never happen unless there

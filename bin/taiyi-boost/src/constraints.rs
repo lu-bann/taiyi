@@ -38,11 +38,6 @@ impl ConstraintsCache {
         Ok(())
     }
 
-    // remove all constraints before the given slot.
-    pub fn prune(&self, slot: u64) {
-        self.constraints.retain(|&k, _| k >= slot);
-    }
-
     // remove all constraints for the given slot.
     pub fn remove(&self, slot: u64) -> Option<(u64, ConstraintsData)> {
         self.constraints.remove(&slot)
@@ -89,10 +84,6 @@ mod tests {
         };
         cache.insert(constraints.clone()).ok();
         assert_eq!(cache.get(1).unwrap().transactions.len(), 1);
-        cache.prune(1);
-        assert_eq!(cache.get(1).unwrap().transactions.len(), 1);
-        cache.prune(2);
-        assert!(cache.get(1).is_none());
         Ok(())
     }
 }
