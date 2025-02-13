@@ -4,7 +4,11 @@ mod keysource;
 mod utils;
 
 pub use commands::{
-    deposit::DepositCommand, deregister::DeregisterCommand, offchain_delegate::DelegateCommand,
-    preconfer::PreconferCommand, register::RegisterCommand,
+    deposit::DepositCommand, deregister_validator_avs::DeregisterValidatorAVSCommand,
+    get_strategies_stakes::GetStrategiesStakesCommand,
+    get_validators_for_operators::GetValidatorsForOperatorsCommand,
+    offchain_delegate::DelegateCommand, operator_info::OperatorInfoCommand,
+    preconfer::PreconferCommand, register_validator_avs::RegisterValidatorAVSCommand,
+    register_validators::RegisterValidatorsCommand,
 };
 pub use utils::initialize_tracing_log;

@@ -6,6 +6,7 @@ edition = { workspace = true }
 [dev-dependencies]
 alloy-consensus = { workspace = true }
 alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }

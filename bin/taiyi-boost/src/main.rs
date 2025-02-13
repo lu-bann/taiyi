@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     let sidecar_state = SidecarBuilderState::new(&extra).await;
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state);
 
-    metrics::init_metrics()?;
+    metrics::init_metrics(pbs_config.chain)?;
 
     PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state).await?;
 

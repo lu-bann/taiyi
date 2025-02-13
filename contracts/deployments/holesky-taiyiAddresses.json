@@ -1,9 +1,13 @@
 {
-  "taiyiAddresses": {
-    "gatewayAVS": "0x03C3A31af8CAC3fd98b452d9e29Beb919fad7e9b",
-    "taiyiCore": "0xBbb2A884390b5e77449116fE41860010c430eEc2",
-    "taiyiProposerRegistry": "0xD3406EC02A955B7D04FF7f586435464b5542b9b0",
-    "validatorAVS": "0x3b9b6a197ED476bf784b451b219aD52f71913bC9",
-    "PreconfRequestLib": "0x3a9147837ef7b3c530b78455fb1faf9ad62746d0"
-  }
+    "taiyiAddresses": {
+        "eigenLayerMiddleware": "0x7a36D6FcCa6eB5123c16F1557d03158d83dfB250",
+        "gatewayAVSImpl": "0xb1e5f5466B2A8eF6eD67913518cd5deF52847795",
+        "gatewayAVSProxy": "0x377D50213b66C5F0451E21609614753dF40E5330",
+        "taiyiCoreImpl": "0xF1C05c860dA549ceBC93406d929578b967B017e8",
+        "taiyiCoreProxy": "0x4E5aE8b0313E4E8476D4bE0Dd24e63ECb61031cb",
+        "taiyiProposerRegistryImpl": "0x281D2e124104D9E34b9a91573c7f6Eb98bA686FB",
+        "taiyiProposerRegistryProxy": "0xf736a585919825dDE9D9F6539e082a877bD3f592",
+        "validatorAVSImpl": "0xf022cfAF1Bae4dc99f4D73C1fe00268f9D161A3a",
+        "validatorAVSProxy": "0x7a36D6FcCa6eB5123c16F1557d03158d83dfB250"
+    }
 }

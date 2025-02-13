@@ -4,12 +4,14 @@ pragma solidity ^0.8.25;
 import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
-import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+
+import { IRewardsCoordinatorTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol"; // Optional: for mulDiv or other helpers
 
 /// @title GatewayAVS
@@ -24,6 +26,35 @@ contract GatewayAVS is EigenLayerMiddleware {
     modifier onlyThisContractAsTxOrigin() {
         require(tx.origin == address(this), "Only this contract can be tx.origin");
         _;
+    }
+
+    function initialize(
+        address _owner,
+        address _proposerRegistry,
+        address _avsDirectory,
+        address _delegationManager,
+        address _strategyManager,
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
+    )
+        public
+        override
+        initializer
+    {
+        // Delegates initialization to the parent contract.
+        super.initialize(
+            _owner,
+            _proposerRegistry,
+            _avsDirectory,
+            _delegationManager,
+            _strategyManager,
+            _eigenPodManager,
+            _rewardCoordinator,
+            _rewardInitiator,
+            _gatewayShareBips
+        );
     }
 
     /// @notice Special registration function for operators to register with GatewayAVS
@@ -111,7 +142,7 @@ contract GatewayAVS is EigenLayerMiddleware {
     }
 
     function _handleGatewaySubmission(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission
+        IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission calldata submission
     )
         private
         returns (uint256 validatorAmount)
@@ -153,7 +184,7 @@ contract GatewayAVS is EigenLayerMiddleware {
                 // Give one extra token to the first 'leftover' operators
                 share += 1;
             }
-            opRewards[i] = IRewardsCoordinator.OperatorReward({
+            opRewards[i] = IRewardsCoordinatorTypes.OperatorReward({
                 operator: operators[i],
                 amount: share
             });
@@ -163,10 +194,10 @@ contract GatewayAVS is EigenLayerMiddleware {
 
         // Create final submission array with single entry
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory gatewaySubmissions =
-            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+            new IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission[](1);
 
         // Configure submission with operator rewards and metadata
-        gatewaySubmissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        gatewaySubmissions[0] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: submission.strategiesAndMultipliers,
             token: submission.token,
             operatorRewards: opRewards,

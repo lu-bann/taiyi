@@ -1,15 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import { ERC20PresetFixedSupplyUpgradeable } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/token/ERC20/presets/ERC20PresetFixedSupplyUpgradeable.sol";
+
 import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { ERC20PresetFixedSupply } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+    "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import { IDelegationManagerTypes } from
     "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
 
 import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IEigenPodTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
 import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinatorTypes } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
@@ -17,15 +24,17 @@ import { ISignatureUtils } from
 import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
 import { EigenLayerMiddleware } from "src/abstract/EigenLayerMiddleware.sol";
 
+import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
 import { GatewayAVS } from "src/eigenlayer-avs/GatewayAVS.sol";
 import { ValidatorAVS } from "src/eigenlayer-avs/ValidatorAVS.sol";
 import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
 
-import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
-
 import { StdUtils } from "forge-std/StdUtils.sol";
 import "forge-std/Test.sol";
 import { BLS12381 } from "src/libs/BLS12381.sol";
+
+import { TransparentUpgradeableProxy } from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract EigenlayerMiddlewareTest is Test {
     using BLS12381 for BLS12381.G1Point;
@@ -68,6 +77,7 @@ contract EigenlayerMiddlewareTest is Test {
         (operator, operatorSecretKey) = makeAddrAndKey("operator");
         owner = makeAddr("owner");
         rewardsInitiator = makeAddr("rewardInitiator");
+        address proxyAdmin = makeAddr("proxyAdmin"); // Create separate admin for proxies
 
         // Create mock BLS key
         operatorBLSPubKey = new bytes(48);
@@ -77,38 +87,54 @@ contract EigenlayerMiddlewareTest is Test {
 
         vm.startPrank(owner);
 
-        // Deploy AVS contracts first
-        validatorAVS = new ValidatorAVS();
-        gatewayAVS = new GatewayAVS();
-
-        // Deploy the TaiyiProposerRegistry contract
-        proposerRegistry = new TaiyiProposerRegistry();
-        proposerRegistry.initialize(owner);
-
-        // Initialize AVS contracts
-        validatorAVS.initialize(
-            owner,
-            address(proposerRegistry),
-            address(eigenLayerDeployer.avsDirectory()),
-            address(eigenLayerDeployer.delegationManager()),
-            address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager()),
-            address(eigenLayerDeployer.rewardsCoordinator()),
-            rewardsInitiator,
-            GATEWAY_SHARE_BIPS
+        // Deploy TaiyiProposerRegistry as an upgradeable instance
+        TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
+        TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
+            address(registryImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
         );
+        proposerRegistry = TaiyiProposerRegistry(address(registryProxy));
 
-        gatewayAVS.initialize(
-            owner,
-            address(proposerRegistry),
-            address(eigenLayerDeployer.avsDirectory()),
-            address(eigenLayerDeployer.delegationManager()),
-            address(eigenLayerDeployer.strategyManager()),
-            address(eigenLayerDeployer.eigenPodManager()),
-            address(eigenLayerDeployer.rewardsCoordinator()),
-            rewardsInitiator,
-            GATEWAY_SHARE_BIPS
+        // Deploy ValidatorAVS
+        ValidatorAVS validatorImpl = new ValidatorAVS();
+        TransparentUpgradeableProxy validatorProxy = new TransparentUpgradeableProxy(
+            address(validatorImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(
+                ValidatorAVS.initialize.selector,
+                owner,
+                address(proposerRegistry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
         );
+        validatorAVS = ValidatorAVS(address(validatorProxy));
+
+        // Deploy GatewayAVS
+        GatewayAVS gatewayImpl = new GatewayAVS();
+        TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
+            address(gatewayImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(
+                GatewayAVS.initialize.selector,
+                owner,
+                address(proposerRegistry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
+        );
+        gatewayAVS = GatewayAVS(address(gatewayProxy));
 
         // Set AVS contracts in registry
         proposerRegistry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
@@ -134,17 +160,13 @@ contract EigenlayerMiddlewareTest is Test {
     }
 
     function test_StakerDelegationToOperator() public {
-        IDelegationManager.OperatorDetails memory _operatorDetails =
-            _operatorRegistration(operator);
-        _operatorDetails;
+        _operatorRegistration(operator);
         _delegationToOperator(staker, operator);
-        assertEq(eigenLayerDeployer.delegationManager().delegatedTo(staker), operator);
+        assertEq(eigenLayerDeployer.delegation().delegatedTo(staker), operator);
     }
 
     function testGatewayOperatorAVSRegistration() public {
-        IDelegationManager.OperatorDetails memory _operatorDetails =
-            _operatorRegistration(operator);
-        _operatorDetails;
+        _operatorRegistration(operator);
         _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
@@ -183,9 +205,7 @@ contract EigenlayerMiddlewareTest is Test {
     /// 3. Events are emitted for preconf delegation message
     function test_GatewayOperatorRegistration() public {
         // Register operator in EigenLayer first
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            _operatorRegistration(operator);
-        operatorDetails;
+        _operatorRegistration(operator);
 
         _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
 
@@ -216,11 +236,11 @@ contract EigenlayerMiddlewareTest is Test {
         address podOwner = makeAddr("podOwner");
 
         vm.startPrank(podOwner);
-        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
         vm.stopPrank();
 
         assertTrue(
-            validatorAVS.EIGEN_POD_MANAGER().hasPod(podOwner), "Pod should be registered"
+            validatorAVS.getEigenPodManager().hasPod(podOwner), "Pod should be registered"
         );
         assertEq(
             address(eigenLayerDeployer.eigenPodManager().ownerToPod(podOwner)),
@@ -236,26 +256,24 @@ contract EigenlayerMiddlewareTest is Test {
 
         // Create pod
         vm.startPrank(podOwner);
-        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
         podAddress;
         vm.stopPrank();
 
         // Register operator
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            _operatorRegistration(operator);
-        operatorDetails;
+        _operatorRegistration(operator);
 
         // Delegate pod to operator
         vm.startPrank(podOwner);
         ISignatureUtils.SignatureWithExpiry memory operatorSignature =
             ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
-        eigenLayerDeployer.delegationManager().delegateTo(
+        eigenLayerDeployer.delegation().delegateTo(
             operator, operatorSignature, bytes32(0)
         );
         vm.stopPrank();
         // Verify delegation
         assertEq(
-            eigenLayerDeployer.delegationManager().delegatedTo(podOwner),
+            eigenLayerDeployer.delegation().delegatedTo(podOwner),
             operator,
             "Pod should be delegated to operator"
         );
@@ -269,7 +287,7 @@ contract EigenlayerMiddlewareTest is Test {
         vm.label(mockPodOwner, "mockPodOwner");
 
         vm.startPrank(mockPodOwner);
-        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
         assertTrue(
             eigenLayerDeployer.eigenPodManager().hasPod(mockPodOwner),
             "Pod should be created."
@@ -335,9 +353,9 @@ contract EigenlayerMiddlewareTest is Test {
         assertEq(keccak256(validator.delegatee), keccak256(mockPodOwnerBLSPubKey));
 
         // 10. Verify validator status in EigenPod
-        IEigenPod pod = validatorAVS.EIGEN_POD_MANAGER().getPod(mockPodOwner);
+        IEigenPod pod = validatorAVS.getEigenPodManager().getPod(mockPodOwner);
         IEigenPod.ValidatorInfo memory info = pod.validatorPubkeyToInfo(validatorPubkey);
-        assertEq(uint8(info.status), uint8(IEigenPod.VALIDATOR_STATUS.ACTIVE));
+        assertEq(uint8(info.status), uint8(IEigenPodTypes.VALIDATOR_STATUS.ACTIVE));
     }
 
     /// @notice Tests validator registration in ValidatorAVS
@@ -351,7 +369,7 @@ contract EigenlayerMiddlewareTest is Test {
 
         // Setup pod and operator
         vm.startPrank(podOwner);
-        address podAddress = validatorAVS.EIGEN_POD_MANAGER().createPod();
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
         vm.stopPrank();
 
         // Register operator in EigenLayer
@@ -413,8 +431,8 @@ contract EigenlayerMiddlewareTest is Test {
     /// @notice Tests reward distribution between GatewayAVS and ValidatorAVS
     function test_RewardDistribution() public {
         // Setup reward token and get shares
-        (ERC20PresetFixedSupply rewardToken, uint256 gatewayShare, uint256 validatorShare)
-        = _setupRewardToken();
+        (IERC20 rewardToken, uint256 gatewayShare, uint256 validatorShare) =
+            _setupRewardToken();
         validatorShare;
 
         // Setup operators
@@ -434,8 +452,8 @@ contract EigenlayerMiddlewareTest is Test {
         );
 
         IRewardsCoordinator.StrategyAndMultiplier[] memory strategyAndMultipliers =
-            new IRewardsCoordinator.StrategyAndMultiplier[](1);
-        strategyAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
+            new IRewardsCoordinatorTypes.StrategyAndMultiplier[](1);
+        strategyAndMultipliers[0] = IRewardsCoordinatorTypes.StrategyAndMultiplier({
             strategy: eigenLayerDeployer.wethStrat(),
             multiplier: 1 ether
         });
@@ -445,22 +463,22 @@ contract EigenlayerMiddlewareTest is Test {
             new IRewardsCoordinator.OperatorReward[](3);
 
         // Create rewards with operators (already in ascending order from _setupOperators)
-        gatewayRewards[0] = IRewardsCoordinator.OperatorReward({
+        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
             operator: gatewayOp,
             amount: gatewayShare
         });
         gatewayRewards[1] =
-            IRewardsCoordinator.OperatorReward({ operator: validatorOp1, amount: 0 });
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp1, amount: 0 });
         gatewayRewards[2] =
-            IRewardsCoordinator.OperatorReward({ operator: validatorOp2, amount: 0 });
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp2, amount: 0 });
 
         // Second submission: Validator rewards (with sorted operators)
-        IRewardsCoordinator.OperatorReward[] memory validatorRewards =
-            new IRewardsCoordinator.OperatorReward[](2);
+        IRewardsCoordinatorTypes.OperatorReward[] memory validatorRewards =
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
         validatorRewards[0] =
-            IRewardsCoordinator.OperatorReward({ operator: validatorOp1, amount: 0 });
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp1, amount: 0 });
         validatorRewards[1] =
-            IRewardsCoordinator.OperatorReward({ operator: validatorOp2, amount: 0 });
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp2, amount: 0 });
 
         // Create the submissions array
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
@@ -469,7 +487,7 @@ contract EigenlayerMiddlewareTest is Test {
         _warpToNextInterval(7 days + 1);
 
         // Gateway submission
-        submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        submissions[0] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: strategyAndMultipliers,
             token: rewardToken,
             operatorRewards: gatewayRewards,
@@ -479,7 +497,7 @@ contract EigenlayerMiddlewareTest is Test {
         });
 
         // Validator submission
-        submissions[1] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        submissions[1] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: strategyAndMultipliers,
             token: rewardToken,
             operatorRewards: validatorRewards,
@@ -531,7 +549,7 @@ contract EigenlayerMiddlewareTest is Test {
     function _warpToNextInterval(uint256 secondsToAdd) internal {
         uint32 interval =
             eigenLayerDeployer.rewardsCoordinator().CALCULATION_INTERVAL_SECONDS();
-        uint32 startTimestamp = uint32(block.timestamp);
+        uint32 startTimestamp = uint32(block.timestamp + 1000 days); // time travel baby
         uint256 warpTarget = startTimestamp + secondsToAdd;
         uint256 alignedWarp = (warpTarget / interval) * interval;
         if (alignedWarp <= warpTarget) {
@@ -541,29 +559,27 @@ contract EigenlayerMiddlewareTest is Test {
     }
 
     /// @notice Helper function to setup reward token and transfer initial amount
-    function _setupRewardToken()
-        internal
-        returns (ERC20PresetFixedSupply, uint256, uint256)
-    {
-        ERC20PresetFixedSupply rewardToken = new ERC20PresetFixedSupply(
-            "Mock Reward Token", "MRT", 2000 ether, rewardsInitiator
-        );
+    function _setupRewardToken() internal returns (IERC20, uint256, uint256) {
+        ERC20PresetFixedSupplyUpgradeable rewardToken =
+            new ERC20PresetFixedSupplyUpgradeable();
+        rewardToken.initialize("Mock Reward Token", "MRT", 2000 ether, rewardsInitiator);
+        IERC20 reward = IERC20(address(rewardToken));
 
         uint256 totalReward = 1000 ether;
         uint256 gatewayShare = totalReward;
 
         // First approve gatewayAVS to spend tokens from rewardsInitiator
         vm.startPrank(rewardsInitiator);
-        rewardToken.approve(address(gatewayAVS), type(uint256).max);
+        reward.approve(address(gatewayAVS), type(uint256).max);
         vm.stopPrank();
 
         // Then approve RewardsCoordinator to spend tokens from gatewayAVS
         vm.prank(address(gatewayAVS));
-        rewardToken.approve(
+        reward.approve(
             address(eigenLayerDeployer.rewardsCoordinator()), type(uint256).max
         );
 
-        return (rewardToken, gatewayShare, 0 ether);
+        return (reward, gatewayShare, 0 ether);
     }
 
     /// @notice Helper function to setup operators
@@ -608,11 +624,11 @@ contract EigenlayerMiddlewareTest is Test {
         );
 
         vm.startPrank(validatorOp1);
-        validatorAVS.EIGEN_POD_MANAGER().createPod();
+        validatorAVS.getEigenPodManager().createPod();
         vm.stopPrank();
 
         vm.startPrank(validatorOp2);
-        validatorAVS.EIGEN_POD_MANAGER().createPod();
+        validatorAVS.getEigenPodManager().createPod();
         vm.stopPrank();
 
         _registerValidatorsForOperator(validatorOp1, 2); // First operator has 2 validators
@@ -639,18 +655,18 @@ contract EigenlayerMiddlewareTest is Test {
         returns (IRewardsCoordinator.OperatorDirectedRewardsSubmission memory)
     {
         IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
-            new IRewardsCoordinator.OperatorReward[](2);
-        gatewayRewards[0] = IRewardsCoordinator.OperatorReward({
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
+        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
             operator: gatewayOperator1,
             amount: gatewayShare / 2
         });
-        gatewayRewards[1] = IRewardsCoordinator.OperatorReward({
+        gatewayRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
             operator: gatewayOperator2,
             amount: gatewayShare / 2
         });
 
-        return IRewardsCoordinator.OperatorDirectedRewardsSubmission({
-            strategiesAndMultipliers: new IRewardsCoordinator.StrategyAndMultiplier[](0),
+        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: new IRewardsCoordinatorTypes.StrategyAndMultiplier[](0),
             token: rewardToken,
             operatorRewards: gatewayRewards,
             startTimestamp: uint32(block.timestamp),
@@ -668,21 +684,21 @@ contract EigenlayerMiddlewareTest is Test {
     )
         internal
         view
-        returns (IRewardsCoordinator.OperatorDirectedRewardsSubmission memory)
+        returns (IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission memory)
     {
-        IRewardsCoordinator.OperatorReward[] memory validatorRewards =
-            new IRewardsCoordinator.OperatorReward[](2);
-        validatorRewards[0] = IRewardsCoordinator.OperatorReward({
+        IRewardsCoordinatorTypes.OperatorReward[] memory validatorRewards =
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
+        validatorRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
             operator: validatorOperator1,
             amount: (validatorShare * 2) / 3 // 2/3 of validator share (2 validators)
          });
-        validatorRewards[1] = IRewardsCoordinator.OperatorReward({
+        validatorRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
             operator: validatorOperator2,
             amount: validatorShare / 3 // 1/3 of validator share (1 validator)
          });
 
-        return IRewardsCoordinator.OperatorDirectedRewardsSubmission({
-            strategiesAndMultipliers: new IRewardsCoordinator.StrategyAndMultiplier[](0),
+        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: new IRewardsCoordinatorTypes.StrategyAndMultiplier[](0),
             token: rewardToken,
             operatorRewards: validatorRewards,
             startTimestamp: uint32(block.timestamp),
@@ -706,11 +722,8 @@ contract EigenlayerMiddlewareTest is Test {
             }
         }
 
-        IDelegationManager.OperatorDetails memory operatorDetails =
-            IDelegationManager.OperatorDetails(address(localOperator), address(0), 0);
-
-        eigenLayerDeployer.delegationManager().registerAsOperator(
-            operatorDetails, "https://taiyi.wtf"
+        eigenLayerDeployer.delegation().registerAsOperator(
+            address(0), 0, "https://taiyi.wtf"
         );
 
         ISignatureUtils.SignatureWithSaltAndExpiry memory sig = _getOperatorSignature(
@@ -741,7 +754,7 @@ contract EigenlayerMiddlewareTest is Test {
         podOwners[0] = localOperator;
 
         address podAddress =
-            address(validatorAVS.EIGEN_POD_MANAGER().ownerToPod(localOperator));
+            address(validatorAVS.getEigenPodManager().ownerToPod(localOperator));
         for (uint256 i = 0; i < count; i++) {
             valPubKeys[0][i] = new bytes(48);
             for (uint256 j = 0; j < 48; j++) {
@@ -796,13 +809,9 @@ contract EigenlayerMiddlewareTest is Test {
     function _operatorRegistration(address localOperator)
         internal
         impersonate(localOperator)
-        returns (IDelegationManager.OperatorDetails memory operatorDetails)
     {
-        operatorDetails =
-            IDelegationManager.OperatorDetails(address(localOperator), address(0), 0);
-
-        eigenLayerDeployer.delegationManager().registerAsOperator(
-            operatorDetails, "https://taiyi.wtf"
+        eigenLayerDeployer.delegation().registerAsOperator(
+            address(0), 0, "https://taiyi.wtf"
         );
     }
 
@@ -827,7 +836,7 @@ contract EigenlayerMiddlewareTest is Test {
     {
         ISignatureUtils.SignatureWithExpiry memory delegateeSignature =
             ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
-        eigenLayerDeployer.delegationManager().delegateTo(
+        eigenLayerDeployer.delegation().delegateTo(
             delegateeOperator, delegateeSignature, bytes32(0)
         );
     }

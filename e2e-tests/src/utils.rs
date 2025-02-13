@@ -3,6 +3,7 @@
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
@@ -15,10 +16,10 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::GetSlotResponse;
+use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
-    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
+    SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -161,22 +162,21 @@ pub async fn start_taiyi_command_for_testing(
     Ok(handle)
 }
 
-pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResponse>> {
+pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
     let res_b = res.bytes().await?;
-    let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
+    let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     Ok(available_slots)
 }
 
-pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
+pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
-    let request = EstimateFeeRequest { slot };
     let res =
-        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&request).send().await?;
+        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&slot).send().await?;
     let res_b = res.bytes().await?;
-    let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
-    Ok(estimate_fee)
+    let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
+    Ok(preconf_fee)
 }
 
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
@@ -244,14 +244,18 @@ pub async fn generate_reserve_blockspace_request(
     signer_private: PrivateKeySigner,
     target_slot: u64,
     gas_limit: u64,
-    fee: u128,
+    blob_count: u64,
+    preocnf_fee: PreconfFeeResponse,
 ) -> (BlockspaceAllocation, String) {
+    let fee = preocnf_fee.gas_fee * (gas_limit as u128)
+        + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
+    let fee = U256::from(fee / 2);
     let request = BlockspaceAllocation {
         target_slot,
-        deposit: U256::from(fee * 21_000 / 2),
-        tip: U256::from(fee * 21_000 / 2),
+        deposit: fee,
+        tip: fee,
         gas_limit,
-        blob_count: 0,
+        blob_count: blob_count.try_into().unwrap(),
     };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());

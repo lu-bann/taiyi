@@ -31,11 +31,9 @@ library OperatorManagement {
         // Set registration bit for Gateway AVS (bit 0)
         self.registrationStatus[operatorAddress] |= 1;
 
-        // Store BLS key and middleware contract
         self.blsKeys[operatorAddress] = blsKey;
         self.middlewareContracts[operatorAddress] = avsAddress;
 
-        // Add operator to AVS set
         self.avsToOperators[avsAddress].add(operatorAddress);
     }
 
@@ -54,10 +52,8 @@ library OperatorManagement {
         // Set registration bit for Validator AVS (bit 1)
         self.registrationStatus[operatorAddress] |= 2;
 
-        // Store middleware contract
         self.middlewareContracts[operatorAddress] = avsAddress;
 
-        // Add operator to AVS set
         self.avsToOperators[avsAddress].add(operatorAddress);
     }
 

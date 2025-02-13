@@ -20,3 +20,9 @@
 [submodule "contracts/lib/eigenlayer-middleware"]
 	path = contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "contracts/lib/core"]
+	path = contracts/lib/core
+	url = https://github.com/symbioticfi/core
+[submodule "contracts/lib/middleware-sdk"]
+	path = contracts/lib/middleware-sdk
+	url = https://github.com/symbioticfi/middleware-sdk

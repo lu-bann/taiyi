@@ -46,10 +46,18 @@ pub struct BlockspaceAllocation {
     /// The gas limit for the block
     /// This is the maximum amount of gas that can be used in the block
     pub gas_limit: u64,
-    /// Deposit to be locked from the sender's escrow balance
-    /// This must be equal to gas_limit * fee_qouted_to_user
+    /// The deposit to be paid for the blockspace allocation.
+    /// This is the amount deducted from the user's escrow balance when the user fails to submit a transaction
+    /// for the allocated blockspace.
+    ///
+    /// The deposit is calculated as follows:
+    /// { gas_limit * gas_fee + blob_count * DATA_GAS_PER_BLOB * blob_gas_fee } * 0.5
     pub deposit: U256,
-    /// Tip to be paid to the proposer
+    /// This is the amount deducted from the user's escrow balance along with `[deposit]` when the user
+    /// submits a transaction for the allocated blockspace.
+    ///
+    /// The tip is calculated as follows:
+    /// { gas_limit * gas_fee + blob_count * DATA_GAS_PER_BLOB * blob_gas_fee } * 0.5
     pub tip: U256,
     /// Number of blobs to reserve
     pub blob_count: usize,

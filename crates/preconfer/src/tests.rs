@@ -14,8 +14,7 @@ mod tests {
     use ethereum_consensus::deneb::Context;
     use reqwest::Url;
     use taiyi_primitives::{
-        BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfResponse,
-        SubmitTransactionRequest,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SubmitTransactionRequest,
     };
     use tracing::info;
     use uuid::Uuid;
@@ -112,13 +111,13 @@ mod tests {
             Url::parse(&server_endpoint).unwrap().join(ESTIMATE_TIP_PATH).unwrap();
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
-            .json(&EstimateFeeRequest { slot: *network_state.available_slots().last().unwrap() })
+            .json(network_state.available_slots().last().unwrap())
             .send()
             .await?;
         let status = response.status();
         assert_eq!(status, 200);
-        let fee: EstimateFeeResponse = response.json().await?;
-        assert_eq!(fee.fee, 1);
+        let fee: PreconfFeeResponse = response.json().await?;
+        assert_eq!(fee.gas_fee, 1);
 
         // Reserve blockspace
         let request_endpoint =
@@ -126,7 +125,7 @@ mod tests {
         let (request, signature) = generate_reserve_blockspace_request(
             signer.clone(),
             *network_state.available_slots().last().unwrap(),
-            fee.fee,
+            fee,
         )
         .await;
         let response = reqwest::Client::new()
@@ -186,8 +185,9 @@ mod tests {
     async fn generate_reserve_blockspace_request(
         signer: PrivateKeySigner,
         target_slot: u64,
-        fee: u128,
+        preconf_fee: PreconfFeeResponse,
     ) -> (BlockspaceAllocation, String) {
+        let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
             target_slot,
             deposit: U256::from(fee * 21_000 / 2),
