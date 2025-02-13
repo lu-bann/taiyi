@@ -13,6 +13,9 @@ import {
     PreconfRequestBType
 } from "../src/types/PreconfRequestBTypes.sol";
 import { Helper } from "../src/utils/Helper.sol";
+
+import { TransparentUpgradeableProxy } from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Test, console } from "forge-std/Test.sol";
 
 contract TaiyiCoreTest is Test {
@@ -39,14 +42,21 @@ contract TaiyiCoreTest is Test {
         (user, userPrivatekey) = makeAddrAndKey("user");
         (owner, ownerPrivatekey) = makeAddrAndKey("owner");
         (coinbase, coinbasePrivatekey) = makeAddrAndKey("coinbase");
+        address proxyAdmin = makeAddr("proxyAdmin");
 
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
 
         vm.warp(genesisTimestamp);
 
-        // TODO: remove this address(0) with proposer registry address
-        taiyiCore = new TaiyiCore(owner, genesisTimestamp);
+        taiyiCore = new TaiyiCore();
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(taiyiCore),
+            proxyAdmin,
+            abi.encodeWithSelector(TaiyiCore.initialize.selector, owner)
+        );
+
+        taiyiCore = TaiyiCore(payable(address(proxy)));
     }
 
     function assertPreconfRequestStatus(

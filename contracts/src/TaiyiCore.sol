@@ -2,9 +2,9 @@
 pragma solidity ^0.8.25;
 
 import { TaiyiEscrow } from "./TaiyiEscrow.sol";
-import { TaiyiProposerRegistry } from "./TaiyiProposerRegistry.sol";
 import { ITaiyiCore } from "./interfaces/ITaiyiCore.sol";
 import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
+import { TaiyiCoreStorage } from "./storage/TaiyiCoreStorage.sol";
 
 import { SlotLib } from "./libs/SlotLib.sol";
 import { PreconfRequestStatus } from "./types/CommonTypes.sol";
@@ -13,28 +13,27 @@ import {
 } from "./types/PreconfRequestBTypes.sol";
 
 import { Helper } from "./utils/Helper.sol";
-import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+
+import { OwnableUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { SignatureChecker } from
     "@openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import "forge-std/console.sol";
 
-contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
-    using PreconfRequestLib for PreconfRequestBType;
-    using PreconfRequestLib for BlockspaceAllocation;
+contract TaiyiCore is
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ITaiyiCore,
+    TaiyiEscrow,
+    TaiyiCoreStorage
+{
+    using PreconfRequestLib for *;
     using SignatureChecker for address;
     using Helper for bytes;
-
-    ///////////////////////////////////////////////////////////////
-    /// VARIABLES
-    ///////////////////////////////////////////////////////////////
-
-    uint256 collectedTip;
-    uint256 internal GENESIS_TIMESTAMP;
-    mapping(bytes32 => uint256) public preconferTips;
-    mapping(bytes32 => PreconfRequestStatus) public preconfRequestStatus;
-    mapping(bytes32 => bool) public inclusionStatusMap;
 
     ///////////////////////////////////////////////////////////////
     /// EVENTS
@@ -48,14 +47,10 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     /// CONSTRUCTOR
     ///////////////////////////////////////////////////////////////
 
-    constructor(
-        address initialOwner,
-        uint256 genesisTimestamp
-    )
-        //address proposerRegistry
-        Ownable(initialOwner)
-    {
-        GENESIS_TIMESTAMP = genesisTimestamp;
+    // Replace constructor with disable-initializers
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     ///////////////////////////////////////////////////////////////
@@ -92,6 +87,15 @@ contract TaiyiCore is Ownable, ITaiyiCore, TaiyiEscrow {
     ///////////////////////////////////////////////////////////////
     /// EXTERNAL/PUBLIC FUNCTIONS
     ///////////////////////////////////////////////////////////////
+
+    // Initializer instead of constructor
+    function initialize(address initialOwner) external initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
     function getTip(PreconfRequestBType calldata preconfRequestBType)
         public

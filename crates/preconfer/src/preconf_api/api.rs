@@ -13,14 +13,14 @@ use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfHash, PreconfResponse,
-    PreconfStatusResponse, SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfHash, PreconfResponse, PreconfStatusResponse,
+    SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use super::state::GetSlotResponse;
+use super::state::SlotInfo;
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
@@ -54,7 +54,7 @@ impl PreconfApiServer {
             .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
-            .route(ESTIMATE_TIP_PATH, post(handle_estimate_tip))
+            .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
@@ -167,19 +167,19 @@ where
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
 pub async fn get_slots<P>(
     State(state): State<PreconfState<P>>,
-) -> Result<Json<Vec<GetSlotResponse>>, RpcError>
+) -> Result<Json<Vec<SlotInfo>>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
     Ok(Json(state.get_slots().await?))
 }
 
-pub async fn handle_estimate_tip<P>(
+pub async fn handle_preconf_fee<P>(
     State(_): State<PreconfState<P>>,
-    Json(_request): Json<EstimateFeeRequest>,
-) -> Result<Json<EstimateFeeResponse>, RpcError>
+    Json(_request): Json<u64>,
+) -> Result<Json<PreconfFeeResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    Ok(Json(EstimateFeeResponse { fee: 1 }))
+    Ok(Json(PreconfFeeResponse { gas_fee: 1, blob_gas_fee: 1 }))
 }

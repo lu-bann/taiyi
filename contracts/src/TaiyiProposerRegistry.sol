@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { TaiyiProposerRegistryStorage } from "./TaiyiProposerRegistryStorage.sol";
 import { GatewayAVS } from "./eigenlayer-avs/GatewayAVS.sol";
 import { ValidatorAVS } from "./eigenlayer-avs/ValidatorAVS.sol";
 import { IGatewayAVS } from "./interfaces/IGatewayAVS.sol";
@@ -11,6 +10,7 @@ import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 import { OperatorManagement } from "./libs/OperatorManagement.sol";
 import { ValidatorManagement } from "./libs/ValidatorManagement.sol";
+import { TaiyiProposerRegistryStorage } from "./storage/TaiyiProposerRegistryStorage.sol";
 import { console } from "forge-std/console.sol";
 
 import { OwnableUpgradeable } from
@@ -19,12 +19,14 @@ import { Initializable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+
+import { EnumerableMap } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title TaiyiProposerRegistry
 /// @notice Registry contract for managing validators and operators in the Taiyi protocol
-/// @dev Follows the "internal-call" pattern seen in EigenLayerMiddleware
 contract TaiyiProposerRegistry is
     IProposerRegistry,
     BLSSignatureChecker,
@@ -37,10 +39,6 @@ contract TaiyiProposerRegistry is
     using ValidatorManagement for ValidatorManagement.ValidatorState;
     using OperatorManagement for OperatorManagement.OperatorState;
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    /// @dev State variables
-    ValidatorManagement.ValidatorState private validatorState;
-    OperatorManagement.OperatorState private operatorState;
 
     /// @notice Error thrown when trying to deregister an operator with active validators
     error CannotDeregisterActiveValidator();
@@ -58,6 +56,12 @@ contract TaiyiProposerRegistry is
     event OperatorDeregistered(address indexed operator, address indexed avsContract);
 
     // ============ External Functions ============
+
+    // Replace constructor with disable-initializers
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
@@ -217,6 +221,14 @@ contract TaiyiProposerRegistry is
         return validatorState.getOperatorValidators(operator).length;
     }
 
+    function getValidatorsForOperator(address operator)
+        external
+        view
+        returns (bytes[] memory)
+    {
+        return validatorState.getOperatorValidators(operator);
+    }
+
     /// @notice Gets registered operator data
     function getRegisteredOperator(address operatorAddr)
         external
@@ -297,6 +309,30 @@ contract TaiyiProposerRegistry is
     /// @notice Gets the ValidatorAVS contract instance
     function validatorAVS() external view override returns (IValidatorAVS) {
         return IValidatorAVS(_validatorAVSAddress);
+    }
+
+    /// @notice Returns the operator's public key and other info for a specific AVS type
+    /// @inheritdoc IProposerRegistry
+    function operatorInfo(
+        address operator,
+        AVSType avsType
+    )
+        external
+        view
+        returns (bytes memory pubKey, bool isActive)
+    {
+        (Operator memory gatewayData, Operator memory validatorData) =
+            this.getRegisteredOperator(operator);
+
+        if (avsType == AVSType.GATEWAY) {
+            pubKey = gatewayData.blsKey;
+            isActive = gatewayData.operatorAddress != address(0);
+        } else {
+            pubKey = validatorData.blsKey;
+            isActive = validatorData.operatorAddress != address(0);
+        }
+
+        return (pubKey, isActive);
     }
 
     // ============ Internal Functions ============

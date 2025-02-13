@@ -4,13 +4,16 @@ pragma solidity ^0.8.25;
 import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
-import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import { IAVSDirectory } from
     "@eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
 import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IEigenPodTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
 import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinatorTypes } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
@@ -20,10 +23,6 @@ import { ISignatureUtils } from
 ///         validator-portion from the EigenLayerMiddleware
 ///         and splits it by operator validator counts.
 contract ValidatorAVS is EigenLayerMiddleware {
-    /// @notice The address of the gateway AVS contract
-    /// @dev Used to verify operator registration in gateway AVS
-    address public gatewayAVSAddress;
-
     // ========= EVENTS =========
     event ValidatorOperatorRegistered(
         address indexed operator,
@@ -44,7 +43,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
     modifier onlyPodOwnerOrOperator(address podOwner) {
         if (
             msg.sender != podOwner
-                && msg.sender != DELEGATION_MANAGER.delegatedTo(podOwner)
+                && msg.sender != getDelegationManager().delegatedTo(podOwner)
         ) {
             revert SenderNotPodOwnerOrOperator();
         }
@@ -55,13 +54,42 @@ contract ValidatorAVS is EigenLayerMiddleware {
     /// @dev Reverts if msg.sender is not the gateway AVS contract address
     modifier onlyGatewayAVS() {
         require(
-            msg.sender == super.getGatewayAVSAddress(),
+            msg.sender == getGatewayAVSAddress(),
             "ValidatorAVS: caller is not gateway AVS"
         );
         _;
     }
 
     // ========= OVERRIDE FUNCTIONS =========
+
+    function initialize(
+        address _owner,
+        address _proposerRegistry,
+        address _avsDirectory,
+        address _delegationManager,
+        address _strategyManager,
+        address _eigenPodManager,
+        address _rewardCoordinator,
+        address _rewardInitiator,
+        uint256 _gatewayShareBips
+    )
+        public
+        override
+        initializer
+    {
+        // Delegates initialization to the parent contract.
+        super.initialize(
+            _owner,
+            _proposerRegistry,
+            _avsDirectory,
+            _delegationManager,
+            _strategyManager,
+            _eigenPodManager,
+            _rewardCoordinator,
+            _rewardInitiator,
+            _gatewayShareBips
+        );
+    }
 
     /// @notice Override of createOperatorDirectedAVSRewardsSubmission that redirects to GatewayAVS
     /// @dev This function always reverts and directs users to use GatewayAVS for reward distribution
@@ -90,40 +118,21 @@ contract ValidatorAVS is EigenLayerMiddleware {
         );
     }
 
-    /// @notice Internal function to register multiple validators for a pod owner
-    /// @dev Enforces several conditions before registering validators:
-    ///      1. Gateway public key must be non-empty (meaning an actual delegate is chosen).
-    ///      2. The operator delegated by the EigenPod owner must already be registered:
-    ///         - in the Gateway AVS Directory (primary restaking AVS).
-    ///         - in the TaiyiProposerRegistry with the correct AVSType.
-    ///      3. The pod owner must have an active EigenPod (already created).
-    ///      4. Each validator BLS public key must already be active within EigenLayer.
-    ///
-    ///      This function also covers the "self-delegation" scenario, where the pod owner
-    ///      acts as its own GatewayAVS operator.
-    ///
-    ///      For each validator registered, the contract emits a ValidatorOperatorRegistered event.
-    ///      Off-chain, a service in Commit-boost listens to this event, and uses the information
-    ///      to send delegation messages to the Relay, adhering to the preconf constraint API found at:
-    ///      https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate
-    ///
-    ///      Below is the schema referenced for the off-chain delegation:
-    ///
-    ///      # A signed delegation
-    ///      class SignedDelegation(Container):
-    ///          message: Delegation
-    ///          signature: BLSSignature
-    ///
-    ///      # A delegation from a proposer to a BLS public key
-    ///      class Delegation(Container):
-    ///          proposer: BLSPubkey
-    ///          delegate: BLSPubkey
-    ///          slasher: Address
-    ///          valid_until: Slot
-    ///          metadata: Bytes
+    /// @notice Internal function to register multiple validators for a pod owner or regular validators
+    /// @dev Has two paths:
+    ///      1. For EigenPod validators (when called by pod owner or delegated operator):
+    ///         - Gateway public key must be non-empty
+    ///         - Operator must be registered in Validator AVS
+    ///         - Pod owner must have active EigenPod
+    ///         - Validators must be active in EigenLayer
+    ///      2. For regular validators (when called by registered operator):
+    ///         - Gateway public key must be non-empty
+    ///         - Caller must be registered in Validator AVS
+    ///         - No EigenPod checks required
+    ///         - Currently no BLS signature verification (will be added when Petra is live)
     ///
     /// @param valPubKeys Array of validator BLS public keys to register
-    /// @param podOwner Address of the EigenPod owner
+    /// @param podOwner Address of the EigenPod owner (if address(0), registers as regular validator)
     /// @param delegatedGatewayPubKey The delegated gateway public key (cannot be empty)
     function _registerValidators(
         bytes[] calldata valPubKeys,
@@ -132,58 +141,139 @@ contract ValidatorAVS is EigenLayerMiddleware {
     )
         internal
         override
-        onlyPodOwnerOrOperator(podOwner)
     {
         require(
             delegatedGatewayPubKey.length > 0,
             "ValidatorAVS: Must choose a valid Gateway delegate"
         );
 
-        // Get the operator delegated to by the pod owner.
-        // EigenPod owner could be self-delegated
-        address operator = DELEGATION_MANAGER.delegatedTo(podOwner);
+        // Verify the delegated gateway belongs to a registered gateway operator
+        _validateGatewayDelegatee(delegatedGatewayPubKey);
 
-        // Check if operator is registered in proposer registry
+        // Check if caller is a registered operator in ValidatorAVS
+        bool isRegisteredOperator = proposerRegistry.isOperatorRegisteredInAVS(
+            msg.sender, IProposerRegistry.AVSType.VALIDATOR
+        );
+
+        if (podOwner != address(0)) {
+            // Path 1: EigenPod validator registration
+            _registerEigenPodValidators(
+                valPubKeys, podOwner, delegatedGatewayPubKey, isRegisteredOperator
+            );
+        } else {
+            // Path 2: Regular validator registration
+            _registerRegularValidators(
+                valPubKeys, delegatedGatewayPubKey, isRegisteredOperator
+            );
+        }
+    }
+
+    /// @dev Validates that the delegated gateway public key belongs to a registered gateway operator
+    /// @param delegatedGatewayPubKey The gateway public key to validate
+    function _validateGatewayDelegatee(bytes calldata delegatedGatewayPubKey)
+        internal
+        view
+    {
+        // Cache the delegated key hash to avoid computing it multiple times
+        bytes32 delegatedKeyHash = keccak256(delegatedGatewayPubKey);
+
+        // Get all gateway operators
+        address[] memory gatewayOperators =
+            proposerRegistry.getActiveOperatorsForAVS(getGatewayAVSAddress());
+
+        bool isValidGatewayDelegatee = false;
+        for (uint256 i = 0; i < gatewayOperators.length; i++) {
+            (bytes memory operatorGatewayPubKey, bool isActive) = proposerRegistry
+                .operatorInfo(gatewayOperators[i], IProposerRegistry.AVSType.GATEWAY);
+
+            // Check key hash first as it's cheaper than checking isActive
+            if (keccak256(operatorGatewayPubKey) == delegatedKeyHash && isActive) {
+                isValidGatewayDelegatee = true;
+                break;
+            }
+        }
+
+        require(
+            isValidGatewayDelegatee,
+            "ValidatorAVS: Delegated gateway must be a registered gateway operator"
+        );
+    }
+
+    /// @dev Registers validators that are part of EigenLayer through EigenPod
+    function _registerEigenPodValidators(
+        bytes[] calldata valPubKeys,
+        address podOwner,
+        bytes calldata delegatedGatewayPubKey,
+        bool isRegisteredOperator
+    )
+        internal
+    {
+        // Check caller permissions
+        bool isPodOwner = msg.sender == podOwner;
+        bool isDelegatedOperator =
+            msg.sender == getDelegationManager().delegatedTo(podOwner);
+
+        require(
+            isPodOwner || isDelegatedOperator || isRegisteredOperator,
+            "Caller must be pod owner, delegated operator, or registered operator"
+        );
+
+        address operator = getDelegationManager().delegatedTo(podOwner);
+
+        // Validate operator registration
         if (
-            !proposerRegistry.isOperatorRegisteredInAVS(
+            !getProposerRegistry().isOperatorRegisteredInAVS(
                 operator, IProposerRegistry.AVSType.VALIDATOR
             )
         ) {
             revert OperatorIsNotYetRegisteredInTaiyiProposerRegistry();
         }
 
-        // Check if operator is registered with the gateway AVS
-        if (
-            !proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.AVSType.GATEWAY
-            )
-        ) {
-            revert OperatorIsNotYetRegisteredInTaiyiGatewayAVS();
-        }
+        // Verify pod and register validators
+        require(getEigenPodManager().hasPod(podOwner), "No Pod exists");
+        IEigenPod pod = getEigenPodManager().getPod(podOwner);
 
-        // Verify pod owner has an EigenPod
-        require(EIGEN_POD_MANAGER.hasPod(podOwner), "No Pod exists");
-        IEigenPod pod = EIGEN_POD_MANAGER.getPod(podOwner);
-
-        // Register each validator if they are active in EigenLayer
-        uint256 len = valPubKeys.length;
-        for (uint256 i = 0; i < len; ++i) {
-            // Check validator is active in EigenLayer core
+        for (uint256 i = 0; i < valPubKeys.length; ++i) {
             if (
                 pod.validatorPubkeyToInfo(valPubKeys[i]).status
-                    != IEigenPod.VALIDATOR_STATUS.ACTIVE
+                    != IEigenPodTypes.VALIDATOR_STATUS.ACTIVE
             ) {
                 revert ValidatorNotActiveWithinEigenCore();
             }
 
-            // Register validator in proposer registry with delegatedGatewayPubKey as delegatee
             proposerRegistry.registerValidator(
                 valPubKeys[i], operator, delegatedGatewayPubKey
             );
 
-            // Emit event to track validator registration
             emit ValidatorOperatorRegistered(
                 operator, address(this), delegatedGatewayPubKey, valPubKeys[i]
+            );
+        }
+    }
+
+    /// @dev Registers regular validators that are not part of EigenLayer
+    function _registerRegularValidators(
+        bytes[] calldata valPubKeys,
+        bytes calldata delegatedGatewayPubKey,
+        bool isRegisteredOperator
+    )
+        internal
+    {
+        // Only registered operators can register regular validators
+        require(
+            isRegisteredOperator,
+            "Only registered operators can register regular validators"
+        );
+
+        for (uint256 i = 0; i < valPubKeys.length; ++i) {
+            proposerRegistry.registerValidator(
+                valPubKeys[i],
+                msg.sender, // operator is the caller
+                delegatedGatewayPubKey
+            );
+
+            emit ValidatorOperatorRegistered(
+                msg.sender, address(this), delegatedGatewayPubKey, valPubKeys[i]
             );
         }
     }
@@ -222,7 +312,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
             uint256 share = (validatorAmount * opValidatorCount) / totalValidatorCount;
             require(share > 0, "ValidatorAVS: Operator share is zero");
 
-            opRewards[i] = IRewardsCoordinator.OperatorReward({
+            opRewards[i] = IRewardsCoordinatorTypes.OperatorReward({
                 operator: operators[i],
                 amount: share
             });
@@ -233,7 +323,8 @@ contract ValidatorAVS is EigenLayerMiddleware {
             validatorSubmissions =
                 new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
 
-        validatorSubmissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+        validatorSubmissions[0] = IRewardsCoordinatorTypes
+            .OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: submission.strategiesAndMultipliers,
             token: submission.token,
             operatorRewards: opRewards,

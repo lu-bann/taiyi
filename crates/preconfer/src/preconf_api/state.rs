@@ -30,7 +30,7 @@ use crate::{
     contract::{core::TaiyiCore, to_solidity_type},
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{BlockspaceAvailable, PoolType, PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
 };
 
 #[derive(Clone)]
@@ -318,6 +318,8 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
+        // TODO: Check gas_fee & blob_gas_fee against the pricing service
+
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
         // Current + 1 slot transactions should use Type A transactions directly
@@ -404,18 +406,24 @@ where
         Ok(PreconfStatusResponse { status })
     }
 
-    pub async fn get_slots(&self) -> Result<Vec<GetSlotResponse>, RpcError> {
+    pub async fn get_slots(&self) -> Result<Vec<SlotInfo>, RpcError> {
         let current_slot = self.network_state.get_current_slot();
 
         let slot_diff = if self.is_exceed_deadline(current_slot) { 1 } else { 0 };
+
         let available_slots = self
             .network_state
             .available_slots()
             .into_iter()
             .filter(|slot| *slot > current_slot + slot_diff)
-            .map(|slot| GetSlotResponse {
-                slot,
-                blockspace_available: self.preconf_pool.blockspace_available(slot),
+            .map(|slot| {
+                let blockspace_available = self.preconf_pool.blockspace_available(slot);
+                SlotInfo {
+                    slot,
+                    gas_available: blockspace_available.gas_limit,
+                    blobs_available: blockspace_available.blobs,
+                    constraints_available: blockspace_available.num_of_constraints,
+                }
             })
             .collect();
 
@@ -431,7 +439,9 @@ where
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct GetSlotResponse {
+pub struct SlotInfo {
     pub slot: u64,
-    pub blockspace_available: BlockspaceAvailable,
+    pub gas_available: u64,
+    pub blobs_available: usize,
+    pub constraints_available: u32,
 }

@@ -1,7 +1,7 @@
 // Code copied from
 // https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 /// @title BLS12-381 Elliptic Curve Operations Library
 /// @notice Library implementing BLS12-381 elliptic curve operations for

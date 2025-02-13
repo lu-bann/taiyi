@@ -43,9 +43,9 @@ axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 
 # alloy
 alloy-primitives = { version = "0.8.15", default-features = false }
