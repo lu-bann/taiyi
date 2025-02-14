@@ -1,5 +1,8 @@
 # Taiyi Dual AVS 
 
+![image](https://github.com/user-attachments/assets/76115b31-32f5-4ac9-bd8f-8a4b4d747dd7)
+
+
 ## 1. Overview
 
 Taiyi aims to integrate with [EigenLayer](https://docs.eigenlayer.xyz/eigenlayer/overview) by providing two distinct [AVS (Actively Validated Services)](https://docs.eigenlayer.xyz/eigenlayer/avs-guides/avs-developer-guide):
