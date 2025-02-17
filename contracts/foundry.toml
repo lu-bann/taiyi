@@ -23,7 +23,7 @@ remappings = [
   "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
   "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
-
+  "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
 
   "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
   "lib/eigenlayer-contracts/:@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/",
@@ -40,7 +40,6 @@ remappings = [
   "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
 
   "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
-  
 ]
 
 [profile.ci]
