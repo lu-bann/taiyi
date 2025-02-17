@@ -66,6 +66,7 @@ where
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
         let chain_id = self.network_state.chain_id();
+        info!("Starting constraint submitter, chain_id: {chain_id}");
 
         async move {
             let clock =

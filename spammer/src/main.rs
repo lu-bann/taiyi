@@ -175,7 +175,7 @@ impl HttpClient {
     }
 
     async fn reserve_blockspace(&self, slot: u64) -> eyre::Result<Uuid> {
-        let path = format!("commitments/v0/estimate_fee");
+        let path = format!("commitments/v0/preconf_fee");
         let target = self.endpoint.join(&path)?;
         let response = self.http.post(target).json(&slot).send().await?;
         let bytes = response.bytes().await?;
@@ -243,7 +243,6 @@ impl HttpClient {
             .send()
             .await?;
         let bytes = result.bytes().await?;
-        info!("submit transaction response: {:?}", bytes);
         let response: PreconfResponse = serde_json::from_slice(&bytes)?;
         Ok(response.data)
     }
