@@ -170,8 +170,8 @@ where
                                     .with_chain_id(chain_id)
                                     .with_nonce(nonce)
                                     .with_gas_limit(100_000)
-                                    .with_max_fee_per_gas(base_fee)
-                                    .with_max_priority_fee_per_gas(priority_fee)
+                                    .with_max_fee_per_gas(1000000010)
+                                    .with_max_priority_fee_per_gas(1000000000)
                                     .build(&wallet)
                                     .await?;
                                 // increment nonce
@@ -192,8 +192,8 @@ where
                             .with_nonce(nonce)
                             .with_chain_id(chain_id)
                             .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(base_fee)
-                            .with_max_priority_fee_per_gas(priority_fee)
+                            .with_max_fee_per_gas(1000000010)
+                            .with_max_priority_fee_per_gas(1000000000)
                             .build(&wallet)
                             .await?;
 
@@ -252,8 +252,8 @@ where
                             .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(base_fee)
-                            .with_max_priority_fee_per_gas(priority_fee)
+                            .with_max_fee_per_gas(1000000010)
+                            .with_max_priority_fee_per_gas(1000000000)
                             .build(&wallet)
                             .await?;
                         // increment nonce

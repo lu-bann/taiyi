@@ -81,7 +81,7 @@ async fn main() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
     let tx = taiyi_escrow
         .deposit()
-        .value(U256::from(1_000_000_000_000_000_u128))
+        .value(U256::from(1_000_000_000_000_000_000u128))
         .into_transaction_request()
         .with_chain_id(chain_id)
         .with_gas_limit(100_000)
