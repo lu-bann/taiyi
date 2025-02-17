@@ -77,11 +77,13 @@ async fn main() -> eyre::Result<()> {
         .get_transaction_count(Address::from_str("0xc86c13C6e012D377Fb8a00eE77F66152e3cd6752")?)
         .await?;
     info!("Account Nonce: {:?}", account_nonce);
+
+    let chain_id = provider.get_chain_id().await?;
     let tx = taiyi_escrow
         .deposit()
-        .value(U256::from(1_000_000_000_000_000_000_u128))
+        .value(U256::from(1_000_000_000_000_000_u128))
         .into_transaction_request()
-        .with_chain_id(7028081469)
+        .with_chain_id(chain_id)
         .with_gas_limit(100_000)
         .with_max_fee_per_gas(1000000010)
         .with_max_priority_fee_per_gas(1000000000)
@@ -128,7 +130,11 @@ async fn main() -> eyre::Result<()> {
             info!("Submitting transaction for next slot: {:?}", next_slot);
             let account_nonce = provider.get_transaction_count(signer.address()).await?;
             let data = http_client
-                .submit_transaction(*request_store.get(&next_slot).unwrap(), account_nonce)
+                .submit_transaction(
+                    *request_store.get(&next_slot).unwrap(),
+                    account_nonce,
+                    chain_id,
+                )
                 .await?;
             info!("Transaction submitted: {:?}", data);
         }
@@ -215,12 +221,14 @@ impl HttpClient {
         &self,
         request_id: Uuid,
         nonce: u64,
+        chain_id: u64,
     ) -> eyre::Result<PreconfResponseData> {
         let path = format!("commitments/v0/submit_transaction");
         let target = self.endpoint.join(&path)?;
 
         let eth_transfer_tx = TransactionRequest::default()
             .with_from(self.signer.address())
+            .with_chain_id(chain_id)
             .with_value(U256::from(1000))
             .with_gas_limit(21_000)
             .with_to(self.signer.address())
