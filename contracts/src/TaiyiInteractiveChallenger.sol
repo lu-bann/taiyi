@@ -2,6 +2,8 @@
 pragma solidity ^0.8.25;
 
 import { ITaiyiInteractiveChallenger } from "./interfaces/ITaiyiInteractiveChallenger.sol";
+import { PreconfRequestAType } from "./types/PreconfRequestATypes.sol";
+import { PreconfRequestBType } from "./types/PreconfRequestBTypes.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
@@ -57,7 +59,20 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
-    function createChallenge() external payable {
+    function createChallengeAType(PreconfRequestAType calldata _preconfRequestAType)
+        external
+        payable
+    {
+        // ABI Encode TypeAData needed for the challenge struct
+        revert("Not implemented");
+    }
+
+    /// @inheritdoc ITaiyiInteractiveChallenger
+    function createChallengeBType(PreconfRequestBType calldata _preconfRequestBType)
+        external
+        payable
+    {
+        // ABI Encode TypeBData needed for the challenge struct
         revert("Not implemented");
     }
 
@@ -85,8 +100,6 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         // 1. The challenge must exist
         // 2. The challenge must be open (not failed or succeeded)
         // 3. The challenge must not be expired
-
-        // TODO[Martin]: Define proofValues which we want to read onchain and which we want to pass in as function arguments
 
         // Verify the proof
         ISP1Verifier(verifierGateway).verifyProof(
