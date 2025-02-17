@@ -17,7 +17,6 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     BlockspaceAllocation, ConstraintsMessage, ContextExt, PreconfRequest, PreconfResponse,
     PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints, SlotInfo,
