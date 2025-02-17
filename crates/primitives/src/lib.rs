@@ -17,7 +17,7 @@ pub use context_ext::ContextExt;
 pub use preconf_fee::PreconfFeeResponse;
 pub use preconf_hash::PreconfHash;
 pub use preconf_request::{BlockspaceAllocation, PreconfRequest, SubmitTransactionRequest};
-pub use preconf_response::PreconfResponse;
+pub use preconf_response::{PreconfResponse, PreconfResponseData};
 pub use preconf_tx::PreconfTx;
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;

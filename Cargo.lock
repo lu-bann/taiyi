@@ -6265,6 +6265,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "spammer"
+version = "0.1.2"
+dependencies = [
+ "alloy-contract",
+ "alloy-eips",
+ "alloy-primitives 0.8.15",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-beacon",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "beacon-api-client",
+ "clap",
+ "ethereum-consensus",
+ "eyre",
+ "futures",
+ "hex",
+ "mev-share-sse 0.4.0",
+ "reqwest 0.12.9",
+ "serde_json",
+ "taiyi-primitives",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid 1.11.0",
+]
+
+[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

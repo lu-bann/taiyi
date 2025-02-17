@@ -65,6 +65,7 @@ where
             Ok(genesis_time) => genesis_time,
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
+        let chain_id = self.network_state.chain_id();
 
         async move {
             let clock =
@@ -165,6 +166,7 @@ where
                                 let get_tip_tx = taiyi_core
                                     .getTip(preconf_request_type_b)
                                     .into_transaction_request()
+                                    .with_chain_id(chain_id)
                                     .with_nonce(nonce)
                                     .with_gas_limit(100_000)
                                     .with_max_fee_per_gas(base_fee)
@@ -187,6 +189,7 @@ where
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
                             .with_nonce(nonce)
+                            .with_chain_id(chain_id)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
@@ -245,6 +248,7 @@ where
                         let exhaust_tx = taiyi_core
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
+                            .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)

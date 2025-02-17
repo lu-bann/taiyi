@@ -13,7 +13,8 @@ members = [
     "crates/preconfer",
     "crates/primitives",
     "e2e-tests",
-    "examples"
+    "examples",
+    "spammer"
 ]
 default-members = [
     "bin/taiyi",

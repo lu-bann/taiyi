@@ -1,0 +1,35 @@
+[package]
+name = "spammer"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+futures = { workspace = true }
+alloy-sol-types = { workspace = true }
+beacon-api-client = { workspace = true }
+clap = { workspace = true }
+ethereum-consensus = { workspace = true }
+eyre = { workspace = true }
+
+hex = { workspace = true }
+mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs", rev = "a75c5959e98a79031a89f8893c97528e8f726826" }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+# serde = { workspace = true }
+# serde_json = { workspace = true }
+taiyi-primitives = { workspace = true }
+# time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+
