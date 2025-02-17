@@ -232,8 +232,8 @@ impl HttpClient {
             .with_value(U256::from(1000))
             .with_gas_limit(21_000)
             .with_to(self.signer.address())
-            .with_max_fee_per_gas(1)
-            .with_max_priority_fee_per_gas(1)
+            .with_max_fee_per_gas(1000000010)
+            .with_max_priority_fee_per_gas(1000000000)
             .with_nonce(nonce)
             .build(&self.wallet)
             .await?;
