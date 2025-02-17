@@ -20,7 +20,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     BlockspaceAllocation, ConstraintsMessage, ContextExt, PreconfRequest, PreconfResponse,
-    PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints, SubmitTransactionRequest,
+    PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints, SlotInfo,
+    SubmitTransactionRequest,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -436,12 +437,4 @@ where
         let deadline = self.network_state.context().get_deadline_of_slot(slot);
         utc_timestamp > deadline
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct SlotInfo {
-    pub slot: u64,
-    pub gas_available: u64,
-    pub blobs_available: usize,
-    pub constraints_available: u32,
 }

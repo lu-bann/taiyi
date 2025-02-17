@@ -14,20 +14,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfHash, PreconfResponse, PreconfStatusResponse,
-    SubmitTransactionRequest,
+    SlotInfo, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use super::state::SlotInfo;
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
 pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
+pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPreconfRequestQuery {
@@ -54,7 +53,7 @@ impl PreconfApiServer {
             .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
-            .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
+            .route(PRECONF_FEE_PATH, post(handle_preconf_fee))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 

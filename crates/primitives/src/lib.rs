@@ -21,3 +21,12 @@ pub use preconf_response::PreconfResponse;
 pub use preconf_tx::PreconfTx;
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct SlotInfo {
+    pub slot: u64,
+    pub gas_available: u64,
+    pub blobs_available: usize,
+    pub constraints_available: u32,
+}

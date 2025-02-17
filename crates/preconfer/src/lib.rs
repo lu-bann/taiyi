@@ -11,7 +11,7 @@ mod pricer;
 mod tests;
 mod validator;
 
-pub use preconf_api::{spawn_service, state::SlotInfo};
+pub use preconf_api::spawn_service;
 
 pub const PATH_BUILDER_API: &str = "/relay/v1/builder";
 
