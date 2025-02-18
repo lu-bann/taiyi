@@ -16,17 +16,6 @@ interface ITaiyiInteractiveChallenger {
         Succeded
     }
 
-    struct TypeAData {
-        uint64 slot;
-        bytes tipTx;
-        bytes[] txs;
-    }
-
-    struct TypeBData {
-        // TODO[Martin]: Define data struct PreconfRequestBType
-        uint64 slot;
-    }
-
     struct Challenge {
         bytes32 id;
         uint256 createdAt;
@@ -35,7 +24,8 @@ interface ITaiyiInteractiveChallenger {
         address commitmentReceiver;
         ChallengeStatus status;
         uint8 preconfType; // 0 - TypeA | 1 - TypeB
-        bytes commitmentData; // abi encoded commitment data (TypeAData or TypeBData)
+        bytes commitmentData; // abi encoded commitment data (PreconfRequestAType | PreconfRequestBType)
+        bytes signature; // signature over the commitment data
     }
 
     error BlockIsTooOld();

@@ -63,7 +63,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         external
         payable
     {
-        // ABI Encode TypeAData needed for the challenge struct
+        // ABI Encode preconfRequestAType needed for the challenge struct
         revert("Not implemented");
     }
 
@@ -72,7 +72,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         external
         payable
     {
-        // ABI Encode TypeBData needed for the challenge struct
+        // ABI Encode preconfRequestBType needed for the challenge struct
         revert("Not implemented");
     }
 
