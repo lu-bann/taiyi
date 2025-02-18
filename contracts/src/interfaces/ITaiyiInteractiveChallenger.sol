@@ -5,10 +5,10 @@ import { PreconfRequestAType } from "../types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "../types/PreconfRequestBTypes.sol";
 
 interface ITaiyiInteractiveChallenger {
+    // TODO[Martin]: Define other necessary proof fields
     struct Proof {
         uint256 inclusionBlockNumber;
     }
-    // TODO[Martin]: Define other necessary proof fields
 
     enum ChallengeStatus {
         Open,
@@ -57,14 +57,22 @@ interface ITaiyiInteractiveChallenger {
     function getChallenge(bytes32 id) external view returns (Challenge memory);
 
     /// @notice Create a new challenge.
-    /// @param _preconfRequestAType The type A preconf request.
-    function createChallengeAType(PreconfRequestAType calldata _preconfRequestAType)
+    /// @param preconfRequestAType The type A preconf request.
+    /// @param signature The signature over the commitment data.
+    function createChallengeAType(
+        PreconfRequestAType calldata preconfRequestAType,
+        bytes calldata signature
+    )
         external
         payable;
 
     /// @notice Create a new challenge.
-    /// @param _preconfRequestBType The type B preconf request.
-    function createChallengeBType(PreconfRequestBType calldata _preconfRequestBType)
+    /// @param preconfRequestBType The type B preconf request.
+    /// @param signature The signature over the commitment data.
+    function createChallengeBType(
+        PreconfRequestBType calldata preconfRequestBType,
+        bytes calldata signature
+    )
         external
         payable;
 

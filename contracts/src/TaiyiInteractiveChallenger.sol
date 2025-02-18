@@ -59,7 +59,10 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
-    function createChallengeAType(PreconfRequestAType calldata _preconfRequestAType)
+    function createChallengeAType(
+        PreconfRequestAType calldata preconfRequestAType,
+        bytes calldata signature
+    )
         external
         payable
     {
@@ -68,7 +71,10 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
-    function createChallengeBType(PreconfRequestBType calldata _preconfRequestBType)
+    function createChallengeBType(
+        PreconfRequestBType calldata _preconfRequestBType,
+        bytes calldata signature
+    )
         external
         payable
     {
