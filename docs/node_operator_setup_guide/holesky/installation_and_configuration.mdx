@@ -194,19 +194,25 @@ max_log_files = 30
 
 ```
 
-### Set Environment Variables
+### Start commit-boost-signer Services
+
+Before start commit-boost-signer, you need to set the environment variables.
+
+#### Set Environment Variables
 
 ```bash
 export CB_CONFIG=config.toml
-export CB_JWTS=taiyi=xx
-export CB_SIGNER_JWT=taiyi=xx
-export CB_SIGNER_URL=http://localhost:20000
+export CB_JWTS=taiyi=xxxxx
 export CB_SIGNER_PORT=20000
-export CB_METRICS_PORT=10000
-export CB_LOGS_DIR=./logs
 ```
 
-### Start commit-boost-signer Services
+<Note>
+  Please generate your own jwt token for `CB_JWTS`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_JWTS` is the same as `CB_SIGNER_JWT` in the taiyi-boost env config.
+  You don't need to use engine_jwt here.
+</Note>
+
+#### Start commit-boost-signer
 
 ```bash
 <path-to>/commit-boost-signer
@@ -224,10 +230,24 @@ Now the signer module is up in port 20000
 
 ### Start taiyi-boost Services
 
+#### Set Environment Variables
+
+```bash
+export CB_CONFIG=config.toml
+export CB_SIGNER_JWT=taiyi=xx
+export CB_SIGNER_URL=http://localhost:20000
+```
+<Note>
+  Please generate your own jwt token for `CB_SIGNER_JWT`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_SIGNER_JWT` is the same as `CB_JWTS` in the commit-boost-signer env config.
+  You don't need to use engine_jwt here.
+</Note>
+
+#### Start taiyi-boost
+
 ```bash
 <path-to>/taiyi-boost
 ```
-
 You can probably see logs like below
 
 ```
