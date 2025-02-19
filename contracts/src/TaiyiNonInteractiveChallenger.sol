@@ -56,14 +56,15 @@ contract TaiyiNonInteractiveChallenger is ITaiyiNonInteractiveChallenger, Ownabl
 
     /// @inheritdoc ITaiyiNonInteractiveChallenger
     function createChallengeAType(
-        PreconfRequestAType calldata _preconfRequestAType,
+        PreconfRequestAType calldata preconfRequestAType,
+        bytes calldata signature,
         bytes calldata proofValues,
         bytes calldata proofBytes
     )
         external
         payable
     {
-        // ABI Encode TypeAData needed for the challenge struct
+        // ABI Encode preconfRequestAType needed for the challenge struct
 
         // Verify the proof
         ISP1Verifier(verifierGateway).verifyProof(
@@ -78,14 +79,15 @@ contract TaiyiNonInteractiveChallenger is ITaiyiNonInteractiveChallenger, Ownabl
 
     /// @inheritdoc ITaiyiNonInteractiveChallenger
     function createChallengeBType(
-        PreconfRequestBType calldata _preconfRequestBType,
+        PreconfRequestBType calldata preconfRequestBType,
+        bytes calldata signature,
         bytes calldata proofValues,
         bytes calldata proofBytes
     )
         external
         payable
     {
-        // ABI Encode TypeBData needed for the challenge struct
+        // ABI Encode preconfRequestBType needed for the challenge struct
 
         // Verify the proof
         ISP1Verifier(verifierGateway).verifyProof(

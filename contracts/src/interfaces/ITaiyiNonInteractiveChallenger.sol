@@ -10,18 +10,6 @@ interface ITaiyiNonInteractiveChallenger {
         uint256 inclusionBlockNumber;
     }
 
-    struct TypeAData {
-        uint64 slot;
-        bytes tipTx;
-        bytes[] txs;
-    }
-
-    struct TypeBData {
-        // TODO[Martin]: Define data struct PreconfRequestBType
-        uint64 slot;
-    }
-
-    // TODO[Martin]: Do we want to store only successful challenges? or also failed ones?
     struct Challenge {
         bytes32 id;
         uint256 createdAt;
@@ -50,9 +38,13 @@ interface ITaiyiNonInteractiveChallenger {
     function getChallenge(bytes32 id) external view returns (Challenge memory);
 
     /// @notice Create a new challenge.
-    /// @param _preconfRequestAType The type A preconf request.
+    /// @param preconfRequestAType The type A preconf request.
+    /// @param signature The signature over the commitment data.
+    /// @param proofValues The encoded public values.
+    /// @param proofBytes The encoded proof.
     function createChallengeAType(
-        PreconfRequestAType calldata _preconfRequestAType,
+        PreconfRequestAType calldata preconfRequestAType,
+        bytes calldata signature,
         bytes calldata proofValues,
         bytes calldata proofBytes
     )
@@ -60,9 +52,13 @@ interface ITaiyiNonInteractiveChallenger {
         payable;
 
     /// @notice Create a new challenge.
-    /// @param _preconfRequestBType The type B preconf request.
+    /// @param preconfRequestBType The type B preconf request.
+    /// @param signature The signature over the commitment data.
+    /// @param proofValues The encoded public values.
+    /// @param proofBytes The encoded proof.
     function createChallengeBType(
-        PreconfRequestBType calldata _preconfRequestBType,
+        PreconfRequestBType calldata preconfRequestBType,
+        bytes calldata signature,
         bytes calldata proofValues,
         bytes calldata proofBytes
     )
