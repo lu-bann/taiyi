@@ -29,7 +29,8 @@ contract TaiyiParameterManager is
     function initialize(
         address _owner,
         uint256 _challengeBond,
-        uint256 _challengeMaxDuration
+        uint256 _challengeMaxDuration,
+        uint256 _blockhashLookback
     )
         public
         initializer
@@ -38,6 +39,7 @@ contract TaiyiParameterManager is
 
         challengeBond = _challengeBond;
         challengeMaxDuration = _challengeMaxDuration;
+        blockhashLookback = _blockhashLookback;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }

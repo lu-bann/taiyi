@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { ITaiyiInteractiveChallenger } from "./interfaces/ITaiyiInteractiveChallenger.sol";
+import { ITaiyiParameterManager } from "./interfaces/ITaiyiParameterManager.sol";
 import { PreconfRequestAType } from "./types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "./types/PreconfRequestBTypes.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -19,15 +20,20 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     /// @dev When the verification key changes a new version of the contract must be deployed.
     bytes32 public interactiveFraudProofVKey;
 
+    /// @notice TaiyiParameterManager contract
+    ITaiyiParameterManager public parameterManager;
+
     constructor(
         address _initialOwner,
         address _verifierGateway,
-        bytes32 _interactiveFraudProofVKey
+        bytes32 _interactiveFraudProofVKey,
+        address _parameterManagerAddress
     )
         Ownable(_initialOwner)
     {
         verifierGateway = _verifierGateway;
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
+        parameterManager = ITaiyiParameterManager(_parameterManagerAddress);
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
