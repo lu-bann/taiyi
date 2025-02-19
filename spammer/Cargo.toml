@@ -5,7 +5,8 @@ edition = { workspace = true }
 
 [dependencies]
 alloy-contract = { workspace = true }
-alloy-eips = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }

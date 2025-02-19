@@ -1,9 +1,15 @@
 use std::{collections::HashMap, str::FromStr};
 
-use alloy_eips::{eip4844::DATA_GAS_PER_BLOB, merge::EPOCH_SLOTS};
+use alloy_eips::{
+    eip4844::{
+        builder::{SidecarBuilder, SimpleCoder},
+        BYTES_PER_BLOB, DATA_GAS_PER_BLOB,
+    },
+    merge::EPOCH_SLOTS,
+};
 use alloy_primitives::{Address, U256};
 use alloy_provider::{
-    network::{EthereumWallet, TransactionBuilder},
+    network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844},
     Provider, ProviderBuilder,
 };
 use alloy_rpc_types::TransactionRequest;
@@ -126,7 +132,7 @@ async fn main() -> eyre::Result<()> {
             info!("Submitting transaction for next slot: {:?}", next_slot);
             let account_nonce = provider.get_transaction_count(signer.address()).await?;
             let data = http_client
-                .submit_transaction(
+                .submit_blob_transaction(
                     *request_store.get(&next_slot).unwrap(),
                     account_nonce,
                     chain_id,
@@ -184,8 +190,11 @@ impl HttpClient {
         let preconf_fee: PreconfFeeResponse = serde_json::from_slice(&bytes)?;
         info!("Preconf Fee: {:?}", preconf_fee);
 
-        let gas_limit = 21_000;
-        let blob_count = 1;
+        // let gas_limit = 21_000;
+        // let blob_count = 1;
+
+        let gas_limit = 1_000_000;
+        let blob_count = 3;
         let fee = preconf_fee.gas_fee * (gas_limit as u128)
             + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
         let fee = U256::from(fee / 2);
@@ -210,6 +219,7 @@ impl HttpClient {
             .send()
             .await?;
         let bytes = result.bytes().await?;
+        info!("Reserve Blockspace Response: {:?}", bytes);
         let request_id: Uuid = serde_json::from_slice(&bytes)?;
         Ok(request_id)
     }
@@ -236,6 +246,53 @@ impl HttpClient {
             .await?;
 
         let request = SubmitTransactionRequest { request_id, transaction: eth_transfer_tx };
+        let signature =
+            hex::encode(self.signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+
+        let result = self
+            .http
+            .post(target)
+            .header("content-type", "application/json")
+            .header("x-luban-signature", format!("0x{signature}"))
+            .json(&request)
+            .send()
+            .await?;
+        let bytes = result.bytes().await?;
+        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
+        Ok(response.data)
+    }
+
+    async fn submit_blob_transaction(
+        &self,
+        request_id: Uuid,
+        nonce: u64,
+        chain_id: u64,
+    ) -> eyre::Result<PreconfResponseData> {
+        let path = format!("commitments/v0/submit_transaction");
+        let target = self.endpoint.join(&path)?;
+
+        // Create a sidecar with some data.
+        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        let data = vec![1u8; BYTES_PER_BLOB];
+        builder.ingest(&data);
+        builder.ingest(&data);
+        let sidecar = builder.build()?;
+        assert_eq!(sidecar.blobs.len(), 3);
+
+        let blob_transaction = TransactionRequest::default()
+            .with_from(self.signer.address())
+            .with_nonce(nonce)
+            .with_to(self.signer.address())
+            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
+            .with_max_fee_per_blob_gas(1000000000)
+            .with_max_fee_per_gas(1000000010)
+            .with_max_priority_fee_per_gas(1000000000)
+            .with_chain_id(chain_id)
+            .with_blob_sidecar(sidecar)
+            .build(&self.wallet)
+            .await?;
+
+        let request = SubmitTransactionRequest { request_id, transaction: blob_transaction };
         let signature =
             hex::encode(self.signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
 
