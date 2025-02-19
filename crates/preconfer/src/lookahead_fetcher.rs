@@ -44,16 +44,50 @@ impl LookaheadFetcher {
         let slot = head.message().slot();
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
-        // Fetch gateway delegations for the current epoch and epoch + 1.
-        self.get_delegation_for(epoch).await?;
+        // Fetch gateway delegations for the current epoch
+        self.get_delegation_for_current_epoch(epoch, slot).await?;
+        // Fetch gateway delegations for the next epoch
         self.get_delegation_for(epoch + 1).await?;
         self.network_state.update_slot(slot);
         Ok(())
     }
 
+    /// Fetch delegation for slots from the present epoch
+    /// Note: Only called once on initialization
+    async fn get_delegation_for_current_epoch(
+        &mut self,
+        epoch: u64,
+        head_slot: u64,
+    ) -> eyre::Result<()> {
+        // Fetch delegations for remaining slots in the given epoch
+        for slot in head_slot + 1..((epoch + 1) * self.network_state.context.slots_per_epoch) {
+            let res = self.relay_client.get_delegations(slot).await;
+            match res {
+                Ok(signed_delegations) => {
+                    'delegation_loop: for signed_delegation in signed_delegations {
+                        let delegation_message = signed_delegation.message;
+                        if delegation_message.action == DELEGATION_ACTION
+                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                        {
+                            info!("Delegation to gateway found for slot: {}", slot);
+                            self.network_state.add_slot(slot);
+                            break 'delegation_loop;
+                        }
+                    }
+                }
+                Err(e) => {
+                    // when there is no delegations for the slot, relay would return error
+                    debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Fetch delegation for slots from the epoch
     async fn get_delegation_for(&mut self, epoch: u64) -> eyre::Result<()> {
-        // Fetch delegations for every slot in next epoch
+        // Fetch delegations for every slot in the given epoch
         for slot in (epoch * self.network_state.context.slots_per_epoch)
             ..((epoch + 1) * self.network_state.context.slots_per_epoch)
         {
@@ -93,13 +127,17 @@ impl LookaheadFetcher {
             client.subscribe(&beacon_url_head_event).await?;
 
         while let Some(event) = stream.try_next().await? {
-            debug!("Received event: {:?}", event);
+            info!(
+                head_slot = event.slot,
+                epoch = event.slot / EPOCH_SLOTS,
+                epoch_transition = event.epoch_transition,
+            );
             let new_slot = event.slot;
             if event.epoch_transition {
-                let slot_epoch = new_slot / EPOCH_SLOTS;
-                let current_epoch = self.network_state.get_current_epoch();
-                info!("Epoch transition occured, current: {slot_epoch} previous: {current_epoch}");
-                self.get_delegation_for(slot_epoch + 1).await?;
+                let new_epoch = new_slot / EPOCH_SLOTS;
+                let past_epoch = self.network_state.get_current_epoch();
+                info!("Epoch transition occured, current: {new_epoch} previous: {past_epoch}");
+                self.get_delegation_for(new_epoch + 1).await?;
             }
             self.network_state.update_slot(new_slot);
         }
