@@ -62,36 +62,32 @@ async fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt().init();
 
     let opts = Opts::parse();
-
     let signer: PrivateKeySigner = opts.private_key.parse()?;
-
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
         .on_http(opts.execution_client_url.parse()?);
+    let chain_id = provider.get_chain_id().await?;
 
     // Deposit into TaiyiCore
     //
-    let contract_address = opts.taiyi_core_address;
-    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
-    let account_nonce = provider
-        .get_transaction_count(Address::from_str("0xc86c13C6e012D377Fb8a00eE77F66152e3cd6752")?)
-        .await?;
-    info!("Account Nonce: {:?}", account_nonce);
+    // let contract_address = opts.taiyi_core_address;
+    // let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+    // let account_nonce = provider.get_transaction_count(signer.address()).await?;
+    // info!("Account Nonce: {:?}", account_nonce);
 
-    let chain_id = provider.get_chain_id().await?;
-    let tx = taiyi_escrow
-        .deposit()
-        .value(U256::from(1_000_000_000_000_000_000u128))
-        .into_transaction_request()
-        .with_chain_id(chain_id)
-        .with_gas_limit(100_000)
-        .with_max_fee_per_gas(1000000010)
-        .with_max_priority_fee_per_gas(1000000000)
-        .with_nonce(account_nonce);
-    let pending_tx = provider.send_transaction(tx).await?;
-    info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
-    let receipt = pending_tx.get_receipt().await?;
-    info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+    // let tx = taiyi_escrow
+    //     .deposit()
+    //     .value(U256::from(1_000_000_000_000_000_000u128))
+    //     .into_transaction_request()
+    //     .with_chain_id(chain_id)
+    //     .with_gas_limit(100_000)
+    //     .with_max_fee_per_gas(1000000010)
+    //     .with_max_priority_fee_per_gas(1000000000)
+    //     .with_nonce(account_nonce);
+    // let pending_tx = provider.send_transaction(tx).await?;
+    // info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
+    // let receipt = pending_tx.get_receipt().await?;
+    // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
     let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
@@ -186,6 +182,7 @@ impl HttpClient {
         let response = self.http.post(target).json(&slot).send().await?;
         let bytes = response.bytes().await?;
         let preconf_fee: PreconfFeeResponse = serde_json::from_slice(&bytes)?;
+        info!("Preconf Fee: {:?}", preconf_fee);
 
         let gas_limit = 21_000;
         let blob_count = 1;

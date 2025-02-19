@@ -44,15 +44,15 @@ impl LookaheadFetcher {
         let slot = head.message().slot();
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
-        // look ahead for next two epoch
-        self.add_slot(epoch).await?;
-        self.add_slot(epoch + 1).await?;
+        // Fetch gateway delegations for the current epoch and epoch + 1.
+        self.get_delegation_for(epoch).await?;
+        self.get_delegation_for(epoch + 1).await?;
         self.network_state.update_slot(slot);
         Ok(())
     }
 
-    /// Add slots from the epoch if the slot is delegated to the gateway
-    async fn add_slot(&mut self, epoch: u64) -> eyre::Result<()> {
+    /// Fetch delegation for slots from the epoch
+    async fn get_delegation_for(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in next epoch
         for slot in (epoch * self.network_state.context.slots_per_epoch)
             ..((epoch + 1) * self.network_state.context.slots_per_epoch)
@@ -94,21 +94,14 @@ impl LookaheadFetcher {
 
         while let Some(event) = stream.try_next().await? {
             debug!("Received event: {:?}", event);
-            let slot = event.slot;
-            let epoch = slot / EPOCH_SLOTS;
-            let current_epoch = self.network_state.get_current_epoch();
-            info!(
-                "Received event: current: {}, epoch: {}, epoch_transition: {}",
-                current_epoch, epoch, event.epoch_transition
-            );
-            assert!((epoch != current_epoch) == event.epoch_transition, "Invalid epoch");
-            if epoch != current_epoch {
-                info!("Epoch changed from {} to {}", current_epoch, epoch);
-                self.add_slot(epoch + 1).await?;
-                self.network_state.clear_slots(epoch);
+            let new_slot = event.slot;
+            if event.epoch_transition {
+                let slot_epoch = new_slot / EPOCH_SLOTS;
+                let current_epoch = self.network_state.get_current_epoch();
+                info!("Epoch transition occured, current: {slot_epoch} previous: {current_epoch}");
+                self.get_delegation_for(slot_epoch + 1).await?;
             }
-            self.network_state.update_slot(slot);
-            info!("Current slot: {}", slot);
+            self.network_state.update_slot(new_slot);
         }
         Ok(())
     }

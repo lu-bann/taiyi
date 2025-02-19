@@ -420,7 +420,7 @@ where
             .network_state
             .available_slots()
             .into_iter()
-            .filter(|slot| *slot > current_slot + slot_diff)
+            .filter(|slot| *slot >= current_slot + slot_diff)
             .map(|slot| {
                 let blockspace_available = self.preconf_pool.blockspace_available(slot);
                 SlotInfo {
