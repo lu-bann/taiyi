@@ -55,7 +55,7 @@ contract TaiyiNonInteractiveChallenger is ITaiyiNonInteractiveChallenger, Ownabl
     }
 
     /// @inheritdoc ITaiyiNonInteractiveChallenger
-    function createChallengeAType(
+    function proveAType(
         PreconfRequestAType calldata preconfRequestAType,
         bytes calldata signature,
         bytes calldata proofValues,
@@ -78,7 +78,7 @@ contract TaiyiNonInteractiveChallenger is ITaiyiNonInteractiveChallenger, Ownabl
     }
 
     /// @inheritdoc ITaiyiNonInteractiveChallenger
-    function createChallengeBType(
+    function proveBType(
         PreconfRequestBType calldata preconfRequestBType,
         bytes calldata signature,
         bytes calldata proofValues,

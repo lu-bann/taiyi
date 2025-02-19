@@ -37,12 +37,12 @@ interface ITaiyiNonInteractiveChallenger {
     /// @return challenge The challenge.
     function getChallenge(bytes32 id) external view returns (Challenge memory);
 
-    /// @notice Create a new challenge.
+    /// @notice Proves a type A challenge.
     /// @param preconfRequestAType The type A preconf request.
     /// @param signature The signature over the commitment data.
     /// @param proofValues The encoded public values.
     /// @param proofBytes The encoded proof.
-    function createChallengeAType(
+    function proveAType(
         PreconfRequestAType calldata preconfRequestAType,
         bytes calldata signature,
         bytes calldata proofValues,
@@ -51,12 +51,12 @@ interface ITaiyiNonInteractiveChallenger {
         external
         payable;
 
-    /// @notice Create a new challenge.
+    /// @notice Proves a type B challenge.
     /// @param preconfRequestBType The type B preconf request.
     /// @param signature The signature over the commitment data.
     /// @param proofValues The encoded public values.
     /// @param proofBytes The encoded proof.
-    function createChallengeBType(
+    function proveBType(
         PreconfRequestBType calldata preconfRequestBType,
         bytes calldata signature,
         bytes calldata proofValues,
