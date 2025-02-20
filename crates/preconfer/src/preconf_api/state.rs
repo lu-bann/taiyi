@@ -26,6 +26,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
+    blocknative::get_gas_prices,
     clients::{relay_client::RelayClient, signer_client::SignerClient},
     contract::{core::TaiyiCore, to_solidity_type},
     error::{PoolError, RpcError},
@@ -113,6 +114,10 @@ where
                 let mut sponsoring_tx = Vec::new();
                 let mut nonce = self.provider.get_transaction_count(sender).await?;
 
+                let gas_prices = get_gas_prices().await;
+                let max_priority_fee_per_gas = gas_prices.0 as u128;
+                let max_fee_per_gas = gas_prices.1 as u128;
+
                 // Accounts to sponsor gas for
                 let mut accounts = Vec::new();
                 // Amounts to sponsor for each account
@@ -169,12 +174,13 @@ where
                                     .into_transaction_request()
                                     .with_chain_id(chain_id)
                                     .with_nonce(nonce)
-                                    .with_gas_limit(1_000_000)
-                                    .with_max_fee_per_gas(1000000010)
-                                    .with_max_priority_fee_per_gas(1000000000)
-                                    .build(&wallet)
-                                    .await?;
-                                // increment nonce
+                                    .with_max_fee_per_gas(max_fee_per_gas)
+                                    .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
+                                let gas_used =
+                                    self.provider.estimate_gas(&get_tip_tx.clone()).await?;
+                                let gas_limit = gas_used + 100_000;
+                                let get_tip_tx =
+                                    get_tip_tx.with_gas_limit(gas_limit).build(&wallet).await?;
                                 nonce += 1;
                                 let mut tx_encoded = Vec::new();
                                 get_tip_tx.encode_2718(&mut tx_encoded);
@@ -191,11 +197,12 @@ where
                             .into_transaction_request()
                             .with_nonce(nonce)
                             .with_chain_id(chain_id)
-                            .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(1000000010)
-                            .with_max_priority_fee_per_gas(1000000000)
-                            .build(&wallet)
-                            .await?;
+                            .with_max_fee_per_gas(max_fee_per_gas)
+                            .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
+                        let gas_used = self.provider.estimate_gas(&sponsor_tx.clone()).await?;
+                        let gas_limit = gas_used + 100_000;
+                        let sponsor_tx =
+                            sponsor_tx.with_gas_limit(gas_limit).build(&wallet).await?;
 
                         let mut tx_bytes = Vec::new();
                         sponsor_tx.encode_2718(&mut tx_bytes);
@@ -251,11 +258,12 @@ where
                             .into_transaction_request()
                             .with_chain_id(chain_id)
                             .with_nonce(nonce)
-                            .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(1000000010)
-                            .with_max_priority_fee_per_gas(1000000000)
-                            .build(&wallet)
-                            .await?;
+                            .with_max_fee_per_gas(max_fee_per_gas)
+                            .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
+                        let gas_used = self.provider.estimate_gas(&exhaust_tx.clone()).await?;
+                        let gas_limit = gas_used + 100_000;
+                        let exhaust_tx =
+                            exhaust_tx.with_gas_limit(gas_limit).build(&wallet).await?;
                         // increment nonce
                         nonce += 1;
 
@@ -382,6 +390,22 @@ where
         if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
             return Err(RpcError::UnknownError(
                 "Gas limit exceeds reserved blockspace".to_string(),
+            ));
+        }
+
+        // Check for gas fee caps
+        let threshold_price = get_gas_prices().await;
+        if request.transaction.max_fee_per_gas() < threshold_price.1 as u128 {
+            return Err(RpcError::MaxFeePerGasLessThanThreshold(
+                threshold_price.1,
+                request.transaction.max_fee_per_gas(),
+            ));
+        }
+
+        if request.transaction.max_priority_fee_per_gas() < Some(threshold_price.0 as u128) {
+            return Err(RpcError::MaxPriorityFeePerGasLessThanThreshold(
+                threshold_price.0,
+                request.transaction.max_priority_fee_per_gas().expect("max priority fee"),
             ));
         }
 

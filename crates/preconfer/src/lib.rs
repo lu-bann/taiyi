@@ -1,3 +1,4 @@
+mod blocknative;
 mod clients;
 mod contract;
 mod error;
