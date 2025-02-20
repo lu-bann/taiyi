@@ -7,7 +7,7 @@ use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use reqwest::Url;
 use taiyi_primitives::{BlockspaceAllocation, PreconfRequest, SlotInfo};
-const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
+const PRECONF_REQUEST_PATH: &str = "/commitments/v0/preconf_request";
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let taiyi_url = std::env::var("TAIYI_PRECONFER_URL")
@@ -20,7 +20,7 @@ async fn main() -> eyre::Result<()> {
 
     let sender = signer.address();
     let client = reqwest::Client::new();
-    let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
+    let res = client.get(&format!("{}/commitments/v0/slots", taiyi_url)).send().await?;
     let res_b = res.bytes().await?;
     let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     println!("available_slots: {:?}", available_slots);

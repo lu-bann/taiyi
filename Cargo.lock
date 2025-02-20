@@ -6268,7 +6268,6 @@ dependencies = [
 name = "spammer"
 version = "0.1.2"
 dependencies = [
- "alloy-consensus",
  "alloy-contract",
  "alloy-eips",
  "alloy-primitives 0.8.15",
@@ -6280,7 +6279,6 @@ dependencies = [
  "alloy-sol-types",
  "beacon-api-client",
  "clap",
- "ethereum-consensus",
  "eyre",
  "futures",
  "hex",
@@ -6730,19 +6728,14 @@ dependencies = [
 name = "taiyi-examples"
 version = "0.1.2"
 dependencies = [
- "alloy-consensus",
  "alloy-contract",
  "alloy-primitives 0.8.15",
  "alloy-provider",
  "alloy-rpc-types",
- "alloy-signer",
  "alloy-signer-local",
- "alloy-sol-types",
  "eyre",
  "reqwest 0.12.9",
- "reth-primitives",
  "serde_json",
- "taiyi-preconfer",
  "taiyi-primitives",
  "tokio",
 ]

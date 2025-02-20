@@ -4,7 +4,6 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-consensus = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-primitives = { workspace = true }
@@ -16,7 +15,6 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 beacon-api-client = { workspace = true }
 clap = { workspace = true }
-ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures = { workspace = true }
 
