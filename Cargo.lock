@@ -6266,7 +6266,7 @@ dependencies = [
 
 [[package]]
 name = "spammer"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-contract",
  "alloy-eips",
@@ -6578,7 +6578,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "eyre",
@@ -6654,7 +6654,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-cmd"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -6685,7 +6685,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-contracts"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-contract",
  "alloy-rpc-client",
@@ -6694,7 +6694,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-e2e-tests"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -6726,7 +6726,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-examples"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-contract",
  "alloy-primitives 0.8.15",
@@ -6742,7 +6742,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-preconfer"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -6789,7 +6789,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-primitives"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
