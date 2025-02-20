@@ -36,7 +36,7 @@ struct Opts {
     execution_client_url: String,
 
     /// reth url
-    #[clap(long = "beacon_client_url", default_value = "http://localhost:5062")]
+    #[clap(long = "beacon_client_url", default_value = "http://localhost:4040")]
     beacon_client_url: String,
 
     /// Preconfer URL

@@ -2,6 +2,7 @@ use alloy_consensus::TxEnvelope;
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
+use alloy_rpc_types::TransactionRequest;
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_sol_types::sol;
 use alloy_transport_http::Http;
@@ -44,11 +45,11 @@ impl ExecutionClient {
         Ok(balance._0)
     }
 
-    pub async fn gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
+    pub async fn gas_used(&self, tx: TransactionRequest) -> eyre::Result<u64> {
         let trace_options = GethDebugTracingCallOptions::default();
         let trace = self
             .inner
-            .debug_trace_call(tx.into(), BlockId::latest(), trace_options)
+            .debug_trace_call(tx, BlockId::latest(), trace_options)
             .await?
             .try_into_default_frame()?;
         Ok(trace.gas)
@@ -86,11 +87,8 @@ mod test {
             .with_to(*receiver)
             .with_value(U256::from(100))
             .with_nonce(0)
-            .with_gas_limit(30_000)
             .with_max_fee_per_gas(1)
-            .with_max_priority_fee_per_gas(1)
-            .build(&wallet)
-            .await?;
+            .with_max_priority_fee_per_gas(1);
 
         let gas_used = client.gas_used(tx).await?;
         assert_eq!(gas_used, 21000);

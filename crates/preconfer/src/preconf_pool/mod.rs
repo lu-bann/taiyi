@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
 use alloy_primitives::{Address, U256};
+use alloy_rpc_types::TransactionRequest;
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
@@ -251,7 +252,7 @@ impl PreconfPool {
         self.pool_inner.read().blockspace_issued.get(&slot).cloned().unwrap_or_default()
     }
 
-    pub async fn calculate_gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
+    pub async fn calculate_gas_used(&self, tx: TransactionRequest) -> eyre::Result<u64> {
         self.validator.execution_client.gas_used(tx).await
     }
 }

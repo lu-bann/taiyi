@@ -129,7 +129,8 @@ where
                             if let Some(ref tx) = preconf_req.transaction {
                                 // calculate gas used
                                 let gas_used =
-                                    self.preconf_pool.calculate_gas_used(tx.clone()).await?;
+                                    self.preconf_pool.calculate_gas_used(tx.clone().into()).await?;
+                                info!("Gas used for tx: {gas_used}");
 
                                 accounts
                                     .push(preconf_req.signer().expect("Signer must be present"));
@@ -176,8 +177,11 @@ where
                                     .with_nonce(nonce)
                                     .with_max_fee_per_gas(max_fee_per_gas)
                                     .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
-                                let gas_used =
-                                    self.provider.estimate_gas(&get_tip_tx.clone()).await?;
+                                let gas_used = self
+                                    .preconf_pool
+                                    .calculate_gas_used(get_tip_tx.clone())
+                                    .await?;
+                                info!("Gas used for getTip tx: {gas_used}");
                                 let gas_limit = gas_used + 100_000;
                                 let get_tip_tx =
                                     get_tip_tx.with_gas_limit(gas_limit).build(&wallet).await?;
@@ -199,7 +203,9 @@ where
                             .with_chain_id(chain_id)
                             .with_max_fee_per_gas(max_fee_per_gas)
                             .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
-                        let gas_used = self.provider.estimate_gas(&sponsor_tx.clone()).await?;
+                        let gas_used =
+                            self.preconf_pool.calculate_gas_used(sponsor_tx.clone()).await?;
+                        info!("Gas used for sponsor tx: {gas_used}");
                         let gas_limit = gas_used + 100_000;
                         let sponsor_tx =
                             sponsor_tx.with_gas_limit(gas_limit).build(&wallet).await?;
@@ -261,7 +267,9 @@ where
                             .with_nonce(nonce)
                             .with_max_fee_per_gas(max_fee_per_gas)
                             .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
-                        let gas_used = self.provider.estimate_gas(&exhaust_tx.clone()).await?;
+                        let gas_used =
+                            self.preconf_pool.calculate_gas_used(exhaust_tx.clone()).await?;
+                        info!("Gas used for exhaust tx: {gas_used}");
                         let gas_limit = gas_used + 100_000;
                         let exhaust_tx =
                             exhaust_tx.with_gas_limit(gas_limit).build(&wallet).await?;

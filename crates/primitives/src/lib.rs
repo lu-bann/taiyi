@@ -9,6 +9,7 @@ mod preconf_response;
 mod preconf_tx;
 mod preconf_tx_request;
 mod proposer_info;
+mod slot_info;
 
 pub use cancel_preconf::{CancelPreconfRequest, CancelPreconfResponse};
 pub use check_preconf_response::{PreconfStatus, PreconfStatusResponse};
@@ -22,11 +23,4 @@ pub use preconf_tx::PreconfTx;
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct SlotInfo {
-    pub slot: u64,
-    pub gas_available: u64,
-    pub blobs_available: usize,
-    pub constraints_available: u32,
-}
+pub use slot_info::SlotInfo;
