@@ -1,9 +1,9 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use alloy_eips::{
     eip4844::{
         builder::{SidecarBuilder, SimpleCoder},
-        BYTES_PER_BLOB, DATA_GAS_PER_BLOB,
+        DATA_GAS_PER_BLOB,
     },
     merge::EPOCH_SLOTS,
 };
@@ -76,24 +76,24 @@ async fn main() -> eyre::Result<()> {
 
     // Deposit into TaiyiCore
     //
-    // let contract_address = opts.taiyi_core_address;
-    // let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
-    // let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    // info!("Account Nonce: {:?}", account_nonce);
+    let contract_address = opts.taiyi_core_address;
+    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+    let account_nonce = provider.get_transaction_count(signer.address()).await?;
+    info!("Account Nonce: {:?}", account_nonce);
 
-    // let tx = taiyi_escrow
-    //     .deposit()
-    //     .value(U256::from(1_000_000_000_000_000_000u128))
-    //     .into_transaction_request()
-    //     .with_chain_id(chain_id)
-    //     .with_gas_limit(100_000)
-    //     .with_max_fee_per_gas(1000000010)
-    //     .with_max_priority_fee_per_gas(1000000000)
-    //     .with_nonce(account_nonce);
-    // let pending_tx = provider.send_transaction(tx).await?;
-    // info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
-    // let receipt = pending_tx.get_receipt().await?;
-    // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+    let tx = taiyi_escrow
+        .deposit()
+        .value(U256::from(1_000_000_000_000_000_000u128))
+        .into_transaction_request()
+        .with_chain_id(chain_id)
+        .with_gas_limit(100_000)
+        .with_max_fee_per_gas(1000000010)
+        .with_max_priority_fee_per_gas(1000000000)
+        .with_nonce(account_nonce);
+    let pending_tx = provider.send_transaction(tx).await?;
+    info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
+    let receipt = pending_tx.get_receipt().await?;
+    info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
     let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
@@ -194,7 +194,7 @@ impl HttpClient {
         // let blob_count = 1;
 
         let gas_limit = 1_000_000;
-        let blob_count = 3;
+        let blob_count = 1;
         let fee = preconf_fee.gas_fee * (gas_limit as u128)
             + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
         let fee = U256::from(fee / 2);
@@ -224,7 +224,7 @@ impl HttpClient {
         Ok(request_id)
     }
 
-    async fn submit_transaction(
+    async fn _submit_transaction(
         &self,
         request_id: Uuid,
         nonce: u64,
@@ -272,18 +272,16 @@ impl HttpClient {
         let target = self.endpoint.join(&path)?;
 
         // Create a sidecar with some data.
-        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
-        let data = vec![1u8; BYTES_PER_BLOB];
-        builder.ingest(&data);
-        builder.ingest(&data);
+        let builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        // let data = vec![1u8; BYTES_PER_BLOB];
         let sidecar = builder.build()?;
-        assert_eq!(sidecar.blobs.len(), 3);
+        assert_eq!(sidecar.blobs.len(), 1);
 
         let blob_transaction = TransactionRequest::default()
             .with_from(self.signer.address())
             .with_nonce(nonce)
             .with_to(self.signer.address())
-            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
+            .with_gas_limit(2 * DATA_GAS_PER_BLOB)
             .with_max_fee_per_blob_gas(1000000000)
             .with_max_fee_per_gas(1000000010)
             .with_max_priority_fee_per_gas(1000000000)

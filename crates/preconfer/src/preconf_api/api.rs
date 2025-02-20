@@ -95,8 +95,6 @@ pub async fn handle_reserve_blockspace<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    info!("Received blockspace reservation request");
-
     // Extract the signer and signature from the headers
     let (signer, signature) = {
         let auth = headers
@@ -125,6 +123,7 @@ where
         return Err(RpcError::SignatureError("Invalid signature".to_string()));
     }
 
+    info!("Reserve blockspace request received, {recovered_signer}");
     match state.reserve_blockspace(request, signature, signer).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),

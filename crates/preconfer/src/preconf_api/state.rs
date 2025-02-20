@@ -88,7 +88,7 @@ where
                 let rlp_encoded_header =
                     self.provider.debug_get_raw_header(BlockId::latest()).await?;
                 let header = Header::decode(&mut rlp_encoded_header.as_ref())?;
-                let (base_fee, priority_fee) =
+                let (base_fee, _priority_fee) =
                     match header.next_block_base_fee(BaseFeeParams::ethereum()) {
                         Some(base_fee) => (base_fee.into(), EIP1559_MIN_PRIORITY_FEE),
                         None => {
@@ -331,6 +331,10 @@ where
         // Reservation is only for slots with 2+ slot delay
         if request.target_slot < current_slot + 1 {
             return Err(RpcError::ExceedDeadline(request.target_slot));
+        }
+
+        if request.gas_limit == 0 {
+            return Err(RpcError::UnknownError("Gas limit cannot be zero".to_string()));
         }
 
         // Construct a preconf request
