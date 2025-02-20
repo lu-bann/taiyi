@@ -30,6 +30,7 @@ impl Ready {
         self.by_id.contains_key(&key)
     }
 
+    #[allow(dead_code)]
     pub fn remove_preconfs_for_slot(
         &mut self,
         slot: u64,
@@ -84,8 +85,7 @@ impl Ready {
 mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
-    use alloy_network::TransactionBuilder;
-    use alloy_rpc_types::TransactionRequest;
+    use alloy_primitives::PrimitiveSignature;
     use taiyi_primitives::BlockspaceAllocation;
 
     use super::*;
@@ -104,6 +104,7 @@ mod tests {
         let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
         let preconf = PreconfRequest {
             allocation: BlockspaceAllocation { target_slot: 1, ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction),
             signer: Some(Address::default()),
         };

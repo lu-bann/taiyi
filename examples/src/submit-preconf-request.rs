@@ -1,4 +1,4 @@
-use alloy_primitives::U256;
+use alloy_primitives::{PrimitiveSignature, U256};
 use alloy_provider::{
     network::{EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
@@ -6,7 +6,7 @@ use alloy_provider::{
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use reqwest::Url;
-use taiyi_preconfer::GetSlotResponse;
+use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 #[tokio::main]
@@ -23,7 +23,7 @@ async fn main() -> eyre::Result<()> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}/commitments/v1/slots", taiyi_url)).send().await?;
     let res_b = res.bytes().await?;
-    let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
+    let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     println!("available_slots: {:?}", available_slots);
     if available_slots.is_empty() {
         println!("No available slot");
@@ -51,6 +51,7 @@ async fn main() -> eyre::Result<()> {
 
     let preconf_request = PreconfRequest {
         allocation: BlockspaceAllocation::default(),
+        alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
         transaction: Some(transaction.clone()),
         signer: Some(sender),
     };

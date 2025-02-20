@@ -6,12 +6,14 @@ edition = { workspace = true }
 [dev-dependencies]
 alloy-consensus = { workspace = true }
 alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
 clap = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }

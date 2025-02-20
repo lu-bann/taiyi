@@ -1,14 +1,22 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { Test, console } from "forge-std/Test.sol";
 import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { TaiyiEscrow } from "../src/TaiyiEscrow.sol";
 import { ITaiyiCore } from "../src/interfaces/ITaiyiCore.sol";
-import { TipTx, PreconfTx, PreconfRequest } from "../src/interfaces/Types.sol";
+
 import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
+
+import { PreconfRequestStatus } from "../src/types/CommonTypes.sol";
+import {
+    BlockspaceAllocation,
+    PreconfRequestBType
+} from "../src/types/PreconfRequestBTypes.sol";
 import { Helper } from "../src/utils/Helper.sol";
-import { PreconfRequestStatus } from "../src/interfaces/Types.sol";
+
+import { TransparentUpgradeableProxy } from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { Test, console } from "forge-std/Test.sol";
 
 contract TaiyiCoreTest is Test {
     using PreconfRequestLib for *;
@@ -18,104 +26,90 @@ contract TaiyiCoreTest is Test {
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
-    uint256 internal bobPrivatekey;
     uint256 internal coinbasePrivatekey;
 
     uint256 internal constant genesisTimestamp = 1_606_824_023;
 
     address user;
     address owner;
-    address bob;
     address coinbase;
+    bytes rawTx =
+        hex"000000000000000000000000a83114a443da1cecefc50368531cace9f37fcccb0000000000000000000000006d2e03b7effeae98bd302a9f836d0d6ab000276600000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000005208000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000";
 
     event Exhausted(address indexed preconfer, uint256 amount);
 
     function setUp() public {
-        userPrivatekey = 0x5678;
-        ownerPrivatekey = 0x69420;
-        bobPrivatekey = 0x1337;
-        coinbasePrivatekey = 0x69422;
+        (user, userPrivatekey) = makeAddrAndKey("user");
+        (owner, ownerPrivatekey) = makeAddrAndKey("owner");
+        (coinbase, coinbasePrivatekey) = makeAddrAndKey("coinbase");
+        address proxyAdmin = makeAddr("proxyAdmin");
 
-        user = vm.addr(userPrivatekey);
-        owner = vm.addr(ownerPrivatekey);
-        bob = vm.addr(bobPrivatekey);
-        coinbase = vm.addr(coinbasePrivatekey);
-
-        console.log("User address:", user);
-        console.log("Owner address:", owner);
-        console.log("bob address:", bob);
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
 
         vm.warp(genesisTimestamp);
 
-        // TODO: remove this address(0) with proposer registry address
-        taiyiCore = new TaiyiCore(owner, genesisTimestamp, address(0));
+        taiyiCore = new TaiyiCore();
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(taiyiCore),
+            proxyAdmin,
+            abi.encodeWithSelector(TaiyiCore.initialize.selector, owner)
+        );
+
+        taiyiCore = TaiyiCore(payable(address(proxy)));
     }
 
-    function assertPreconfRequestStatus(bytes32 preconfRequestHash, PreconfRequestStatus expectedStatus) internal {
+    function assertPreconfRequestStatus(
+        bytes32 preconfRequestHash,
+        PreconfRequestStatus expectedStatus
+    )
+        internal
+        view
+    {
         uint8 status = uint8(taiyiCore.getPreconfRequestStatus(preconfRequestHash));
         assertEq(status, uint8(expectedStatus), "Unexpected PreconfRequest status");
     }
 
-    function fulfillPreconfRequest(
-        TipTx memory tipTx,
-        PreconfTx memory preconfTx
-    )
+    function fulfillPreconfRequest(BlockspaceAllocation memory blockspaceAllocation)
         internal
-        returns (PreconfRequest memory)
+        view
+        returns (PreconfRequestBType memory preconfRequestBType)
     {
-        bytes32 txHash = tipTx.getTipTxHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, txHash);
-        bytes memory tipTxSig = abi.encodePacked(r, s, v);
-        console.logBytes(tipTxSig);
+        bytes32 blockspaceHash = blockspaceAllocation.getBlockspaceAllocationHash();
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, blockspaceHash);
+        bytes memory blockspaceAllocationSignature = abi.encodePacked(r, s, v);
 
-        bytes32 preconfTxHash = preconfTx.getPreconfTxHash();
-        (v, r, s) = vm.sign(userPrivatekey, preconfTxHash);
-        bytes memory preconfTxSig = abi.encodePacked(r, s, v);
-        preconfTx.signature = preconfTxSig;
+        (v, r, s) =
+            vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
+        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
-        (v, r, s) = vm.sign(ownerPrivatekey, tipTxSig.hashSignature());
-        bytes memory preconferSignature = abi.encodePacked(r, s, v);
-        PreconfRequest memory preconfReq = PreconfRequest({
-            tipTx: tipTx,
-            preconfTx: preconfTx,
-            tipTxSignature: tipTxSig,
-            preconferSignature: preconferSignature,
-            preconfReqSignature: ""
+        (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
+        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
+
+        preconfRequestBType = PreconfRequestBType({
+            blockspaceAllocation: blockspaceAllocation,
+            blockspaceAllocationSignature: blockspaceAllocationSignature,
+            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            rawTx: rawTx,
+            gatewaySignedRawTx: gatewaySignedRawTx
         });
-
-        bytes32 preconfReqHash = preconfReq.getPreconfRequestHash();
-        (v, r, s) = vm.sign(ownerPrivatekey, preconfReqHash);
-        bytes memory preconfReqSig = abi.encodePacked(r, s, v);
-        preconfReq.preconfReqSignature = preconfReqSig;
-        return preconfReq;
     }
 
     function testNormalWorkflow() public {
         uint256 targetSlot = 10;
-        TipTx memory tipTx = TipTx({
+        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
-            from: user,
-            to: owner,
-            prePay: 1 ether,
-            afterPay: 2 ether,
-            nonce: 0,
-            targetSlot: targetSlot
+            sender: user,
+            recipient: owner,
+            deposit: 1 ether,
+            tip: 2 ether,
+            targetSlot: targetSlot,
+            blobCount: 1
         });
 
-        PreconfTx memory preconfTx = PreconfTx({
-            from: user,
-            to: bob,
-            value: 1 ether,
-            callData: "",
-            callGasLimit: 100_000,
-            nonce: 0,
-            signature: ""
-        });
-
-        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
-        bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
+        PreconfRequestBType memory preconfReq =
+            fulfillPreconfRequest(blockspaceAllocation);
+        bytes32 preconfRequestHash = preconfReq.getPreconfRequestBTypeHash();
         vm.prank(user);
         taiyiCore.deposit{ value: 4 ether }();
 
@@ -126,11 +120,11 @@ contract TaiyiCoreTest is Test {
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.NonInitiated);
 
         vm.prank(owner);
-        taiyiCore.settleRequest(preconfReq);
+        taiyiCore.getTip(preconfReq);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Executed);
 
-        uint256 bobBalance = bob.balance;
-        assertEq(bobBalance, 1 ether);
+        balances = taiyiCore.balanceOf(user);
+        assertEq(balances, 1 ether);
 
         uint256 collectedTip = taiyiCore.getCollectedTip();
         assertEq(collectedTip, 0);
@@ -142,26 +136,19 @@ contract TaiyiCoreTest is Test {
     }
 
     function testExhaustFunction() public {
-        TipTx memory tipTx = TipTx({
+        uint256 targetSlot = 10;
+        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
-            from: user,
-            to: owner,
-            prePay: 1 ether,
-            afterPay: 2 ether,
-            nonce: 0,
-            targetSlot: 10
+            sender: user,
+            recipient: owner,
+            deposit: 1 ether,
+            tip: 2 ether,
+            targetSlot: targetSlot,
+            blobCount: 1
         });
-        PreconfTx memory preconfTx = PreconfTx({
-            from: user,
-            to: bob,
-            value: 1 ether,
-            callData: "",
-            callGasLimit: 100_000,
-            nonce: 0,
-            signature: ""
-        });
-        PreconfRequest memory preconfReq = fulfillPreconfRequest(tipTx, preconfTx);
-        bytes32 preconfRequestHash = preconfReq.getPreconfRequestHash();
+        PreconfRequestBType memory preconfReq =
+            fulfillPreconfRequest(blockspaceAllocation);
+        bytes32 preconfRequestHash = preconfReq.getPreconfRequestBTypeHash();
 
         vm.prank(user);
         taiyiCore.deposit{ value: 9 ether }();
@@ -178,11 +165,56 @@ contract TaiyiCoreTest is Test {
         taiyiCore.exhaust(preconfReq);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Exhausted);
 
+        uint256 balanceAfter = taiyiCore.balanceOf(user);
+        assertEq(balanceAfter, 8 ether);
+
         assertEq(coinbase.balance, 100_000);
 
         taiyiCore.collectTip(preconfRequestHash);
         uint256 collectedTip = taiyiCore.getCollectedTip();
         assertEq(collectedTip, 1 ether);
         assertPreconfRequestStatus(preconfRequestHash, PreconfRequestStatus.Collected);
+    }
+
+    function testSponsorETHBatch() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        vm.deal(alice, 0.5 ether);
+        vm.deal(bob, 0.5 ether);
+
+        // Only owner can call sponsorBatch
+        vm.prank(owner);
+
+        address[] memory recipients = new address[](2);
+        recipients[0] = alice;
+        recipients[1] = bob;
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 3 ether;
+        amounts[1] = 2 ether;
+
+        // We expect total 5 ETH. Owner has enough (100 ETH).
+        // Send it along with the call
+        uint256 aliceBalanceBefore = alice.balance;
+        uint256 bobBalanceBefore = bob.balance;
+
+        taiyiCore.sponsorEthBatch{ value: 5 ether }(recipients, amounts);
+
+        uint256 aliceBalanceAfter = alice.balance;
+        uint256 bobBalanceAfter = bob.balance;
+
+        assertEq(
+            aliceBalanceAfter,
+            aliceBalanceBefore + 3 ether,
+            "Alice did not receive correct ETH"
+        );
+        assertEq(
+            bobBalanceAfter, bobBalanceBefore + 2 ether, "Bob did not receive correct ETH"
+        );
+
+        // Check leftover in contract (optional)
+        // By default, no leftover because exactly 5 ether was used
+        assertEq(address(taiyiCore).balance, 0);
     }
 }

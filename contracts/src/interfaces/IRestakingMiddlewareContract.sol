@@ -8,7 +8,8 @@ interface IRestakingMiddlewareContract {
     /// @param _owner The address of the contract owner.
     /// @param _parameters The address of the parameters contract.
     /// @param _manager The address of the Bolt Manager contract.
-    /// @param restakingProtocolAddresses Additional addresses specific to the restaking protocol.
+    /// @param restakingProtocolAddresses Additional addresses specific to the
+    /// restaking protocol.
     function initialize(
         address _owner,
         address _parameters,
@@ -21,7 +22,8 @@ interface IRestakingMiddlewareContract {
     /// @param _owner The address of the contract owner.
     /// @param _parameters The address of the parameters contract.
     /// @param _manager The address of the Bolt Manager contract.
-    /// @param restakingProtocolAddresses Additional addresses specific to the restaking protocol.
+    /// @param restakingProtocolAddresses Additional addresses specific to the
+    /// restaking protocol.
     function initializeV2(
         address _owner,
         address _parameters,
@@ -32,17 +34,20 @@ interface IRestakingMiddlewareContract {
 
     // ========= OPERATOR MANAGEMENT =========
 
-    /// @notice Allows an operator to register with the middleware (EigenLayer-specific).
+    /// @notice Allows an operator to register with the middleware
+    /// (EigenLayer-specific).
     /// @param rpc The RPC URL of the operator.
     function registerOperator(string calldata rpc) external;
 
     /// @notice Deregisters an operator from the middleware.
     function deregisterOperator() external;
 
-    /// @notice Pauses an operator, signaling indefinite opt-out from the protocol.
+    /// @notice Pauses an operator, signaling indefinite opt-out from the
+    /// protocol.
     function pauseOperator() external;
 
-    /// @notice Unpauses an operator, allowing them to opt back into the protocol.
+    /// @notice Unpauses an operator, allowing them to opt back into the
+    /// protocol.
     function unpauseOperator() external;
 
     /// @notice Checks if an operator is registered.
@@ -52,7 +57,8 @@ interface IRestakingMiddlewareContract {
 
     // ========= RESTAKING ENTITY MANAGEMENT =========
 
-    /// @notice Registers a restaking entity (strategy or vault) to work with the middleware.
+    /// @notice Registers a restaking entity (strategy or vault) to work with
+    /// the middleware.
     /// @param entity The address of the restaking entity.
     function registerRestakingEntity(address entity) external;
 
@@ -60,10 +66,12 @@ interface IRestakingMiddlewareContract {
     /// @param entity The address of the restaking entity.
     function deregisterRestakingEntity(address entity) external;
 
-    /// @notice Pauses a restaking entity, signaling indefinite opt-out from the protocol.
+    /// @notice Pauses a restaking entity, signaling indefinite opt-out from the
+    /// protocol.
     function pauseRestakingEntity() external;
 
-    /// @notice Unpauses a restaking entity, allowing it to opt back into the protocol.
+    /// @notice Unpauses a restaking entity, allowing it to opt back into the
+    /// protocol.
     function unpauseRestakingEntity() external;
 
     /// @notice Checks if a restaking entity is currently enabled.
@@ -77,20 +85,29 @@ interface IRestakingMiddlewareContract {
 
     // ========= STAKE AND COLLATERAL MANAGEMENT =========
 
-    /// @notice Gets the collaterals and amounts staked by an operator across supported entities.
+    /// @notice Gets the collaterals and amounts staked by an operator across
+    /// supported entities.
     /// @param operator The address of the operator.
     /// @return collaterals An array of collateral token addresses.
-    /// @return amounts An array of amounts staked corresponding to each collateral.
+    /// @return amounts An array of amounts staked corresponding to each
+    /// collateral.
     function getOperatorCollaterals(address operator)
         external
         view
         returns (address[] memory collaterals, uint256[] memory amounts);
 
-    /// @notice Gets the amount of tokens delegated to an operator for a specific collateral.
+    /// @notice Gets the amount of tokens delegated to an operator for a
+    /// specific collateral.
     /// @param operator The address of the operator.
     /// @param collateral The address of the collateral token.
     /// @return amount The amount of tokens delegated to the operator.
-    function getOperatorStake(address operator, address collateral) external view returns (uint256 amount);
+    function getOperatorStake(
+        address operator,
+        address collateral
+    )
+        external
+        view
+        returns (uint256 amount);
 
     /// @notice Gets the stake of an operator at a specific timestamp.
     /// @param operator The address of the operator.
@@ -136,10 +153,14 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator.
     function deregisterOperatorFromAVS(address operator) external;
 
-    /// @notice Gets the restaked strategies for an operator (EigenLayer-specific).
+    /// @notice Gets the restaked strategies for an operator
+    /// (EigenLayer-specific).
     /// @param operator The address of the operator.
     /// @return An array of strategy addresses.
-    function getOperatorRestakedStrategies(address operator) external view returns (address[] memory);
+    function getOperatorRestakedStrategies(address operator)
+        external
+        view
+        returns (address[] memory);
 
     /// @notice Gets the restakeable strategies (EigenLayer-specific).
     /// @return An array of strategy addresses.
@@ -154,5 +175,11 @@ interface IRestakingMiddlewareContract {
     /// @param operator The address of the operator to slash.
     /// @param collateral The address of the collateral token.
     /// @param amount The amount to slash.
-    function slash(uint48 timestamp, address operator, address collateral, uint256 amount) external;
+    function slash(
+        uint48 timestamp,
+        address operator,
+        address collateral,
+        uint256 amount
+    )
+        external;
 }

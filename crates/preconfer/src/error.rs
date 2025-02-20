@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use alloy_consensus::BlobTransactionValidationError;
-use alloy_contract::Error as AlloyContractError;
 use alloy_primitives::{Address, U256};
 use axum::{
     response::{IntoResponse, Response},
@@ -8,7 +7,6 @@ use axum::{
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use taiyi_primitives::PreconfHash;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -78,7 +76,6 @@ pub enum ValidationError {
     BlobCountExceedsLimit(usize, usize),
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Error)]
 pub enum ProposerError {
     #[error("proxy key not found")]
@@ -116,8 +113,8 @@ pub enum PoolError {
     InsufficientGasLimit(u64, u64),
     #[error("requested blobs {0} exceeds max available blobs {1}")]
     InsufficientBlobs(usize, usize),
-    #[error("Insufficient escrow balance")]
-    InsufficientEscrowBalance,
+    #[error("Insufficient escrow balance, present: {0}, required: {1}")]
+    InsufficientEscrowBalance(U256, U256),
     #[error("Blockspace not available")]
     BlockspaceNotAvailable,
     #[error("Transaction not found")]

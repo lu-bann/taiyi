@@ -1,7 +1,6 @@
 /target
 .env
 .envrc
-# Cargo.lock
 /local
 .vscode
 /node_modules

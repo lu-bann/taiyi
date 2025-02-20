@@ -1,37 +1,26 @@
 mod tests {
     #![allow(unused_variables)]
 
-    use std::{
-        net::{IpAddr, Ipv4Addr, SocketAddr},
-        str::FromStr,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use alloy_contract::ContractInstance;
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{hex, keccak256, Address, U256};
+    use alloy_primitives::{hex, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_sol_types::sol;
     use ethereum_consensus::deneb::Context;
-    use k256::{ecdsa::VerifyingKey, Secp256k1};
     use reqwest::Url;
-    use secp256k1::{ecdsa::Signature as EcdsaSignature, Message, PublicKey as EcdsaPublicKey};
     use taiyi_primitives::{
-        BlockspaceAllocation, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
-        PreconfResponse, SubmitTransactionRequest,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SubmitTransactionRequest,
     };
     use tracing::info;
     use uuid::Uuid;
 
     use crate::{
-        clients::{
-            execution_client::ExecutionClient, relay_client::RelayClient,
-            signer_client::SignerClient,
-        },
+        clients::{relay_client::RelayClient, signer_client::SignerClient},
         network_state::NetworkState,
         preconf_api::{
             api::{
@@ -87,7 +76,7 @@ mod tests {
 
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .wallet(wallet)
+            .wallet(wallet.clone())
             .on_builtin(&rpc_url)
             .await?;
 
@@ -110,30 +99,25 @@ mod tests {
             signer_client.clone(),
             rpc_url.parse().unwrap(),
             *escrow.address(),
+            provider.clone(),
         );
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
         let server_endpoint = preconfapiserver.endpoint();
         let _ = preconfapiserver.run(state.clone()).await;
 
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
         // Estimate fee
         let request_endpoint =
             Url::parse(&server_endpoint).unwrap().join(ESTIMATE_TIP_PATH).unwrap();
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
-            .json(&EstimateFeeRequest { slot: *network_state.available_slots().last().unwrap() })
+            .json(network_state.available_slots().last().unwrap())
             .send()
             .await?;
         let status = response.status();
         assert_eq!(status, 200);
-        let fee: EstimateFeeResponse = response.json().await?;
-        assert_eq!(fee.fee, 1);
+        let fee: PreconfFeeResponse = response.json().await?;
+        assert_eq!(fee.gas_fee, 1);
 
         // Reserve blockspace
         let request_endpoint =
@@ -141,7 +125,7 @@ mod tests {
         let (request, signature) = generate_reserve_blockspace_request(
             signer.clone(),
             *network_state.available_slots().last().unwrap(),
-            fee.fee,
+            fee,
         )
         .await;
         let response = reqwest::Client::new()
@@ -175,6 +159,7 @@ mod tests {
             .with_chain_id(chain_id)
             .build(&wallet)
             .await?;
+
         let submit_transaction_request = SubmitTransactionRequest { request_id, transaction };
         let signature = hex::encode(
             signer.sign_hash(&submit_transaction_request.digest()).await.unwrap().as_bytes(),
@@ -200,13 +185,15 @@ mod tests {
     async fn generate_reserve_blockspace_request(
         signer: PrivateKeySigner,
         target_slot: u64,
-        fee: u128,
+        preconf_fee: PreconfFeeResponse,
     ) -> (BlockspaceAllocation, String) {
+        let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
             target_slot,
-            deposit: U256::from(fee * 21_000),
+            deposit: U256::from(fee * 21_000 / 2),
+            tip: U256::from(fee * 21_000 / 2),
             gas_limit: 21_0000,
-            num_blobs: 0,
+            blob_count: 0,
         };
         let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
         (request, format!("{}:0x{}", signer.address(), signature))

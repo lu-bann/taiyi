@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,6 +9,7 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "crates/cli",
+    "crates/contracts",
     "crates/preconfer",
     "crates/primitives",
     "e2e-tests",
@@ -21,6 +22,7 @@ default-members = [
     "crates/cli",
     "crates/preconfer",
     "crates/primitives",
+    "crates/contracts",
     "examples"
 ]
 resolver = "2"
@@ -34,15 +36,16 @@ taiyi-preconfer = { path = "crates/preconfer" }
 taiyi-cmd = { path = "crates/cli" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
+taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", rev = "5749410319f879f81ece8d77641f1ff9841ab2ad" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 
 # alloy
 alloy-primitives = { version = "0.8.15", default-features = false }

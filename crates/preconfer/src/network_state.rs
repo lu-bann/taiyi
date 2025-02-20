@@ -8,7 +8,7 @@ use parking_lot::RwLock;
 
 #[derive(Clone)]
 pub struct NetworkState {
-    context: Context,
+    pub context: Context,
     current_slot: Arc<AtomicU64>,
     available_slots: Arc<RwLock<Vec<u64>>>,
 }
@@ -22,7 +22,7 @@ impl NetworkState {
         }
     }
 
-    pub fn chain_id(&self) -> u64 {
+    pub fn _chain_id(&self) -> u64 {
         self.context.deposit_chain_id as u64
     }
 

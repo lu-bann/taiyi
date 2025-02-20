@@ -1,0 +1,323 @@
+---
+title: 'Installation & Configuration'
+description: 'Step-by-step guide for deploying and registering your Taiyi node on Holesky testnet.'
+icon: 'wrench'
+---
+
+## Prerequisites
+
+Before proceeding, ensure you have:
+
+* Completed the [system requirements](/node_operator_setup_guide/holesky/system_requirements)
+
+* An Ethereum validator node on the Holesky testnet
+
+## Dependencies
+
+First, install Rust using rustup
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+> **Tips**- During installation, when prompted, enter `1` for the default installation.
+>
+> - After Rust installation completes, try running `cargo version` . If it cannot
+>   be found, run `source $HOME/.cargo/env`. After that, running `cargo version` should return the version, for example `cargo 1.68.2`.
+>
+> - It's generally advisable to append `source $HOME/.cargo/env` to `~/.bashrc`.
+
+With Rust installed, follow the instructions below to install dependencies relevant to your
+operating system:
+
+* **Ubuntu**: `apt-get install libclang-dev pkg-config build-essential`
+
+* **macOS**: `brew install llvm pkg-config`
+
+* **Windows**: `choco install llvm` or `winget install LLVM.LLVM`
+
+The Minimum Supported Rust Version (MSRV) of this project is 1.82.0. If you already have a version of Rust installed,
+you can check your version by running `rustc --version`. To update your version of Rust, run `rustup update`.
+## 1. Build Core Components
+
+### Build commit-boost
+
+```bash
+git clone https://github.com/Commit-Boost/commit-boost-client.git
+cd commit-boost-client
+git checkout v0.6.0
+cargo build --release # target binary: ./target/release/commit-boost-signer
+```
+
+### Build taiyi-boost
+
+```bash
+git clone git@github.com:lu-bann/taiyi.git
+cd taiyi
+cargo build --release # target binary: ./target/release/taiyi-boost
+```
+
+### Configure commit-boost
+
+Create `cb-config.toml`, you can see a full example in the [Commit-Boost Client](https://github.com/Commit-Boost/commit-boost-client/blob/main/config.example.toml): 
+
+```toml
+chain = "Holesky"
+
+# Configuration for the PBS module
+[pbs]
+docker_image = "ghcr.io/commit-boost/pbs:latest"
+with_signer = true
+host = "127.0.0.1"
+port = 18550
+relay_check = true
+wait_all_registrations = true
+timeout_get_header_ms = 950
+timeout_get_payload_ms = 4000
+timeout_register_validator_ms = 3000
+skip_sigverify = false
+min_bid_eth = 0.0
+relay_monitors = []
+late_in_slot_time_ms = 2000
+extra_validation_enabled = false
+rpc_url = "https://rpc.holesky.luban.wtf"
+
+# below are config for taiyi-boost specificall
+engine_api="https://rpc-execution.holesky.luban.wtf"
+execution_api="https://rpc.holesky.luban.wtf"
+beacon_api="https://beacon.holesky.luban.wtf"
+fee_recipient="0xD8F3183DEF51A987222D845be228e0Bbb932C222"
+builder_private_key="5168bdd781a2793f24f53f605f60e79a8bfa9a5737126a205b98db253ed339c2"
+engine_jwt="03d15cbd2b802dfe3449eaa2d2690a90191daa39f38e30282a255fcacfde8faf"
+network="holesky"
+
+# The PBS module needs one or more [[relays]] as defined below.
+[[relays]]
+# Relay ID to use in telemetry
+# OPTIONAL, DEFAULT: URL hostname
+id = "taiyi-relay"
+# Relay URL in the format scheme://pubkey@host
+url = "http://0xadc0fe12e62c14a505ea1e655dbe4d36fa505ed57b634ba37912153d29edd45c5bc5a77764e68b98c53e3f6f8ce9fa3b@relay.holesky.luban.wtf"
+# Headers to send with each request for this relay
+# OPTIONAL
+# headers = { X-MyCustomHeader = "MyCustomValue" }
+# Whether to enable timing games, as tuned by `target_first_request_ms` and `frequency_get_header_ms`.
+# These values should be carefully chosen for each relay, as each relay has different latency and timing games setups.
+# They should only be used by advanced users, and if mis-configured can result in unforeseen effects, e.g. fetching a lower header value,
+# or getting a temporary IP ban.
+#
+# EXAMPLES
+# Assuming: timeout_get_header_ms = 950, frequency_get_header_ms = 300, target_first_request_ms = 200, late_in_slot_time_ms = 2000
+#
+# 1) CL request comes at 100ms in the slot (max timeout 1050ms in the slot), then:
+#   - sleep for 100ms
+#   - send request at 200ms with 850ms timeout
+#   - send request at 500ms with 550ms timeout
+#   - send request at 800ms with 250ms timeout
+# 2) CL request comes at 1500ms in the slot (max timeout 2000ms in the slot), then:
+#   - send request at 1500ms with 500ms timeout
+#   - send request at 1800ms with 200ms timeout
+# 3) CL request comes 2500ms in the slot then:
+#   - return 204 and force local build
+#
+# OPTIONAL, DEFAULT: false
+enable_timing_games = false
+# Target time in slot when to send the first header request
+# OPTIONAL
+target_first_request_ms = 200
+# Frequency in ms to send get_header requests
+# OPTIONAL
+frequency_get_header_ms = 300
+# Maximum number of validators to register in a single request.
+# OPTIONAL, DEFAULT: "" (unlimited)
+validator_registration_batch_size = ""
+
+# Configuration for the Signer Module, only required if any `commit` module is present, or if `pbs.with_signer = true`
+# Currently two types of Signer modules are supported (only one can be used at a time):
+#   - Remote: a remote Web3Signer instance
+#   - Local: a local Signer module
+# More details on the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/#local-signer)
+# OPTIONAL
+# Remote:
+# [signer.remote]
+# URL of the Web3Signer instance
+# url = "https://remote.signer.url"
+# Local:
+[signer.local]
+# Docker image to use for the Signer module.
+# OPTIONAL, DEFAULT: ghcr.io/commit-boost/signer:latest
+docker_image = "ghcr.io/commit-boost/signer:latest"
+# Configuration for how the Signer module should load validator keys. Currently two types of loaders are supported:
+#   - File: load keys from a plain text file (unsafe, use only for testing purposes)
+#   - ValidatorsDir: load keys from a `keys` and `secrets` file/folder (ERC-2335 style keystores). More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/)
+[signer.local.loader]
+# File: path to the keys file
+# key_path = "./tests/data/keys.example.json"
+# ValidatorsDir: format of the keystore (lighthouse, prysm, teku or lodestar)
+format = "lighthouse"
+# ValidatorsDir: full path to the keys directory
+# For lighthouse, it's de path to the directory where the `<pubkey>/voting-keystore.json` directories are located.
+# For prysm, it's the path to the `all-accounts.keystore.json` file.
+# For teku, it's the path to the directory where all `<pubkey>.json` files are located.
+# For lodestar, it's the path to the directory where all `<pubkey>.json` files are located.
+keys_path = "/root/1-lighthouse-reth-0-63-0/keys"
+# ValidatorsDir: full path to the secrets file/directory
+# For lighthouse, it's de path to the directory where the `<pubkey>.json` files are located.
+# For prysm, it's the path to the file containing the wallet decryption password.
+# For teku, it's the path to the directory where all `<pubkey>.txt` files are located.
+# For lodestar, it's the path to the file containing the decryption password.
+secrets_path = "/root/1-lighthouse-reth-0-63-0/secrets"
+# Configuration for how the Signer module should store proxy delegations. Supported types of store are:
+#   - File: store keys and delegations from a plain text file (unsafe, use only for testing purposes)
+#   - ERC2335: store keys and delegations safely using ERC-2335 style keystores. More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration#proxy-keys-store)
+# OPTIONAL, if missing proxies are lost on restart
+# [signer.local.store]
+# File: path to the keys file
+# proxy_dir = "./proxies"
+# ERC2335: path to the keys directory
+# keys_path = "./tests/data/proxy/keys"
+# ERC2335: path to the secrets directory
+# secrets_path = "./tests/data/proxy/secrets"
+
+# Configuration for how logs should be collected and stored
+# OPTIONAL, info to stdout if missing
+[logs]
+# Path to the log directory
+# OPTIONAL, DEFAULT: /var/logs/commit-boost
+log_dir_path = "./logs"
+# Log level. Supported values: trace, debug, info, warn, error
+# OPTIONAL, DEFAULT: debug to file, info to stdout
+log_level = "debug"
+# Maximum number of log files to keep
+# OPTIONAL
+max_log_files = 30
+
+```
+
+### Start commit-boost-signer Services
+
+Before start commit-boost-signer, you need to set the environment variables.
+
+#### Set Environment Variables
+
+```bash
+export CB_CONFIG=config.toml
+export CB_JWTS=taiyi=xxxxx
+export CB_SIGNER_PORT=20000
+```
+
+<Note>
+  Please generate your own jwt token for `CB_JWTS`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_JWTS` is the same as `CB_SIGNER_JWT` in the taiyi-boost env config.
+  You don't need to use engine_jwt here.
+</Note>
+
+#### Start commit-boost-signer
+
+```bash
+<path-to>/commit-boost-signer
+```
+
+You can probably see logs like below
+
+```
+2025-02-14T03:44:48.450459Z  INFO Starting signing service version="0.6.0" commit="adf548b6296fdb4ce38903260ac24be5c4e022bb" modules=["taiyi"] port=20000 loaded_consensus=64 loaded_proxies=0
+2025-02-14T03:44:48.453441Z  INFO Starting metrics server on port 10000
+```
+
+Now the signer module is up in port 20000
+
+
+### Start taiyi-boost Services
+
+#### Set Environment Variables
+
+```bash
+export CB_CONFIG=config.toml
+export CB_SIGNER_JWT=taiyi=xx
+export CB_SIGNER_URL=http://localhost:20000
+```
+<Note>
+  Please generate your own jwt token for `CB_SIGNER_JWT`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_SIGNER_JWT` is the same as `CB_JWTS` in the commit-boost-signer env config.
+  You don't need to use engine_jwt here.
+</Note>
+
+#### Start taiyi-boost
+
+```bash
+<path-to>/taiyi-boost
+```
+You can probably see logs like below
+
+```
+2025-02-14T03:46:05.353940Z  INFO starting PBS service version="0.6.0" commit="adf548b6296fdb4ce38903260ac24be5c4e022bb" addr=127.0.0.1:18550 events_subs=0 chain=Holesky
+2025-02-14T03:46:05.353985Z  INFO Starting metrics server on port 10000
+2025-02-14T03:46:05.651476Z  INFO status{req_id=c18ee3ba-1ac5-416f-aba1-eab85de069ad}: ua="" relay_check=true
+2025-02-14T03:46:06.111258Z DEBUG status{req_id=c18ee3ba-1ac5-416f-aba1-eab85de069ad}:handler{relay_id="taiyi-relay"}: status passed code=200 latency=459.637204ms
+2025-02-14T03:46:06.111378Z  INFO status{req_id=c18ee3ba-1ac5-416f-aba1-eab85de069ad}: relay check successful
+```
+
+Now the taiyi-boost is up on port 18550
+
+## 2. Configure Your Validator or your commit boost pbs
+
+### Update Relay Configuration in your beacon node
+
+For example, with Lighthouse beacon node:
+
+```bash
+lighthouse beacon \
+    --builder=http://127.0.0.1:18550 \
+    ...# your other config
+```
+
+### Update Relay Configuration in your commit boost pbs
+
+Put the taiyi-boost as your relays or mux relays in `config.toml`.
+
+```toml
+[[relays]]
+id = "taiyi-relay"
+url = "http://127.0.0.1:18550"
+```
+
+or 
+
+```toml
+[[mux_relays]]
+id = "taiyi-relay"
+url = "http://127.0.0.1:18550"
+```
+
+<Note>
+  For a complete list of relay and gateway endpoints, see the [Supported Endpoints](/network_info/supported_endpoints) page.
+</Note>
+
+## 3. Tool Installation 
+
+### Install Taiyi CLI
+
+Build from source:
+
+```bash
+git clone https://github.com/lu-bann/taiyi.git
+cd taiyi
+cargo build --release --bin taiyi-cli
+```
+ 
+<Note>
+  For detailed information about other commands, see the [Taiyi-CLI](/node_operator_setup_guide/holesky/taiyi_cli).
+</Note>
+
+## Next Steps
+
+With your node components installed and configured, you're ready to proceed to the [Protocol Opt-in](/node_operator_setup_guide/holesky/protocol_opt_in) process where you'll:
+
+1. Deposit stake into EigenLayer's strategy contract
+
+2. Register as a Taiyi operator
+
+3. Delegate your validator keys to the Gateway
+
+4. Verify your registration and stake

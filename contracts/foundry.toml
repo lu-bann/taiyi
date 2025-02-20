@@ -7,18 +7,58 @@
   evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
+  optimizer = false
+  optimizer_runs = 10_000
+  out = "out"
+  script = "script"
+  fs_permissions = [{ access = "read-write", path = "./" }]
+  solc = "0.8.27"
+  src = "src"
+  test = "test"
+  via_ir = false
+
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/",
+  "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+  "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
+  "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
+
+
+  "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
+  "lib/eigenlayer-contracts/:@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/",
+  "lib/eigenlayer-contracts/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
+  "lib/eigenlayer-contracts/:@openzeppelin-upgrades/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-contracts/:ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/",
+  "lib/eigenlayer-contracts/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/",
+  
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/",
+  "lib/eigenlayer-middleware/:@openzeppelin-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/contracts/",
+  "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
+  "lib/eigenlayer-middleware/:ds-test/=lib/eigenlayer-middleware/lib/ds-test/src/",
+  "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
+
+  "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
+  
+]
+
+[profile.ci]
+  auto_detect_solc = false
+  block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
+  bytecode_hash = "none"
+  evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+  fuzz = { runs = 1_000 }
+  gas_reports = ["*"]
   optimizer = true
   optimizer_runs = 10_000
   out = "out"
   script = "script"
-  solc = "0.8.25"
+  fs_permissions = [{ access = "read-write", path = "./" }]
+  solc = "0.8.27"
   src = "src"
   test = "test"
   via_ir = true
-
-[profile.ci]
-  fuzz = { runs = 10_000 }
-  verbosity = 4
 
 # [etherscan]
 #   arbitrum = { key = "${API_KEY_ARBISCAN}" }
@@ -34,12 +74,14 @@
 [fmt]
   bracket_spacing = true
   int_types = "long"
-  line_length = 120
+  line_length = 90
+  sort_imports = true
+  contract_new_line = true
   multiline_func_header = "all"
   number_underscore = "thousands"
   quote_style = "double"
   tab_width = 4
-  wrap_comments = true
+  wrap_comments = false
 
 [rpc_endpoints]
   arbitrum = "https://arbitrum-mainnet.infura.io/v3/${API_KEY_INFURA}"

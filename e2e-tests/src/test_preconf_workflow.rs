@@ -1,47 +1,37 @@
 use std::str::FromStr;
 
+use alloy_consensus::Transaction;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
+use serde::de;
 use taiyi_primitives::{PreconfResponse, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_BLS_PK, SIGNER_PRIVATE},
+    constant::{PRECONFER_BLS_PK, PRECONFER_ECDSA_SK},
+    contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        get_available_slot, get_constraints_from_relay, get_estimate_fee, health_check,
+        get_available_slot, get_constraints_from_relay, get_preconf_fee, health_check, new_account,
         send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
-        wati_until_deadline_of_slot,
+        wati_until_deadline_of_slot, ErrorResponse,
     },
 };
 
-sol! {
-    #[sol(rpc)]
-    contract TaiyiEscrow {
-        #[derive(Debug)]
-        function balanceOf(address user) public view returns (uint256);
-
-        #[derive(Debug)]
-        function deposit() public payable;
-    }
-}
-
 #[tokio::test]
-async fn test_estimate_fee() -> eyre::Result<()> {
+async fn test_preconf_fee() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
 
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-
     let target_slot = available_slot.first().unwrap().slot;
+    let preconf_fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+    info!("preconf_fee: {:?}", preconf_fee);
 
-    let estimate_fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
-
-    info!("estimate_fee: {:?}", estimate_fee);
     taiyi_handle.abort();
     Ok(())
 }
@@ -52,8 +42,8 @@ async fn test_health_check() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
 
     let health_check = health_check(&config.taiyi_url()).await?;
-
     info!("health_check: {:?}", health_check);
+
     taiyi_handle.abort();
     Ok(())
 }
@@ -62,52 +52,149 @@ async fn test_health_check() -> eyre::Result<()> {
 async fn test_commitment_apis() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
 
-    {
-        // Deposit into the escrow contract
-        let signer: PrivateKeySigner = SIGNER_PRIVATE.parse()?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&config.execution_url)
-            .await?;
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(EthereumWallet::new(signer.clone()))
+        .on_builtin(&config.execution_url)
+        .await?;
 
-        let contract_address: Address = "0xA791D59427B2b7063050187769AC871B497F4b3C".parse()?;
-        let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
 
-        // check if contract exists
-        let code = provider.get_code_at(contract_address).await?;
-        info!("Contract code: {:?}", code);
-        assert!(code.len() > 2);
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
 
-        let nonce = provider.get_transaction_count(signer.address()).await?;
-        info!("Nonce: {:?}", nonce);
+    // Pick a slot from the lookahead
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot;
 
-        // Call deposit function
-        let tx = taiyi_escrow.deposit().value(U256::from(100_000)).into_transaction_request();
-        let pending_tx = provider.send_transaction(tx).await?;
-        info!("Transaction sent: {:?}", pending_tx.tx_hash());
-        // Wait for transaction to be mined
-        let receipt = pending_tx.get_receipt().await?;
-        info!("Transaction mined in block: {:?}", receipt.block_number.unwrap());
+    // Fetch preconf fee for the target slot
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
 
-        let nonce = provider.get_transaction_count(signer.address()).await?;
-        info!("Nonce: {:?}", nonce);
+    // Generate request and signature
+    let (request, signature) =
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
 
-        info!("fetching balance");
-        let balance = taiyi_escrow.balanceOf(signer.address()).call().await?;
-        assert_eq!(balance._0, U256::from(100_000));
+    info!("Submitting request for target slot: {:?}", target_slot);
+
+    // Reserve blockspace
+    let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    let body = res.bytes().await?;
+    info!("reserve_blockspace response: {:?}", body);
+
+    let request_id = serde_json::from_slice::<Uuid>(&body)?;
+    assert_eq!(status, 200);
+
+    // Submit transaction
+    // Generate request and signature
+    let transaction = generate_tx(&config.execution_url, PRECONFER_ECDSA_SK).await.unwrap();
+    let (request, signature) =
+        generate_submit_transaction_request(signer.clone(), transaction, request_id).await;
+
+    let res =
+        send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    assert_eq!(status, 200);
+    let body = res.bytes().await?;
+    info!("submit transaction response: {:?}", body);
+    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    assert_eq!(preconf_response.data.request_id, request_id);
+
+    // TODO: verify the commitment signature with gateway pub key
+
+    wati_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
     }
+    assert_eq!(txs.len(), 3);
 
+    let signed_constraints = constraints.first().unwrap().clone();
+    let message = signed_constraints.message;
+
+    let user_tx = txs.get(1).unwrap();
+
+    // TODO: check transaction inclusion in the block
+
+    assert_eq!(
+        message.pubkey,
+        BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
+    );
+
+    assert_eq!(message.slot, target_slot);
+
+    assert_eq!(*user_tx, request.transaction);
+
+    // Optionally, cleanup when done
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
+    let (taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
+
+    let wallet = EthereumWallet::new(signer.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet.clone())
+        .on_builtin(&config.execution_url)
+        .await?;
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(0));
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot;
     info!("Target slot: {:?}", target_slot);
 
-    let fee = get_estimate_fee(&config.taiyi_url(), target_slot).await?;
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(SIGNER_PRIVATE, target_slot, fee.fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee).await;
+
+    // Reserve blockspace
+    let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    let body = res.bytes().await?;
+    info!("reserve_blockspace response: {:?}", body);
+    let response = serde_json::from_slice::<ErrorResponse>(&body)?;
+    assert_eq!(status, 400);
+    assert!(response.message.contains("InsufficientEscrowBalance"));
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
+    let (taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
+
+    let wallet = EthereumWallet::new(signer.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet.clone())
+        .on_builtin(&config.execution_url)
+        .await?;
+    taiyi_deposit(provider.clone(), 100_000).await?;
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(100_000));
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot;
+    info!("Target slot: {:?}", target_slot);
+
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) =
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee).await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -117,11 +204,11 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     let request_id = serde_json::from_slice::<Uuid>(&body)?;
     assert_eq!(status, 200);
 
+    let tx = revert_call(provider, &wallet).await?;
     // Submit transaction
     // Generate request and signature
     let (request, signature) =
-        generate_submit_transaction_request(SIGNER_PRIVATE, request_id, &config.execution_url)
-            .await;
+        generate_submit_transaction_request(signer.clone(), tx, request_id).await;
 
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
@@ -129,41 +216,71 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    // CUrrently revert tx is not rejected.
     assert_eq!(status, 200);
     assert_eq!(preconf_response.data.request_id, request_id);
-    // TODO: verify the commitment signature with gateway pub key
-
-    wati_until_deadline_of_slot(&config, target_slot).await?;
-
-    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
-
-    assert_eq!(constraints.len(), 1);
-
-    let signed_constraints = constraints.first().unwrap().clone();
-    let message = signed_constraints.message;
-
-    let tx_ret = message.decoded_tx().unwrap().first().unwrap().clone();
-
-    assert_eq!(
-        message.pubkey,
-        BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
-    );
-
-    assert_eq!(message.slot, target_slot);
-
-    assert_eq!(tx_ret, request.transaction);
-
-    // Optionally, cleanup when done
     taiyi_handle.abort();
     Ok(())
 }
 
 #[tokio::test]
-async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
-    Ok(())
-}
+async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
 
-#[tokio::test]
-async fn test_reserve_blockspace_invalid_no_balance() -> eyre::Result<()> {
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(EthereumWallet::new(signer.clone()))
+        .on_builtin(&config.execution_url)
+        .await?;
+
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot + 5;
+    info!("Target slot: {:?}", target_slot);
+
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) =
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+
+    // Reserve blockspace
+    let res =
+        send_reserve_blockspace_request(request.clone(), signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    assert_eq!(status, 200);
+
+    wati_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
+    }
+
+    assert_eq!(txs.len(), 1);
+
+    let signed_constraints = constraints.first().unwrap().clone();
+    let message = signed_constraints.message;
+    assert_eq!(message.slot, target_slot);
+
+    let exhaust_tx = txs.get(0).unwrap();
+    assert_eq!(exhaust_tx.to().unwrap(), config.taiyi_core);
+
+    // TODO: check transaction inclusion in the block
+
+    // TODO: check user balance is deducted by the deposit amount
+    // let balance_after = taiyi_balance(provider, signer.address()).await?;
+    // assert_eq!(balance_after, balance - request.deposit);
+
+    // Optionally, cleanup when done
+    taiyi_handle.abort();
     Ok(())
 }

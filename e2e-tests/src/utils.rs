@@ -1,11 +1,12 @@
 #![cfg(test)]
 
-use std::{path::Path, sync::Mutex, time::Duration};
+use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::U256;
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
+use alloy_primitives::{Address, U256};
 use alloy_provider::{
-    network::{EthereumWallet, TransactionBuilder},
+    network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
 use alloy_rpc_types::TransactionRequest;
@@ -15,22 +16,30 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::GetSlotResponse;
+use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, EstimateFeeRequest, EstimateFeeResponse, PreconfRequest,
-    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
+    SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::constant::{
-    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
-    RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS, SUBMIT_TRANSACTION_PATH,
+    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK,
+    PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    SUBMIT_TRANSACTION_PATH, TAIYI_CONTRACT_ADDRESS,
 };
 
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
+    static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct ErrorResponse {
+    pub code: u64,
+    pub message: String,
 }
 
 #[derive(Clone)]
@@ -41,6 +50,7 @@ pub struct TestConfig {
     pub relay_url: String,
     pub taiyi_port: u16,
     pub context: Context,
+    pub taiyi_core: Address,
 }
 
 impl std::fmt::Debug for TestConfig {
@@ -66,7 +76,8 @@ impl TestConfig {
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
         let context = Context::try_from_file(p).unwrap();
-        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context }
+        let taiyi_core = Address::from_str(TAIYI_CONTRACT_ADDRESS).unwrap();
+        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context, taiyi_core }
     }
 
     pub fn taiyi_url(&self) -> String {
@@ -133,7 +144,7 @@ pub async fn start_taiyi_command_for_testing(
         "--taiyi-rpc-port",
         config.taiyi_port.to_string().as_str(),
         "--taiyi-escrow-address",
-        "0xA791D59427B2b7063050187769AC871B497F4b3C",
+        config.taiyi_core.to_string().as_str(),
     ]); // Assuming TaiyiCommand is the main command struct
 
     // Spawn the taiyi command in a background task
@@ -151,22 +162,21 @@ pub async fn start_taiyi_command_for_testing(
     Ok(handle)
 }
 
-pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<GetSlotResponse>> {
+pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> {
     let client = reqwest::Client::new();
     let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
     let res_b = res.bytes().await?;
-    let available_slots = serde_json::from_slice::<Vec<GetSlotResponse>>(&res_b)?;
+    let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     Ok(available_slots)
 }
 
-pub async fn get_estimate_fee(taiyi_url: &str, slot: u64) -> eyre::Result<EstimateFeeResponse> {
+pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
-    let request = EstimateFeeRequest { slot };
     let res =
-        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&request).send().await?;
+        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&slot).send().await?;
     let res_b = res.bytes().await?;
-    let estimate_fee = serde_json::from_slice::<EstimateFeeResponse>(&res_b)?;
-    Ok(estimate_fee)
+    let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
+    Ok(preconf_fee)
 }
 
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
@@ -220,7 +230,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
         .with_value(U256::from(1000))
         // TODO: use the correct nonce, dont' why the nonce above is 3.
         .with_nonce(1)
-        .with_gas_limit(21_0000)
+        .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
         .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
@@ -231,32 +241,35 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
 }
 
 pub async fn generate_reserve_blockspace_request(
-    signer_private: &str,
+    signer_private: PrivateKeySigner,
     target_slot: u64,
-    fee: u128,
+    gas_limit: u64,
+    blob_count: u64,
+    preocnf_fee: PreconfFeeResponse,
 ) -> (BlockspaceAllocation, String) {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
-
+    let fee = preocnf_fee.gas_fee * (gas_limit as u128)
+        + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
+    let fee = U256::from(fee / 2);
     let request = BlockspaceAllocation {
         target_slot,
-        deposit: U256::from(fee * 21_000),
-        gas_limit: 21_0000,
-        num_blobs: 0,
+        deposit: fee,
+        tip: fee,
+        gas_limit,
+        blob_count: blob_count.try_into().unwrap(),
     };
-    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
-    (request, format!("{}:0x{}", signer.address(), signature))
+    let signature =
+        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    (request, format!("{}:0x{}", signer_private.address(), signature))
 }
 
 pub async fn generate_submit_transaction_request(
-    signer_private: &str,
+    signer_private: PrivateKeySigner,
+    tx: TxEnvelope,
     request_id: Uuid,
-    rpc_url: &str,
 ) -> (SubmitTransactionRequest, String) {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
-
-    let transaction = generate_tx(rpc_url, PRECONFER_ECDSA_SK).await.unwrap();
-    let request = SubmitTransactionRequest { transaction, request_id };
-    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    let request = SubmitTransactionRequest { transaction: tx, request_id };
+    let signature =
+        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
     (request, format!("0x{}", signature))
 }
 
@@ -292,8 +305,27 @@ pub async fn send_submit_transaction_request(
     Ok(response)
 }
 
+pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> {
+    // because we are using only one funding signer lock
+    // using lock to avoid two tests create two account with the same nonce on funding account
+    let _lock = FUNDING_SIGNER_LOCK.lock().unwrap();
+    let funding: PrivateKeySigner = FUNDING_SIGNER_PRIVATE.parse()?;
+    let wallet = EthereumWallet::new(funding.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_builtin(&config.execution_url)
+        .await?;
+    let new_signer = PrivateKeySigner::random();
+    let mut tx = TransactionRequest::default();
+    tx.set_to(new_signer.address());
+    tx.set_value(U256::from(1000000000000000000u128));
+    let send = provider.send_transaction(tx).await?;
+    let _ = send.get_receipt().await?;
+    Ok(new_signer)
+}
+
 pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
-    std::env::set_var("RUST_LOG", "debug");
     init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);

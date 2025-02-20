@@ -1,26 +1,17 @@
-use std::{
-    net::{IpAddr, SocketAddr},
-    ops::Add,
-};
+use std::net::{IpAddr, SocketAddr};
 
-use alloy_contract::{ContractInstance, Interface};
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer_local::PrivateKeySigner;
 use api::PreconfApiServer;
-use blst::min_pk::SecretKey;
 use ethereum_consensus::deneb::Context;
 use reqwest::Url;
 use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
-    clients::{
-        execution_client::ExecutionClient, relay_client::RelayClient, signer_client::SignerClient,
-    },
+    clients::{relay_client::RelayClient, signer_client::SignerClient},
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
-    pricer::{ExecutionClientFeePricer, TaiyiFeePricer},
 };
 
 pub mod api;
@@ -57,13 +48,15 @@ pub async fn spawn_service(
         signer_client,
         Url::parse(&execution_rpc_url)?,
         taiyi_escrow_address,
+        provider,
     );
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
     let _ = preconfapiserver.run(state.clone()).await;
+
     tokio::select! {
-            res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url, context).await => {
+            res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
                 error!("Error in cl process: {:?}", res);
             }
             res = state.spawn_constraint_submitter() => {

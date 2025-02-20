@@ -1,9 +1,19 @@
-// Code copied from https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
+// Code copied from
+// https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
 // SPDX-License-Identifier: MIT
-// Functions in this library have been adapted from:
-// https://github.com/ethyla/bls12-381-hash-to-curve/blob/main/src/HashToCurve.sol
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
+/// @title BLS12-381 Elliptic Curve Operations Library
+/// @notice Library implementing BLS12-381 elliptic curve operations for
+/// cryptographic functions
+/// @dev Provides functionality for point arithmetic, field operations, and
+/// curve-specific calculations
+/// on the BLS12-381 elliptic curve, commonly used in zero-knowledge proofs and
+/// signature schemes
+/// @custom:attribution Adapted from Nethermind's Taiko-Preconf-AVS
+/// https://github.com/NethermindEth/Taiko-Preconf-AVS/commit/0b8deff468431717eb1fe904d04ce86f721e8f41
+/// @custom:attribution Adapted from ethyla's bls12-381-hash-to-curve
+/// https://github.com/ethyla/bls12-381-hash-to-curve/blob/main/src/HashToCurve.sol
 library BLS12381 {
     using BLS12381 for *;
 
@@ -24,7 +34,8 @@ library BLS12381 {
         uint256[2] y_I;
     }
 
-    /// @dev Referenced from https://eips.ethereum.org/EIPS/eip-2537#curve-parameters
+    /// @dev Referenced from
+    /// https://eips.ethereum.org/EIPS/eip-2537#curve-parameters
     function baseFieldModulus() internal pure returns (uint256[2] memory) {
         return [
             0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7,
@@ -32,7 +43,8 @@ library BLS12381 {
         ];
     }
 
-    /// @dev Referenced from https://eips.ethereum.org/EIPS/eip-2537#curve-parameters
+    /// @dev Referenced from
+    /// https://eips.ethereum.org/EIPS/eip-2537#curve-parameters
     function negGeneratorG1() internal pure returns (G1Point memory) {
         return G1Point({
             x: [
@@ -73,7 +85,14 @@ library BLS12381 {
      * @param message The message to hash
      * @param dst The domain separation tag
      */
-    function hashToCurveG2(bytes memory message, bytes memory dst) internal view returns (G2Point memory r) {
+    function hashToCurveG2(
+        bytes memory message,
+        bytes memory dst
+    )
+        internal
+        view
+        returns (G2Point memory r)
+    {
         // 1. u = hash_to_field(msg, 2)
         FieldPoint2[2] memory u = hashToFieldFp2(message, dst);
         // 2. Q0 = map_to_curve(u[0])
@@ -92,7 +111,14 @@ library BLS12381 {
      * @param message The message to hash
      * @param dst The domain separation tag
      */
-    function hashToFieldFp2(bytes memory message, bytes memory dst) internal view returns (FieldPoint2[2] memory) {
+    function hashToFieldFp2(
+        bytes memory message,
+        bytes memory dst
+    )
+        internal
+        view
+        returns (FieldPoint2[2] memory)
+    {
         // 1. len_in_bytes = count * m * L
         // so always 2 * 2 * 64 = 256
         uint16 lenInBytes = 256;
@@ -129,9 +155,11 @@ library BLS12381 {
         // Set the first MSB
         r[0] = r[0] | (1 << 127);
 
-        // Second MSB is left to be 0 since we are assuming that no infinity points are involved
+        // Second MSB is left to be 0 since we are assuming that no infinity
+        // points are involved
 
-        // Set the third MSB if point.y is lexicographically larger than the y in negated point
+        // Set the third MSB if point.y is lexicographically larger than the y
+        // in negated point
         if (_greaterThan(point.y, point.negate().y)) {
             r[0] = r[0] | (1 << 125);
         }
@@ -146,7 +174,14 @@ library BLS12381 {
     /**
      * @notice Adds two G2 points using the precompile at 0x0e
      */
-    function plus(G2Point memory point1, G2Point memory point2) internal view returns (G2Point memory) {
+    function plus(
+        G2Point memory point1,
+        G2Point memory point2
+    )
+        internal
+        view
+        returns (G2Point memory)
+    {
         uint256[8] memory r;
 
         uint256[16] memory input = [
@@ -169,8 +204,10 @@ library BLS12381 {
         ];
 
         // ABI for G2 addition precompile
-        // G2 addition call expects 512 bytes as an input that is interpreted as byte concatenation of two G2 points
-        // (256 bytes each). Output is an encoding of addition operation result - single G2 point (256 bytes).
+        // G2 addition call expects 512 bytes as an input that is interpreted as
+        // byte concatenation of two G2 points
+        // (256 bytes each). Output is an encoding of addition operation result
+        // - single G2 point (256 bytes).
         assembly {
             let success :=
                 staticcall(
@@ -189,7 +226,8 @@ library BLS12381 {
     }
 
     /**
-     * @notice Maps an element of the FP2 field to a G2 point using the precompile at 0x13
+     * @notice Maps an element of the FP2 field to a G2 point using the
+     * precompile at 0x13
      */
     function mapToG2(FieldPoint2 memory fp2) internal view returns (G2Point memory) {
         uint256[8] memory r;
@@ -197,8 +235,10 @@ library BLS12381 {
         uint256[4] memory input = [fp2.u[0], fp2.u[1], fp2.u_I[0], fp2.u_I[1]];
 
         // ABI for mapping Fp2 element to G2 point precompile
-        // Field-to-curve call expects 128 bytes an an input that is interpreted as a an element of the quadratic
-        // extension field. Output of this call is 256 bytes and is G2 point following respective encoding rules.
+        // Field-to-curve call expects 128 bytes an an input that is interpreted
+        // as a an element of the quadratic
+        // extension field. Output of this call is 256 bytes and is G2 point
+        // following respective encoding rules.
         assembly {
             let success :=
                 staticcall(
@@ -259,8 +299,10 @@ library BLS12381 {
         ];
 
         // ABI for pairing precompile
-        // Pairing expects 384 (G1Point = 128 bytes, G2Point = 256 bytes) * k bytes as input.
-        // In this case, since two pairs of points are being passed, the input size is 384 * 2 = 768 bytes.
+        // Pairing expects 384 (G1Point = 128 bytes, G2Point = 256 bytes) * k
+        // bytes as input.
+        // In this case, since two pairs of points are being passed, the input
+        // size is 384 * 2 = 768 bytes.
         assembly {
             let success :=
                 staticcall(
@@ -328,22 +370,32 @@ library BLS12381 {
 
         // 9.  for i in (2, ..., ell):
         for (uint8 i = 2; i <= ell; i++) {
-            // 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
+            // 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) ||
+            // DST_prime)
             bytes memory tmp = abi.encodePacked(b_0 ^ b[i - 2], i, dstPrime);
             b[i - 1] = uint256(sha256(tmp));
         }
         // 11. uniform_bytes = b_1 || ... || b_ell
         // 12. return substr(uniform_bytes, 0, len_in_bytes)
-        // Here we don't need the uniform_bytes because b is already properly formed
+        // Here we don't need the uniform_bytes because b is already properly
+        // formed
         return b;
     }
 
-    function _modfield(uint256 _b1, uint256 _b2) internal view returns (uint256[2] memory r) {
+    function _modfield(
+        uint256 _b1,
+        uint256 _b2
+    )
+        internal
+        view
+        returns (uint256[2] memory r)
+    {
         assembly {
             let bl := 0x40
             let ml := 0x40
 
-            let freemem := mload(0x40) // Free memory pointer is always stored at 0x40
+            let freemem := mload(0x40) // Free memory pointer is always stored
+                // at 0x40
 
             // arg[0] = base.length @ +0
             mstore(freemem, bl)
@@ -366,11 +418,19 @@ library BLS12381 {
             // 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
             // we add the 0 prefix so that the result will be exactly 64 bytes
             // saves 300 gas per call instead of sending it along every time
-            // places the first 32 bytes and the last 32 bytes of the field modulus
-            mstore(add(freemem, 0xc0), 0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7)
-            mstore(add(freemem, 0xe0), 0x64774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab)
+            // places the first 32 bytes and the last 32 bytes of the field
+            // modulus
+            mstore(
+                add(freemem, 0xc0),
+                0x000000000000000000000000000000001a0111ea397fe69a4b1ba7b6434bacd7
+            )
+            mstore(
+                add(freemem, 0xe0),
+                0x64774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+            )
 
-            // Invoke contract 0x5, put return value right after mod.length, @ 0x60
+            // Invoke contract 0x5, put return value right after mod.length, @
+            // 0x60
             let success :=
                 staticcall(
                     sub(gas(), 1350), // gas
@@ -392,10 +452,18 @@ library BLS12381 {
     /**
      * @notice Returns true if `a` is lexicographically greater than `b`
      * @dev It makes the comparison bit-wise.
-     * This functions also assumes that the passed values are 48-byte long BLS pub keys that have
+     * This functions also assumes that the passed values are 48-byte long BLS
+     * pub keys that have
      * 16 functional bytes in the first word, and 32 bytes in the second.
      */
-    function _greaterThan(uint256[2] memory a, uint256[2] memory b) internal pure returns (bool) {
+    function _greaterThan(
+        uint256[2] memory a,
+        uint256[2] memory b
+    )
+        internal
+        pure
+        returns (bool)
+    {
         uint256 wordA;
         uint256 wordB;
         uint256 mask;
@@ -411,7 +479,8 @@ library BLS12381 {
             mask = 1 << 127; // Only check for lower 16 bytes in the first word
         }
 
-        // We may safely set the control value to be less than 256 since it is guaranteed that the
+        // We may safely set the control value to be less than 256 since it is
+        // guaranteed that the
         // the loop returns if the first words are different.
         for (uint256 i; i < 256; ++i) {
             uint256 x = wordA & mask;
@@ -426,7 +495,11 @@ library BLS12381 {
         return false;
     }
 
-    function _resolveG2Point(uint256[8] memory flattened) internal pure returns (G2Point memory) {
+    function _resolveG2Point(uint256[8] memory flattened)
+        internal
+        pure
+        returns (G2Point memory)
+    {
         return G2Point({
             x: [flattened[0], flattened[1]],
             x_I: [flattened[2], flattened[3]],

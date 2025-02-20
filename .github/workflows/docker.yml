@@ -35,5 +35,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/taiyi:latest
-            ${{ secrets.DOCKER_USERNAME }}/taiyi:${{ env.TAG }}
+            ${{ vars.DOCKER_REPO_NAME }}/taiyi:latest
+            ${{ vars.DOCKER_REPO_NAME }}/taiyi:${{ env.TAG }}

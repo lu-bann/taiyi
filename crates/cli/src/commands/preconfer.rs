@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use taiyi_preconfer::{metrics::preconfer::init_metrics, spawn_service};
+use taiyi_preconfer::{metrics::models::init_metrics, spawn_service};
 #[derive(Debug, Parser)]
 pub struct PreconferCommand {
     /// jsonrpc service address to listen on.
