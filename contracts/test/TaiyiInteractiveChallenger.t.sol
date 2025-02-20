@@ -5,7 +5,10 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 import { TaiyiInteractiveChallenger } from "../src/TaiyiInteractiveChallenger.sol";
+
 import { TaiyiParameterManager } from "../src/TaiyiParameterManager.sol";
+import { ITaiyiInteractiveChallenger } from
+    "../src/interfaces/ITaiyiInteractiveChallenger.sol";
 
 import { PreconfRequestAType } from "../src/types/PreconfRequestATypes.sol";
 import {
@@ -110,16 +113,20 @@ contract TaiyiInteractiveChallengerTest is Test {
     //  Test: Get all challenges
     // =========================================
     function testGetChallenges() public {
-        vm.expectRevert("Not implemented");
-        taiyiInteractiveChallenger.getChallenges();
+        // TODO[Martin]: Add challenges to the contract
+        ITaiyiInteractiveChallenger.Challenge[] memory challenges =
+            taiyiInteractiveChallenger.getChallenges();
+        assertEq(challenges.length, 0);
     }
 
     // =========================================
     //  Test: Get open challenges
     // =========================================
     function testGetOpenChallenges() public {
-        vm.expectRevert("Not implemented");
-        taiyiInteractiveChallenger.getOpenChallenges();
+        // TODO[Martin]: Add challenges to the contract
+        ITaiyiInteractiveChallenger.Challenge[] memory challenges =
+            taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(challenges.length, 0);
     }
 
     // =========================================

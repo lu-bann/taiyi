@@ -30,8 +30,9 @@ interface ITaiyiInteractiveChallenger {
 
     error BlockIsTooOld();
     error InvalidBlockNumber();
+    error SignerDoesNotMatchPreconfRequest();
 
-    error ChallengeAlreadyDefended();
+    error ChallengeAlreadyResolved();
     error ChallengeAlreadyExists();
     error ChallengeDoesNotExist();
     error ChallengeExpired();

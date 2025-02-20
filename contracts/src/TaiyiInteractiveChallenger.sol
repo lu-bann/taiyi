@@ -6,22 +6,38 @@ import { ITaiyiParameterManager } from "./interfaces/ITaiyiParameterManager.sol"
 import { PreconfRequestAType } from "./types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "./types/PreconfRequestBTypes.sol";
 import { Ownable } from "@openzeppelin-contracts/contracts/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+
+import { EnumerableSet } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
 contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+
     /// @notice The address of the SP1 verifier contract.
     /// @dev This can either be a specific SP1Verifier for a specific version, or the
     ///      SP1VerifierGateway which can be used to verify proofs for any version of SP1.
     ///      For the list of supported verifiers on each chain, see:
     ///      https://github.com/succinctlabs/sp1-contracts/tree/main/contracts/deployments
+
     address public verifierGateway;
 
     /// @notice The verification key for the interactive fraud proof program.
     /// @dev When the verification key changes a new version of the contract must be deployed.
     bytes32 public interactiveFraudProofVKey;
 
-    /// @notice TaiyiParameterManager contract
+    /// @notice TaiyiParameterManager contract.
     ITaiyiParameterManager public parameterManager;
+
+    /// @notice Set of challenge IDs.
+    EnumerableSet.Bytes32Set internal challengeIDs;
+
+    /// @notice ID to challenge mapping.
+    mapping(bytes32 => Challenge) internal challenges;
+
+    /// @notice Count of open challenges.
+    uint256 public openChallengeCount;
 
     constructor(
         address _initialOwner,
@@ -34,6 +50,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         verifierGateway = _verifierGateway;
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
         parameterManager = ITaiyiParameterManager(_parameterManagerAddress);
+        openChallengeCount = 0;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -51,17 +68,34 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function getChallenges() external view returns (Challenge[] memory) {
-        revert("Not implemented");
+        uint256 challengeCount = challengeIDs.length();
+        Challenge[] memory challangesArray = new Challenge[](challengeCount);
+
+        for (uint256 i = 0; i < challengeCount; i++) {
+            challangesArray[i] = challenges[challengeIDs.at(i)];
+        }
+
+        return challangesArray;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function getOpenChallenges() external view returns (Challenge[] memory) {
-        revert("Not implemented");
+        Challenge[] memory openChallenges = new Challenge[](openChallengeCount);
+
+        for (uint256 i = 0; i < openChallengeCount; i++) {
+            openChallenges[i] = challenges[challengeIDs.at(i)];
+        }
+
+        return openChallenges;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function getChallenge(bytes32 id) external view returns (Challenge memory) {
-        revert("Not implemented");
+        if (!challengeIDs.contains(id)) {
+            revert ChallengeDoesNotExist();
+        }
+
+        return challenges[id];
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -73,7 +107,33 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         payable
     {
         // ABI Encode preconfRequestAType needed for the challenge struct
-        revert("Not implemented");
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        address signer = ECDSA.recover(challengeId, signature);
+
+        if (signer != preconfRequestAType.signer) {
+            revert SignerDoesNotMatchPreconfRequest();
+        }
+
+        if (challengeIDs.contains(challengeId)) {
+            revert ChallengeAlreadyExists();
+        }
+
+        challengeIDs.add(challengeId);
+        challenges[challengeId] = Challenge(
+            challengeId,
+            block.timestamp,
+            msg.sender,
+            signer,
+            address(0), // TODO[Martin]: Set correct address (extract from preconf request),
+            ChallengeStatus.Open,
+            0,
+            encodedPreconfRequestAType,
+            signature
+        );
+        openChallengeCount++;
+
+        emit ChallengeOpened(challengeId, msg.sender, signer);
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -90,12 +150,25 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function resolveExpiredChallenge(bytes32 id) external {
-        // Checks:
-        // 1. The challenge must exist
-        // 2. The challenge must be open (not failed or succeeded)
-        // 3. The challenge must be expired
+        if (!challengeIDs.contains(id)) {
+            revert ChallengeDoesNotExist();
+        }
 
-        revert("Not implemented");
+        Challenge memory challenge = challenges[id];
+
+        if (challenge.status != ChallengeStatus.Open) {
+            revert ChallengeAlreadyResolved();
+        }
+
+        if (
+            block.timestamp
+                <= challenge.createdAt + parameterManager.challengeMaxDuration()
+        ) {
+            revert ChallengeNotExpired();
+        }
+
+        challenges[id].status = ChallengeStatus.Succeded;
+        emit ChallengeSucceded(id);
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -108,18 +181,28 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     {
         address prover = msg.sender;
 
-        // Checks:
-        // 1. The challenge must exist
-        // 2. The challenge must be open (not failed or succeeded)
-        // 3. The challenge must not be expired
+        if (!challengeIDs.contains(id)) {
+            revert ChallengeDoesNotExist();
+        }
+
+        Challenge memory challenge = challenges[id];
+
+        if (challenge.status != ChallengeStatus.Open) {
+            revert ChallengeAlreadyResolved();
+        }
+
+        if (
+            block.timestamp
+                > challenge.createdAt + parameterManager.challengeMaxDuration()
+        ) {
+            revert ChallengeExpired();
+        }
 
         // Verify the proof
-        ISP1Verifier(verifierGateway).verifyProof(
-            interactiveFraudProofVKey, proofValues, proofBytes
-        );
+        // ISP1Verifier(verifierGateway).verifyProof(
+        //     interactiveFraudProofVKey, proofValues, proofBytes
+        // );
 
-        revert("Not implemented");
-
-        emit ChallengeSucceded(id);
+        emit ChallengeFailed(id);
     }
 }
