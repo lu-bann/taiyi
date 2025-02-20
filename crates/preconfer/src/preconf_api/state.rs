@@ -203,6 +203,7 @@ where
                         let gas_limit = gas_used + 100_000;
                         let sponsor_tx =
                             sponsor_tx.with_gas_limit(gas_limit).build(&wallet).await?;
+                        nonce += 1;
 
                         let mut tx_bytes = Vec::new();
                         sponsor_tx.encode_2718(&mut tx_bytes);
