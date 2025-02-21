@@ -221,12 +221,10 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let sender = signer.address();
     let fees = provider.estimate_eip1559_fees(None).await?;
     let wallet = EthereumWallet::from(signer);
-    let nonce = provider.get_transaction_count(sender).await?;
-    info!("Transaction nonce: {}", nonce);
+    let _nonce = provider.get_transaction_count(sender).await?;
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        // TODO: use the correct nonce, dont' why the nonce above is 3.
         .with_nonce(1)
         .with_gas_limit(21_000)
         .with_to(sender)

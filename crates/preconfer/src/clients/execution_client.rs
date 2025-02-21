@@ -1,4 +1,3 @@
-use alloy_consensus::TxEnvelope;
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
@@ -64,10 +63,12 @@ pub struct AccountState {
 
 #[cfg(test)]
 mod test {
-    use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::U256;
+    use std::str::FromStr;
+
+    use alloy_network::TransactionBuilder;
+    use alloy_primitives::{Address, U256};
+    use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
-    use alloy_signer_local::PrivateKeySigner;
 
     use crate::clients::execution_client::ExecutionClient;
 
@@ -78,9 +79,6 @@ mod test {
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
         let client = ExecutionClient::new(rpc_url.parse().unwrap());
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
 
         let tx = TransactionRequest::default()
             .with_from(*sender)

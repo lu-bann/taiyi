@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_consensus::Transaction;
 use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
 use alloy_primitives::{Address, U256};
 use alloy_rpc_types::TransactionRequest;
@@ -318,7 +318,7 @@ pub struct PoolState {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{str::FromStr, time::Duration};
 
     use alloy_consensus::{SidecarBuilder, SimpleCoder, TxEnvelope};
     use alloy_eips::{
@@ -723,6 +723,35 @@ mod tests {
         };
         let validation_result = preconf_pool.validate(&preconf_request).await;
         assert!(validation_result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_estimate_gas() -> eyre::Result<()> {
+        let rpc_url = "https://rpc.bootnode-1.taiyi-devnet-0.preconfs.org";
+
+        let provider = ProviderBuilder::new().on_http(rpc_url.parse().unwrap());
+        let sender = Address::from_str("0x8943545177806ED17B9F23F0a21ee5948eCaa776").unwrap();
+
+        // Create a sidecar with some data.
+        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        let data = vec![1u8; BYTES_PER_BLOB];
+        builder.ingest(&data);
+        builder.ingest(&data);
+        let sidecar = builder.build()?;
+        assert_eq!(sidecar.blobs.len(), 3);
+
+        let transaction = TransactionRequest::default()
+            .with_from(sender)
+            .with_nonce(100)
+            .with_chain_id(7028081469)
+            .with_to(sender)
+            .with_gas_limit(10000)
+            .with_max_fee_per_gas(10)
+            .with_max_priority_fee_per_gas(1)
+            .with_blob_sidecar(sidecar);
+        let gas_used = provider.estimate_gas(&transaction).await?;
+        assert_eq!(gas_used, 21000);
         Ok(())
     }
 }

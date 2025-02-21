@@ -97,9 +97,9 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
+    assert_eq!(status, 200);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.data.request_id, request_id);
 
@@ -164,7 +164,6 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
-    info!("reserve_blockspace response: {:?}", body);
     let response = serde_json::from_slice::<ErrorResponse>(&body)?;
     assert_eq!(status, 400);
     assert!(response.message.contains("InsufficientEscrowBalance"));
@@ -200,7 +199,6 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
-    info!("reserve_blockspace response: {:?}", body);
     let request_id = serde_json::from_slice::<Uuid>(&body)?;
     assert_eq!(status, 200);
 
@@ -214,7 +212,6 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
-    info!("submit transaction response: {:?}", body);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     // CUrrently revert tx is not rejected.
     assert_eq!(status, 200);

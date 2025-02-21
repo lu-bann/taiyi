@@ -6,3 +6,5 @@
 /node_modules
 /package-lock.json
 /package.json
+/el_cl_genesis_data
+/1-lighthouse-reth-0-63-0

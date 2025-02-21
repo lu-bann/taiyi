@@ -117,6 +117,11 @@ where
                 let gas_prices = get_gas_prices().await;
                 let max_priority_fee_per_gas = gas_prices.0 as u128;
                 let max_fee_per_gas = gas_prices.1 as u128;
+                info!(
+                    max_fee_per_gas = max_fee_per_gas,
+                    max_priority_fee_per_gas = max_priority_fee_per_gas,
+                    "Gas prices"
+                );
 
                 // Accounts to sponsor gas for
                 let mut accounts = Vec::new();
@@ -175,6 +180,7 @@ where
                                     .into_transaction_request()
                                     .with_chain_id(chain_id)
                                     .with_nonce(nonce)
+                                    .with_gas_limit(1_000_000)
                                     .with_max_fee_per_gas(max_fee_per_gas)
                                     .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
                                 let gas_used = self
@@ -199,6 +205,7 @@ where
                         let sponsor_tx = taiyi_core
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
+                            .with_gas_limit(1_000_000)
                             .with_nonce(nonce)
                             .with_chain_id(chain_id)
                             .with_max_fee_per_gas(max_fee_per_gas)
@@ -263,6 +270,7 @@ where
                         let exhaust_tx = taiyi_core
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
+                            .with_gas_limit(10_000_000)
                             .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_max_fee_per_gas(max_fee_per_gas)

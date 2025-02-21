@@ -22,5 +22,4 @@ pub use preconf_response::{PreconfResponse, PreconfResponseData};
 pub use preconf_tx::PreconfTx;
 pub use preconf_tx_request::PreconfTxRequest;
 pub use proposer_info::ProposerInfo;
-use serde::{Deserialize, Serialize};
 pub use slot_info::SlotInfo;
