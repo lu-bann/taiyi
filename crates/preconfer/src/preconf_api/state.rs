@@ -180,17 +180,14 @@ where
                                     .into_transaction_request()
                                     .with_chain_id(chain_id)
                                     .with_nonce(nonce)
-                                    .with_gas_limit(1_000_000)
                                     .with_max_fee_per_gas(max_fee_per_gas)
                                     .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
                                 let gas_used = self
                                     .preconf_pool
                                     .calculate_gas_used(get_tip_tx.clone())
                                     .await?;
-                                info!("Gas used for getTip tx: {gas_used}");
-                                let gas_limit = gas_used + 100_000;
                                 let get_tip_tx =
-                                    get_tip_tx.with_gas_limit(gas_limit).build(&wallet).await?;
+                                    get_tip_tx.with_gas_limit(gas_used).build(&wallet).await?;
                                 nonce += 1;
                                 let mut tx_encoded = Vec::new();
                                 get_tip_tx.encode_2718(&mut tx_encoded);
@@ -205,17 +202,13 @@ where
                         let sponsor_tx = taiyi_core
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
-                            .with_gas_limit(1_000_000)
                             .with_nonce(nonce)
                             .with_chain_id(chain_id)
                             .with_max_fee_per_gas(max_fee_per_gas)
                             .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
                         let gas_used =
                             self.preconf_pool.calculate_gas_used(sponsor_tx.clone()).await?;
-                        info!("Gas used for sponsor tx: {gas_used}");
-                        let gas_limit = gas_used + 100_000;
-                        let sponsor_tx =
-                            sponsor_tx.with_gas_limit(gas_limit).build(&wallet).await?;
+                        let sponsor_tx = sponsor_tx.with_gas_limit(gas_used).build(&wallet).await?;
                         nonce += 1;
 
                         let mut tx_bytes = Vec::new();
@@ -270,17 +263,12 @@ where
                         let exhaust_tx = taiyi_core
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
-                            .with_gas_limit(10_000_000)
                             .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_max_fee_per_gas(max_fee_per_gas)
                             .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
-                        let gas_used =
-                            self.preconf_pool.calculate_gas_used(exhaust_tx.clone()).await?;
-                        info!("Gas used for exhaust tx: {gas_used}");
-                        let gas_limit = gas_used + 100_000;
-                        let exhaust_tx =
-                            exhaust_tx.with_gas_limit(gas_limit).build(&wallet).await?;
+                        let gas_used = self.provider.estimate_gas(&exhaust_tx.clone()).await?;
+                        let exhaust_tx = exhaust_tx.with_gas_limit(gas_used).build(&wallet).await?;
                         // increment nonce
                         nonce += 1;
 

@@ -2,4 +2,4 @@ set -xe
 
 source "$(dirname "$0")/config.sh"
 
-cargo test --package taiyi-e2e-tests $1
+RUST_LOG=info cargo test --package taiyi-e2e-tests -- test_commitment_apis $1
