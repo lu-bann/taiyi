@@ -106,19 +106,37 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         external
         payable
     {
-        // ABI Encode preconfRequestAType needed for the challenge struct
+        // Check challenge bond
+        if (msg.value != parameterManager.challengeBond()) {
+            revert ChallengeBondInvalid();
+        }
+
+        // We abi encode the preconfRequestAType to store it in the challenge struct
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+
+        // We use the hash of the encoded preconfRequestAType as the challenge ID
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+
+        // Recover the signer from the challenge ID and signature
         address signer = ECDSA.recover(challengeId, signature);
 
+        // Verify that the signer matches the signer in the preconfRequestAType
         if (signer != preconfRequestAType.signer) {
             revert SignerDoesNotMatchPreconfRequest();
         }
 
+        // Check if the challenge ID already exists
         if (challengeIDs.contains(challengeId)) {
             revert ChallengeAlreadyExists();
         }
 
+        // TODO[Martin]: Decode txs and tipTx from preconfRequestAType
+
+        // TODO[Martin]: Loop over txs and do necessary checks
+
+        // TODO[Martin]: Target slot and sequence number checks ?
+
+        // Add challenge
         challengeIDs.add(challengeId);
         challenges[challengeId] = Challenge(
             challengeId,
@@ -133,18 +151,24 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         );
         openChallengeCount++;
 
+        // Emit challenge opened event
         emit ChallengeOpened(challengeId, msg.sender, signer);
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function createChallengeBType(
-        PreconfRequestBType calldata _preconfRequestBType,
+        PreconfRequestBType calldata preconfRequestBType,
         bytes calldata signature
     )
         external
         payable
     {
-        // ABI Encode preconfRequestBType needed for the challenge struct
+        // Check challenge bond
+        if (msg.value != parameterManager.challengeBond()) {
+            revert ChallengeBondInvalid();
+        }
+
+        // TODO[Martin]: Implement
         revert("Not implemented");
     }
 

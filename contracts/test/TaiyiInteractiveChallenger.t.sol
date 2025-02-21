@@ -29,15 +29,22 @@ contract TaiyiInteractiveChallengerTest is Test {
     uint256 internal signerPrivatekey;
 
     TaiyiInteractiveChallenger taiyiInteractiveChallenger;
+    TaiyiParameterManager parameterManager;
 
     function setUp() public {
         verifierAddress = address(new SP1Verifier());
 
+        // Create test accounts
         (user, userPrivatekey) = makeAddrAndKey("user");
         (owner, ownerPrivatekey) = makeAddrAndKey("owner");
         (signer, signerPrivatekey) = makeAddrAndKey("signer");
 
-        TaiyiParameterManager parameterManager = new TaiyiParameterManager();
+        // Fund test accounts
+        vm.deal(user, 100 ether);
+        vm.deal(owner, 100 ether);
+        vm.deal(signer, 100 ether);
+
+        parameterManager = new TaiyiParameterManager();
         parameterManager.initialize(owner, 1, 64, 256);
 
         taiyiInteractiveChallenger = new TaiyiInteractiveChallenger(
@@ -48,7 +55,41 @@ contract TaiyiInteractiveChallengerTest is Test {
     // =========================================
     //  Test: Create challenge AType
     // =========================================
-    function testCreateChallengeATypeSuccess() public {
+    function testCreateChallengeAType() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Expect event
+        vm.expectEmit(true, true, true, false);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, signer);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Fails to create challenge AType with invalid bond
+    // =========================================
+    function testCreateChallengeATypeFailsWithInvalidBond() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
         bytes memory signature = new bytes(0);
         bytes[] memory txs = new bytes[](1);
         bytes memory tipTx = hex"01";
@@ -56,15 +97,85 @@ contract TaiyiInteractiveChallengerTest is Test {
         PreconfRequestAType memory preconfRequestAType =
             PreconfRequestAType(txs, tipTx, 0, 0, signer);
 
-        vm.expectRevert("Not implemented");
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
         taiyiInteractiveChallenger.createChallengeAType(preconfRequestAType, signature);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Fails to create challenge AType with signer does not match
+    // =========================================
+    function testCreateChallengeATypeFailsSignerDoesNotMatch() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+
+        // We sign the challenge id with the user private key
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectPartialRevert(
+            ITaiyiInteractiveChallenger.SignerDoesNotMatchPreconfRequest.selector
+        );
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Fails to create challenge AType with challenge already exists
+    // =========================================
+    function testCreateChallengeATypeFailsChallengeAlreadyExists() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Create challenge
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.expectRevert(ITaiyiInteractiveChallenger.ChallengeAlreadyExists.selector);
+
+        // Try to create the same challenge again
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.stopPrank();
     }
 
     // =========================================
     //  Test: Create challenge BType
     // =========================================
-    function testCreateChallengeBTypeSuccess() public {
+    function testCreateChallengeBType() public {
         bytes memory signature = new bytes(0);
+        uint256 bond = parameterManager.challengeBond();
 
         BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
@@ -85,6 +196,36 @@ contract TaiyiInteractiveChallengerTest is Test {
         });
 
         vm.expectRevert("Not implemented");
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+    }
+
+    // =========================================
+    //  Test: Fails to create challenge BType with invalid bond
+    // =========================================
+    function testCreateChallengeBTypeFailsWithInvalidBond() public {
+        bytes memory signature = new bytes(0);
+
+        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
+            gasLimit: 100_000,
+            sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
+            recipient: 0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766,
+            deposit: 1 ether,
+            tip: 1 ether,
+            targetSlot: 1,
+            blobCount: 1
+        });
+
+        PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
+            blockspaceAllocation: blockspaceAllocation,
+            blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+            gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+            rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+            gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+        });
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
         taiyiInteractiveChallenger.createChallengeBType(preconfRequestBType, signature);
     }
 
@@ -92,9 +233,96 @@ contract TaiyiInteractiveChallengerTest is Test {
     // Test: Resolve expired challenge
     // =========================================
     function testResolveExpiredChallenge() public {
-        bytes32 challengeId = keccak256(abi.encodePacked("challengeId"));
-        vm.expectRevert("Not implemented");
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        // Skip duration so the challenge is expired
+        skip(parameterManager.challengeMaxDuration() + 1);
+
         taiyiInteractiveChallenger.resolveExpiredChallenge(challengeId);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    // Test: Resolve expired challenge fails with challenge not expired
+    // =========================================
+    function testResolveExpiredChallengeFailsWithNotExpired() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeNotExpired.selector);
+
+        taiyiInteractiveChallenger.resolveExpiredChallenge(challengeId);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    // Test: Resolve expired challenge fails with challenge does not exist
+    // =========================================
+    function testResolveExpiredChallengeFailsWithDoesNotExist() public {
+        // Send transaction as user
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeDoesNotExist.selector);
+
+        taiyiInteractiveChallenger.resolveExpiredChallenge(
+            keccak256("randomInvalidChallengeId")
+        );
+
+        vm.stopPrank();
     }
 
     // =========================================
@@ -133,8 +361,47 @@ contract TaiyiInteractiveChallengerTest is Test {
     //  Test: Get challenge by id
     // =========================================
     function testGetChallengeById() public {
+        vm.startPrank(user);
+
+        // TODO[Martin]: Use real tx data
+        bytes[] memory txs = new bytes[](1);
+        bytes memory tipTx = hex"01";
+        uint256 bond = parameterManager.challengeBond();
+
+        // Create and sign preconf request
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        ITaiyiInteractiveChallenger.Challenge memory challenge =
+            taiyiInteractiveChallenger.getChallenge(challengeId);
+
+        assertEq(challenge.id, challengeId);
+        // TODO[Martin]: Check challenge.createdAt
+        assertEq(challenge.challenger, user);
+        // TODO[Martin]: Check challenge.commitmentReceiver
+        assertEq(challenge.commitmentSigner, signer);
+        assertTrue(challenge.status == ITaiyiInteractiveChallenger.ChallengeStatus.Open);
+        assertEq(challenge.preconfType, 0);
+        assertEq(challenge.commitmentData, encodedPreconfRequestAType);
+        assertEq(challenge.signature, signature);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Get challenge by id fails with challenge does not exist
+    // =========================================
+    function testGetChallengeByIdFailsWithDoesNotExist() public {
         bytes32 challengeId = keccak256(abi.encodePacked("challengeId"));
-        vm.expectRevert("Not implemented");
+        vm.expectRevert(ITaiyiInteractiveChallenger.ChallengeDoesNotExist.selector);
         taiyiInteractiveChallenger.getChallenge(challengeId);
     }
 

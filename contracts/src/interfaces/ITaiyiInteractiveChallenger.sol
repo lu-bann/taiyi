@@ -31,6 +31,7 @@ interface ITaiyiInteractiveChallenger {
     error BlockIsTooOld();
     error InvalidBlockNumber();
     error SignerDoesNotMatchPreconfRequest();
+    error ChallengeBondInvalid();
 
     error ChallengeAlreadyResolved();
     error ChallengeAlreadyExists();
