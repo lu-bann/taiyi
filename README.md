@@ -11,6 +11,7 @@
 - Compiled [commit-boost](https://github.com/Commit-Boost/commit-boost-client) for `signer_module` integration
 - Consensus layer (CL) client
 - Execution layer (EL) client
+- Installed [SP1 Toolchain](https://docs.succinct.xyz/docs/getting-started/install)
 
 ### Running Commit-Boost
 
