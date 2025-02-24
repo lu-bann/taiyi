@@ -75,7 +75,7 @@
         "send_your_first_preconfirmation",
         "using_preconf_aggregator",
         {
-            "group": "Taiyi CLI guide",
+            "group": "Taiyi CLI User Guide",
             "icon": "terminal",
             "pages": [
               "taiyi-cli/register",
@@ -144,10 +144,11 @@
               "icon": "link",
               "pages": [
                 {
-                  "group": "AVS Contracts",
+                  "group": "Restaking Service Contracts",
                   "icon": "circle-nodes",
                   "pages": [
                     "learn/architecture/on_chain_components/overview",
+                    "learn/architecture/on_chain_components/network_middleware_contracts",
                     "learn/architecture/on_chain_components/avs_middleware_contracts",
                     "learn/architecture/on_chain_components/taiyi_proposer_registry"
                   ]

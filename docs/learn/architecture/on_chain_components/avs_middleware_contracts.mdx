@@ -1,5 +1,5 @@
 ---
-title: AVS Middleware Contracts
+title: AVS Middleware 
 icon: 'people-roof'
 ---
 
@@ -9,33 +9,17 @@ icon: 'people-roof'
 classDiagram
     class EigenLayerMiddleware {
         <<abstract>>
-
     }
-
     class TaiyiProposerRegistry {
-
     }
-
     class GatewayAVS {
-
     }
-
     class ValidatorAVS {
-
     }
-
-
-
     EigenLayerMiddleware <|-- GatewayAVS : inherits
     EigenLayerMiddleware <|-- ValidatorAVS : inherits
-    
     TaiyiProposerRegistry --> GatewayAVS : manages
     TaiyiProposerRegistry --> ValidatorAVS : manages
-    
-
-    
-
-    
     GatewayAVS --> ValidatorAVS : coordinates rewards
 ```
 
@@ -77,7 +61,7 @@ sequenceDiagram
     VAVS->>TPR: 3. Register as Validator type
     Note over TPR: Records in registry
     
-    Note over Operator: ✓ Can now receive validator<br/>portion of rewards
+    Note over Operator: ✓ Can now receive validator<br/>portion of rewards passively
 ```
 
 #### 2. Gateway AVS Only (For Preconfirmation Specialists)
@@ -93,8 +77,8 @@ sequenceDiagram
     Operator->>DM: 1. registerAsOperator()
     Note over DM: Registers in EigenLayer
     
-    Operator->>GAVS: 2. registerOperatorToAVSWithPubKey()
-    Note over GAVS: Provides BLS key and signature
+    Operator->>GAVS: 2. registerOperatorToAVS()
+    Note over GAVS: Provides operator signature
     
     GAVS->>TPR: 3. Register as Gateway type
     Note over TPR: Records in registry
