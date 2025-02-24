@@ -88,24 +88,18 @@ Create `signer-config.toml`, you can see a full example in the [Commit-Boost Cli
 ```toml
 chain = "Holesky"
 
-# Configuration for the Signer Module, only required if any `commit` module is present, or if `pbs.with_signer = true`
-# Currently two types of Signer modules are supported (only one can be used at a time):
-#   - Remote: a remote Web3Signer instance
-#   - Local: a local Signer module
-# More details on the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/#local-signer)
-# OPTIONAL
-# Remote:
-# [signer.remote]
-# URL of the Web3Signer instance
-# url = "https://remote.signer.url"
-# Local:
-[signer.local]
-# Docker image to use for the Signer module.
-# OPTIONAL, DEFAULT: ghcr.io/commit-boost/signer:latest
-docker_image = "ghcr.io/commit-boost/signer:latest"
-# Configuration for how the Signer module should load validator keys. Currently two types of loaders are supported:
-#   - File: load keys from a plain text file (unsafe, use only for testing purposes)
-#   - ValidatorsDir: load keys from a `keys` and `secrets` file/folder (ERC-2335 style keystores). More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/)
+# the pbs config below are not usefule for commit boost signer, but it is required to make sure config is parsed correctly
+[pbs]
+port = 18550
+
+# the relays config below are not usefule for commit boost signer, but it is required to make sure config is parsed correctly
+[[relays]]
+id = "mev_relay_0"
+url = "http://b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad0@localhost:18550"
+
+
+# The signer config below are the essential config for commit boost signer
+# If you want to see other options for config please see the [Commit-Boost Client](https://commit-boost.github.io/commit-boost-client/get_started/configuration/)
 [signer.local.loader]
 # File: path to the keys file
 # key_path = "./tests/data/keys.example.json"
@@ -134,19 +128,6 @@ secrets_path = "/root/1-lighthouse-reth-0-63-0/secrets"
 # keys_path = "./tests/data/proxy/keys"
 # ERC2335: path to the secrets directory
 # secrets_path = "./tests/data/proxy/secrets"
-
-# Configuration for how logs should be collected and stored
-# OPTIONAL, info to stdout if missing
-[logs]
-# Path to the log directory
-# OPTIONAL, DEFAULT: /var/logs/commit-boost
-log_dir_path = "./logs"
-# Log level. Supported values: trace, debug, info, warn, error
-# OPTIONAL, DEFAULT: debug to file, info to stdout
-log_level = "debug"
-# Maximum number of log files to keep
-# OPTIONAL
-max_log_files = 30
 
 ```
 
