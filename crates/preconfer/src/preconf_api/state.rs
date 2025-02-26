@@ -334,6 +334,10 @@ where
             return Err(RpcError::ExceedDeadline(request.target_slot));
         }
 
+        if request.gas_limit == 0 {
+            return Err(RpcError::UnknownError("Gas limit cannot be zero".to_string()));
+        }
+
         // Construct a preconf request
         let preconf_request = PreconfRequest {
             allocation: request,
