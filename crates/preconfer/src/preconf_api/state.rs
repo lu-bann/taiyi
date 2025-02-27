@@ -96,11 +96,13 @@ where
                             (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
                         }
                     };
+                let blob_fee = header.next_block_blob_fee().unwrap();
+                let blob_excess_fee = header.next_block_excess_blob_gas().unwrap();
 
                 // wait unit the deadline to submit constraints
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
-                info!("Current base fee: {base_fee}");
+                info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 
                 let signer = self.signer_client.ecdsa_signer();
                 let wallet = EthereumWallet::from(signer.clone());

@@ -26,7 +26,7 @@ use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, PreconfResponseData, SlotInfo,
     SubmitTransactionRequest,
 };
-use tracing::info;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -138,24 +138,24 @@ async fn main() -> eyre::Result<()> {
                     chain_id,
                 )
                 .await?;
-            info!("Transaction submitted: {:?}", data);
+            debug!("submit transaction response: {:?}", data);
         }
 
-        if event.epoch_transition {
-            info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
-            let mut slots = http_client.slots().await?;
-            let head_slot = beacon_client.get_sync_status().await?.head_slot;
-            info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
-            slots.retain(|slot| slot.slot > head_slot);
-            info!("Available slots: {:?}", slots.len());
+        // if event.epoch_transition {
+        //     info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
+        //     let mut slots = http_client.slots().await?;
+        //     let head_slot = beacon_client.get_sync_status().await?.head_slot;
+        //     info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
+        //     slots.retain(|slot| slot.slot > head_slot);
+        //     info!("Available slots: {:?}", slots.len());
 
-            for slot in slots {
-                info!("Reserving blockspace for slot: {:?}", slot.slot);
-                let request_id = http_client.reserve_blockspace(slot.slot).await?;
-                info!("Request ID: {:?}", request_id);
-                request_store.insert(slot.slot, request_id);
-            }
-        }
+        //     for slot in slots {
+        //         info!("Reserving blockspace for slot: {:?}", slot.slot);
+        //         let request_id = http_client.reserve_blockspace(slot.slot).await?;
+        //         info!("Request ID: {:?}", request_id);
+        //         request_store.insert(slot.slot, request_id);
+        //     }
+        // }
     }
 
     Ok(())
@@ -188,13 +188,12 @@ impl HttpClient {
         let response = self.http.post(target).json(&slot).send().await?;
         let bytes = response.bytes().await?;
         let preconf_fee: PreconfFeeResponse = serde_json::from_slice(&bytes)?;
-        info!("Preconf Fee: {:?}", preconf_fee);
 
         // let gas_limit = 21_000;
         // let blob_count = 1;
 
         let gas_limit = 1_000_000;
-        let blob_count = 3;
+        let blob_count = 2;
         let fee = preconf_fee.gas_fee * (gas_limit as u128)
             + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
         let fee = U256::from(fee / 2);
@@ -245,6 +244,9 @@ impl HttpClient {
             .build(&self.wallet)
             .await?;
 
+        let tx_hash = eth_transfer_tx.tx_hash();
+        info!("Transaction Hash: {:?}", tx_hash);
+
         let request = SubmitTransactionRequest { request_id, transaction: eth_transfer_tx };
         let signature =
             hex::encode(self.signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
@@ -270,14 +272,13 @@ impl HttpClient {
     ) -> eyre::Result<PreconfResponseData> {
         let path = format!("commitments/v0/submit_transaction");
         let target = self.endpoint.join(&path)?;
-
         // Create a sidecar with some data.
         let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
-        let data = vec![1u8; BYTES_PER_BLOB];
-        builder.ingest(&data);
-        builder.ingest(&data);
+        // let data = vec![1u8; BYTES_PER_BLOB];
+        // builder.ingest(&data);
+        // builder.ingest(&data);
         let sidecar = builder.build()?;
-        assert_eq!(sidecar.blobs.len(), 3);
+        assert_eq!(sidecar.blobs.len(), 1);
 
         let blob_transaction = TransactionRequest::default()
             .with_from(self.signer.address())
@@ -292,6 +293,9 @@ impl HttpClient {
             .build(&self.wallet)
             .await?;
 
+        let tx_hash = blob_transaction.tx_hash();
+        info!("Transaction Hash: {:?}", tx_hash);
+
         let request = SubmitTransactionRequest { request_id, transaction: blob_transaction };
         let signature =
             hex::encode(self.signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
@@ -305,6 +309,7 @@ impl HttpClient {
             .send()
             .await?;
         let bytes = result.bytes().await?;
+        info!("Submit Blob Transaction Response: {:?}", bytes);
         let response: PreconfResponse = serde_json::from_slice(&bytes)?;
         Ok(response.data)
     }
