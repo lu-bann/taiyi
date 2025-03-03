@@ -19,18 +19,19 @@ use futures::StreamExt;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    BlockspaceAllocation, ConstraintsMessage, ContextExt, PreconfRequest, PreconfResponse,
-    PreconfStatus, PreconfStatusResponse, SignableBLS, SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation, ConstraintsMessage, PreconfRequest, PreconfResponse, SignableBLS,
+    SignedConstraints, SubmitTransactionRequest,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
     clients::{relay_client::RelayClient, signer_client::SignerClient},
+    context_ext::ContextExt,
     contract::{core::TaiyiCore, to_solidity_type},
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{PreconfPool, PreconfPoolBuilder},
 };
 
 #[derive(Clone)]
@@ -392,18 +393,6 @@ where
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
-    }
-
-    pub async fn check_preconf_request_status(
-        &self,
-        request_id: Uuid,
-    ) -> Result<PreconfStatusResponse, PoolError> {
-        let pool = self.preconf_pool.get_pool(request_id)?;
-        let status = match pool {
-            PoolType::Pending => PreconfStatus::Pending,
-            PoolType::Ready => PreconfStatus::Accepted,
-        };
-        Ok(PreconfStatusResponse { status })
     }
 
     pub async fn get_slots(&self) -> Result<Vec<SlotInfo>, RpcError> {

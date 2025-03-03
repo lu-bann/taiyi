@@ -16,10 +16,10 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::SlotInfo;
+use taiyi_preconfer::{context_ext::ContextExt, SlotInfo};
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
-    SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfRequest, PreconfResponse, SignedConstraints,
+    SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
