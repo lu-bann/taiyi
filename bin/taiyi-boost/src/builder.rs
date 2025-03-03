@@ -46,7 +46,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct SidecarBuilderState {
-    config: ExtraConfig,
+    _config: ExtraConfig,
     constraints: ConstraintsCache,
     local_block_builder: LocalBlockBuilder,
     local_payload: Arc<Mutex<Option<SignedPayloadResponse>>>,
@@ -70,7 +70,7 @@ impl SidecarBuilderState {
         )
         .await;
         Self {
-            config: extra.clone(),
+            _config: extra.clone(),
             constraints: ConstraintsCache::new(),
             local_block_builder,
             local_payload: Arc::new(Mutex::new(None)),
