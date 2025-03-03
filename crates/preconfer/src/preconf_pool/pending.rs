@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{Address, U256};
-use taiyi_primitives::PreconfRequest;
+use taiyi_primitives::PreconfRequestTypeB;
 use uuid::Uuid;
 
 /// Stores all preconf request without preconf transactions
 #[derive(Debug, Clone)]
 pub struct Pending {
-    by_id: HashMap<Uuid, PreconfRequest>,
+    by_id: HashMap<Uuid, PreconfRequestTypeB>,
     by_account: HashMap<Address, Vec<Uuid>>,
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
 }
@@ -17,7 +17,7 @@ impl Pending {
         Self { by_id: HashMap::new(), by_account: HashMap::new(), reqs_by_slot: HashMap::new() }
     }
 
-    pub fn get(&self, key: Uuid) -> Option<PreconfRequest> {
+    pub fn get(&self, key: Uuid) -> Option<PreconfRequestTypeB> {
         self.by_id.get(&key).cloned()
     }
 
@@ -26,13 +26,13 @@ impl Pending {
         self.by_id.contains_key(&key)
     }
 
-    pub fn insert(&mut self, key: Uuid, value: PreconfRequest) {
+    pub fn insert(&mut self, key: Uuid, value: PreconfRequestTypeB) {
         self.by_id.insert(key, value.clone());
         self.by_account.entry(value.signer().expect("signer")).or_default().push(key);
         self.reqs_by_slot.entry(value.target_slot()).or_default().push(key);
     }
 
-    pub fn remove(&mut self, key: Uuid) -> Option<PreconfRequest> {
+    pub fn remove(&mut self, key: Uuid) -> Option<PreconfRequestTypeB> {
         if let Some(preconf) = self.by_id.get(&key) {
             if let Some(account) = preconf.signer() {
                 if let Some(ids) = self.by_account.get_mut(&account) {
@@ -59,7 +59,7 @@ impl Pending {
 
     /// Fetches all preconf requests for a given slot.
     /// This is used to fetch all preconf requests which hasn't received a preconf transaction yet.
-    pub fn fetch_preconf_requests_for_slot(&self, slot: u64) -> Option<Vec<PreconfRequest>> {
+    pub fn fetch_preconf_requests_for_slot(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
         self.reqs_by_slot
             .get(&slot)
             .map(|ids| ids.iter().filter_map(|id| self.by_id.get(id)).cloned().collect())
@@ -69,7 +69,7 @@ impl Pending {
 #[cfg(test)]
 mod tests {
     use alloy_primitives::{Address, PrimitiveSignature, U256};
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
     use uuid::Uuid;
 
     use super::Pending;
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn test_add_remove_request() {
         let mut parked = Pending::new();
-        let request = PreconfRequest {
+        let request = PreconfRequestTypeB {
             allocation: BlockspaceAllocation::default(),
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
@@ -98,13 +98,13 @@ mod tests {
         let mut parked = Pending::new();
         let account = Address::default();
 
-        let request1 = PreconfRequest {
+        let request1 = PreconfRequestTypeB {
             allocation: BlockspaceAllocation { deposit: U256::from(100), ..Default::default() },
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
             signer: Some(account),
         };
-        let request2 = PreconfRequest {
+        let request2 = PreconfRequestTypeB {
             allocation: BlockspaceAllocation { deposit: U256::from(200), ..Default::default() },
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,

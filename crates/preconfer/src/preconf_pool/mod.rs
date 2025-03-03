@@ -8,7 +8,7 @@ use pending::Pending;
 use ready::Ready;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use taiyi_primitives::PreconfRequest;
+use taiyi_primitives::PreconfRequestTypeB;
 use uuid::Uuid;
 
 use crate::{
@@ -60,7 +60,7 @@ impl PreconfPool {
 
     pub async fn reserve_blockspace(
         &self,
-        preconf_request: PreconfRequest,
+        preconf_request: PreconfRequestTypeB,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
         self.has_enough_balance(
@@ -100,7 +100,7 @@ impl PreconfPool {
 
     pub async fn submit_transaction(
         &self,
-        preconf_request: PreconfRequest,
+        preconf_request: PreconfRequestTypeB,
         request_id: Uuid,
     ) -> Result<(), PoolError> {
         if preconf_request.transaction.is_some() {
@@ -140,7 +140,7 @@ impl PreconfPool {
     // NOTE: only checks account balance and nonce
     async fn validate(
         &self,
-        preconf_request: &PreconfRequest,
+        preconf_request: &PreconfRequestTypeB,
     ) -> eyre::Result<(), ValidationError> {
         let signer = match preconf_request.signer {
             Some(signer) => signer,
@@ -206,32 +206,32 @@ impl PreconfPool {
     }
 
     /// Returns preconf requests in pending pool for a given slot.
-    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequest>> {
+    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
         self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
     }
 
     /// Returns a preconf request from the pending pool.
-    pub fn get_pending(&self, request_id: Uuid) -> Option<PreconfRequest> {
+    pub fn get_pending(&self, request_id: Uuid) -> Option<PreconfRequestTypeB> {
         self.pool_inner.read().pending.get(request_id)
     }
 
     /// Deletes a preconf request from the pending pool.
-    pub fn delete_pending(&self, request_id: Uuid) -> Option<PreconfRequest> {
+    pub fn delete_pending(&self, request_id: Uuid) -> Option<PreconfRequestTypeB> {
         self.pool_inner.write().pending.remove(request_id)
     }
 
     /// Inserts a preconf request into the pending pool.
-    fn _insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+    fn _insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
         self.pool_inner.write().pending.insert(request_id, preconf_request);
     }
 
     /// Inserts a preconf request into the ready pool.
-    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) {
+    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
         self.pool_inner.write().ready.insert(request_id, preconf_request);
     }
 
     /// Returns preconf requests in ready pool.
-    pub fn ready_requests(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
+    pub fn ready_requests(&self, slot: u64) -> Result<Vec<PreconfRequestTypeB>, PoolError> {
         self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
     }
 
@@ -333,7 +333,7 @@ mod tests {
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
     use tokio::time::sleep;
     use tracing::info;
     use uuid::Uuid;
@@ -353,7 +353,7 @@ mod tests {
         let request = BlockspaceAllocation::default();
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
-        let mut preconf = PreconfRequest {
+        let mut preconf = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: None,
@@ -417,7 +417,7 @@ mod tests {
         let request = BlockspaceAllocation::default();
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction),
@@ -480,7 +480,7 @@ mod tests {
         let request = BlockspaceAllocation { blob_count: 3, ..Default::default() };
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
@@ -543,7 +543,7 @@ mod tests {
         let request = BlockspaceAllocation { blob_count: 1, ..Default::default() };
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
@@ -594,7 +594,7 @@ mod tests {
 
         let request = BlockspaceAllocation::default();
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
@@ -644,7 +644,7 @@ mod tests {
         let request = BlockspaceAllocation::default();
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
@@ -716,7 +716,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
         let request = BlockspaceAllocation::default();
         let signature = signer.sign_hash(&request.digest()).await.unwrap();
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),

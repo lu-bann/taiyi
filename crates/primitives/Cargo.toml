@@ -7,9 +7,6 @@ edition = { workspace = true }
 alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
-alloy-rpc-types-beacon = { workspace = true }
-alloy-sol-types = { workspace = true }
-beacon-api-client = { workspace = true }
 derive_more = { workspace = true }
 ethereum-consensus = { workspace = true }
 serde = { workspace = true }

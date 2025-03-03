@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct PreconfRequest {
+pub struct PreconfRequestTypeB {
     /// blockspace allocated
     pub allocation: BlockspaceAllocation,
     /// Signature by the user over allocation
@@ -16,7 +16,7 @@ pub struct PreconfRequest {
     pub signer: Option<Address>,
 }
 
-impl PreconfRequest {
+impl PreconfRequestTypeB {
     /// Returns the transaction signer.
     pub fn signer(&self) -> Option<Address> {
         self.signer

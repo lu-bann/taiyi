@@ -19,7 +19,7 @@ use futures::StreamExt;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    BlockspaceAllocation, ConstraintsMessage, PreconfRequest, PreconfResponse, SignableBLS,
+    BlockspaceAllocation, ConstraintsMessage, PreconfRequestTypeB, PreconfResponse, SignableBLS,
     SignedConstraints, SubmitTransactionRequest,
 };
 use tracing::{debug, error, info};
@@ -330,7 +330,7 @@ where
         }
 
         // Construct a preconf request
-        let preconf_request = PreconfRequest {
+        let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig,
             transaction: None,

@@ -48,10 +48,10 @@ pub mod core {
 }
 
 use alloy_primitives::{Address, Bytes, PrimitiveSignature, U256};
-use taiyi_primitives::PreconfRequest;
+use taiyi_primitives::PreconfRequestTypeB;
 
 pub fn to_solidity_type(
-    request: PreconfRequest,
+    request: PreconfRequestTypeB,
     blockspace_allocation_sig_user: PrimitiveSignature,
     blockspace_allocation_sig_gateway: PrimitiveSignature,
     raw_tx: Bytes,
