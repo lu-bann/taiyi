@@ -13,10 +13,12 @@ interface IProposerRegistry {
         OptingOut
     }
 
-    /// @dev Different types of AVS for clearer operator organization
-    enum AVSType {
-        GATEWAY,
-        VALIDATOR
+    /// @dev Different types of restaking services and their roles
+    enum RestakingServiceType {
+        // EigenLayer services
+        EIGENLAYER_GATEWAY, // Gateway operator in EigenLayer
+        EIGENLAYER_VALIDATOR // Validator operator in EigenLayer
+
     }
 
     // Validator struct containing all necessary information
@@ -31,14 +33,14 @@ interface IProposerRegistry {
     struct Operator {
         address operatorAddress;
         address restakingMiddlewareContract;
-        AVSType avsType;
+        RestakingServiceType serviceType;
         bytes blsKey;
     }
 
     /// @notice Struct to store operator BLS key data
     struct OperatorBLSData {
         address operator;
-        AVSType avsType;
+        RestakingServiceType serviceType;
     }
 
     // Events
@@ -46,26 +48,34 @@ interface IProposerRegistry {
     event ValidatorOptedOut(bytes32 indexed pubKeyHash, address indexed controller);
     event ValidatorStatusChanged(bytes32 indexed pubKeyHash, ValidatorStatus status);
     event ValidatorRegistered(bytes32 indexed pubkeyHash, address indexed operator);
+    event OperatorRegistered(
+        address indexed operator,
+        address indexed avsContract,
+        RestakingServiceType serviceType
+    );
+    event OperatorDeregistered(address indexed operator, address indexed avsContract);
+    event OperatorBLSKeyUpdated(address indexed operator, bytes oldKey, bytes newKey);
+    event RestakingServiceTypeSet(
+        address indexed restakingServiceAddress, RestakingServiceType serviceType
+    );
+    event ValidatorsOptedOut(address indexed operator, bytes[] pubkeys);
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
     function initialize(address _owner) external;
 
-    /// @notice Adds a new middleware contract to the registry
-    /// @param middlewareContract Address of middleware contract to add
-    function addRestakingMiddlewareContract(address middlewareContract) external;
-
-    /// @notice Removes a middleware contract from the registry
-    /// @param middlewareContract Address of middleware contract to remove
-    function removeRestakingMiddlewareContract(address middlewareContract) external;
+    /// @notice Sets the AVS contracts in the registry
+    /// @param gatewayAVSAddr Address of the GatewayAVS contract
+    /// @param validatorAVSAddr Address of the ValidatorAVS contract
+    function setAVSContracts(address gatewayAVSAddr, address validatorAVSAddr) external;
 
     /// @notice Registers a new operator
-    /// @param operatorAddress The address of the operator to register
-    /// @param avsType The type of AVS (GATEWAY or VALIDATOR)
-    /// @param blsKey The BLS public key for the operator (only for GATEWAY type)
+    /// @param operatorAddress The operator's address
+    /// @param serviceType The type of service
+    /// @param blsKey The BLS public key for gateway operators
     function registerOperator(
         address operatorAddress,
-        AVSType avsType,
+        RestakingServiceType serviceType,
         bytes calldata blsKey
     )
         external;
@@ -89,6 +99,7 @@ interface IProposerRegistry {
     /// @notice Registers multiple validators in a single transaction
     /// @param pubkeys Array of BLS public keys
     /// @param operator The operator address for all validators
+    /// @param delegatee Array of delegatee public keys
     function batchRegisterValidators(
         bytes[] calldata pubkeys,
         address operator,
@@ -105,26 +116,6 @@ interface IProposerRegistry {
     /// @notice Confirms validator opt-out after cooldown period
     /// @param pubKeyHash The hash of the validator's BLS public key
     function confirmOptOut(bytes32 pubKeyHash) external;
-
-    /// @notice Gets the GatewayAVS address
-    /// @return The address of the GatewayAVS contract
-    function gatewayAVSAddress() external view returns (address);
-
-    /// @notice Checks if an operator is active in a specific AVS
-    /// @param avs The address of the AVS to check
-    /// @param operator The address of the operator to check
-    /// @return bool True if the operator is active in the AVS
-    function isOperatorActiveInAVS(
-        address avs,
-        address operator
-    )
-        external
-        view
-        returns (bool);
-
-    /// @notice Gets the ValidatorAVS address
-    /// @return The address of the ValidatorAVS contract
-    function validatorAVSAddress() external view returns (address);
 
     /// @notice Gets the GatewayAVS contract instance
     /// @return The GatewayAVS contract instance
@@ -176,48 +167,66 @@ interface IProposerRegistry {
         view
         returns (uint256);
 
+    /// @notice Gets registered operator data
+    /// @param operatorAddr The operator's address
+    /// @return gatewayOp The operator's gateway data
+    /// @return validatorOp The operator's validator data
     function getRegisteredOperator(address operatorAddr)
         external
         view
-        returns (Operator memory, Operator memory);
+        returns (Operator memory gatewayOp, Operator memory validatorOp);
 
-    /// @notice Returns active operators for a specific AVS type
-    /// @param avs The address of the AVS
+    /// @notice Returns active operators for a specific AVS
+    /// @param avsAddress The address of the AVS
     /// @return Array of operator addresses
-    function getActiveOperatorsForAVS(address avs)
+    function getActiveOperatorsForAVS(address avsAddress)
         external
         view
         returns (address[] memory);
 
-    /// @notice Returns the total validator count for a specific AVS type
-    /// @param avs The address of the AVS
+    /// @notice Returns the total validator count for a specific AVS
+    /// @param avsAddress The address of the AVS
     /// @return The total count of validators
-    function getTotalValidatorCountForAVS(address avs) external view returns (uint256);
+    function getTotalValidatorCountForAVS(address avsAddress)
+        external
+        view
+        returns (uint256);
 
-    /// @notice Returns the AVS type for a given AVS address
-    /// @param avs The address of the AVS
-    /// @return The AVS type
-    function getAVSType(address avs) external view returns (AVSType);
+    /// @notice Get the service type of an AVS contract
+    /// @param avsAddress The AVS contract address
+    /// @return The service type of the AVS
+    function getAvsType(address avsAddress)
+        external
+        view
+        returns (RestakingServiceType);
 
-    /// @notice Checks if an operator is registered in the AVS
-    /// @param operatorAddress The address of the operator to check
-    /// @param avsType The type of AVS
-    /// @return True if registered in the AVS
+    /// @notice Check if an operator is registered in the AVS
+    /// @param operatorAddress The operator's address
+    /// @param serviceType The type of service to check
+    /// @return bool True if registered in the AVS
     function isOperatorRegisteredInAVS(
         address operatorAddress,
-        AVSType avsType
+        RestakingServiceType serviceType
     )
         external
         view
         returns (bool);
 
-    /// @notice Sets the AVS type for a given AVS address
-    /// @param avs The address of the AVS
-    /// @param avsType The type to set
-    function setAVSType(address avs, AVSType avsType) external;
-
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);
+
+    /// @notice Update an operator's BLS key (only for gateway operators)
+    /// @param operator The operator's address
+    /// @param newBlsKey The new BLS public key
+    function updateOperatorBLSKey(address operator, bytes calldata newBlsKey) external;
+
+    /// @notice Gets the GatewayAVS contract instance
+    /// @return The GatewayAVS contract instance
+    function getGatewayAVS() external view returns (IGatewayAVS);
+
+    /// @notice Gets the ValidatorAVS contract instance
+    /// @return The ValidatorAVS contract instance
+    function getValidatorAVS() external view returns (IValidatorAVS);
 
     /// @notice Returns the operator's public key and other info for a specific AVS type
     /// @param operator The operator's address
@@ -226,7 +235,7 @@ interface IProposerRegistry {
     /// @return isActive Whether the operator is active
     function operatorInfo(
         address operator,
-        AVSType avsType
+        RestakingServiceType avsType
     )
         external
         view

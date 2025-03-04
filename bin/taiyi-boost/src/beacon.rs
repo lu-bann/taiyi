@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Errors that can occur while interacting with the beacon API.
 #[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum BeaconClientError {
     #[error("Failed to fetch: {0}")]
     Reqwest(#[from] reqwest::Error),
