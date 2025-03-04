@@ -81,7 +81,7 @@ impl BeaconClient {
 
         // Add auth header if token is present
         if let Some(token) = &self.auth_token {
-            req = req.header("Authorization", format!("Bearer {}", token));
+            req = req.header("Authorization", format!("Bearer {token}"));
         }
 
         // parse from /data/randao
@@ -103,7 +103,7 @@ impl BeaconClient {
 
         // Add authorization header if auth_token exists
         if let Some(token) = &self.auth_token {
-            request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+            request_builder = request_builder.header("Authorization", format!("Bearer {token}"));
         }
 
         let response = request_builder.send().await?;
@@ -140,7 +140,7 @@ impl BeaconClient {
 
         // Add authorization header if auth_token exists
         if let Some(token) = &self.auth_token {
-            request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+            request_builder = request_builder.header("Authorization", format!("Bearer {token}"));
         }
 
         let response = request_builder.send().await?;

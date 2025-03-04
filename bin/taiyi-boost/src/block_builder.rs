@@ -55,6 +55,7 @@ pub struct LocalBlockBuilder {
 // The local block builder was based on bolt's implementation.
 // See: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs
 impl LocalBlockBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         context: Context,
         beacon_api: Url,
