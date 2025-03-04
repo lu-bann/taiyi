@@ -1,4 +1,3 @@
-
 mod tests {
     use std::time::Duration;
 
@@ -53,7 +52,8 @@ mod tests {
         assert_eq!(preconf_pool.get_pending(request_id), None);
 
         // insert into ready pool
-        preconf_pool.insert_ready(request_id, taiyi_primitives::PreconfRequest::TypeB(preconf.clone()));
+        preconf_pool
+            .insert_ready(request_id, taiyi_primitives::PreconfRequest::TypeB(preconf.clone()));
         assert!(preconf_pool.get_pool(request_id).is_ok());
         assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Ready);
     }
@@ -104,7 +104,7 @@ mod tests {
             transaction: Some(transaction),
             signer: Some(*sender),
         };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -167,7 +167,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -230,7 +230,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
@@ -281,7 +281,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -332,7 +332,7 @@ mod tests {
             signer: Some(*sender),
         };
 
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -403,7 +403,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: Some(*sender),
         };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
         assert!(validation_result.is_err());
         Ok(())
     }

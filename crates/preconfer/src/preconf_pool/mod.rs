@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reqwest::Url;
-use taiyi_primitives::{PreconfRequest, PreconfRequestTypeB};
+use taiyi_primitives::{PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB};
 use uuid::Uuid;
 
 use crate::{
@@ -101,19 +101,29 @@ impl PreconfPool {
         Ok(request_id)
     }
 
-    pub async fn submit_transaction(
+    /// Validates the transactions in the preconf request and stores it in the ready pool.
+    pub async fn validate_and_store(
         &self,
-        preconf_request: PreconfRequestTypeB,
+        preconf_request: PreconfRequest,
         request_id: Uuid,
     ) -> Result<(), PoolError> {
-        if preconf_request.transaction.is_some() {
-            self.validate(&preconf_request).await?;
-            // Move the request from pending to ready pool
-            self.delete_pending(request_id);
-            self.insert_ready(request_id, taiyi_primitives::PreconfRequest::TypeB(preconf_request));
-            Ok(())
-        } else {
-            Err(PoolError::TransactionNotFound)
+        match preconf_request {
+            PreconfRequest::TypeA(preconf_request) => {
+                self.validate_typea(&preconf_request).await?;
+                self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request));
+                Ok(())
+            }
+            PreconfRequest::TypeB(preconf_request) => {
+                if preconf_request.transaction.is_some() {
+                    self.validate_typeb(&preconf_request).await?;
+                    // Move the request from pending to ready pool
+                    self.delete_pending(request_id);
+                    self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request));
+                    Ok(())
+                } else {
+                    Err(PoolError::TransactionNotFound)
+                }
+            }
         }
     }
 
@@ -140,8 +150,15 @@ impl PreconfPool {
         }
     }
 
+    async fn validate_typea(
+        &self,
+        _preconf_request: &PreconfRequestTypeA,
+    ) -> eyre::Result<(), ValidationError> {
+        Ok(())
+    }
+
     // NOTE: only checks account balance and nonce
-    async fn validate(
+    async fn validate_typeb(
         &self,
         preconf_request: &PreconfRequestTypeB,
     ) -> eyre::Result<(), ValidationError> {

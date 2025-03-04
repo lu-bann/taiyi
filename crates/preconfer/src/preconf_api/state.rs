@@ -19,8 +19,9 @@ use futures::StreamExt;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
-    BlockspaceAllocation, ConstraintsMessage, PreconfRequestTypeB, PreconfResponse, SignableBLS,
-    SignedConstraints, SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    BlockspaceAllocation, ConstraintsMessage, PreconfRequestTypeA, PreconfRequestTypeB,
+    PreconfResponse, SignableBLS, SignedConstraints, SubmitTransactionRequest,
+    SubmitTypeATransactionRequest,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -120,67 +121,67 @@ where
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
                         for preconf_req in preconf_requests {
-                            if let Some(ref tx) = preconf_req.transaction {
-                                // calculate gas used
-                                let gas_used =
-                                    self.preconf_pool.calculate_gas_used(tx.clone()).await?;
+                            // if let Some(ref tx) = preconf_req.transaction {
+                            //     // calculate gas used
+                            //     let gas_used =
+                            //         self.preconf_pool.calculate_gas_used(tx.clone()).await?;
 
-                                accounts
-                                    .push(preconf_req.signer().expect("Signer must be present"));
-                                amounts.push(U256::from(gas_used as u128 * base_fee));
+                            //     accounts
+                            //         .push(preconf_req.signer().expect("Signer must be present"));
+                            //     amounts.push(U256::from(gas_used as u128 * base_fee));
 
-                                // preconf tx
-                                let mut tx_encoded = Vec::new();
-                                tx.encode_2718(&mut tx_encoded);
-                                let tx_ref: &[u8] = tx_encoded.as_ref();
-                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                    tx_ref.try_into().expect("tx bytes too big");
-                                txs.push(tx_bytes);
+                            //     // preconf tx
+                            //     let mut tx_encoded = Vec::new();
+                            //     tx.encode_2718(&mut tx_encoded);
+                            //     let tx_ref: &[u8] = tx_encoded.as_ref();
+                            //     let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                            //         tx_ref.try_into().expect("tx bytes too big");
+                            //     txs.push(tx_bytes);
 
-                                // Append with a transaction that calls get_tip() on TaiyiCore contract
-                                let blockspace_allocation_sig_user = preconf_req.alloc_sig;
-                                let blockspace_allocation_sig_gateway = self
-                                    .signer_client
-                                    .sign_with_ecdsa(preconf_req.allocation.digest())
-                                    .await
-                                    .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
-                                let gateway_signed_raw_tx = self
-                                    .signer_client
-                                    .sign_with_ecdsa(keccak256(tx_encoded.clone()))
-                                    .await
-                                    .map_err(|e| {
-                                        RpcError::SignatureError(format!(
-                                            "Failed to issue commitment: {e:?}"
-                                        ))
-                                    })?;
-                                let preconf_request_type_b = to_solidity_type(
-                                    preconf_req,
-                                    blockspace_allocation_sig_user,
-                                    blockspace_allocation_sig_gateway,
-                                    tx_encoded.into(),
-                                    gateway_signed_raw_tx,
-                                    self.preconf_pool.taiyi_escrow_address,
-                                );
+                            //     // Append with a transaction that calls get_tip() on TaiyiCore contract
+                            //     let blockspace_allocation_sig_user = preconf_req.alloc_sig;
+                            //     let blockspace_allocation_sig_gateway = self
+                            //         .signer_client
+                            //         .sign_with_ecdsa(preconf_req.allocation.digest())
+                            //         .await
+                            //         .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
+                            //     let gateway_signed_raw_tx = self
+                            //         .signer_client
+                            //         .sign_with_ecdsa(keccak256(tx_encoded.clone()))
+                            //         .await
+                            //         .map_err(|e| {
+                            //             RpcError::SignatureError(format!(
+                            //                 "Failed to issue commitment: {e:?}"
+                            //             ))
+                            //         })?;
+                            //     let preconf_request_type_b = to_solidity_type(
+                            //         preconf_req,
+                            //         blockspace_allocation_sig_user,
+                            //         blockspace_allocation_sig_gateway,
+                            //         tx_encoded.into(),
+                            //         gateway_signed_raw_tx,
+                            //         self.preconf_pool.taiyi_escrow_address,
+                            //     );
 
-                                // Call getTip() on TaiyiCore contract
-                                let get_tip_tx = taiyi_core
-                                    .getTip(preconf_request_type_b)
-                                    .into_transaction_request()
-                                    .with_nonce(nonce)
-                                    .with_gas_limit(100_000)
-                                    .with_max_fee_per_gas(base_fee)
-                                    .with_max_priority_fee_per_gas(priority_fee)
-                                    .build(&wallet)
-                                    .await?;
-                                // increment nonce
-                                nonce += 1;
-                                let mut tx_encoded = Vec::new();
-                                get_tip_tx.encode_2718(&mut tx_encoded);
-                                let tx_ref: &[u8] = tx_encoded.as_ref();
-                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                    tx_ref.try_into().expect("tx bytes too big");
-                                txs.push(tx_bytes);
-                            }
+                            //     // Call getTip() on TaiyiCore contract
+                            //     let get_tip_tx = taiyi_core
+                            //         .getTip(preconf_request_type_b)
+                            //         .into_transaction_request()
+                            //         .with_nonce(nonce)
+                            //         .with_gas_limit(100_000)
+                            //         .with_max_fee_per_gas(base_fee)
+                            //         .with_max_priority_fee_per_gas(priority_fee)
+                            //         .build(&wallet)
+                            //         .await?;
+                            //     // increment nonce
+                            //     nonce += 1;
+                            //     let mut tx_encoded = Vec::new();
+                            //     get_tip_tx.encode_2718(&mut tx_encoded);
+                            //     let tx_ref: &[u8] = tx_encoded.as_ref();
+                            //     let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                            //         tx_ref.try_into().expect("tx bytes too big");
+                            //     txs.push(tx_bytes);
+                            // }
                         }
 
                         //  gas sponsorship tx
@@ -381,7 +382,10 @@ where
 
         match self
             .preconf_pool
-            .submit_transaction(preconf_request.clone(), request.request_id)
+            .validate_and_store(
+                taiyi_primitives::PreconfRequest::TypeB(preconf_request.clone()),
+                request.request_id,
+            )
             .await
         {
             Ok(_) => {
@@ -400,23 +404,26 @@ where
         request: SubmitTypeATransactionRequest,
         signature: PrimitiveSignature,
     ) -> Result<PreconfResponse, RpcError> {
-        // Verify the signature
-        // let recovered_signer = signature
-        //     .recover_address_from_prehash(&request.digest())
-        //     .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        // let signer = match request.signer() {
-        //     Some(signer) => signer,
-        //     None => return Err(RpcError::UnknownError("No signer found".to_string())),
-        // };
-        // if recovered_signer != signer {
-        //     return Err(RpcError::SignatureError("Invalid signature".to_string()));
-        // }
+        let signer = signature
+            .recover_address_from_prehash(&request.digest())
+            .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
-       // Check deadline
+        // Check deadline
+        let request_id = Uuid::new_v4();
+        let preconf_request = PreconfRequestTypeA {
+            preconf_tx: request.clone().preconf_tx,
+            tip_transaction: request.clone().tip_transaction,
+            target_slot: request.target_slot,
+            sequence_num: None,
+            signer: Some(signer),
+        };
 
         match self
             .preconf_pool
-            .submit_transaction(preconf_request.clone(), request.request_id)
+            .validate_and_store(
+                taiyi_primitives::PreconfRequest::TypeA(preconf_request.clone()),
+                request_id,
+            )
             .await
         {
             Ok(_) => {
@@ -424,7 +431,7 @@ where
                     self.signer_client.sign_with_ecdsa(request.digest()).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponse::success(request.request_id, Some(commitment)))
+                Ok(PreconfResponse::success(request_id, Some(commitment)))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }

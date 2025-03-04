@@ -11,7 +11,7 @@ pub struct PreconfRequestTypeA {
     /// Target slot
     pub target_slot: u64,
     /// Relative position of the transaction wrt anchor tx
-    pub sequence_num: u64,
+    pub sequence_num: Option<u64>,
     /// The signer of the transaction
     #[serde(skip)]
     pub signer: Option<Address>,

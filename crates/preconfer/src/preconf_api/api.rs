@@ -45,6 +45,7 @@ impl PreconfApiServer {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
             .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction))
+            .route(SUBMIT_TYPEA_TRANSACTION_PATH, post(handle_submit_typea_transaction))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
             .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
