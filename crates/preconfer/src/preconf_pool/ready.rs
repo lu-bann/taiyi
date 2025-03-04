@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use alloy_primitives::{Address, U256};
 use eyre::Result;
-use taiyi_primitives::PreconfRequestTypeB;
+use taiyi_primitives::PreconfRequest;
 use uuid::Uuid;
 
 use crate::error::PoolError;
@@ -10,7 +10,7 @@ use crate::error::PoolError;
 /// Stores all preconf request with preconf transactions
 #[derive(Debug, Clone)]
 pub struct Ready {
-    by_id: HashMap<Uuid, PreconfRequestTypeB>,
+    by_id: HashMap<Uuid, PreconfRequest>,
     by_account: HashMap<Address, Vec<Uuid>>,
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
 }
@@ -20,7 +20,7 @@ impl Ready {
         Self { by_id: HashMap::new(), reqs_by_slot: HashMap::new(), by_account: HashMap::new() }
     }
 
-    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
+    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) {
         let slot = preconf_request.target_slot();
         self.by_id.insert(request_id, preconf_request);
         self.reqs_by_slot.entry(slot).or_default().push(request_id);
@@ -35,7 +35,7 @@ impl Ready {
     pub fn remove_preconfs_for_slot(
         &mut self,
         slot: u64,
-    ) -> Result<HashMap<Uuid, PreconfRequestTypeB>, PoolError> {
+    ) -> Result<HashMap<Uuid, PreconfRequest>, PoolError> {
         if let Some(reqs) = self.reqs_by_slot.remove(&slot) {
             let mut preconfs = HashMap::new();
             for req_id in reqs {
@@ -54,7 +54,7 @@ impl Ready {
     pub fn fetch_preconf_requests_for_slot(
         &self,
         slot: u64,
-    ) -> Result<Vec<PreconfRequestTypeB>, PoolError> {
+    ) -> Result<Vec<PreconfRequest>, PoolError> {
         if let Some(reqs) = self.reqs_by_slot.get(&slot) {
             let mut preconfs = Vec::new();
             for req_id in reqs {
@@ -73,12 +73,13 @@ impl Ready {
     /// Calculates the total pending deposit for all parked transactions.
     /// This is the sum of the deposit of all parked transactions.
     pub fn get_pending_diffs_for_account(&self, account: Address) -> Option<U256> {
-        self.by_account.get(&account).map(|ids| {
-            ids.iter()
-                .filter_map(|id| self.by_id.get(id))
-                .map(|preconf| preconf.allocation.deposit)
-                .sum()
-        })
+        // self.by_account.get(&account).map(|ids| {
+        //     ids.iter()
+        //         .filter_map(|id| self.by_id.get(id))
+        //         .map(|preconf| preconf.allocation.deposit)
+        //         .sum()
+        // })
+        unimplemented!()
     }
 }
 
@@ -87,7 +88,7 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_primitives::PrimitiveSignature;
-    use taiyi_primitives::BlockspaceAllocation;
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
 
     use super::*;
 
@@ -111,11 +112,11 @@ mod tests {
         };
 
         let id = Uuid::new_v4();
-        ready.insert(id, preconf.clone());
+        ready.insert(id, taiyi_primitives::PreconfRequest::TypeB(preconf.clone()));
         assert!(ready.contains(id));
 
         let preconfs = ready.fetch_preconf_requests_for_slot(1).unwrap();
         assert_eq!(preconfs.len(), 1);
-        assert_eq!(preconfs[0], preconf);
+        assert_eq!(preconfs[0], taiyi_primitives::PreconfRequest::TypeB(preconf));
     }
 }

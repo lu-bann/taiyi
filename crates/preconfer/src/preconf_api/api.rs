@@ -13,6 +13,7 @@ use reqwest::header::HeaderMap;
 use serde_json::json;
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SubmitTransactionRequest,
+    SubmitTypeATransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -25,6 +26,7 @@ pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
 pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
+pub const SUBMIT_TYPEA_TRANSACTION_PATH: &str = "/commitments/v0/submit_typea_transaction";
 
 pub struct PreconfApiServer {
     /// The address to bind the server to
@@ -163,4 +165,27 @@ where
     P: Provider + Clone + Send + Sync + 'static,
 {
     Ok(Json(PreconfFeeResponse { gas_fee: 1, blob_gas_fee: 1 }))
+}
+
+pub async fn handle_submit_typea_transaction<P>(
+    headers: HeaderMap,
+    State(state): State<PreconfState<P>>,
+    Json(param): Json<SubmitTypeATransactionRequest>,
+) -> Result<Json<PreconfResponse>, RpcError>
+where
+    P: Provider + Clone + Send + Sync + 'static,
+{
+    let signature = {
+        let auth = headers
+            .get("x-luban-signature")
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+
+        let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+        PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
+    };
+
+    match state.submit_typea_transaction(param, signature).await {
+        Ok(response) => Ok(Json(response)),
+        Err(e) => Err(e),
+    }
 }

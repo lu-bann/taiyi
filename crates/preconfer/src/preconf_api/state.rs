@@ -20,7 +20,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     BlockspaceAllocation, ConstraintsMessage, PreconfRequestTypeB, PreconfResponse, SignableBLS,
-    SignedConstraints, SubmitTransactionRequest,
+    SignedConstraints, SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -395,6 +395,42 @@ where
         }
     }
 
+    pub async fn submit_typea_transaction(
+        &self,
+        request: SubmitTypeATransactionRequest,
+        signature: PrimitiveSignature,
+    ) -> Result<PreconfResponse, RpcError> {
+        // Verify the signature
+        // let recovered_signer = signature
+        //     .recover_address_from_prehash(&request.digest())
+        //     .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+        // let signer = match request.signer() {
+        //     Some(signer) => signer,
+        //     None => return Err(RpcError::UnknownError("No signer found".to_string())),
+        // };
+        // if recovered_signer != signer {
+        //     return Err(RpcError::SignatureError("Invalid signature".to_string()));
+        // }
+
+       // Check deadline
+
+        match self
+            .preconf_pool
+            .submit_transaction(preconf_request.clone(), request.request_id)
+            .await
+        {
+            Ok(_) => {
+                let commitment =
+                    self.signer_client.sign_with_ecdsa(request.digest()).await.map_err(|e| {
+                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
+                    })?;
+                Ok(PreconfResponse::success(request.request_id, Some(commitment)))
+            }
+            Err(e) => Err(RpcError::PoolError(e)),
+        }
+    }
+
+    /// Returns the slots for which there is a opted in validator for current epoch and next epoch
     pub async fn get_slots(&self) -> Result<Vec<SlotInfo>, RpcError> {
         let current_slot = self.network_state.get_current_slot();
 
