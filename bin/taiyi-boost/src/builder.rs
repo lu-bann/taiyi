@@ -158,11 +158,12 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 warn!("No bids received from relay, slot: {}", params.slot);
             }
             Err(err) => {
-                warn!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
+                error!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
             }
         }
 
         if let Some(transactions) = state.data.constraints.get(params.slot) {
+            info!("Constraints found, starting local block building");
             let resp = state
                 .data
                 .local_block_builder
@@ -174,6 +175,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
             }
             Ok(Some(GetHeaderResponse { version: Version::Deneb, data: resp.header.clone() }))
         } else {
+            info!("No constraints found, EL must build the block");
             Ok(None)
         }
     }
@@ -300,7 +302,6 @@ async fn get_header_with_proofs(
         };
         Ok(Some(header_with_proofs))
     } else {
-        warn!("no bids received from relay");
         Ok(None)
     }
 }
