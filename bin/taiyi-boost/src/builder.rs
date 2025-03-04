@@ -39,9 +39,12 @@ use crate::{
     proofs::verify_multiproofs,
     types::{
         ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints,
-        SignedExecutionPayloadHeaderWithProofs, BUILDER_CONSTRAINTS_PATH,
+        SignedExecutionPayloadHeaderWithProofs,
     },
 };
+
+pub const PATH_BUILDER_CONSTRAINTS: &str = "/constraints";
+pub const PATH_BUILDER_API: &str = "/relay/v1/builder";
 
 #[derive(Clone)]
 pub struct SidecarBuilderState {
@@ -86,7 +89,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
     ) -> Result<Option<GetHeaderResponse>> {
         for relay in state.all_relays() {
             let builder_constraints_url = relay
-                .builder_api_url(BUILDER_CONSTRAINTS_PATH)
+                .get_url(&format!("{PATH_BUILDER_API}{PATH_BUILDER_CONSTRAINTS}"))
                 .expect("failed to build builder_constraints url");
             let client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
@@ -127,6 +130,12 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                         }
                         break;
                     }
+                    warn!(
+                        "failed to get constraints from relay , url: {}, slot: {}, status: {}",
+                        builder_constraints_url.to_string(),
+                        params.slot,
+                        resp.status()
+                    );
                 }
                 Err(err) => {
                     warn!(

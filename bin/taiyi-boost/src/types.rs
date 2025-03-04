@@ -39,8 +39,6 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
 use tree_hash::TreeHash;
 
-pub const BUILDER_CONSTRAINTS_PATH: &str = "/constraints";
-
 /// A hash tree root.
 pub type AlloyHashTreeRoot = tree_hash::Hash256;
 
