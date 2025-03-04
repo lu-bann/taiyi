@@ -5,7 +5,6 @@ use std::{
 };
 
 use alloy_primitives::{utils::format_ether, B256, U256};
-use alloy_rpc_types_beacon::relay::ValidatorRegistration;
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
@@ -24,7 +23,7 @@ use cb_common::{
     types::Chain,
     utils::{get_user_agent_with_version, ms_into_slot},
 };
-use cb_pbs::{register_validator, submit_block};
+use cb_pbs::submit_block;
 use commit_boost::prelude::*;
 use ethereum_consensus::deneb::Context;
 use eyre::Result;
@@ -46,7 +45,6 @@ use crate::{
 
 #[derive(Clone)]
 pub struct SidecarBuilderState {
-    _config: ExtraConfig,
     constraints: ConstraintsCache,
     local_block_builder: LocalBlockBuilder,
     local_payload: Arc<Mutex<Option<SignedPayloadResponse>>>,
@@ -70,7 +68,6 @@ impl SidecarBuilderState {
         )
         .await;
         Self {
-            _config: extra.clone(),
             constraints: ConstraintsCache::new(),
             local_block_builder,
             local_payload: Arc::new(Mutex::new(None)),
@@ -82,14 +79,6 @@ pub struct SidecarBuilderApi;
 
 #[async_trait]
 impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
-    async fn register_validator(
-        registrations: Vec<ValidatorRegistration>,
-        req_headers: HeaderMap,
-        state: PbsState<SidecarBuilderState>,
-    ) -> Result<()> {
-        register_validator(registrations, req_headers, state).await
-    }
-
     async fn get_header(
         params: GetHeaderParams,
         req_headers: HeaderMap,
@@ -165,11 +154,11 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                     ..Default::default()
                 }));
             }
+            Ok(None) => {
+                warn!("No bids received from relay, slot: {}", params.slot);
+            }
             Err(err) => {
                 warn!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
-            }
-            _ => {
-                warn!("get header with proofs from relay failed, slot: {}", params.slot);
             }
         }
 
@@ -289,7 +278,9 @@ async fn get_header_with_proofs(
 
                 relay_bids.push(vanilla_response)
             }
-            Ok(_) => {}
+            Ok(None) => {
+                warn!(relay_id, "no header from relay");
+            }
             Err(err) => error!(?err, relay_id),
         }
     }
@@ -307,9 +298,9 @@ async fn get_header_with_proofs(
             },
             version: winning_bid.version,
         };
-
         Ok(Some(header_with_proofs))
     } else {
+        warn!("no bids received from relay");
         Ok(None)
     }
 }
