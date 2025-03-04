@@ -44,10 +44,9 @@ use crate::{
     },
 };
 
-#[allow(unused)]
 #[derive(Clone)]
 pub struct SidecarBuilderState {
-    config: ExtraConfig,
+    _config: ExtraConfig,
     constraints: ConstraintsCache,
     local_block_builder: LocalBlockBuilder,
     local_payload: Arc<Mutex<Option<SignedPayloadResponse>>>,
@@ -71,7 +70,7 @@ impl SidecarBuilderState {
         )
         .await;
         Self {
-            config: extra.clone(),
+            _config: extra.clone(),
             constraints: ConstraintsCache::new(),
             local_block_builder,
             local_payload: Arc::new(Mutex::new(None)),
@@ -96,30 +95,6 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         req_headers: HeaderMap,
         state: PbsState<SidecarBuilderState>,
     ) -> Result<Option<GetHeaderResponse>> {
-        match get_header_with_proofs(
-            State::<PbsState<SidecarBuilderState>>(state.clone()),
-            Path::<GetHeaderParams>(params),
-            req_headers,
-        )
-        .await
-        {
-            Ok(Some(response)) => {
-                let mut local_payload = state.data.local_payload.lock();
-                *local_payload = None;
-                return Ok(Some(GetHeaderResponse {
-                    data: response.data.header,
-                    ..Default::default()
-                }));
-            }
-            Err(err) => {
-                warn!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
-            }
-            _ => {
-                warn!("get header with proofs from relay failed, slot: {}", params.slot);
-            }
-        }
-
-        // get builder constraints from one of the relays
         for relay in state.all_relays() {
             let builder_constraints_url = relay
                 .builder_api_url(BUILDER_CONSTRAINTS_PATH)
@@ -174,18 +149,44 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 }
             }
         }
-        // todo: error handling
-        let transactions = state.data.constraints.get(params.slot).expect("constraints not found");
-        let resp = state
-            .data
-            .local_block_builder
-            .build_signed_payload_response(params.slot, &transactions.transactions)
-            .await?;
+
+        match get_header_with_proofs(
+            State::<PbsState<SidecarBuilderState>>(state.clone()),
+            Path::<GetHeaderParams>(params),
+            req_headers,
+        )
+        .await
         {
-            let mut local_payload = state.data.local_payload.lock();
-            *local_payload = Some(resp.clone());
+            Ok(Some(response)) => {
+                let mut local_payload = state.data.local_payload.lock();
+                *local_payload = None;
+                return Ok(Some(GetHeaderResponse {
+                    data: response.data.header,
+                    ..Default::default()
+                }));
+            }
+            Err(err) => {
+                warn!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
+            }
+            _ => {
+                warn!("get header with proofs from relay failed, slot: {}", params.slot);
+            }
         }
-        Ok(Some(GetHeaderResponse { version: Version::Deneb, data: resp.header.clone() }))
+
+        if let Some(transactions) = state.data.constraints.get(params.slot) {
+            let resp = state
+                .data
+                .local_block_builder
+                .build_signed_payload_response(params.slot, &transactions.transactions)
+                .await?;
+            {
+                let mut local_payload = state.data.local_payload.lock();
+                *local_payload = Some(resp.clone());
+            }
+            Ok(Some(GetHeaderResponse { version: Version::Deneb, data: resp.header.clone() }))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn submit_block(
