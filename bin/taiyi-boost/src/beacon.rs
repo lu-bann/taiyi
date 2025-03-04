@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::Deref};
 
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types_eth::Withdrawal;
-use beacon_api_client::{BlockId, StateId};
+use beacon_api_client::{ApiResult, BlockId, RootData, StateId, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +38,7 @@ pub type BeaconClientResult<T> = Result<T, BeaconClientError>;
 pub struct BeaconClient {
     client: reqwest::Client,
     beacon_rpc_url: Url,
+    auth_token: Option<String>,
 
     // Inner client re-exported from the beacon_api_client crate.
     // By wrapping this, we can automatically use its existing methods
@@ -55,9 +56,9 @@ impl Deref for BeaconClient {
 
 impl BeaconClient {
     /// Create a new [BeaconClient] instance with the given beacon RPC URL.
-    pub fn new(beacon_rpc_url: Url) -> Self {
+    pub fn new(beacon_rpc_url: Url, auth_token: Option<String>) -> Self {
         let inner = beacon_api_client::mainnet::Client::new(beacon_rpc_url.clone());
-        Self { client: reqwest::Client::new(), beacon_rpc_url, inner }
+        Self { client: reqwest::Client::new(), beacon_rpc_url, auth_token, inner }
     }
 
     /// Fetch the previous RANDAO value from the beacon node.
@@ -75,21 +76,50 @@ impl BeaconClient {
             randao: B256,
         }
 
+        // Create request builder
+        let mut req = self.client.get(url);
+
+        // Add auth header if token is present
+        if let Some(token) = &self.auth_token {
+            req = req.header("Authorization", format!("Bearer {}", token));
+        }
+
         // parse from /data/randao
-        Ok(self.client.get(url).send().await?.json::<ResponseData<Inner>>().await?.data.randao)
+        Ok(req.send().await?.json::<ResponseData<Inner>>().await?.data.randao)
     }
 
     /// Fetch the expected withdrawals for the given slot from the beacon chain.
     ///
     /// This function also maps the return type into [alloy::rpc::types::Withdrawal]s.
     pub async fn get_expected_withdrawals_at_head(&self) -> BeaconClientResult<Vec<Withdrawal>> {
-        let res = self.inner.get_expected_withdrawals(StateId::Head, None).await?;
+        // let res = self.inner.get_expected_withdrawals(StateId::Head, None).await?;
+
+        let id = StateId::Head;
+        let path = format!("eth/v1/builder/states/{id}/expected_withdrawals");
+        let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
+
+        // Create the request builder
+        let mut request_builder = self.client.get(url.clone());
+
+        // Add authorization header if auth_token exists
+        if let Some(token) = &self.auth_token {
+            request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+        }
+
+        let response = request_builder.send().await?;
+        let result: ApiResult<Value<_>> = response.json().await?;
+        let res: Vec<Withdrawal> = match result {
+            ApiResult::Ok(result) => result.data,
+            ApiResult::Err(err) => {
+                return Err(BeaconClientError::Inner(beacon_api_client::Error::Api(err)))
+            }
+        };
 
         let mut withdrawals = Vec::with_capacity(res.len());
         for w in res {
             withdrawals.push(Withdrawal {
-                index: w.index as u64,
-                validator_index: w.validator_index as u64,
+                index: w.index,
+                validator_index: w.validator_index,
                 amount: w.amount,
                 address: Address::from_slice(w.address.as_slice()),
             });
@@ -100,7 +130,28 @@ impl BeaconClient {
 
     /// Fetch the parent beacon block root from the beacon chain.
     pub async fn get_parent_beacon_block_root(&self) -> BeaconClientResult<B256> {
-        let res = self.inner.get_beacon_block_root(BlockId::Head).await?;
+        // let res = self.inner.get_beacon_block_root(BlockId::Head).await?;
+        let id = BlockId::Head;
+        let path = format!("eth/v1/beacon/blocks/{id}/root");
+        let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
+
+        // Create the request builder
+        let mut request_builder = self.client.get(url.clone());
+
+        // Add authorization header if auth_token exists
+        if let Some(token) = &self.auth_token {
+            request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+        }
+
+        let response = request_builder.send().await?;
+        let result: ApiResult<Value<RootData>> = response.json().await?;
+        let res = match result {
+            ApiResult::Ok(result) => result.data.root,
+            ApiResult::Err(err) => {
+                return Err(BeaconClientError::Inner(beacon_api_client::Error::Api(err)))
+            }
+        };
+
         Ok(B256::from_slice(res.as_slice()))
     }
 }
@@ -132,7 +183,7 @@ mod tests {
             return Ok(());
         }
 
-        let beacon_api = BeaconClient::new(url);
+        let beacon_api = BeaconClient::new(url, None);
 
         assert!(beacon_api.get_prev_randao().await.is_ok());
         Ok(())
@@ -149,7 +200,7 @@ mod tests {
             return Ok(());
         }
 
-        let beacon_api = BeaconClient::new(url);
+        let beacon_api = BeaconClient::new(url, None);
 
         assert!(beacon_api.get_expected_withdrawals_at_head().await.is_ok());
         Ok(())
@@ -166,7 +217,7 @@ mod tests {
             return Ok(());
         }
 
-        let beacon_api = BeaconClient::new(url);
+        let beacon_api = BeaconClient::new(url, None);
 
         assert!(beacon_api.get_parent_beacon_block_root().await.is_ok());
         Ok(())

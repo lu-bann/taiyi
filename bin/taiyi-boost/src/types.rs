@@ -51,6 +51,7 @@ pub struct ExtraConfig {
     pub builder_private_key: BlsSecretKeyWrapper,
     pub engine_jwt: JwtSecretWrapper,
     pub network: Network,
+    pub auth_token: Option<String>,
 }
 
 #[derive(Debug, Clone)]

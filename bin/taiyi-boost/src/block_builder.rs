@@ -63,8 +63,9 @@ impl LocalBlockBuilder {
         jwt_secret: JwtSecret,
         fee_recipient: Address,
         bls_secret_key: BlsSecretKey,
+        auth_token: Option<String>,
     ) -> Self {
-        let beacon_api_client = BeaconClient::new(beacon_api);
+        let beacon_api_client = BeaconClient::new(beacon_api, auth_token);
         let engine_hinter = EngineHinter::new(jwt_secret, engine_api);
         let execution_api_client = ExecutionClient::new(execution_api);
         Self {
@@ -257,6 +258,7 @@ mod test {
             config.engine_jwt.0,
             config.fee_recipient,
             config.builder_private_key.0,
+            None,
         )
         .await;
 

@@ -60,6 +60,7 @@ pub(crate) mod tests {
             ),
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
             network: Network::from("holesky".to_string()),
+            auth_token: None,
         })
     }
 

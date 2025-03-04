@@ -68,6 +68,7 @@ impl SidecarBuilderState {
             extra.engine_jwt.0,
             extra.fee_recipient,
             extra.builder_private_key.clone().0,
+            extra.auth_token.clone(),
         )
         .await;
         Self {
