@@ -97,7 +97,8 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 .expect("Build reqwest client failed");
             match client
                 .post(builder_constraints_url.clone())
-                .query(&[("slot", params.slot.to_string())])
+                .query(&[("slot", params.slot)])
+                .header("accept", "application/json")
                 .send()
                 .await
             {
