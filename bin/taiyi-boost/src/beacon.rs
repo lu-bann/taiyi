@@ -173,7 +173,6 @@ mod tests {
     use crate::utils::tests::get_test_config;
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_get_prev_randao() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();
@@ -190,7 +189,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_get_expected_withdrawals_at_head() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();
@@ -207,7 +205,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_get_parent_beacon_block_root() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();

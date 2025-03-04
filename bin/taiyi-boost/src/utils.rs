@@ -50,6 +50,7 @@ pub(crate) mod tests {
             env::var("TAIYI_EXECUTION_API").expect("Fail to read env TAIYI_EXECUTION_API");
         let beacon_api = env::var("TAIYI_BEACON_API").expect("Fail to read env TAIYI_BEACON_API");
         let jwt_secret = env::var("TAIYI_JWT_SECRET").expect("Fail to read env TAIYI_JWT_SECRET");
+        let auth_token = env::var("AUTH_TOKEN").ok();
         Ok(ExtraConfig {
             engine_api: Url::parse(&engine_api)?,
             execution_api: Url::parse(&execution_api)?,
@@ -60,7 +61,7 @@ pub(crate) mod tests {
             ),
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
             network: Network::from("holesky".to_string()),
-            auth_token: None,
+            auth_token,
         })
     }
 
