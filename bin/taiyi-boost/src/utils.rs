@@ -45,11 +45,11 @@ pub(crate) mod tests {
     }
 
     pub fn get_test_config() -> Result<ExtraConfig> {
-        let engine_api = env::var("TAIYI_ENGINE_API").expect("Fail to read env TAIYI_ENGINE_API");
+        let engine_api = env::var("ENGINE_API").expect("Fail to read env TAIYI_ENGINE_API");
         let execution_api =
-            env::var("TAIYI_EXECUTION_API").expect("Fail to read env TAIYI_EXECUTION_API");
-        let beacon_api = env::var("TAIYI_BEACON_API").expect("Fail to read env TAIYI_BEACON_API");
-        let jwt_secret = env::var("TAIYI_JWT_SECRET").expect("Fail to read env TAIYI_JWT_SECRET");
+            env::var("EXECUTION_API").expect("Fail to read env TAIYI_EXECUTION_API");
+        let beacon_api = env::var("BEACON_API").expect("Fail to read env TAIYI_BEACON_API");
+        let jwt_secret = env::var("JWT_SECRET").expect("Fail to read env TAIYI_JWT_SECRET");
         let auth_token = env::var("AUTH_TOKEN").ok();
         Ok(ExtraConfig {
             engine_api: Url::parse(&engine_api)?,
