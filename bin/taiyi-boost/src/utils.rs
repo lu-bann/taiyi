@@ -22,7 +22,6 @@ pub(crate) mod tests {
     use alloy_network::TransactionBuilder;
     use alloy_primitives::{address, Address, Bytes, B256, U256};
     use alloy_rpc_types_eth::TransactionRequest;
-    use ethereum_consensus::networks::Network;
     use eyre::Result;
     use lighthouse_types::{ExecPayload, MainnetEthSpec, SignedBeaconBlockDeneb};
     use reqwest::Url;
@@ -64,7 +63,7 @@ pub(crate) mod tests {
                 "0x6b845831c99c6bf43364bee624447d39698465df5c07f2cc4dca6e0acfbe46cd",
             ),
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
-            network: Network::Custom(network),
+            network: network.clone().into(),
             auth_token,
         }))
     }
