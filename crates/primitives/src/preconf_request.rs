@@ -1,3 +1,4 @@
+use alloy_primitives::B256;
 use serde::{Deserialize, Serialize};
 
 use crate::{PreconfRequestTypeA, PreconfRequestTypeB};
@@ -13,6 +14,13 @@ impl PreconfRequest {
         match self {
             PreconfRequest::TypeA(req) => req.target_slot(),
             PreconfRequest::TypeB(req) => req.target_slot(),
+        }
+    }
+
+    pub fn digest(&self) -> B256 {
+        match self {
+            PreconfRequest::TypeA(req) => req.digest(),
+            PreconfRequest::TypeB(req) => req.digest(),
         }
     }
 }

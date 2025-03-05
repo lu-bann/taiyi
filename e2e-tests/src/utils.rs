@@ -18,8 +18,8 @@ use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::{context_ext::ContextExt, SlotInfo};
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse, SignedConstraints,
-    SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse,
+    SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};

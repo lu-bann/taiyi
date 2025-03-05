@@ -53,7 +53,7 @@ impl PreconfPool {
         Self {
             pool_inner: RwLock::new(PreconfPoolInner {
                 pending: Pending::new(),
-                ready: Ready::new(),
+                ready: Ready::default(),
                 blockspace_issued: HashMap::new(),
             }),
             validator,
@@ -106,20 +106,18 @@ impl PreconfPool {
         &self,
         preconf_request: PreconfRequest,
         request_id: Uuid,
-    ) -> Result<(), PoolError> {
+    ) -> Result<PreconfRequest, PoolError> {
         match preconf_request {
             PreconfRequest::TypeA(preconf_request) => {
                 self.validate_typea(&preconf_request).await?;
-                self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request));
-                Ok(())
+                Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
             }
             PreconfRequest::TypeB(preconf_request) => {
                 if preconf_request.transaction.is_some() {
                     self.validate_typeb(&preconf_request).await?;
                     // Move the request from pending to ready pool
                     self.delete_pending(request_id);
-                    self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request));
-                    Ok(())
+                    Ok(self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request)))
                 } else {
                     Err(PoolError::TransactionNotFound)
                 }
@@ -166,7 +164,7 @@ impl PreconfPool {
             .await
             .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
 
-        let account_balance = account_state.balance;
+        let _account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
 
         // Tip transaction must be an ETH transfer
@@ -182,8 +180,9 @@ impl PreconfPool {
         let tip_tx_nonce = preconf_request.tip_transaction.nonce();
 
         // Check for continuity of nonce
-        if preconf_tx_nonce.abs_diff(tip_tx_nonce) != 1 {
-            return Err(ValidationError::NonceNotContinuous(tip_tx_nonce, preconf_tx_nonce));
+        // The nonce of the preconf transaction must be one more than the nonce of the tip transaction
+        if preconf_tx_nonce != tip_tx_nonce + 1 {
+            return Err(ValidationError::InvalidNonceSequence(tip_tx_nonce, preconf_tx_nonce));
         }
 
         let nonce = preconf_tx_nonce.min(tip_tx_nonce);
@@ -289,8 +288,8 @@ impl PreconfPool {
     }
 
     /// Inserts a preconf request into the ready sub-pool.
-    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) {
-        self.pool_inner.write().ready.insert(request_id, preconf_request);
+    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
+        self.pool_inner.write().ready.insert(request_id, preconf_request)
     }
 
     /// Returns preconf requests in ready pool.

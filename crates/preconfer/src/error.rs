@@ -77,7 +77,7 @@ pub enum ValidationError {
     #[error("Tip tarnsaction must be a valid ETH transfer")]
     InvalidTipTransaction,
     #[error("Nonce not continuous, tip_tx_nonce: {0}, preconf_tx_nonce: {1}")]
-    NonceNotContinuous(u64, u64),
+    InvalidNonceSequence(u64, u64),
 }
 
 #[derive(Debug, Error)]

@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_add_remove_request() {
-        let mut parked = Pending::new();
+        let mut pending = Pending::new();
         let request = PreconfRequestTypeB {
             allocation: BlockspaceAllocation::default(),
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
@@ -85,17 +85,17 @@ mod tests {
         };
 
         let id = Uuid::new_v4();
-        parked.insert(id, request.clone());
-        assert!(parked.contains(id));
-        assert_eq!(parked.get(id), Some(request.clone()));
+        pending.insert(id, request.clone());
+        assert!(pending.contains(id));
+        assert_eq!(pending.get(id), Some(request.clone()));
 
-        parked.remove(id);
-        assert_eq!(parked.get(id), None);
+        pending.remove(id);
+        assert_eq!(pending.get(id), None);
     }
 
     #[test]
     fn test_get_pending_diffs_for_account_after_insert_multiple_and_remove() {
-        let mut parked = Pending::new();
+        let mut pending = Pending::new();
         let account = Address::default();
 
         let request1 = PreconfRequestTypeB {
@@ -113,15 +113,15 @@ mod tests {
 
         let id1 = Uuid::new_v4();
         let id2 = Uuid::new_v4();
-        parked.insert(id1, request1.clone());
-        parked.insert(id2, request2.clone());
+        pending.insert(id1, request1.clone());
+        pending.insert(id2, request2.clone());
 
-        assert_eq!(parked.get_pending_diffs_for_account(account), Some(U256::from(300)));
+        assert_eq!(pending.get_pending_diffs_for_account(account), Some(U256::from(300)));
 
-        parked.remove(id1);
-        assert_eq!(parked.get_pending_diffs_for_account(account), Some(U256::from(200)));
+        pending.remove(id1);
+        assert_eq!(pending.get_pending_diffs_for_account(account), Some(U256::from(200)));
 
-        parked.remove(id2);
-        assert_eq!(parked.get_pending_diffs_for_account(account), None);
+        pending.remove(id2);
+        assert_eq!(pending.get_pending_diffs_for_account(account), None);
     }
 }

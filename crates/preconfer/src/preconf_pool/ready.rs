@@ -7,26 +7,41 @@ use uuid::Uuid;
 
 use crate::error::PoolError;
 
+#[allow(dead_code)]
 /// Stores all preconf request with preconf transactions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Ready {
     by_id: HashMap<Uuid, PreconfRequest>,
     by_account: HashMap<Address, Vec<Uuid>>,
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
+    /// Assigned by the gateway to each preconf transaction in the order
+    /// they should appear relative to the anchor.
+    ///
+    /// NOTE: Anchor Transaction will always have Sequencer Number = 0
+    /// NOTE: Tip Transaction will always have odd Sequencer Number
+    /// NOTE: Preconf Transaction will always have even Sequencer Number
+    sequence_number: u64,
 }
 
 impl Ready {
-    pub fn new() -> Self {
-        Self { by_id: HashMap::new(), reqs_by_slot: HashMap::new(), by_account: HashMap::new() }
-    }
-
-    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) {
+    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
         let slot = preconf_request.target_slot();
-        self.by_id.insert(request_id, preconf_request);
+
+        let preconf_request = match preconf_request {
+            PreconfRequest::TypeA(mut inner) => {
+                self.sequence_number += 2;
+                inner.sequence_number = Some(self.sequence_number);
+                PreconfRequest::TypeA(inner)
+            }
+            b => b,
+        };
+
+        self.by_id.insert(request_id, preconf_request.clone());
         self.reqs_by_slot.entry(slot).or_default().push(request_id);
+        preconf_request
     }
 
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn contains(&self, key: Uuid) -> bool {
         self.by_id.contains_key(&key)
     }
@@ -72,7 +87,7 @@ impl Ready {
 
     /// Calculates the total pending deposit for all parked transactions.
     /// This is the sum of the deposit of all parked transactions.
-    pub fn get_pending_diffs_for_account(&self, account: Address) -> Option<U256> {
+    pub fn get_pending_diffs_for_account(&self, _account: Address) -> Option<U256> {
         // self.by_account.get(&account).map(|ids| {
         //     ids.iter()
         //         .filter_map(|id| self.by_id.get(id))
@@ -94,14 +109,14 @@ mod tests {
 
     #[test]
     fn test_remove_preconfs_for_slot_not_found() {
-        let mut ready = Ready::new();
+        let mut ready = Ready::default();
         let result = ready.remove_preconfs_for_slot(1);
         assert!(matches!(result, Err(PoolError::RequestsNotFoundForSlot(1))));
     }
 
     #[test]
     fn test_add_request() {
-        let mut ready = Ready::new();
+        let mut ready = Ready::default();
         let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
         let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
         let preconf = PreconfRequestTypeB {

@@ -11,7 +11,7 @@ pub struct PreconfRequestTypeA {
     /// Target slot
     pub target_slot: u64,
     /// Relative position of the transaction wrt anchor tx
-    pub sequence_num: Option<u64>,
+    pub sequence_number: Option<u64>,
     /// The signer of the transaction
     #[serde(skip)]
     pub signer: Option<Address>,
@@ -32,6 +32,15 @@ impl PreconfRequestTypeA {
     pub fn target_slot(&self) -> u64 {
         self.target_slot
     }
+
+    pub fn digest(&self) -> B256 {
+        let mut digest = Vec::new();
+        digest.extend_from_slice(self.preconf_tx.tx_hash().as_slice());
+        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
+        digest.extend_from_slice(&self.target_slot.to_be_bytes());
+        digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
+        keccak256(&digest)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -51,8 +60,8 @@ impl SubmitTypeATransactionRequest {
 
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
-        digest.extend_from_slice(&self.preconf_tx.tx_hash().as_slice());
-        digest.extend_from_slice(&self.tip_transaction.tx_hash().as_slice());
+        digest.extend_from_slice(self.preconf_tx.tx_hash().as_slice());
+        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         keccak256(&digest)
     }
