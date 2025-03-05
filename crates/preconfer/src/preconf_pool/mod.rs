@@ -164,7 +164,7 @@ impl PreconfPool {
             .await
             .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
 
-        let _account_balance = account_state.balance;
+        let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
 
         // Tip transaction must be an ETH transfer
@@ -194,7 +194,28 @@ impl PreconfPool {
             return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
-        // TODO: balance check
+        // Balance check
+        let total_value = preconf_request.preconf_tx.value() + preconf_request.tip_transaction.value();
+        if account_balance < total_value {
+            return Err(ValidationError::LowBalance(total_value - account_balance));
+        }
+
+        // heavy blob tx validation
+        if preconf_request.preconf_tx.is_eip4844() {
+            let transaction = preconf_request
+                .preconf_tx
+                .as_eip4844()
+                .expect("Failed to decode 4844 transaction")
+                .tx()
+                .clone()
+                .try_into_4844_with_sidecar()
+                .map_err(|_| {
+                    ValidationError::Internal("Failed to decode 4844 transaction".to_string())
+                })?;
+
+            // validate the blob
+            transaction.validate_blob(self.validator.kzg_settings.get())?;
+        }
 
         Ok(())
     }
