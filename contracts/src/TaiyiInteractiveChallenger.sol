@@ -129,12 +129,6 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             revert ChallengeAlreadyExists();
         }
 
-        // TODO[Martin]: Decode txs and tipTx from preconfRequestAType
-
-        // TODO[Martin]: Loop over txs and do necessary checks
-
-        // TODO[Martin]: Target slot and sequence number checks ?
-
         // Add challenge
         challengeIDs.add(challengeId);
         challenges[challengeId] = Challenge(
@@ -166,8 +160,43 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             revert ChallengeBondInvalid();
         }
 
-        // TODO[Martin]: Implement
-        revert("Not implemented");
+        bytes memory encodedPreconfRequestBType = abi.encode(preconfRequestBType);
+        bytes32 challengeId = keccak256(encodedPreconfRequestBType);
+
+        // TODO: Check if correct input
+        bytes32 dataHash = keccak256(abi.encode(
+            preconfRequestBType.blockspaceAllocation,
+            preconfRequestBType.gatewaySignedRawTx
+        ));
+
+        // Recover the signer from the challenge ID and signature
+        address signer = ECDSA.recover(dataHash, signature);
+
+        // TODO: Do we need to check if gatewaySignedRawTx and blockspaceAllocationSignature were signed by the same address?
+
+        // Check if the challenge ID already exists
+        if (challengeIDs.contains(challengeId)) {
+            revert ChallengeAlreadyExists();
+        }
+
+        // Add challenge
+        Challenge memory challenge = Challenge(
+            challengeId,
+            block.timestamp,
+            msg.sender,
+            signer,
+            ChallengeStatus.Open,
+            1,
+            encodedPreconfRequestBType,
+            signature
+        );
+
+        challengeIDs.add(challengeId);
+        challenges[challengeId] = challenge;
+        openChallengeCount++;
+
+        // Emit challenge opened event
+        emit ChallengeOpened(challengeId, msg.sender, signer);
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -224,6 +253,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         // ISP1Verifier(verifierGateway).verifyProof(
         //     interactiveFraudProofVKey, proofValues, proofBytes
         // );
+
+        // TODO: Use returned values for extra verification steps
 
         emit ChallengeFailed(id);
     }
