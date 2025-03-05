@@ -195,7 +195,8 @@ impl PreconfPool {
         }
 
         // Balance check
-        let total_value = preconf_request.preconf_tx.value() + preconf_request.tip_transaction.value();
+        let total_value =
+            preconf_request.preconf_tx.value() + preconf_request.tip_transaction.value();
         if account_balance < total_value {
             return Err(ValidationError::LowBalance(total_value - account_balance));
         }

@@ -98,9 +98,9 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
+    assert_eq!(status, 200);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.data.request_id, request_id);
 

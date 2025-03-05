@@ -230,7 +230,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        .with_nonce(nonce)
+        .with_nonce(1)
         .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
