@@ -3,8 +3,6 @@ use alloy_rpc_types_engine::{ClientCode, PayloadStatusEnum};
 use ethereum_consensus::ssz::prelude::MerkleizationError;
 
 #[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-#[allow(missing_docs)]
 pub enum BuilderError {
     #[error("Failed to parse from integer: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
