@@ -12,9 +12,3 @@ pub const REVERTER_CONTRACT_ADDRESS: &str = "0x50c36a7004fA5479bEADbCE8951bC693e
 pub const TAIYI_CONTRACT_ADDRESS: &str = "0xA791D59427B2b7063050187769AC871B497F4b3C";
 
 pub const SLOT_CHECK_INTERVAL_SECONDS: u64 = 12; // Assuming 12 seconds per slot
-
-pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
-pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
-pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
-pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";

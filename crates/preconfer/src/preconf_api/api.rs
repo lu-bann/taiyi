@@ -176,16 +176,27 @@ pub async fn handle_submit_typea_transaction<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    let signature = {
+    // Extract the signer and signature from the headers
+    let (signer, signature) = {
         let auth = headers
             .get("x-luban-signature")
             .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
-        let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
-        PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
+        // Remove the "0x" prefix
+        let auth = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+
+        let mut split = auth.split(':');
+
+        let address = split.next().ok_or(RpcError::MalformedHeader)?;
+        let address = Address::from_str(address).map_err(|_| RpcError::MalformedHeader)?;
+
+        let sig = split.next().ok_or(RpcError::MalformedHeader)?;
+        let sig = PrimitiveSignature::from_str(sig).expect("Failed to parse signature");
+
+        (address, sig)
     };
 
-    match state.submit_typea_transaction(param, signature).await {
+    match state.submit_typea_transaction(param, signature, signer).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }

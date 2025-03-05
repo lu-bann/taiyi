@@ -94,7 +94,7 @@ impl Ready {
         //         .map(|preconf| preconf.allocation.deposit)
         //         .sum()
         // })
-        unimplemented!()
+        None
     }
 }
 

@@ -449,15 +449,20 @@ where
         &self,
         request: SubmitTypeATransactionRequest,
         signature: PrimitiveSignature,
+        signer: Address,
     ) -> Result<PreconfResponse, RpcError> {
-        let signer = signature
+        let recovered_signer = signature
             .recover_address_from_prehash(&request.digest())
             .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+
+        if recovered_signer != signer {
+            return Err(RpcError::SignatureError("Invalid signature".to_string()));
+        }
 
         // Check deadline
         let request_id = Uuid::new_v4();
         let preconf_request = PreconfRequestTypeA {
-            preconf_tx: request.clone().preconf_tx,
+            preconf_tx: request.clone().preconf_transaction,
             tip_transaction: request.clone().tip_transaction,
             target_slot: request.target_slot,
             sequence_number: None,
