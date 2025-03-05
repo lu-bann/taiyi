@@ -92,8 +92,6 @@ impl BeaconClient {
     ///
     /// This function also maps the return type into [alloy::rpc::types::Withdrawal]s.
     pub async fn get_expected_withdrawals_at_head(&self) -> BeaconClientResult<Vec<Withdrawal>> {
-        // let res = self.inner.get_expected_withdrawals(StateId::Head, None).await?;
-
         let id = StateId::Head;
         let path = format!("eth/v1/builder/states/{id}/expected_withdrawals");
         let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
@@ -130,7 +128,6 @@ impl BeaconClient {
 
     /// Fetch the parent beacon block root from the beacon chain.
     pub async fn get_parent_beacon_block_root(&self) -> BeaconClientResult<B256> {
-        // let res = self.inner.get_beacon_block_root(BlockId::Head).await?;
         let id = BlockId::Head;
         let path = format!("eth/v1/beacon/blocks/{id}/root");
         let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
@@ -173,6 +170,7 @@ mod tests {
     use crate::utils::tests::get_test_config;
 
     #[tokio::test]
+    #[ignore = "Requires a full node"]
     async fn test_get_prev_randao() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();
@@ -189,6 +187,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires a full node"]
     async fn test_get_expected_withdrawals_at_head() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();
@@ -205,6 +204,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires a full node"]
     async fn test_get_parent_beacon_block_root() -> eyre::Result<()> {
         let config = get_test_config()?;
         let url = config.beacon_api.clone();
