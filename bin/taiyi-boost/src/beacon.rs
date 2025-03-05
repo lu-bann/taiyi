@@ -170,9 +170,11 @@ mod tests {
     use crate::utils::tests::get_test_config;
 
     #[tokio::test]
-    #[ignore = "Requires a full node"]
     async fn test_get_prev_randao() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let url = config.beacon_api.clone();
 
         if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {
@@ -187,9 +189,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires a full node"]
     async fn test_get_expected_withdrawals_at_head() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let url = config.beacon_api.clone();
 
         if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {
@@ -204,9 +208,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires a full node"]
     async fn test_get_parent_beacon_block_root() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let url = config.beacon_api.clone();
 
         if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {

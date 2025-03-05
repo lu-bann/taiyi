@@ -243,9 +243,11 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_build_local_payload() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let raw_sk = std::env::var("PRIVATE_KEY")?;
         let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(&raw_sk);
 

@@ -200,10 +200,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_get_receipts() -> eyre::Result<()> {
         let _ = tracing_subscriber::fmt().try_init();
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let client = ExecutionClient::new(config.execution_api.clone());
 
         let _receipts = client
@@ -229,9 +231,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_smart_contract_code() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let rpc_client = ExecutionClient::new(config.execution_api.clone());
 
         // random deployed smart contract address

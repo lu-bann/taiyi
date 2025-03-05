@@ -44,13 +44,22 @@ pub(crate) mod tests {
         Anvil::new().block_time(1).chain_id(1337).spawn()
     }
 
-    pub fn get_test_config() -> Result<ExtraConfig> {
-        let engine_api = env::var("ENGINE_API").expect("Fail to read env ENGINE_API");
-        let execution_api = env::var("EXECUTION_API").expect("Fail to read env EXECUTION_API");
-        let beacon_api = env::var("BEACON_API").expect("Fail to read env BEACON_API");
-        let jwt_secret = env::var("JWT_SECRET").expect("Fail to read env JWT_SECRET");
+    pub fn get_test_config() -> Result<Option<ExtraConfig>> {
+        if env::var("ENGINE_API").is_err()
+            || env::var("EXECUTION_API").is_err()
+            || env::var("BEACON_API").is_err()
+            || env::var("JWT_SECRET").is_err()
+        {
+            return Ok(None);
+        }
+
+        let engine_api = env::var("ENGINE_API").unwrap();
+        let execution_api = env::var("EXECUTION_API").unwrap();
+        let beacon_api = env::var("BEACON_API").unwrap();
+        let jwt_secret = env::var("JWT_SECRET").unwrap();
         let auth_token = env::var("AUTH_TOKEN").ok();
-        Ok(ExtraConfig {
+
+        Ok(Some(ExtraConfig {
             engine_api: Url::parse(&engine_api)?,
             execution_api: Url::parse(&execution_api)?,
             beacon_api: Url::parse(&beacon_api)?,
@@ -61,7 +70,7 @@ pub(crate) mod tests {
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
             network: Network::from("holesky".to_string()),
             auth_token,
-        })
+        }))
     }
 
     pub fn gen_test_tx_request(
