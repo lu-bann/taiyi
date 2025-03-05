@@ -162,12 +162,12 @@ contract ValidatorAVS is EigenLayerMiddleware {
     )
         internal
         override
-        onlyPodOwnerOrOperator(podOwner)
     {
         require(
             delegatedGatewayPubKey.length > 0,
             "ValidatorAVS: Must choose a valid Gateway delegate"
         );
+
         // Verify the delegated gateway belongs to a registered gateway operator
         _validateGatewayDelegatee(delegatedGatewayPubKey);
 
