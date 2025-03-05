@@ -6,10 +6,7 @@ import { TaiyiCore } from "../src/TaiyiCore.sol";
 import { GatewayAVS } from "../src/eigenlayer-avs/GatewayAVS.sol";
 import { ValidatorAVS } from "../src/eigenlayer-avs/ValidatorAVS.sol";
 
-import "../src/TaiyiEscrow.sol";
 import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
-import { EigenLayerMiddleware } from "../src/abstract/EigenLayerMiddleware.sol";
-import "../src/interfaces/ITaiyiCore.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
@@ -168,10 +165,6 @@ contract Deploy is Script, Test {
 
         // Set AVS contracts in registry
         registry.setAVSContracts(address(gateway), address(validator));
-
-        // Add middleware contracts
-        registry.addRestakingMiddlewareContract(address(validator));
-        registry.addRestakingMiddlewareContract(address(gateway));
 
         // Deploy TaiyiCore implementation and proxy
         TaiyiCore coreImpl = new TaiyiCore();

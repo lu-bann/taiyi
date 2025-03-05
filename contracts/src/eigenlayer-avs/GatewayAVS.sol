@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { EigenLayerMiddleware } from "../abstract/EigenLayerMiddleware.sol";
+import { EigenLayerMiddleware } from "./EigenLayerMiddleware.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 
@@ -11,8 +11,7 @@ import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
-import { IERC20 } from "@openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol"; // Optional: for mulDiv or other helpers
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title GatewayAVS
 /// @notice Manages gateway-specific AVS functionality and reward distribution.
@@ -75,7 +74,9 @@ contract GatewayAVS is EigenLayerMiddleware {
     {
         AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
         proposerRegistry.registerOperator(
-            operator, IProposerRegistry.AVSType.GATEWAY, operatorBLSPubKey
+            operator,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            operatorBLSPubKey
         );
     }
 

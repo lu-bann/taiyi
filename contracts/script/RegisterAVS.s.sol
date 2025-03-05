@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import { Script, console } from "forge-std/Script.sol";
 
-import { EigenLayerMiddleware } from "../src/abstract/EigenLayerMiddleware.sol";
+import { EigenLayerMiddleware } from "../src/eigenlayer-avs/EigenLayerMiddleware.sol";
 
 contract RegisterAVS is Script {
     function run() public {
