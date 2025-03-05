@@ -360,8 +360,47 @@ pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
     };
     TransactionSigned { transaction, signature, hash: hash.into() }
 }
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebSpec>> {
-    let blobs_bundle = transactions
+
+// pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebSpec>> {
+//     let blobs_bundle = transactions
+//         .iter()
+//         .filter_map(|tx| match tx {
+//             TxEnvelope::Eip4844(signed_tx) => match signed_tx.tx() {
+//                 TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => Some(sidecar_tx.sidecar()),
+//                 _ => None,
+//             },
+//             _ => None,
+//         })
+//         .fold(
+//             BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
+//             |mut acc, sidecar| {
+//                 for commitment in sidecar.commitments.iter() {
+//                     acc.commitments
+//                         .push(KzgCommitment(
+//                             commitment.as_slice().try_into().expect("invalid commitment"),
+//                         ))
+//                         .ok();
+//                 }
+//                 for proof in sidecar.proofs.iter() {
+//                     acc.proofs
+//                         .push(KzgProof(proof.as_slice().try_into().expect("invalid proof")))
+//                         .ok();
+//                 }
+//                 for blob in sidecar.blobs.iter() {
+//                     acc.blobs.push(Blob::<DenebSpec>::from(blob.as_slice().to_vec())).ok();
+//                 }
+//                 acc
+//             },
+//         );
+//     if blobs_bundle.commitments.is_empty() {
+//         None
+//     } else {
+//         Some(blobs_bundle)
+//     }
+// }
+
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
+    transactions
         .iter()
         .filter_map(|tx| match tx {
             TxEnvelope::Eip4844(signed_tx) => match signed_tx.tx() {
@@ -390,12 +429,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebS
                 }
                 acc
             },
-        );
-    if blobs_bundle.commitments.is_empty() {
-        None
-    } else {
-        Some(blobs_bundle)
-    }
+        )
 }
 
 pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpec> {

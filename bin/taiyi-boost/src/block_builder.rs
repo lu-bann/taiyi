@@ -174,11 +174,11 @@ impl LocalBlockBuilder {
         let signed_transactions: Vec<TransactionSigned> =
             transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
         let blobs_bundle = to_blobs_bundle(transactions);
-        let kzg_commitments = blobs_bundle.clone().unwrap_or_default().commitments.clone();
+        let kzg_commitments = blobs_bundle.clone().commitments.clone();
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
         let value = U256::from(100_000_000_000_000_000_000u128);
         let execution_payload = to_cb_execution_payload(&block);
-        let payload_and_blobs = PayloadAndBlobs { execution_payload, blobs_bundle };
+        let payload_and_blobs = PayloadAndBlobs { execution_payload, blobs_bundle: Some(blobs_bundle) };
         let execution_payload_header = to_cb_execution_payload_header(&block);
 
         let signed_bid = self.create_signed_execution_payload_header(
