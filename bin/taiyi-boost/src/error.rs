@@ -24,8 +24,8 @@ pub enum BuilderError {
     InvalidTransactions(String),
     #[error("Got an unexpected response from engine_newPayload query: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
-    #[error("Failed to parse any hints from engine API validation error")]
-    FailedToParseHintsFromEngine,
+    #[error("Failed to parse any hints from engine API validation error: {0}")]
+    FailedToParseHintsFromEngine(String),
     #[error("Unsupported engine hint: {0}")]
     UnsupportedEngineHint(String),
     #[error("Unsupported engine client: {0}")]
