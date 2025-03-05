@@ -85,16 +85,21 @@ impl Ready {
         }
     }
 
-    /// Calculates the total pending deposit for all parked transactions.
-    /// This is the sum of the deposit of all parked transactions.
-    pub fn get_pending_diffs_for_account(&self, _account: Address) -> Option<U256> {
-        // self.by_account.get(&account).map(|ids| {
-        //     ids.iter()
-        //         .filter_map(|id| self.by_id.get(id))
-        //         .map(|preconf| preconf.allocation.deposit)
-        //         .sum()
-        // })
-        None
+    /// Calculates the total pending deposit for all transactions.
+    /// This is the sum of the deposit of all transactions.
+    pub fn get_pending_diffs_for_account(&self, account: Address) -> Option<U256> {
+        self.by_account.get(&account).map(|ids| {
+            ids.iter()
+                .filter_map(|id| self.by_id.get(id))
+                .map(|preconf| {
+                    if let PreconfRequest::TypeB(inner) = preconf {
+                        inner.allocation.deposit
+                    } else {
+                        U256::ZERO
+                    }
+                })
+                .sum()
+        })
     }
 }
 
