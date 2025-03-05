@@ -142,7 +142,6 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             block.timestamp,
             msg.sender,
             signer,
-            address(0), // TODO[Martin]: Set correct address (extract from preconf request),
             ChallengeStatus.Open,
             0,
             encodedPreconfRequestAType,

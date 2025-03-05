@@ -21,7 +21,6 @@ interface ITaiyiInteractiveChallenger {
         uint256 createdAt;
         address challenger;
         address commitmentSigner;
-        address commitmentReceiver;
         ChallengeStatus status;
         uint8 preconfType; // 0 - TypeA | 1 - TypeB
         bytes commitmentData; // abi encoded commitment data (PreconfRequestAType | PreconfRequestBType)

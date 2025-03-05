@@ -386,7 +386,6 @@ contract TaiyiInteractiveChallengerTest is Test {
         assertEq(challenge.id, challengeId);
         // TODO[Martin]: Check challenge.createdAt
         assertEq(challenge.challenger, user);
-        // TODO[Martin]: Check challenge.commitmentReceiver
         assertEq(challenge.commitmentSigner, signer);
         assertTrue(challenge.status == ITaiyiInteractiveChallenger.ChallengeStatus.Open);
         assertEq(challenge.preconfType, 0);
