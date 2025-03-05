@@ -62,7 +62,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
         .await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000_000).await?;
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address()).await?;
     assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
