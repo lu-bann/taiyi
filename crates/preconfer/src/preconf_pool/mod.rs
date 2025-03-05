@@ -152,8 +152,51 @@ impl PreconfPool {
 
     async fn validate_typea(
         &self,
-        _preconf_request: &PreconfRequestTypeA,
+        preconf_request: &PreconfRequestTypeA,
     ) -> eyre::Result<(), ValidationError> {
+        let signer = match preconf_request.signer() {
+            Some(signer) => signer,
+            None => return Err(ValidationError::SignerNotFound),
+        };
+
+        let account_state = self
+            .validator
+            .execution_client
+            .get_account_state(signer)
+            .await
+            .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
+
+        let account_balance = account_state.balance;
+        let account_nonce = account_state.nonce;
+
+        // Tip transaction must be an ETH transfer
+        if !preconf_request.tip_transaction.is_eip1559() {
+            return Err(ValidationError::InvalidTipTransaction);
+        }
+
+        // TODO: check tip
+        // NOTE: requires a price oracle to check the tip
+
+        // Nonce check
+        let preconf_tx_nonce = preconf_request.preconf_tx.nonce();
+        let tip_tx_nonce = preconf_request.tip_transaction.nonce();
+
+        // Check for continuity of nonce
+        if preconf_tx_nonce.abs_diff(tip_tx_nonce) != 1 {
+            return Err(ValidationError::NonceNotContinuous(tip_tx_nonce, preconf_tx_nonce));
+        }
+
+        let nonce = preconf_tx_nonce.min(tip_tx_nonce);
+        if nonce > account_nonce {
+            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
+        }
+
+        if nonce < account_nonce {
+            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
+        }
+
+        // TODO: balance check
+
         Ok(())
     }
 
