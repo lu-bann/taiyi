@@ -284,7 +284,7 @@ mod test {
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
 
-        let slot = genesis_time + (utcnow_sec() / context.seconds_per_slot) + 1;
+        let slot = (utcnow_sec() - genesis_time) / context.seconds_per_slot + 1;
 
         let block = local_builder.build_local_payload(slot, &[tx_signed_reth]).await?;
         assert_eq!(block.body.transactions.len(), 1);
