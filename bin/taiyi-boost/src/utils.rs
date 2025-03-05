@@ -43,6 +43,7 @@ pub(crate) mod tests {
             || env::var("EXECUTION_API").is_err()
             || env::var("BEACON_API").is_err()
             || env::var("JWT_SECRET").is_err()
+            || env::var("NETWORK").is_err()
         {
             return Ok(None);
         }
@@ -52,6 +53,7 @@ pub(crate) mod tests {
         let beacon_api = env::var("BEACON_API").unwrap();
         let jwt_secret = env::var("JWT_SECRET").unwrap();
         let auth_token = env::var("AUTH_TOKEN").ok();
+        let network = env::var("NETWORK").unwrap();
 
         Ok(Some(ExtraConfig {
             engine_api: Url::parse(&engine_api)?,
@@ -62,7 +64,7 @@ pub(crate) mod tests {
                 "0x6b845831c99c6bf43364bee624447d39698465df5c07f2cc4dca6e0acfbe46cd",
             ),
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
-            network: Network::from("holesky".to_string()),
+            network: Network::Custom(network),
             auth_token,
         }))
     }
