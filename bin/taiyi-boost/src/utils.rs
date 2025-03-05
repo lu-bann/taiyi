@@ -20,7 +20,6 @@ pub(crate) mod tests {
     use std::env;
 
     use alloy_network::TransactionBuilder;
-    use alloy_node_bindings::{Anvil, AnvilInstance};
     use alloy_primitives::{address, Address, Bytes, B256, U256};
     use alloy_rpc_types_eth::TransactionRequest;
     use ethereum_consensus::networks::Network;
@@ -38,11 +37,6 @@ pub(crate) mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/testdata/signed-mainnet-beacon-block.bin.ssz"
     ));
-
-    /// Launch a local instance of the Anvil test chain.
-    pub fn launch_anvil() -> AnvilInstance {
-        Anvil::new().block_time(1).chain_id(1337).spawn()
-    }
 
     pub fn get_test_config() -> Result<Option<ExtraConfig>> {
         if env::var("ENGINE_API").is_err()

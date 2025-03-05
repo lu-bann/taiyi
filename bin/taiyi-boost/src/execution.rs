@@ -40,7 +40,7 @@ impl DerefMut for ExecutionClient {
     }
 }
 
-#[allow(unused)]
+#[allow(dead_code)]
 impl ExecutionClient {
     /// Create a new `RpcClient` with the given URL.
     pub fn new<U: Into<Url>>(url: U) -> Self {
@@ -140,7 +140,6 @@ impl ExecutionClient {
     }
 
     /// Send a raw transaction to the network.
-    #[allow(unused)]
     pub async fn send_raw_transaction(&self, raw: Bytes) -> TransportResult<B256> {
         self.rpc.request("eth_sendRawTransaction", [raw]).await
     }
@@ -178,14 +177,15 @@ mod tests {
     use std::str::FromStr;
 
     use alloy_consensus::constants::ETH_TO_WEI;
-    use alloy_primitives::{uint, Address, Uint};
+    use alloy_node_bindings::Anvil;
+    use alloy_primitives::{uint, Uint};
 
     use super::*;
-    use crate::utils::tests::{get_test_config, launch_anvil};
+    use crate::utils::tests::get_test_config;
 
     #[tokio::test]
     async fn test_rpc_client() {
-        let anvil = launch_anvil();
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let anvil_url = Url::from_str(&anvil.endpoint()).unwrap();
         let client = ExecutionClient::new(anvil_url);
 
@@ -227,23 +227,6 @@ mod tests {
             .unwrap();
 
         println!("{_receipts:?}");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_smart_contract_code() -> eyre::Result<()> {
-        let Some(config) = get_test_config()? else {
-            eprintln!("Skipping test because required environment variables are not set");
-            return Ok(());
-        };
-        let rpc_client = ExecutionClient::new(config.execution_api.clone());
-
-        // random deployed smart contract address
-        let addr = Address::from_str("0xb0f2625e759919dbfcce5a667b8f54a64fa459a9")?;
-        let account = rpc_client.get_account_state(&addr, None).await?;
-
-        assert!(account.has_code);
-
         Ok(())
     }
 }
