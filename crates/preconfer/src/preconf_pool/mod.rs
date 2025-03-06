@@ -157,6 +157,42 @@ impl PreconfPool {
             None => return Err(ValidationError::SignerNotFound),
         };
 
+        let tip_tx_gas_limit = preconf_request.tip_transaction.gas_limit();
+        let preconf_tx_gas_limit = preconf_request.preconf_tx.gas_limit();
+
+        {
+            let pool_inner = self.pool_inner.write();
+
+            let blockspace_avail =
+                match pool_inner.blockspace_issued.get(&preconf_request.target_slot()) {
+                    Some(space) => space.clone(),
+                    None => BlockspaceAvailable::default(),
+                };
+
+            // Verify that we have enough space
+            if blockspace_avail.gas_limit < tip_tx_gas_limit + preconf_tx_gas_limit {
+                return Err(ValidationError::GasLimitTooHigh);
+            }
+
+            if preconf_request.preconf_tx.is_eip4844() {
+                let blob_count = preconf_request
+                    .preconf_tx
+                    .as_eip4844()
+                    .expect("Failed to decode 4844 transaction")
+                    .tx()
+                    .blob_versioned_hashes()
+                    .iter()
+                    .len();
+
+                if blockspace_avail.blobs < blob_count {
+                    return Err(ValidationError::BlobCountExceedsLimit(
+                        blockspace_avail.blobs,
+                        blob_count,
+                    ));
+                }
+            }
+        }
+
         let account_state = self
             .validator
             .execution_client
