@@ -19,8 +19,14 @@ contract TaiyiParameterManager is
     /// After this period, the challenge is considered undefended or successful.
     uint256 public challengeMaxDuration;
 
-    /// @dev The blockhash lookback window.
-    uint256 public blockhashLookback;
+    /// @dev The challenge creation window.
+    uint256 public challengeCreationWindow;
+
+    /// @dev The genesis timestamp of the chain.
+    uint256 public genesisTimestamp;
+
+    /// @dev The slot time of the chain.
+    uint256 public slotTime;
 
     /// @dev Total storage slots: 50
     uint256[50] private __gap;
@@ -30,7 +36,9 @@ contract TaiyiParameterManager is
         address _owner,
         uint256 _challengeBond,
         uint256 _challengeMaxDuration,
-        uint256 _blockhashLookback
+        uint256 _challengeCreationWindow,
+        uint256 _genesisTimestamp,
+        uint256 _slotTime
     )
         public
         initializer
@@ -39,7 +47,9 @@ contract TaiyiParameterManager is
 
         challengeBond = _challengeBond;
         challengeMaxDuration = _challengeMaxDuration;
-        blockhashLookback = _blockhashLookback;
+        challengeCreationWindow = _challengeCreationWindow;
+        genesisTimestamp = _genesisTimestamp;
+        slotTime = _slotTime;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
@@ -55,7 +65,17 @@ contract TaiyiParameterManager is
     }
 
     /// @inheritdoc ITaiyiParameterManager
-    function setBlockhashLookback(uint256 _blockhashLookback) external onlyOwner {
-        blockhashLookback = _blockhashLookback;
+    function setChallengeCreationWindow(uint256 _challengeCreationWindow) external onlyOwner {
+        challengeCreationWindow = _challengeCreationWindow;
+    }
+
+    /// @inheritdoc ITaiyiParameterManager
+    function setGenesisTimestamp(uint256 _genesisTimestamp) external onlyOwner {
+        genesisTimestamp = _genesisTimestamp;
+    }
+
+    /// @inheritdoc ITaiyiParameterManager
+    function setSlotTime(uint256 _slotTime) external onlyOwner {
+        slotTime = _slotTime;
     }
 }

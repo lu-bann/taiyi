@@ -18,6 +18,7 @@ contract TaiyiParameterManagerTest is Test {
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
     uint256 internal proxyAdminPrivatekey;
+    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1655733600;
 
     TaiyiParameterManager taiyiParameterManager;
 
@@ -34,7 +35,7 @@ contract TaiyiParameterManagerTest is Test {
             address(taiyiParameterManagerImpl),
             proxyAdmin,
             abi.encodeWithSelector(
-                TaiyiParameterManager.initialize.selector, owner, 1, 64, 256
+                TaiyiParameterManager.initialize.selector, owner, 1, 64, 256, SEPOLIA_GENESIS_TIMESTAMP, 12
             )
         );
         taiyiParameterManager = TaiyiParameterManager(address(taiyiParameterManagerProxy));
@@ -49,7 +50,9 @@ contract TaiyiParameterManagerTest is Test {
         assertEq(taiyiParameterManager.owner(), owner);
         assertEq(taiyiParameterManager.challengeBond(), 1);
         assertEq(taiyiParameterManager.challengeMaxDuration(), 64);
-        assertEq(taiyiParameterManager.blockhashLookback(), 256);
+        assertEq(taiyiParameterManager.challengeCreationWindow(), 256);
+        assertEq(taiyiParameterManager.genesisTimestamp(), SEPOLIA_GENESIS_TIMESTAMP);
+        assertEq(taiyiParameterManager.slotTime(), 12);
     }
 
     // =========================================
@@ -89,20 +92,38 @@ contract TaiyiParameterManagerTest is Test {
     }
 
     // =========================================
-    //  Test: Owner can set blockhash lookback
+    //  Test: Owner can set challenge creation window
     // =========================================
-    function testOwnerCanSetBlockhashLookback() public {
+    function testOwnerCanSetChallengeCreationWindow() public {
         vm.prank(owner);
-        taiyiParameterManager.setBlockhashLookback(128);
-        assertEq(taiyiParameterManager.blockhashLookback(), 128);
+        taiyiParameterManager.setChallengeCreationWindow(128);
+        assertEq(taiyiParameterManager.challengeCreationWindow(), 128);
     }
 
     // =========================================
-    //  Test: User is not authorized to set blockhash lookback
+    //  Test: User is not authorized to set challenge creation window
     // =========================================
-    function testUserCannotSetBlockhashLookback() public {
+    function testUserCannotSetChallengeCreationWindow() public {
         vm.prank(user);
         vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
-        taiyiParameterManager.setBlockhashLookback(128);
+        taiyiParameterManager.setChallengeCreationWindow(128);
+    }
+
+    // =========================================
+    //  Test: Owner can set genesis timestamp
+    // =========================================
+    function testOwnerCanSetGenesisTimestamp() public {
+        vm.prank(owner);
+        taiyiParameterManager.setGenesisTimestamp(1616508000);
+        assertEq(taiyiParameterManager.genesisTimestamp(), 1616508000);
+    }
+
+    // =========================================
+    //  Test: User is not authorized to set genesis timestamp
+    // =========================================
+    function testUserCannotSetGenesisTimestamp() public {
+        vm.prank(user);
+        vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
+        taiyiParameterManager.setGenesisTimestamp(1616508000);
     }
 }

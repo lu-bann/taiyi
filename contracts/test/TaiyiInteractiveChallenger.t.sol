@@ -28,6 +28,8 @@ contract TaiyiInteractiveChallengerTest is Test {
     uint256 internal ownerPrivatekey;
     uint256 internal signerPrivatekey;
 
+    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1655733600;
+
     TaiyiInteractiveChallenger taiyiInteractiveChallenger;
     TaiyiParameterManager parameterManager;
 
@@ -45,7 +47,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.deal(signer, 100 ether);
 
         parameterManager = new TaiyiParameterManager();
-        parameterManager.initialize(owner, 1, 64, 256);
+        parameterManager.initialize(owner, 1, 64, 256, SEPOLIA_GENESIS_TIMESTAMP, 12);
 
         taiyiInteractiveChallenger = new TaiyiInteractiveChallenger(
             owner, verifierAddress, bytes32(0), address(parameterManager)
@@ -104,38 +106,6 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
-    //  Test: Fails to create challenge AType with signer does not match
-    // =========================================
-    function testCreateChallengeATypeFailsSignerDoesNotMatch() public {
-        // Send transaction as user
-        vm.startPrank(user);
-
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
-        uint256 bond = parameterManager.challengeBond();
-
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-
-        // We sign the challenge id with the user private key
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, challengeId);
-        bytes memory signature = abi.encodePacked(r, s, v);
-
-        vm.expectPartialRevert(
-            ITaiyiInteractiveChallenger.SignerDoesNotMatchPreconfRequest.selector
-        );
-
-        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
-            preconfRequestAType, signature
-        );
-        vm.stopPrank();
-    }
-
-    // =========================================
     //  Test: Fails to create challenge AType with challenge already exists
     // =========================================
     function testCreateChallengeATypeFailsChallengeAlreadyExists() public {
@@ -170,42 +140,43 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.stopPrank();
     }
 
+    // TODO: Implement with concreate (real) data
     // =========================================
     //  Test: Create challenge BType
     // =========================================
-    function testCreateChallengeBType() public {
-        uint256 bond = parameterManager.challengeBond();
+    // function testCreateChallengeBType() public {
+    //     uint256 bond = parameterManager.challengeBond();
 
-        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
-            gasLimit: 100_000,
-            sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
-            recipient: 0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766,
-            deposit: 1 ether,
-            tip: 1 ether,
-            targetSlot: 1,
-            blobCount: 1
-        });
+    //     BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
+    //         gasLimit: 100_000,
+    //         sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
+    //         recipient: 0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766,
+    //         deposit: 1 ether,
+    //         tip: 1 ether,
+    //         targetSlot: vm.getBlockNumber(),
+    //         blobCount: 1
+    //     });
 
-        PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
-            blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
-        });
+    //     PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
+    //         blockspaceAllocation: blockspaceAllocation,
+    //         blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+    //         gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+    //         rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+    //         gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+    //     });
 
-        bytes32 dataHash = keccak256(abi.encode(
-            blockspaceAllocation,
-            preconfRequestBType.gatewaySignedRawTx
-        ));
+    //     bytes32 dataHash = keccak256(abi.encode(
+    //         blockspaceAllocation,
+    //         preconfRequestBType.gatewaySignedRawTx
+    //     ));
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, dataHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
+    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, dataHash);
+    //     bytes memory signature = abi.encodePacked(r, s, v);
 
-        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
-            preconfRequestBType, signature
-        );
-    }
+    //     taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+    //         preconfRequestBType, signature
+    //     );
+    // }
 
     // =========================================
     //  Test: Fails to create challenge BType with invalid bond

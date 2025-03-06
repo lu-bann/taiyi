@@ -5,11 +5,6 @@ import { PreconfRequestAType } from "../types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "../types/PreconfRequestBTypes.sol";
 
 interface ITaiyiInteractiveChallenger {
-    // TODO[Martin]: Define other necessary proof fields
-    struct Proof {
-        uint256 inclusionBlockNumber;
-    }
-
     enum ChallengeStatus {
         Open,
         Failed,
@@ -27,11 +22,12 @@ interface ITaiyiInteractiveChallenger {
         bytes signature; // signature over the commitment data
     }
 
-    error BlockIsTooOld();
-    error InvalidBlockNumber();
+    error TargetSlotNotInChallengeCreationWindow();
     error SignerDoesNotMatchPreconfRequest();
     error ChallengeBondInvalid();
-
+    error TargetSlotDoesNotMatch();
+    error ChallengeIdDoesNotMatch();
+    error CommitmentSignerDoesNotMatch();
     error ChallengeAlreadyResolved();
     error ChallengeAlreadyExists();
     error ChallengeDoesNotExist();
