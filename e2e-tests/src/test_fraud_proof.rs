@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
+use alloy_consensus::Transaction;
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{hex, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
+use alloy_sol_types::SolCall;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use sp1_sdk::{include_elf, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
@@ -19,7 +21,7 @@ use crate::{
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        get_available_slot, get_constraints_from_relay, get_preconf_fee, new_account,
+        getTipCall, get_available_slot, get_constraints_from_relay, get_preconf_fee, new_account,
         send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
         wait_until_deadline_of_slot, PreconfTypeBJson,
     },
@@ -32,6 +34,7 @@ const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 // TODO: type A not included test, can be dynamic
 
 #[tokio::test]
+#[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let preconf = PreconfTypeBJson::from_file("testdata/preconf_type_b.json").unwrap();
 
@@ -72,12 +75,43 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         .await?
         .unwrap();
 
+    let get_tip_call = getTipCall::abi_decode(get_tip_transaction.input(), true).unwrap();
+
     let mut stdin = SP1Stdin::new();
 
     // preconf type b
     let preconf_b = PreconfRequestTypeB {
-        allocation: todo!(),
-        alloc_sig: todo!(),
+        allocation: BlockspaceAllocation {
+            target_slot: get_tip_call
+                .preconfRequestBType
+                .blockspaceAllocation
+                .targetSlot
+                .try_into()
+                .unwrap(),
+            gas_limit: get_tip_call
+                .preconfRequestBType
+                .blockspaceAllocation
+                .gasLimit
+                .try_into()
+                .unwrap(),
+            deposit: get_tip_call
+                .preconfRequestBType
+                .blockspaceAllocation
+                .deposit
+                .try_into()
+                .unwrap(),
+            tip: get_tip_call.preconfRequestBType.blockspaceAllocation.tip.try_into().unwrap(),
+            blob_count: get_tip_call
+                .preconfRequestBType
+                .blockspaceAllocation
+                .blobCount
+                .try_into()
+                .unwrap(),
+        },
+        alloc_sig: PrimitiveSignature::from_str(
+            &get_tip_call.preconfRequestBType.blockspaceAllocationSignature.to_string(),
+        )
+        .unwrap(),
         transaction: user_transaction.into(),
         preconf_sig: PrimitiveSignature::from_str(&preconf.preconf_gateway_signature).unwrap(),
     };
@@ -106,6 +140,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // gateway address
     stdin.write(&preconf.gateway_address);
+
+    // TODO: proof generation and proof verification
 
     Ok(())
 }

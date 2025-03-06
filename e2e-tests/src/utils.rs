@@ -12,6 +12,7 @@ use alloy_provider::{
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::sol;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
@@ -19,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
-    SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation as BlockspaceAlloc, ContextExt, PreconfFeeResponse, PreconfRequest,
+    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -35,6 +36,26 @@ use crate::constant::{
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
     static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
+}
+
+sol! {
+    struct BlockspaceAllocation {
+        uint256 gasLimit;
+        address sender;
+        address recipient;
+        uint256 deposit;
+        uint256 tip;
+        uint256 targetSlot;
+        uint256 blobCount;
+    }
+    struct PreconfRequestBType {
+        BlockspaceAllocation blockspaceAllocation;
+        bytes blockspaceAllocationSignature;
+        bytes gatewaySignedBlockspaceAllocation;
+        bytes rawTx;
+        bytes gatewaySignedRawTx;
+    }
+    function getTip(PreconfRequestBType calldata preconfRequestBType);
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
@@ -286,11 +307,11 @@ pub async fn generate_reserve_blockspace_request(
     gas_limit: u64,
     blob_count: u64,
     preconf_fee: PreconfFeeResponse,
-) -> (BlockspaceAllocation, String) {
+) -> (BlockspaceAlloc, String) {
     let fee = preconf_fee.gas_fee * (gas_limit as u128)
         + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
-    let request = BlockspaceAllocation {
+    let request = BlockspaceAlloc {
         target_slot,
         deposit: fee,
         tip: fee,
@@ -314,7 +335,7 @@ pub async fn generate_submit_transaction_request(
 }
 
 pub async fn send_reserve_blockspace_request(
-    request: BlockspaceAllocation,
+    request: BlockspaceAlloc,
     signature: String,
     taiyi_url: &str,
 ) -> eyre::Result<Response> {
