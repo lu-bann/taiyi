@@ -201,7 +201,7 @@ pub async fn get_constraints_from_relay(
     Ok(constraints)
 }
 
-pub async fn wati_until_deadline_of_slot(
+pub async fn wait_until_deadline_of_slot(
     config: &TestConfig,
     target_slot: u64,
 ) -> eyre::Result<()> {
@@ -245,10 +245,10 @@ pub async fn generate_reserve_blockspace_request(
     target_slot: u64,
     gas_limit: u64,
     blob_count: u64,
-    preocnf_fee: PreconfFeeResponse,
+    preconf_fee: PreconfFeeResponse,
 ) -> (BlockspaceAllocation, String) {
-    let fee = preocnf_fee.gas_fee * (gas_limit as u128)
-        + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
+    let fee = preconf_fee.gas_fee * (gas_limit as u128)
+        + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
     let request = BlockspaceAllocation {
         target_slot,

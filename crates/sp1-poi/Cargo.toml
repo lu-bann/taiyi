@@ -1,7 +1,18 @@
 [package]
-name = "sp1-poi"
+name = "taiyi-poi"
 version = "1.1.0"
 edition = "2021"
 
 [dependencies]
+taiyi-zkvm-types = { workspace = true }
+
+alloy-consensus = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-rlp = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-trie = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
 sp1-zkvm = { workspace = true }
+ssz_rs = { workspace = true }

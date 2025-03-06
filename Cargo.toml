@@ -50,6 +50,9 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
+taiyi-zkvm-types ={ path = "crates/sp1-types" }
+taiyi-poi = { path = "crates/sp1-poi" }
+taiyi-poni = { path = "crates/sp1-poni" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
@@ -60,7 +63,9 @@ cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag =
 cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 
 # alloy
-alloy-primitives = { version = "0.8.15", default-features = false }
+alloy-primitives = { version = "0.8.15", features = [
+    "serde",
+], default-features = false }
 alloy-rpc-types-beacon = { version = "0.8.0", default-features = false }
 alloy-rpc-types-engine = { version = "0.8.1", default-features = false }
 alloy-rpc-types = { version = "0.8.1", features = [
@@ -75,7 +80,7 @@ alloy-signer-local = { version = "0.8.1", features = ["mnemonic"] }
 alloy-transport = { version = "0.8.1" }
 alloy-contract = { version = "0.8.1" }
 alloy-eips = { version = "0.8.1", default-features = false }
-alloy-consensus = { version = "0.8.1", features = ["k256"] }
+alloy-consensus = { version = "0.8.1", features = ["k256", "serde"] }
 alloy-rlp = "0.3.10"
 alloy-sol-types = "0.8.15"
 alloy-node-bindings = { version = "0.8.1", default-features = false }
@@ -83,6 +88,7 @@ alloy-rpc-client = { version = "0.8.1", default-features = false }
 alloy-transport-http = { version = "0.8.1", default-features = false }
 alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
 alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
+alloy-trie = "0.7.9"
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }

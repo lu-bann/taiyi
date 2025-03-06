@@ -801,9 +801,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-trie"
-version = "0.7.6"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a5fd8fea044cc9a8c8a50bb6f28e31f0385d820f116c5b98f6f4e55d6e5590b"
+checksum = "d95a94854e420f07e962f7807485856cde359ab99ab6413883e15235ad996e8b"
 dependencies = [
  "alloy-primitives 0.8.15",
  "alloy-rlp",
@@ -5117,9 +5117,9 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nybbles"
-version = "0.2.1"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95f06be0417d97f81fe4e5c86d7d01b392655a9cac9c19a848aa033e18937b23"
+checksum = "8983bb634df7248924ee0c4c3a749609b5abcb082c28fffe3254b3eb3602b307"
 dependencies = [
  "alloy-rlp",
  "const-hex",
@@ -7549,20 +7549,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp1-poi"
-version = "1.1.0"
-dependencies = [
- "sp1-zkvm",
-]
-
-[[package]]
-name = "sp1-poni"
-version = "1.1.0"
-dependencies = [
- "sp1-zkvm",
-]
-
-[[package]]
 name = "sp1-primitives"
 version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8306,9 +8292,12 @@ dependencies = [
  "reqwest 0.12.9",
  "serde",
  "serde_json",
+ "sp1-build",
+ "sp1-sdk",
  "taiyi-cmd",
  "taiyi-preconfer",
  "taiyi-primitives",
+ "taiyi-zkvm-types",
  "tokio",
  "tracing",
  "tracing-core",
@@ -8351,6 +8340,30 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "taiyi-poi"
+version = "1.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives 0.8.15",
+ "alloy-rlp",
+ "alloy-sol-types",
+ "alloy-trie",
+ "hex",
+ "serde_json",
+ "sp1-zkvm",
+ "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
+ "taiyi-zkvm-types",
+]
+
+[[package]]
+name = "taiyi-poni"
+version = "1.1.0"
+dependencies = [
+ "sp1-zkvm",
 ]
 
 [[package]]
@@ -8417,6 +8430,18 @@ dependencies = [
  "sha2 0.10.8",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "uuid 1.11.0",
+]
+
+[[package]]
+name = "taiyi-zkvm-types"
+version = "0.1.3"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives 0.8.15",
+ "alloy-sol-types",
+ "serde",
+ "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
+ "thiserror 2.0.7",
 ]
 
 [[package]]

@@ -18,7 +18,7 @@ use crate::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
         get_available_slot, get_constraints_from_relay, get_preconf_fee, health_check, new_account,
         send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
-        wati_until_deadline_of_slot, ErrorResponse,
+        wait_until_deadline_of_slot, ErrorResponse,
     },
 };
 
@@ -105,7 +105,7 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
     // TODO: verify the commitment signature with gateway pub key
 
-    wati_until_deadline_of_slot(&config, target_slot).await?;
+    wait_until_deadline_of_slot(&config, target_slot).await?;
 
     let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
     let mut txs = Vec::new();
@@ -255,7 +255,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     let status = res.status();
     assert_eq!(status, 200);
 
-    wati_until_deadline_of_slot(&config, target_slot).await?;
+    wait_until_deadline_of_slot(&config, target_slot).await?;
 
     let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
     let mut txs = Vec::new();

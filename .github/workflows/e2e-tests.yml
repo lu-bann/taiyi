@@ -25,6 +25,11 @@ jobs:
       - uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install SP1 toolchain
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          ~/.sp1/bin/sp1up --version v4.0.1
+          ~/.sp1/bin/cargo-prove prove --version
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
