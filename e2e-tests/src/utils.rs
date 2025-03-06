@@ -15,6 +15,7 @@ use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
+use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::SlotInfo;
 use taiyi_primitives::{
@@ -82,6 +83,45 @@ impl TestConfig {
 
     pub fn taiyi_url(&self) -> String {
         format!("http://localhost:{}", self.taiyi_port)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreconfTypeAJson {
+    pub gateway_address: String,
+    pub preconf_gateway_signature: String,
+    pub slot: String,
+    pub tip_transaction_hash: String,
+    pub user_transaction_hashes: Vec<String>,
+    pub sequence_number: String,
+    pub anchor_transaction_hash: String,
+}
+
+impl PreconfTypeAJson {
+    pub fn from_file(path: &str) -> eyre::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let preconf = serde_json::from_reader(reader)?;
+        Ok(preconf)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreconfTypeBJson {
+    pub gateway_address: String,
+    pub preconf_gateway_signature: String,
+    pub slot: String,
+    pub user_transaction_hash: String,
+    pub gateway_get_tip_transaction_hash: String,
+    pub gateway_sponsorship_transaction_hash: String,
+}
+
+impl PreconfTypeBJson {
+    pub fn from_file(path: &str) -> eyre::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let preconf = serde_json::from_reader(reader)?;
+        Ok(preconf)
     }
 }
 

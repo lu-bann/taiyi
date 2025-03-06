@@ -5,17 +5,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PreconfRequestTypeA {
     pub tip_transaction: TxEnvelope,
-    pub preconf_tx: TxEnvelope, // TODO: change to array
+    pub transactions: Vec<TxEnvelope>,
     pub target_slot: u64,
     pub sequence_number: u64,
-    pub preconf_sig: PrimitiveSignature, // signature by gateway (over tip transaction, preconf_tx, target_slot, and sequence_number)
+    pub preconf_sig: PrimitiveSignature, /* signature by gateway (over tip transaction, preconf_txs, target_slot, and sequence_number) */
 }
 
 impl PreconfRequestTypeA {
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
         digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
-        digest.extend_from_slice(self.preconf_tx.tx_hash().as_slice());
+        for tx in &self.transactions {
+            digest.extend_from_slice(tx.tx_hash().as_slice());
+        }
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         digest.extend_from_slice(&self.sequence_number.to_be_bytes());
         keccak256(&digest)
@@ -86,7 +88,7 @@ pub struct TxMerkleMultiProof {
     pub constraints: ConstraintsData,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AccountMerkleProof {
     pub address: Address,
     pub nonce: u64,
@@ -101,15 +103,15 @@ pub struct AccountMerkleProof {
 pub struct PreconfTypeA {
     pub preconf: PreconfRequestTypeA,
     pub anchor_tx: TxEnvelope,
-    pub tx_merkle_proof: TxMerkleMultiProof, // Inclusion proofs of the user transaction and anchor tx in the block
-    pub account_merkle_proof: AccountMerkleProof, // Merkle proof of the account state (user's)
+    pub tx_merkle_proof: TxMerkleMultiProof, /* Inclusion proofs of the user transaction and anchor tx in the block */
+    pub account_merkle_proof: Vec<AccountMerkleProof>, /* Merkle proofs of the account states (user's) */
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct PreconfTypeB {
     pub preconf: PreconfRequestTypeB,
     pub sponsorship_tx: TxEnvelope,
-    pub tx_merkle_proof: TxMerkleMultiProof, // Inclusion proofs of the user transaction and sponsorship tx in the block
+    pub tx_merkle_proof: TxMerkleMultiProof, /* Inclusion proofs of the user transaction and sponsorship tx in the block */
     pub account_merkle_proof: AccountMerkleProof, // Merkle proof of the account state (user's)
 }
 
