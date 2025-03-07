@@ -131,10 +131,14 @@ where
                                         .preconf_pool
                                         .calculate_gas_used(request.tip_transaction.clone())
                                         .await?;
-                                    let preconf_tx_gas_used = self
-                                        .preconf_pool
-                                        .calculate_gas_used(request.preconf_tx.clone())
-                                        .await?;
+                                    let mut preconf_tx_gas_used: u64 = 0;
+                                    for preconf_tx in request.preconf_tx.clone() {
+                                        let gas_used = self
+                                            .preconf_pool
+                                            .calculate_gas_used(preconf_tx)
+                                            .await?;
+                                        preconf_tx_gas_used += gas_used;
+                                    }
 
                                     accounts
                                         .push(request.signer().expect("Signer must be present"));
@@ -149,12 +153,14 @@ where
                                         tx_ref.try_into().expect("tx bytes too big");
                                     type_a_txs.push(tx_bytes);
 
-                                    let mut tx_encoded = Vec::new();
-                                    request.preconf_tx.encode_2718(&mut tx_encoded);
-                                    let tx_ref: &[u8] = tx_encoded.as_ref();
-                                    let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                        tx_ref.try_into().expect("tx bytes too big");
-                                    type_a_txs.push(tx_bytes);
+                                    for preconf_tx in request.preconf_tx {
+                                        let mut tx_encoded = Vec::new();
+                                        preconf_tx.encode_2718(&mut tx_encoded);
+                                        let tx_ref: &[u8] = tx_encoded.as_ref();
+                                        let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
+                                            tx_ref.try_into().expect("tx bytes too big");
+                                        type_a_txs.push(tx_bytes);
+                                    }
                                 }
                                 PreconfRequest::TypeB(preconf_req) => {
                                     if let Some(ref tx) = preconf_req.transaction {
@@ -459,7 +465,15 @@ where
             return Err(RpcError::SignatureError("Invalid signature".to_string()));
         }
 
-        // Check deadline
+        if self.is_exceed_deadline(request.target_slot) {
+            return Err(RpcError::ExceedDeadline(request.target_slot));
+        }
+
+        if request.preconf_transaction.is_empty() {
+            return Err(RpcError::UnknownError("No preconf transactions".to_string()));
+        }
+
+        // Only for internal use.
         let request_id = Uuid::new_v4();
         let preconf_request = PreconfRequestTypeA {
             preconf_tx: request.clone().preconf_transaction,

@@ -324,7 +324,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     }
 
     // check if constraints contains our transaction
-    assert!(txs.contains(&request.preconf_transaction));
+    assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
     assert!(txs.contains(&request.tip_transaction));
 
     // Optionally, cleanup when done

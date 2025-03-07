@@ -7,7 +7,7 @@ pub struct PreconfRequestTypeA {
     /// ETH transfer to the gateway
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
-    pub preconf_tx: TxEnvelope,
+    pub preconf_tx: Vec<TxEnvelope>,
     /// Target slot
     pub target_slot: u64,
     /// Relative position of the transaction wrt anchor tx
@@ -36,7 +36,9 @@ impl PreconfRequestTypeA {
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
         digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
-        digest.extend_from_slice(self.preconf_tx.tx_hash().as_slice());
+        for tx in &self.preconf_tx {
+            digest.extend_from_slice(tx.tx_hash().as_slice());
+        }
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
         keccak256(&digest)
@@ -48,14 +50,14 @@ pub struct SubmitTypeATransactionRequest {
     /// ETH transfer to the gateway
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
-    pub preconf_transaction: TxEnvelope,
+    pub preconf_transaction: Vec<TxEnvelope>,
     /// slot
     pub target_slot: u64,
 }
 
 impl SubmitTypeATransactionRequest {
     pub fn new(
-        preconf_transaction: TxEnvelope,
+        preconf_transaction: Vec<TxEnvelope>,
         tip_transaction: TxEnvelope,
         target_slot: u64,
     ) -> Self {
@@ -65,7 +67,9 @@ impl SubmitTypeATransactionRequest {
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
         digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
-        digest.extend_from_slice(self.preconf_transaction.tx_hash().as_slice());
+        for tx in &self.preconf_transaction {
+            digest.extend_from_slice(tx.tx_hash().as_slice());
+        }
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         keccak256(&digest)
     }

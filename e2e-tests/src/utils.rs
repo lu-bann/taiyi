@@ -314,7 +314,7 @@ pub async fn generate_type_a_request(
         .await?;
 
     let request = SubmitTypeATransactionRequest::new(
-        TxEnvelope::from(preconf_transaction),
+        vec![TxEnvelope::from(preconf_transaction)],
         TxEnvelope::from(tip_transaction),
         target_slot,
     );

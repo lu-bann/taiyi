@@ -158,7 +158,8 @@ impl PreconfPool {
         };
 
         let tip_tx_gas_limit = preconf_request.tip_transaction.gas_limit();
-        let preconf_tx_gas_limit = preconf_request.preconf_tx.gas_limit();
+        let preconf_tx_gas_limit =
+            preconf_request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>();
 
         {
             let pool_inner = self.pool_inner.write();
@@ -174,21 +175,22 @@ impl PreconfPool {
                 return Err(ValidationError::GasLimitTooHigh);
             }
 
-            if preconf_request.preconf_tx.is_eip4844() {
-                let blob_count = preconf_request
-                    .preconf_tx
-                    .as_eip4844()
-                    .expect("Failed to decode 4844 transaction")
-                    .tx()
-                    .blob_versioned_hashes()
-                    .iter()
-                    .len();
+            for preconf_tx in preconf_request.preconf_tx.clone() {
+                if preconf_tx.is_eip4844() {
+                    let blob_count = preconf_tx
+                        .as_eip4844()
+                        .expect("Failed to decode 4844 transaction")
+                        .tx()
+                        .blob_versioned_hashes()
+                        .iter()
+                        .len();
 
-                if blockspace_avail.blobs < blob_count {
-                    return Err(ValidationError::BlobCountExceedsLimit(
-                        blockspace_avail.blobs,
-                        blob_count,
-                    ));
+                    if blockspace_avail.blobs < blob_count {
+                        return Err(ValidationError::BlobCountExceedsLimit(
+                            blockspace_avail.blobs,
+                            blob_count,
+                        ));
+                    }
                 }
             }
         }
@@ -212,46 +214,41 @@ impl PreconfPool {
         // NOTE: requires a price oracle to check the tip
 
         // Nonce check
-        let preconf_tx_nonce = preconf_request.preconf_tx.nonce();
-        let tip_tx_nonce = preconf_request.tip_transaction.nonce();
-
-        // Check for continuity of nonce
-        // The nonce of the preconf transaction must be one more than the nonce of the tip transaction
-        if preconf_tx_nonce != tip_tx_nonce + 1 {
-            return Err(ValidationError::InvalidNonceSequence(tip_tx_nonce, preconf_tx_nonce));
-        }
-
-        let nonce = preconf_tx_nonce.min(tip_tx_nonce);
+        let nonce = preconf_request.tip_transaction.nonce();
         if nonce > account_nonce {
             return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
         }
-
         if nonce < account_nonce {
             return Err(ValidationError::NonceTooLow(account_nonce, nonce));
         }
 
+        let mut all_transactions = vec![preconf_request.tip_transaction.clone()];
+        all_transactions.extend(preconf_request.preconf_tx.clone());
+        Self::verify_nonce_continuity(&all_transactions)?;
+
         // Balance check
-        let total_value =
-            preconf_request.preconf_tx.value() + preconf_request.tip_transaction.value();
+        let total_value = preconf_request.preconf_tx.iter().map(|tx| tx.value()).sum::<U256>()
+            + preconf_request.tip_transaction.value();
         if account_balance < total_value {
             return Err(ValidationError::LowBalance(total_value - account_balance));
         }
 
         // heavy blob tx validation
-        if preconf_request.preconf_tx.is_eip4844() {
-            let transaction = preconf_request
-                .preconf_tx
-                .as_eip4844()
-                .expect("Failed to decode 4844 transaction")
-                .tx()
-                .clone()
-                .try_into_4844_with_sidecar()
-                .map_err(|_| {
-                    ValidationError::Internal("Failed to decode 4844 transaction".to_string())
-                })?;
+        for preconf_tx in preconf_request.preconf_tx.clone() {
+            if preconf_tx.is_eip4844() {
+                let transaction = preconf_tx
+                    .as_eip4844()
+                    .expect("Failed to decode 4844 transaction")
+                    .tx()
+                    .clone()
+                    .try_into_4844_with_sidecar()
+                    .map_err(|_| {
+                        ValidationError::Internal("Failed to decode 4844 transaction".to_string())
+                    })?;
 
-            // validate the blob
-            transaction.validate_blob(self.validator.kzg_settings.get())?;
+                // validate the blob
+                transaction.validate_blob(self.validator.kzg_settings.get())?;
+            }
         }
 
         Ok(())
@@ -291,12 +288,12 @@ impl PreconfPool {
         // Check nocne
         // transaction nonce
         let nonce = transaction.nonce();
-        if nonce > account_nonce {
-            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
-        }
-
-        if nonce < account_nonce {
-            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
+        if nonce != account_nonce {
+            return Err(if nonce > account_nonce {
+                ValidationError::NonceTooHigh(account_nonce, nonce)
+            } else {
+                ValidationError::NonceTooLow(account_nonce, nonce)
+            });
         }
 
         // heavy blob tx validation
@@ -322,6 +319,24 @@ impl PreconfPool {
             transaction.validate_blob(self.validator.kzg_settings.get())?;
         }
 
+        Ok(())
+    }
+
+    /// Verifies that nonces in a sequence of transactions are continuous,
+    /// with each transaction's nonce being exactly one more than the previous transaction's nonce.
+    fn verify_nonce_continuity(transactions: &[TxEnvelope]) -> Result<(), ValidationError> {
+        if transactions.len() <= 1 {
+            return Ok(());
+        }
+
+        for i in 1..transactions.len() {
+            let prev_nonce = transactions[i - 1].nonce();
+            let curr_nonce = transactions[i].nonce();
+
+            if curr_nonce != prev_nonce + 1 {
+                return Err(ValidationError::InvalidNonceSequence(prev_nonce, curr_nonce));
+            }
+        }
         Ok(())
     }
 
