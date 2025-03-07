@@ -16,7 +16,6 @@ eyre = { workspace = true }
 reqwest = { workspace = true }
 reth-primitives = { workspace = true }
 serde_json = { workspace = true }
-taiyi-preconfer = { workspace = true }
 taiyi-primitives = { workspace = true }
 tokio = { workspace = true }
 
@@ -27,4 +26,4 @@ name = "submit-preconf-request"
 path = "src/submit-preconf-request.rs"
 
 [package.metadata.cargo-machete]
-ignored = ["alloy-provider", "alloy-signer", "alloy-signer-local", "alloy-consensus", "alloy-primitives", "alloy-sol-types", "taiyi-primitives", "reqwest", "reth-primitives", "secp256k1", "serde", "serde_json"]
+ignored = ["alloy-signer", "alloy-consensus", "alloy-sol-types", "reth-primitives", "secp256k1", "serde"]

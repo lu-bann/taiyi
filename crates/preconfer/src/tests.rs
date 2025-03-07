@@ -24,7 +24,7 @@ mod tests {
         network_state::NetworkState,
         preconf_api::{
             api::{
-                PreconfApiServer, ESTIMATE_TIP_PATH, RESERVE_BLOCKSPACE_PATH,
+                PreconfApiServer, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
                 SUBMIT_TRANSACTION_PATH,
             },
             state::PreconfState,
@@ -108,7 +108,7 @@ mod tests {
 
         // Estimate fee
         let request_endpoint =
-            Url::parse(&server_endpoint).unwrap().join(ESTIMATE_TIP_PATH).unwrap();
+            Url::parse(&server_endpoint).unwrap().join(PRECONF_FEE_PATH).unwrap();
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
             .json(network_state.available_slots().last().unwrap())

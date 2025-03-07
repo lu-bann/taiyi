@@ -17,6 +17,7 @@ members = [
     "crates/sp1-poni",
     "e2e-tests",
     "examples",
+    "spammer"
 ]
 default-members = [
     "bin/taiyi",

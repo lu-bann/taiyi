@@ -81,8 +81,8 @@ impl PreconfPool {
             };
 
         // Verify that we have enough space
-        if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
-            || blockspace_avail.blobs < preconf_request.allocation.blob_count
+        if blockspace_avail.gas_limit <= preconf_request.allocation.gas_limit
+            || blockspace_avail.blobs <= preconf_request.allocation.blob_count
         {
             return Err(PoolError::BlockspaceNotAvailable);
         }

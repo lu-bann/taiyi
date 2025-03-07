@@ -6,8 +6,7 @@ use alloy_provider::{
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use reqwest::Url;
-use taiyi_preconfer::SlotInfo;
-use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
+use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB, SlotInfo};
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 #[tokio::main]
 async fn main() -> eyre::Result<()> {

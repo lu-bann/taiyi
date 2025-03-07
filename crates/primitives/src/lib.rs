@@ -12,4 +12,13 @@ pub use preconf_request_type_a::{PreconfRequestTypeA, SubmitTypeATransactionRequ
 pub use preconf_request_type_b::{
     BlockspaceAllocation, PreconfRequestTypeB, SubmitTransactionRequest,
 };
-pub use preconf_response::PreconfResponse;
+pub use preconf_response::{PreconfResponse, PreconfResponseData};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct SlotInfo {
+    pub slot: u64,
+    pub gas_available: u64,
+    pub blobs_available: usize,
+    pub constraints_available: u32,
+}

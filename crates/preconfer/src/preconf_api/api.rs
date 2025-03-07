@@ -12,20 +12,19 @@ use axum::{
 use reqwest::header::HeaderMap;
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SlotInfo, SubmitTransactionRequest,
     SubmitTypeATransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use super::state::SlotInfo;
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
+pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
 pub const SUBMIT_TYPEA_TRANSACTION_PATH: &str = "/commitments/v0/submit_typea_transaction";
 
 pub struct PreconfApiServer {
@@ -48,7 +47,7 @@ impl PreconfApiServer {
             .route(SUBMIT_TYPEA_TRANSACTION_PATH, post(handle_submit_typea_transaction))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
-            .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
+            .route(PRECONF_FEE_PATH, post(handle_preconf_fee))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
@@ -90,8 +89,6 @@ pub async fn handle_reserve_blockspace<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    info!("Received blockspace reservation request");
-
     // Extract the signer and signature from the headers
     let (signer, signature) = {
         let auth = headers
@@ -119,6 +116,8 @@ where
     if recovered_signer != signer {
         return Err(RpcError::SignatureError("Invalid signature".to_string()));
     }
+
+    info!("Received blockspace reservation request, signer: {}", signer);
 
     match state.reserve_blockspace(request, signature, signer).await {
         Ok(response) => Ok(Json(response)),

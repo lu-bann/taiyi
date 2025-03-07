@@ -17,12 +17,12 @@ use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::{
-    context_ext::ContextExt, SlotInfo, AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH,
-    RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
+    context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
+    SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse,
-    SignedConstraints, SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    SignedConstraints, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -174,8 +174,7 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> 
 
 pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
-    let res =
-        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&slot).send().await?;
+    let res = client.post(&format!("{}{}", taiyi_url, PRECONF_FEE_PATH)).json(&slot).send().await?;
     let res_b = res.bytes().await?;
     let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
     Ok(preconf_fee)

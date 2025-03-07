@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{Header, Transaction};
+use alloy_consensus::{constants::GWEI_TO_WEI, Header, Transaction};
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{
@@ -17,11 +17,10 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
 use taiyi_primitives::{
     BlockspaceAllocation, ConstraintsMessage, PreconfRequest, PreconfRequestTypeA,
-    PreconfRequestTypeB, PreconfResponse, SignableBLS, SignedConstraints, SubmitTransactionRequest,
-    SubmitTypeATransactionRequest,
+    PreconfRequestTypeB, PreconfResponse, SignableBLS, SignedConstraints, SlotInfo,
+    SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -67,6 +66,8 @@ where
             Ok(genesis_time) => genesis_time,
             Err(_) => context.min_genesis_time + context.genesis_delay,
         };
+        let chain_id = self.network_state.chain_id();
+        info!("Starting constraint submitter, chain_id: {chain_id}");
 
         async move {
             let clock =
@@ -96,11 +97,13 @@ where
                             (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
                         }
                     };
+                let blob_fee = header.next_block_blob_fee().unwrap_or_default();
+                let blob_excess_fee = header.next_block_excess_blob_gas().unwrap_or_default();
 
                 // wait unit the deadline to submit constraints
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
-                info!("Current base fee: {base_fee}");
+                info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 
                 let signer = self.signer_client.ecdsa_signer();
                 let wallet = EthereumWallet::from(signer.clone());
@@ -214,8 +217,9 @@ where
                                         let get_tip_tx = taiyi_core
                                             .getTip(preconf_request_type_b)
                                             .into_transaction_request()
+                                            .with_chain_id(chain_id)
                                             .with_nonce(nonce)
-                                            .with_gas_limit(100_000)
+                                            .with_gas_limit(1_000_000)
                                             .with_max_fee_per_gas(base_fee)
                                             .with_max_priority_fee_per_gas(priority_fee)
                                             .build(&wallet)
@@ -238,11 +242,13 @@ where
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
                             .with_nonce(nonce)
+                            .with_chain_id(chain_id)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
                             .build(&wallet)
                             .await?;
+                        nonce += 1;
 
                         let mut tx_bytes = Vec::new();
                         sponsor_tx.encode_2718(&mut tx_bytes);
@@ -296,6 +302,7 @@ where
                         let exhaust_tx = taiyi_core
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
+                            .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
@@ -382,6 +389,10 @@ where
             return Err(RpcError::ExceedDeadline(request.target_slot));
         }
 
+        if request.gas_limit == 0 {
+            return Err(RpcError::UnknownError("Gas limit cannot be zero".to_string()));
+        }
+
         // Construct a preconf request
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
@@ -427,6 +438,28 @@ where
         if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
             return Err(RpcError::UnknownError(
                 "Gas limit exceeds reserved blockspace".to_string(),
+            ));
+        }
+
+        // Check for gas fee caps
+        if request.transaction.max_fee_per_gas() < GWEI_TO_WEI.into() {
+            return Err(RpcError::MaxFeePerGasLessThanThreshold(
+                GWEI_TO_WEI,
+                request.transaction.max_fee_per_gas(),
+            ));
+        }
+
+        if request.transaction.max_priority_fee_per_gas() < Some(GWEI_TO_WEI.into()) {
+            return Err(RpcError::MaxPriorityFeePerGasLessThanThreshold(
+                GWEI_TO_WEI,
+                request.transaction.max_priority_fee_per_gas().expect("max priority fee"),
+            ));
+        }
+
+        if request.transaction.max_fee_per_blob_gas() < Some(GWEI_TO_WEI.into()) {
+            return Err(RpcError::MaxFeePerBlobGasLessThanThreshold(
+                GWEI_TO_WEI,
+                request.transaction.max_fee_per_blob_gas().expect("max fee per blob gas"),
             ));
         }
 
@@ -512,7 +545,7 @@ where
             .network_state
             .available_slots()
             .into_iter()
-            .filter(|slot| *slot > current_slot + slot_diff)
+            .filter(|slot| *slot >= current_slot + slot_diff)
             .map(|slot| {
                 let blockspace_available = self.preconf_pool.blockspace_available(slot);
                 SlotInfo {
@@ -533,12 +566,4 @@ where
         let deadline = self.network_state.context().get_deadline_of_slot(slot);
         utc_timestamp > deadline
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct SlotInfo {
-    pub slot: u64,
-    pub gas_available: u64,
-    pub blobs_available: usize,
-    pub constraints_available: u32,
 }
