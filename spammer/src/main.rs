@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+#![allow(clippy::unwrap_used)]
 use std::{collections::HashMap, str::FromStr};
 
 use alloy_eips::{
@@ -75,25 +77,25 @@ async fn main() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit into TaiyiCore
-    //
-    // let contract_address = opts.taiyi_core_address;
-    // let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
-    // let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    // info!("Account Nonce: {:?}", account_nonce);
 
-    // let tx = taiyi_escrow
-    //     .deposit()
-    //     .value(U256::from(1_000_000_000_000_000_000u128))
-    //     .into_transaction_request()
-    //     .with_chain_id(chain_id)
-    //     .with_gas_limit(100_000)
-    //     .with_max_fee_per_gas(1000000010)
-    //     .with_max_priority_fee_per_gas(1000000000)
-    //     .with_nonce(account_nonce);
-    // let pending_tx = provider.send_transaction(tx).await?;
-    // info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
-    // let receipt = pending_tx.get_receipt().await?;
-    // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+    let contract_address = opts.taiyi_core_address;
+    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+    let account_nonce = provider.get_transaction_count(signer.address()).await?;
+    info!("Account Nonce: {:?}", account_nonce);
+
+    let tx = taiyi_escrow
+        .deposit()
+        .value(U256::from(1_000_000_000_000_000_000u128))
+        .into_transaction_request()
+        .with_chain_id(chain_id)
+        .with_gas_limit(100_000)
+        .with_max_fee_per_gas(1000000010)
+        .with_max_priority_fee_per_gas(1000000000)
+        .with_nonce(account_nonce);
+    let pending_tx = provider.send_transaction(tx).await?;
+    info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
+    let receipt = pending_tx.get_receipt().await?;
+    info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
     let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
@@ -132,30 +134,31 @@ async fn main() -> eyre::Result<()> {
             info!("Submitting transaction for next slot: {:?}", next_slot);
             let account_nonce = provider.get_transaction_count(signer.address()).await?;
             let data = http_client
-                .submit_blob_transaction(
+                .submit_transaction(
                     *request_store.get(&next_slot).unwrap(),
                     account_nonce,
                     chain_id,
                 )
                 .await?;
-            debug!("submit transaction response: {:?}", data);
+            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+            info!("Commitment: {:?}", commitment);
         }
 
-        // if event.epoch_transition {
-        //     info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
-        //     let mut slots = http_client.slots().await?;
-        //     let head_slot = beacon_client.get_sync_status().await?.head_slot;
-        //     info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
-        //     slots.retain(|slot| slot.slot > head_slot);
-        //     info!("Available slots: {:?}", slots.len());
+        if event.epoch_transition {
+            info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
+            let mut slots = http_client.slots().await?;
+            let head_slot = beacon_client.get_sync_status().await?.head_slot;
+            info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
+            slots.retain(|slot| slot.slot > head_slot);
+            info!("Available slots: {:?}", slots.len());
 
-        //     for slot in slots {
-        //         info!("Reserving blockspace for slot: {:?}", slot.slot);
-        //         let request_id = http_client.reserve_blockspace(slot.slot).await?;
-        //         info!("Request ID: {:?}", request_id);
-        //         request_store.insert(slot.slot, request_id);
-        //     }
-        // }
+            for slot in slots {
+                info!("Reserving blockspace for slot: {:?}", slot.slot);
+                let request_id = http_client.reserve_blockspace(slot.slot).await?;
+                info!("Request ID: {:?}", request_id);
+                request_store.insert(slot.slot, request_id);
+            }
+        }
     }
 
     Ok(())
@@ -189,11 +192,11 @@ impl HttpClient {
         let bytes = response.bytes().await?;
         let preconf_fee: PreconfFeeResponse = serde_json::from_slice(&bytes)?;
 
-        // let gas_limit = 21_000;
-        // let blob_count = 1;
+        let gas_limit = 21_000;
+        let blob_count = 1;
 
-        let gas_limit = 1_000_000;
-        let blob_count = 2;
+        // let gas_limit = 1_000_000;
+        // let blob_count = 2;
         let fee = preconf_fee.gas_fee * (gas_limit as u128)
             + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
         let fee = U256::from(fee / 2);
@@ -260,11 +263,12 @@ impl HttpClient {
             .send()
             .await?;
         let bytes = result.bytes().await?;
+        info!("Submit Transaction Response: {:?}", bytes);
         let response: PreconfResponse = serde_json::from_slice(&bytes)?;
         Ok(response.data)
     }
 
-    async fn submit_blob_transaction(
+    async fn _submit_blob_transaction(
         &self,
         request_id: Uuid,
         nonce: u64,
@@ -273,7 +277,7 @@ impl HttpClient {
         let path = format!("commitments/v0/submit_transaction");
         let target = self.endpoint.join(&path)?;
         // Create a sidecar with some data.
-        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
+        let builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
         // let data = vec![1u8; BYTES_PER_BLOB];
         // builder.ingest(&data);
         // builder.ingest(&data);
