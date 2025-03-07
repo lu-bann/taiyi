@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use alloy_consensus::{Header, Transaction};
 use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
-use alloy_primitives::{address, keccak256, Address, B256, U256};
+use alloy_primitives::{address, keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::SolCall;
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use hex::ToHex;
@@ -22,7 +22,7 @@ sol! {
         uint64 proofBlockNumber;
         bytes32 proofBlockHash;
         address gatewayAddress;
-        string signature;
+        bytes signature;
     }
 }
 
@@ -269,7 +269,7 @@ pub fn main() {
         proofBlockNumber: inclusion_block_header.number,
         proofBlockHash: inclusion_block_hash,
         gatewayAddress: gateway_address,
-        signature: preconf_sig,
+        signature: Bytes::from(preconf_sig),
     });
 
     // Commit the public values of the program.
