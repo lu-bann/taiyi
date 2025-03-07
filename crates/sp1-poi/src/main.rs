@@ -14,6 +14,18 @@ use taiyi_zkvm_types::{types::*, utils::*};
 
 sp1_zkvm::entrypoint!(main);
 
+use alloy_sol_types::{sol, SolType};
+
+sol! {
+    /// The public values encoded as a struct that can be easily deserialized inside Solidity.
+    struct PublicValuesStruct {
+        uint64 proofBlockNumber;
+        bytes32 proofBlockHash;
+        address gatewayAddress;
+        string signature;
+    }
+}
+
 pub fn main() {
     // Read an input to the program.
     let preconf = sp1_zkvm::io::read::<String>(); // preconfirmation request encoded as serde string (TODO: change to bytes?)
@@ -29,8 +41,9 @@ pub fn main() {
     assert_eq!(inclusion_block_header.parent_hash, previous_block_hash);
 
     // Commit to the public data (public values).
-    sp1_zkvm::io::commit(&inclusion_block_header.number);
-    sp1_zkvm::io::commit(&inclusion_block_hash);
+    let preconf_sig: String;
+    // sp1_zkvm::io::commit(&inclusion_block_header.number);
+    // sp1_zkvm::io::commit(&inclusion_block_hash);
 
     if is_type_a {
         let preconf_req_a = serde_json::from_str::<PreconfTypeA>(&preconf).unwrap();
@@ -45,8 +58,9 @@ pub fn main() {
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
-        sp1_zkvm::io::commit(&gateway_address);
-        sp1_zkvm::io::commit(&preconf_req_a.preconf.preconf_sig.as_bytes().encode_hex::<String>()); // unique commitment to the preconf req type a
+        // sp1_zkvm::io::commit(&gateway_address);
+        // sp1_zkvm::io::commit(&preconf_req_a.preconf.preconf_sig.as_bytes().encode_hex::<String>()); // unique commitment to the preconf req type a
+        preconf_sig = preconf_req_a.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 
         // Target slot verification
 
@@ -156,8 +170,9 @@ pub fn main() {
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
-        sp1_zkvm::io::commit(&gateway_address);
-        sp1_zkvm::io::commit(&preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>()); // unique commitment to the preconf req type b
+        // sp1_zkvm::io::commit(&gateway_address);
+        // sp1_zkvm::io::commit(&preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>()); // unique commitment to the preconf req type b
+        preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 
         // Target slot verification
 
@@ -248,4 +263,15 @@ pub fn main() {
         )
         .unwrap();
     }
+
+    // Encode the public values of the program.
+    let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
+        proofBlockNumber: inclusion_block_header.number,
+        proofBlockHash: inclusion_block_hash,
+        gatewayAddress: gateway_address,
+        signature: preconf_sig,
+    });
+
+    // Commit the public values of the program.
+    sp1_zkvm::io::commit_slice(&bytes);
 }
