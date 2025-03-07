@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use alloy_consensus::BlobTransactionValidationError;
+use alloy_eips::eip4844::BlobTransactionValidationError;
 use alloy_primitives::{Address, U256};
 use axum::{
     response::{IntoResponse, Response},
