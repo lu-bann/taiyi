@@ -162,23 +162,27 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             revert ChallengeBondInvalid();
         }
 
-        if(
-            preconfRequestBType.blockspaceAllocation.targetSlot < _getSlotFromTimestamp(block.timestamp) - parameterManager.challengeCreationWindow()
-            || preconfRequestBType.blockspaceAllocation.targetSlot > _getSlotFromTimestamp(block.timestamp)
-            ) {
+        if (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                < _getSlotFromTimestamp(block.timestamp)
+                    - parameterManager.challengeCreationWindow()
+                || preconfRequestBType.blockspaceAllocation.targetSlot
+                    > _getSlotFromTimestamp(block.timestamp)
+        ) {
             revert TargetSlotNotInChallengeCreationWindow();
         }
 
         // TODO: Do we want to wait for the target slot to be finalized (reorgs) ?
 
         bytes memory encodedPreconfRequestBType = abi.encode(preconfRequestBType);
-        
+
         // TODO: This probably needs the hash of the rawTx
         // TODO: Probably also need to call MessageHashUtils-toEthSignedMessageHash
-        bytes32 dataHash = keccak256(abi.encode(
-            preconfRequestBType.blockspaceAllocation,
-            preconfRequestBType.rawTx
-        ));
+        bytes32 dataHash = keccak256(
+            abi.encode(
+                preconfRequestBType.blockspaceAllocation, preconfRequestBType.rawTx
+            )
+        );
 
         // Recover the signer of the preconf request (revert if the signature is invalid)
         address signer = ECDSA.recover(dataHash, signature);
@@ -268,25 +272,31 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         );
 
         // Decode proof values
-        (uint256 proofBlockNumber, bytes32 proofBlockHash, bytes32 proofChallengeId, address proofCommitmentSigner) = abi.decode(proofValues, (uint256, bytes32, bytes32, address));
+        (
+            uint256 proofBlockNumber,
+            bytes32 proofBlockHash,
+            bytes32 proofChallengeId,
+            address proofCommitmentSigner
+        ) = abi.decode(proofValues, (uint256, bytes32, bytes32, address));
 
         // Decode preconf request from challenge data
-        PreconfRequestBType memory preconfRequestBType = abi.decode(challenge.commitmentData, (PreconfRequestBType));
+        PreconfRequestBType memory preconfRequestBType =
+            abi.decode(challenge.commitmentData, (PreconfRequestBType));
 
         // Verify the proof block number matches the target slot
-        if(proofBlockNumber != preconfRequestBType.blockspaceAllocation.targetSlot) {
+        if (proofBlockNumber != preconfRequestBType.blockspaceAllocation.targetSlot) {
             revert TargetSlotDoesNotMatch();
         }
 
         // TODO: Verify the block hash
 
         // Verify the proof challenge ID matches the challenge ID
-        if(proofChallengeId != challenge.id) {
+        if (proofChallengeId != challenge.id) {
             revert ChallengeIdDoesNotMatch();
         }
 
         // Verify the proof commitment signer matches the challenge commitment signer
-        if(proofCommitmentSigner != challenge.commitmentSigner) {
+        if (proofCommitmentSigner != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
         }
 
@@ -294,6 +304,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     }
 
     function _getSlotFromTimestamp(uint256 timestamp) internal view returns (uint256) {
-        return (timestamp - parameterManager.genesisTimestamp()) / parameterManager.slotTime();
+        return (timestamp - parameterManager.genesisTimestamp())
+            / parameterManager.slotTime();
     }
 }

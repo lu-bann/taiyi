@@ -65,7 +65,10 @@ contract TaiyiParameterManager is
     }
 
     /// @inheritdoc ITaiyiParameterManager
-    function setChallengeCreationWindow(uint256 _challengeCreationWindow) external onlyOwner {
+    function setChallengeCreationWindow(uint256 _challengeCreationWindow)
+        external
+        onlyOwner
+    {
         challengeCreationWindow = _challengeCreationWindow;
     }
 

@@ -18,7 +18,7 @@ contract TaiyiParameterManagerTest is Test {
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
     uint256 internal proxyAdminPrivatekey;
-    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1655733600;
+    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1_655_733_600;
 
     TaiyiParameterManager taiyiParameterManager;
 
@@ -35,7 +35,13 @@ contract TaiyiParameterManagerTest is Test {
             address(taiyiParameterManagerImpl),
             proxyAdmin,
             abi.encodeWithSelector(
-                TaiyiParameterManager.initialize.selector, owner, 1, 64, 256, SEPOLIA_GENESIS_TIMESTAMP, 12
+                TaiyiParameterManager.initialize.selector,
+                owner,
+                1,
+                64,
+                256,
+                SEPOLIA_GENESIS_TIMESTAMP,
+                12
             )
         );
         taiyiParameterManager = TaiyiParameterManager(address(taiyiParameterManagerProxy));
@@ -114,8 +120,8 @@ contract TaiyiParameterManagerTest is Test {
     // =========================================
     function testOwnerCanSetGenesisTimestamp() public {
         vm.prank(owner);
-        taiyiParameterManager.setGenesisTimestamp(1616508000);
-        assertEq(taiyiParameterManager.genesisTimestamp(), 1616508000);
+        taiyiParameterManager.setGenesisTimestamp(1_616_508_000);
+        assertEq(taiyiParameterManager.genesisTimestamp(), 1_616_508_000);
     }
 
     // =========================================
@@ -124,6 +130,6 @@ contract TaiyiParameterManagerTest is Test {
     function testUserCannotSetGenesisTimestamp() public {
         vm.prank(user);
         vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
-        taiyiParameterManager.setGenesisTimestamp(1616508000);
+        taiyiParameterManager.setGenesisTimestamp(1_616_508_000);
     }
 }

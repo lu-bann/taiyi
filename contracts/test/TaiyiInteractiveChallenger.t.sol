@@ -28,7 +28,7 @@ contract TaiyiInteractiveChallengerTest is Test {
     uint256 internal ownerPrivatekey;
     uint256 internal signerPrivatekey;
 
-    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1655733600;
+    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1_655_733_600;
 
     TaiyiInteractiveChallenger taiyiInteractiveChallenger;
     TaiyiParameterManager parameterManager;
