@@ -63,29 +63,10 @@ impl PreconfRequestTypeB {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ConstraintsData {
-    pub transactions: Vec<TxEnvelope>,
-    pub proof_data: Vec<(TxHash, B256)>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct InclusionProofs {
-    pub transaction_hashes: Vec<TxHash>,
-    pub generalized_indexes: Vec<usize>,
-    pub merkle_hashes: Vec<B256>,
-}
-
-impl InclusionProofs {
-    pub fn total_leaves(&self) -> usize {
-        self.transaction_hashes.len()
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct TxMerkleMultiProof {
+pub struct TxMerkleProof {
+    pub key: Vec<u8>,
+    pub proof: Vec<Vec<u8>>,
     pub root: B256,
-    pub proofs: InclusionProofs,
-    pub constraints: ConstraintsData,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -103,7 +84,7 @@ pub struct AccountMerkleProof {
 pub struct PreconfTypeA {
     pub preconf: PreconfRequestTypeA,
     pub anchor_tx: TxEnvelope,
-    pub tx_merkle_proof: TxMerkleMultiProof, /* Inclusion proofs of the user transaction and anchor tx in the block */
+    pub tx_merkle_proof: Vec<TxMerkleProof>, /* Inclusion proofs of the user transaction and anchor tx in the block */
     pub account_merkle_proof: Vec<AccountMerkleProof>, /* Merkle proofs of the account states (user's) */
 }
 
@@ -111,7 +92,7 @@ pub struct PreconfTypeA {
 pub struct PreconfTypeB {
     pub preconf: PreconfRequestTypeB,
     pub sponsorship_tx: TxEnvelope,
-    pub tx_merkle_proof: TxMerkleMultiProof, /* Inclusion proofs of the user transaction and sponsorship tx in the block */
+    pub tx_merkle_proof: Vec<TxMerkleProof>, /* Inclusion proofs of the user transaction and sponsorship tx in the block */
     pub account_merkle_proof: AccountMerkleProof, // Merkle proof of the account state (user's)
 }
 

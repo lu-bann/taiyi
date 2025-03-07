@@ -1,17 +1,18 @@
 use std::str::FromStr;
 
-use alloy_consensus::Transaction;
+use alloy_consensus::{Account, Transaction};
 use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::{hex, PrimitiveSignature, B256, U256};
+use alloy_primitives::{hex, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
 use alloy_sol_types::SolCall;
+use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
+use reqwest::Url;
 use sp1_sdk::{include_elf, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
 use taiyi_zkvm_types::types::{
-    AccountMerkleProof, BlockspaceAllocation, ConstraintsData, InclusionProofs,
-    PreconfRequestTypeB, PreconfTypeB, TxMerkleMultiProof,
+    AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeB, PreconfTypeB, TxMerkleProof,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -77,6 +78,51 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     let get_tip_call = getTipCall::abi_decode(get_tip_transaction.input(), true).unwrap();
 
+    // account proof
+
+    let account_proof = provider
+        .get_proof(user_transaction.from, vec![])
+        .block_id((target_slot - 1).into())
+        .await?;
+    let account_merkle_proof = AccountMerkleProof {
+        address: account_proof.address,
+        nonce: account_proof.nonce,
+        balance: account_proof.balance,
+        storage_hash: account_proof.storage_hash,
+        code_hash: account_proof.code_hash,
+        account_proof: account_proof.account_proof,
+        state_root: previous_block.header.state_root,
+    };
+
+    // tx proof
+    let url = Url::parse(&config.execution_url).unwrap();
+    let mut txs_mpt_handler = TxsMptHandler::new(url).unwrap();
+    txs_mpt_handler.build_tx_tree_from_block(target_slot).await.unwrap();
+
+    let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
+
+    // user tx
+    let tx_hash = user_transaction.inner.tx_hash();
+    let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
+    let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+    tx_merkle_proof.push(TxMerkleProof {
+        key: tx_hash.as_slice().to_vec(),
+        proof,
+        root: inclusion_block.header.transactions_root,
+    });
+
+    // sponsorship tx
+    let tx_hash = sponsorship_transaction.inner.tx_hash();
+    let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
+    let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+    tx_merkle_proof.push(TxMerkleProof {
+        key: tx_hash.as_slice().to_vec(),
+        proof,
+        root: inclusion_block.header.transactions_root,
+    });
+
+    // sp1
+
     let mut stdin = SP1Stdin::new();
 
     // preconf type b
@@ -118,8 +164,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let preconf_type_b = PreconfTypeB {
         preconf: preconf_b,
         sponsorship_tx: sponsorship_transaction.into(),
-        tx_merkle_proof: todo!(),
-        account_merkle_proof: todo!(),
+        tx_merkle_proof,
+        account_merkle_proof,
     };
     stdin.write(&preconf_type_b);
 

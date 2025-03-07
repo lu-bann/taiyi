@@ -99,6 +99,10 @@ reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f
 reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
 
+# eth
+eth_trie = "0.5.0"
+eth-trie-proofs = "0.1.2"
+
 # sp1
 sp1-build = "4.0.1"
 sp1-sdk = "4.0.1"

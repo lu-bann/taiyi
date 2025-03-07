@@ -2,29 +2,18 @@
 #![no_main]
 
 use core::panic;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use alloy_consensus::{Header, Transaction};
 use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{address, keccak256, Address, Bytes, B256, U256};
-use alloy_sol_types::SolCall;
+use alloy_sol_types::{SolCall, SolType};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
+use eth_trie::{EthTrie, MemoryDB, Trie};
 use hex::ToHex;
 use taiyi_zkvm_types::{types::*, utils::*};
 
 sp1_zkvm::entrypoint!(main);
-
-use alloy_sol_types::{sol, SolType};
-
-sol! {
-    /// The public values encoded as a struct that can be easily deserialized inside Solidity.
-    struct PublicValuesStruct {
-        uint64 proofBlockNumber;
-        bytes32 proofBlockHash;
-        address gatewayAddress;
-        bytes signature;
-    }
-}
 
 pub fn main() {
     // Read an input to the program.
@@ -111,20 +100,29 @@ pub fn main() {
             }
         }
 
-        // Constraints for merkle proofs verification
-        assert!(preconf_req_a.tx_merkle_proof.constraints.transactions.len() == txs.len() + 1); // +1 for the anchor tx
-        assert!(
-            preconf_req_a.tx_merkle_proof.constraints.transactions[0].tx_hash()
-                == preconf_req_a.anchor_tx.tx_hash()
-        ); // check that the first transaction is the anchor tx
-        for (index, tx) in txs.iter().enumerate() {
-            assert!(
-                preconf_req_a.tx_merkle_proof.constraints.transactions[index + 1].tx_hash()
-                    == tx.tx_hash()
-            ); // check that the transactions are in the correct order
+        // User transactions and anchor tx inclusion
+
+        let memdb = Arc::new(MemoryDB::new(true));
+        let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
+
+        assert!(preconf_req_a.tx_merkle_proof.len() == txs.len() + 1); // +1 for the anchor tx
+        for (index, merkle_proof) in preconf_req_a.tx_merkle_proof.iter().enumerate() {
+            if index == 0 {
+                assert!(merkle_proof.key == preconf_req_a.anchor_tx.tx_hash().as_slice());
+            // check that the first transaction is the anchor tx
+            } else {
+                assert!(merkle_proof.key == txs[index - 1].tx_hash().as_slice());
+                // check that the transactions are in the correct order
+            }
+            assert!(merkle_proof.root == inclusion_block_header.transactions_root);
+            trie.verify_proof(
+                merkle_proof.root,
+                merkle_proof.key.as_slice(),
+                merkle_proof.proof.clone(),
+            )
+            .unwrap()
+            .unwrap();
         }
-        assert!(preconf_req_a.tx_merkle_proof.proofs.generalized_indexes.is_sorted());
-        // check that the generalized indexes are sorted
 
         // Anchor/sponsorship tx verification (correct smart contract call and data passed)
 
@@ -147,16 +145,6 @@ pub fn main() {
         {
             panic!("no sponsorship tx for some senders.");
         }
-
-        // User transactions and anchor tx inclusion
-
-        assert_eq!(preconf_req_a.tx_merkle_proof.root, inclusion_block_header.transactions_root);
-        verify_multiproofs(
-            &preconf_req_a.tx_merkle_proof.constraints,
-            &preconf_req_a.tx_merkle_proof.proofs,
-            preconf_req_a.tx_merkle_proof.root,
-        )
-        .unwrap();
     } else {
         let preconf_req_b = serde_json::from_str::<PreconfTypeB>(&preconf).unwrap();
         let tx = preconf_req_b.preconf.clone().transaction;
@@ -220,20 +208,40 @@ pub fn main() {
             }
         }
 
-        // Constraints for merkle proofs verification
-        assert!(preconf_req_b.tx_merkle_proof.constraints.transactions.len() == 2); // only verify the user tx and the sponsorship tx
-        assert!(
-            preconf_req_b.tx_merkle_proof.constraints.transactions[0].tx_hash() == tx.tx_hash()
-        ); // check that the user tx is the first transaction
-        assert!(
-            preconf_req_b.tx_merkle_proof.constraints.transactions[1].tx_hash()
-                == preconf_req_b.sponsorship_tx.tx_hash()
-        ); // check that the sponsorship tx is the second transaction
-        assert!(
-            preconf_req_b.tx_merkle_proof.proofs.generalized_indexes[0]
-                < preconf_req_b.tx_merkle_proof.proofs.generalized_indexes[1]
-        ); // check that the user tx is before the sponsorship tx
+        // User transaction and sponsorship tx inclusion
 
+        assert!(preconf_req_b.tx_merkle_proof.len() == 2); // only verify the user tx and the sponsorship tx
+        assert!(preconf_req_b.tx_merkle_proof[0].key == tx.tx_hash().as_slice()); // check that the user tx is the first transaction
+        assert!(
+            preconf_req_b.tx_merkle_proof[1].key
+                == preconf_req_b.sponsorship_tx.tx_hash().as_slice()
+        ); // check that the sponsorship tx is the second transaction
+           // TODO: check that the user tx is before the sponsorship tx
+
+        let memdb = Arc::new(MemoryDB::new(true));
+        let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
+
+        for (index, merkle_proof) in preconf_req_b.tx_merkle_proof.iter().enumerate() {
+            if index == 0 {
+                assert!(merkle_proof.key == tx.tx_hash().as_slice());
+                trie.verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+            } else {
+                assert!(merkle_proof.key == preconf_req_b.sponsorship_tx.tx_hash().as_slice());
+                trie.verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+            }
+        }
         // Sponsorship tx verification (correct smart contract call and data passed)
         let sponsorship_tx = preconf_req_b.sponsorship_tx;
         assert!(
@@ -252,16 +260,6 @@ pub fn main() {
         if !sender_found {
             panic!("no sponsorship tx for sender.");
         }
-
-        // User transaction and sponsorship tx inclusion
-
-        assert_eq!(preconf_req_b.tx_merkle_proof.root, inclusion_block_header.transactions_root);
-        verify_multiproofs(
-            &preconf_req_b.tx_merkle_proof.constraints,
-            &preconf_req_b.tx_merkle_proof.proofs,
-            preconf_req_b.tx_merkle_proof.root,
-        )
-        .unwrap();
     }
 
     // Encode the public values of the program.
