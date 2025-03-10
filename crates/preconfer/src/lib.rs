@@ -1,4 +1,5 @@
 mod clients;
+pub mod context_ext;
 mod contract;
 mod error;
 mod lookahead_fetcher;

@@ -21,6 +21,7 @@ impl Pending {
         self.by_id.get(&key).cloned()
     }
 
+    #[cfg(test)]
     pub fn contains(&self, key: Uuid) -> bool {
         self.by_id.contains_key(&key)
     }

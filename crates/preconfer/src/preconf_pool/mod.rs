@@ -235,6 +235,7 @@ impl PreconfPool {
         self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
     }
 
+    #[cfg(test)]
     /// Returns the pool where the preconf request is currently in.
     pub fn get_pool(&self, request_id: Uuid) -> Result<PoolType, PoolError> {
         let pool_inner = self.pool_inner.read();
@@ -301,6 +302,7 @@ impl Default for BlockspaceAvailable {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolType {
     Pending,

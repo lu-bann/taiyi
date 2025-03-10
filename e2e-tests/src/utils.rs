@@ -17,8 +17,8 @@ use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_primitives::{
-    BlockspaceAllocation, ContextExt, PreconfFeeResponse, PreconfRequest, PreconfResponse,
-    SignedConstraints, SlotInfo, SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfRequest, PreconfResponse, SignedConstraints,
+    SlotInfo, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
