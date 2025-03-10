@@ -150,7 +150,10 @@ where
     };
     match state.submit_transaction(param, signature).await {
         Ok(response) => Ok(Json(response)),
-        Err(e) => Err(e),
+        Err(e) => {
+            error!("Failed to submit transaction: {:?}", e);
+            Err(e)
+        }
     }
 }
 

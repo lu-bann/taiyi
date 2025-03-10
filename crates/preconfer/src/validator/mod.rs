@@ -19,12 +19,12 @@ pub struct PreconfValidator {
 
 impl PreconfValidator {
     /// Create a new `TxValidator` instance.
-    pub fn new(rpc_url: Url) -> Self {
+    pub async fn new(rpc_url: Url) -> Self {
         Self {
             block_gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
             kzg_settings: EnvKzgSettings::default(),
             max_constraints: 256,
-            execution_client: ExecutionClient::new(rpc_url),
+            execution_client: ExecutionClient::new(rpc_url).await,
         }
     }
 }

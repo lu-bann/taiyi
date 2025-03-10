@@ -21,16 +21,29 @@ sol! {
 #[derive(Clone, Debug)]
 pub struct ExecutionClient {
     inner: RootProvider<Http<Client>>,
+    is_account_state_enabled: bool,
 }
 
 impl ExecutionClient {
-    pub fn new(rpc_url: Url) -> Self {
-        ExecutionClient { inner: ProviderBuilder::new().on_http(rpc_url) }
+    pub async fn new(rpc_url: Url) -> Self {
+        let provider = ProviderBuilder::new().on_http(rpc_url);
+        let client_type = provider.get_client_version().await.expect("Failed to get client type");
+        if client_type.contains("reth") {
+            ExecutionClient { inner: provider, is_account_state_enabled: true }
+        } else {
+            ExecutionClient { inner: provider, is_account_state_enabled: false }
+        }
     }
 
     pub async fn get_account_state(&self, address: Address) -> eyre::Result<AccountState> {
-        let account = self.inner.get_account(address).await?;
-        Ok(AccountState { nonce: account.nonce, balance: account.balance })
+        if self.is_account_state_enabled {
+            let account = self.inner.get_account(address).await?;
+            Ok(AccountState { nonce: account.nonce, balance: account.balance })
+        } else {
+            let balance = self.inner.get_balance(address).await?;
+            let nonce = self.inner.get_transaction_count(address).await?;
+            Ok(AccountState { nonce, balance })
+        }
     }
 
     pub async fn balance_of(
@@ -75,7 +88,7 @@ mod test {
         let rpc_url = anvil.endpoint();
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
-        let client = ExecutionClient::new(rpc_url.parse().unwrap());
+        let client = ExecutionClient::new(rpc_url.parse().unwrap()).await;
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());

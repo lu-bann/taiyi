@@ -4,8 +4,12 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{Header, Transaction};
-use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
+use alloy_consensus::{Header, Transaction, TxEnvelope};
+use alloy_eips::{
+    eip1559::BaseFeeParams,
+    eip2718::{Decodable2718, Encodable2718},
+    BlockId,
+};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{
     keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
@@ -31,6 +35,7 @@ use crate::{
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
+    validator::PreconfValidator,
 };
 
 #[derive(Clone)]
@@ -40,22 +45,25 @@ pub struct PreconfState<P> {
     relay_client: RelayClient,
     signer_client: SignerClient,
     provider: P,
+    chain_id: u64,
 }
 
 impl<P> PreconfState<P>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    pub fn new(
+    pub async fn new(
         network_state: NetworkState,
         relay_client: RelayClient,
         signer_client: SignerClient,
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
+        chain_id: u64,
     ) -> Self {
-        let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider }
+        let validator = PreconfValidator::new(execution_rpc_url).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, taiyi_escrow_address);
+        Self { relay_client, network_state, preconf_pool, signer_client, provider, chain_id }
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -166,6 +174,7 @@ where
                                     .getTip(preconf_request_type_b)
                                     .into_transaction_request()
                                     .with_nonce(nonce)
+                                    .with_chain_id(self.chain_id)
                                     .with_gas_limit(100_000)
                                     .with_max_fee_per_gas(base_fee)
                                     .with_max_priority_fee_per_gas(priority_fee)
@@ -188,10 +197,13 @@ where
                             .into_transaction_request()
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
+                            .with_chain_id(self.chain_id)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
                             .build(&wallet)
                             .await?;
+
+                        nonce += 1;
 
                         let mut tx_bytes = Vec::new();
                         sponsor_tx.encode_2718(&mut tx_bytes);
@@ -246,6 +258,7 @@ where
                             .exhaust(preconf_request_type_b)
                             .into_transaction_request()
                             .with_nonce(nonce)
+                            .with_chain_id(self.chain_id)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
@@ -264,6 +277,7 @@ where
                 }
 
                 sponsoring_tx.append(&mut txs);
+
 
                 let txs_len = sponsoring_tx.len();
                 if txs_len != 0 {

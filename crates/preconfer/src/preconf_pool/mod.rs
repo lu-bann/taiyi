@@ -6,7 +6,6 @@ use alloy_primitives::{Address, U256};
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfRequest;
 use uuid::Uuid;
@@ -27,8 +26,11 @@ impl PreconfPoolBuilder {
         Self
     }
 
-    pub fn build(self, rpc_url: Url, taiyi_escrow_address: Address) -> Arc<PreconfPool> {
-        let validator = PreconfValidator::new(rpc_url);
+    pub fn build(
+        self,
+        validator: PreconfValidator,
+        taiyi_escrow_address: Address,
+    ) -> Arc<PreconfPool> {
         Arc::new(PreconfPool::new(validator, taiyi_escrow_address))
     }
 }
@@ -336,14 +338,17 @@ mod tests {
     use tracing::info;
     use uuid::Uuid;
 
-    use crate::preconf_pool::{PoolType, PreconfPoolBuilder};
+    use crate::{
+        preconf_pool::{PoolType, PreconfPoolBuilder},
+        validator::PreconfValidator,
+    };
 
     #[tokio::test]
     async fn test_add_remove_request() {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
@@ -384,8 +389,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -435,8 +440,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -498,8 +503,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -561,8 +566,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -610,8 +615,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -661,8 +666,8 @@ mod tests {
 
         let provider =
             ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let validator = PreconfValidator::new(rpc_url.parse().unwrap()).await;
+        let preconf_pool = PreconfPoolBuilder::new().build(validator, Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
