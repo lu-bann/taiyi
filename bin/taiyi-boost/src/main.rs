@@ -1,6 +1,7 @@
 use builder::{SidecarBuilderApi, SidecarBuilderState};
-use commit_boost::prelude::*;
+use commit_boost::prelude::{load_pbs_custom_config, PbsService, PbsState};
 use eyre::Result;
+use taiyi_cmd::initialize_tracing_log;
 use types::ExtraConfig;
 
 mod beacon;
@@ -19,7 +20,7 @@ mod utils;
 #[tokio::main]
 async fn main() -> Result<()> {
     let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>().await?;
-    let _guard = initialize_pbs_tracing_log()?;
+    initialize_tracing_log();
 
     let sidecar_state = SidecarBuilderState::new(&extra).await;
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state);
