@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 #![allow(clippy::unwrap_used)]
+#![allow(clippy::useless_format)]
 use std::{collections::HashMap, str::FromStr};
 
 use alloy_eips::{

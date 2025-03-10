@@ -33,6 +33,9 @@ use crate::{
     preconf_pool::{PoolType, PreconfPool, PreconfPoolBuilder},
 };
 
+/// 10 GWEI
+pub const MAX_FEE_THRESHOLD: u64 = 10 * GWEI_TO_WEI;
+
 #[derive(Clone)]
 pub struct PreconfState<P> {
     network_state: NetworkState,
@@ -96,8 +99,8 @@ where
                             (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
                         }
                     };
-                let blob_fee = header.next_block_blob_fee().unwrap();
-                let blob_excess_fee = header.next_block_excess_blob_gas().unwrap();
+                let blob_fee = header.next_block_blob_fee().unwrap_or_default();
+                let blob_excess_fee = header.next_block_excess_blob_gas().unwrap_or_default();
 
                 // wait unit the deadline to submit constraints
                 tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
@@ -389,23 +392,23 @@ where
         }
 
         // Check for gas fee caps
-        if request.transaction.max_fee_per_gas() < GWEI_TO_WEI.into() {
+        if request.transaction.max_fee_per_gas() < MAX_FEE_THRESHOLD.into() {
             return Err(RpcError::MaxFeePerGasLessThanThreshold(
-                GWEI_TO_WEI,
+                MAX_FEE_THRESHOLD,
                 request.transaction.max_fee_per_gas(),
             ));
         }
 
-        if request.transaction.max_priority_fee_per_gas() < Some(GWEI_TO_WEI.into()) {
+        if request.transaction.max_priority_fee_per_gas() < Some(MAX_FEE_THRESHOLD.into()) {
             return Err(RpcError::MaxPriorityFeePerGasLessThanThreshold(
-                GWEI_TO_WEI,
+                MAX_FEE_THRESHOLD,
                 request.transaction.max_priority_fee_per_gas().expect("max priority fee"),
             ));
         }
 
-        if request.transaction.max_fee_per_blob_gas() < Some(GWEI_TO_WEI.into()) {
+        if request.transaction.max_fee_per_blob_gas() < Some(MAX_FEE_THRESHOLD.into()) {
             return Err(RpcError::MaxFeePerBlobGasLessThanThreshold(
-                GWEI_TO_WEI,
+                MAX_FEE_THRESHOLD,
                 request.transaction.max_fee_per_blob_gas().expect("max fee per blob gas"),
             ));
         }
