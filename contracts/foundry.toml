@@ -15,7 +15,7 @@
   solc = "0.8.27"
   src = "src"
   test = "test"
-  via_ir = false
+  via_ir = true
 
 remappings = [
   "forge-std/=lib/forge-std/src/",
@@ -24,6 +24,9 @@ remappings = [
   "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
   "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
+
+  "@symbiotic/=lib/core/src/",
+  "@symbiotic-middleware-sdk/=lib/middleware-sdk/src/",
 
   "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
   "lib/eigenlayer-contracts/:@openzeppelin-v4.9.0/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/",
@@ -38,6 +41,15 @@ remappings = [
   "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
   "lib/eigenlayer-middleware/:ds-test/=lib/eigenlayer-middleware/lib/ds-test/src/",
   "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
+
+  "lib/core/:@openzeppelin/contracts/=lib/core/lib/openzeppelin-contracts/contracts/",
+
+  "lib/middleware-sdk/:@openzeppelin/contracts/=lib/middleware-sdk/lib/openzeppelin-contracts/contracts/",
+  "lib/middleware-sdk/:@openzeppelin/contracts-upgradeable/=lib/middleware-sdk/lib/openzeppelin-contracts-upgradeable/contracts/",
+  "lib/middleware-sdk/:@symbiotic/=lib/middleware-sdk/lib/core/src/",
+  "lib/middleware-sdk/:@symbiotic-test/=lib/middleware-sdk/lib/core/test/",
+  "lib/middleware-sdk/:@crypto-lib/=lib/middleware-sdk/lib/crypto-lib/src/",
+  "lib/middleware-sdk/:forge-std/=lib/middleware-sdk/lib/forge-std/src/",
 
   "lib/openzeppelin-contracts-upgradeable/:@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
 ]

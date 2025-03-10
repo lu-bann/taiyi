@@ -6,3 +6,6 @@
 /node_modules
 /package-lock.json
 /package.json
+/contracts/script/output/
+crates/cli/src/pb
+crates/sp1-interactive-fraud-proof/*.bin
