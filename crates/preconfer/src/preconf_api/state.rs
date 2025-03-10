@@ -4,12 +4,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{Header, Transaction, TxEnvelope};
-use alloy_eips::{
-    eip1559::BaseFeeParams,
-    eip2718::{Decodable2718, Encodable2718},
-    BlockId,
-};
+use alloy_consensus::{Header, Transaction};
+use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{
     keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
@@ -277,7 +273,6 @@ where
                 }
 
                 sponsoring_tx.append(&mut txs);
-
 
                 let txs_len = sponsoring_tx.len();
                 if txs_len != 0 {
