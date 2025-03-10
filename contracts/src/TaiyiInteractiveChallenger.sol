@@ -127,12 +127,6 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         // Recover the signer from the challenge ID and signature
         address signer = ECDSA.recover(challengeId, signature);
 
-        // TODO: Remove this as it is probably not needed
-        // Verify that the signer matches the signer in the preconfRequestAType
-        // if (signer != preconfRequestAType.signer) {
-        //     revert SignerDoesNotMatchPreconfRequest();
-        // }
-
         // Check if the challenge ID already exists
         if (challengeIDs.contains(challengeId)) {
             revert ChallengeAlreadyExists();
