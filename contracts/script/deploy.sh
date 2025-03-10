@@ -8,7 +8,6 @@ if [ -z "$NETWORK" ]; then
     export NETWORK="devnet"
 fi
 export FOUNDRY_PROFILE=ci
-forge clean && forge build && \
 forge script --rpc-url $EXECUTION_URL \
 -vvvv --private-key $PRIVATE_KEY --broadcast ./script/Deployments.s.sol:Deploy \
 --sig "run(string memory configFile)" \

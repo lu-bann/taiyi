@@ -55,6 +55,7 @@ pub struct LocalBlockBuilder {
 // The local block builder was based on bolt's implementation.
 // See: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs
 impl LocalBlockBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         context: Context,
         beacon_api: Url,
@@ -63,8 +64,9 @@ impl LocalBlockBuilder {
         jwt_secret: JwtSecret,
         fee_recipient: Address,
         bls_secret_key: BlsSecretKey,
+        auth_token: Option<String>,
     ) -> Self {
-        let beacon_api_client = BeaconClient::new(beacon_api);
+        let beacon_api_client = BeaconClient::new(beacon_api, auth_token);
         let engine_hinter = EngineHinter::new(jwt_secret, engine_api);
         let execution_api_client = ExecutionClient::new(execution_api);
         Self {
@@ -172,11 +174,12 @@ impl LocalBlockBuilder {
         let signed_transactions: Vec<TransactionSigned> =
             transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
         let blobs_bundle = to_blobs_bundle(transactions);
-        let kzg_commitments = blobs_bundle.clone().unwrap_or_default().commitments.clone();
+        let kzg_commitments = blobs_bundle.clone().commitments.clone();
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
         let value = U256::from(100_000_000_000_000_000_000u128);
         let execution_payload = to_cb_execution_payload(&block);
-        let payload_and_blobs = PayloadAndBlobs { execution_payload, blobs_bundle };
+        let payload_and_blobs =
+            PayloadAndBlobs { execution_payload, blobs_bundle: Some(blobs_bundle) };
         let execution_payload_header = to_cb_execution_payload_header(&block);
 
         let signed_bid = self.create_signed_execution_payload_header(
@@ -240,9 +243,11 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore = "This test needs env configs to connect to real rpcs"]
     async fn test_build_local_payload() -> eyre::Result<()> {
-        let config = get_test_config()?;
+        let Some(config) = get_test_config()? else {
+            eprintln!("Skipping test because required environment variables are not set");
+            return Ok(());
+        };
         let raw_sk = std::env::var("PRIVATE_KEY")?;
         let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(&raw_sk);
 
@@ -257,6 +262,7 @@ mod test {
             config.engine_jwt.0,
             config.fee_recipient,
             config.builder_private_key.0,
+            None,
         )
         .await;
 

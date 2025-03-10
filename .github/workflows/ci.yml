@@ -32,6 +32,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: false
+      - name: Install SP1 toolchain
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          ~/.sp1/bin/sp1up --version v4.0.1
+          ~/.sp1/bin/cargo-prove prove --version
+      - name: Cargo check
+        run: cargo check
       - name: Lint check
         run: |
           make lint

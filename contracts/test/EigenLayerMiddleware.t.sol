@@ -22,7 +22,7 @@ import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
 import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
-import { EigenLayerMiddleware } from "src/abstract/EigenLayerMiddleware.sol";
+import { EigenLayerMiddleware } from "src/eigenlayer-avs/EigenLayerMiddleware.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
 import { GatewayAVS } from "src/eigenlayer-avs/GatewayAVS.sol";
@@ -140,16 +140,17 @@ contract EigenlayerMiddlewareTest is Test {
         proposerRegistry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
 
         // Register AVS contracts with the registry
-        proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
-        proposerRegistry.addRestakingMiddlewareContract(address(gatewayAVS));
+        // proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
+        // proposerRegistry.addRestakingMiddlewareContract(address(gatewayAVS));
 
         // Set AVS types in the registry
-        proposerRegistry.setAVSType(
-            address(validatorAVS), IProposerRegistry.AVSType.VALIDATOR
-        );
-        proposerRegistry.setAVSType(
-            address(gatewayAVS), IProposerRegistry.AVSType.GATEWAY
-        );
+        // proposerRegistry.setAvsType(
+        //     address(validatorAVS),
+        //     IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
+        // );
+        // proposerRegistry.setAvsType(
+        //     address(gatewayAVS), IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+        // );
 
         vm.stopPrank();
     }
@@ -170,7 +171,7 @@ contract EigenlayerMiddlewareTest is Test {
         _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.AVSType.GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
             ),
             "Gateway operator registration failed"
         );
@@ -192,7 +193,7 @@ contract EigenlayerMiddlewareTest is Test {
         _validatorOperatorAVSRegistration(operator, operatorSecretKey, 0);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.AVSType.VALIDATOR
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
             ),
             "Validator operator registration failed"
         );
@@ -212,7 +213,7 @@ contract EigenlayerMiddlewareTest is Test {
         // Verify registration
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.AVSType.GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
             ),
             "Operator should be registered in GatewayAVS"
         );
@@ -306,7 +307,7 @@ contract EigenlayerMiddlewareTest is Test {
         _gatewayOperatorAVSRegistration(mockPodOwner, 1, 0, mockPodOwnerBLSPubKey);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                mockPodOwner, IProposerRegistry.AVSType.GATEWAY
+                mockPodOwner, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
             ),
             "Operator should be registered in GatewayAVS"
         );
@@ -315,7 +316,7 @@ contract EigenlayerMiddlewareTest is Test {
         _validatorOperatorAVSRegistration(mockPodOwner, 1, 1);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                mockPodOwner, IProposerRegistry.AVSType.VALIDATOR
+                mockPodOwner, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
             ),
             "Operator should be registered in ValidatorAVS"
         );
