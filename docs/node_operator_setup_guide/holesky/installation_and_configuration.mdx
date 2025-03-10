@@ -4,6 +4,30 @@ description: 'Step-by-step guide for deploying and registering your Taiyi node o
 icon: 'wrench'
 ---
 
+## Architecture Overview
+
+### Taiyi-boost without commit-boost-pbs
+
+The following diagram illustrates how the different components interact in the Taiyi ecosystem:
+
+<img
+  className="block dark:hidden"
+  src="/images/taiyi-boost-flow.png"
+  alt="Taiyi Boost Architecture"
+/>
+
+### Taiyi-boost with commit-boost-pbs
+
+The commit-boost-pbs module is more for advanced node operators who want to interact with multiple different protocol with different sidecars.
+The docs is not going to demonstrate how to set up commit-boost-pbs. You need to see the details in [commit-boost](https://commit-boost.github.io/commit-boost-client/).
+
+<img
+  className="block dark:hidden"
+  src="/images/pbs-taiyi-boost.png"
+  alt="Taiyi Boost with commit boost pbs architecture"
+/>
+
+
 ## Prerequisites
 
 Before proceeding, ensure you have:
@@ -57,13 +81,95 @@ cd taiyi
 cargo build --release # target binary: ./target/release/taiyi-boost
 ```
 
-### Configure commit-boost
+### Configure commit-boost signer
 
-Create `cb-config.toml`, you can see a full example in the [Commit-Boost Client](https://github.com/Commit-Boost/commit-boost-client/blob/main/config.example.toml): 
+Create `signer-config.toml`, you can see a full example in the [Commit-Boost Client](https://github.com/Commit-Boost/commit-boost-client/blob/main/config.example.toml): 
 
 ```toml
 chain = "Holesky"
 
+# the pbs config below are not usefule for commit boost signer, but it is required to make sure config is parsed correctly
+[pbs]
+port = 18550
+
+# the relays config below are not usefule for commit boost signer, but it is required to make sure config is parsed correctly
+[[relays]]
+id = "mev_relay_0"
+url = "http://b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad0@localhost:18550"
+
+
+# The signer config below are the essential config for commit boost signer
+# If you want to see other options for config please see the [Commit-Boost Client](https://commit-boost.github.io/commit-boost-client/get_started/configuration/)
+[signer.local.loader]
+# File: path to the keys file
+# key_path = "./tests/data/keys.example.json"
+# ValidatorsDir: format of the keystore (lighthouse, prysm, teku or lodestar)
+format = "lighthouse"
+# ValidatorsDir: full path to the keys directory
+# For lighthouse, it's de path to the directory where the `<pubkey>/voting-keystore.json` directories are located.
+# For prysm, it's the path to the `all-accounts.keystore.json` file.
+# For teku, it's the path to the directory where all `<pubkey>.json` files are located.
+# For lodestar, it's the path to the directory where all `<pubkey>.json` files are located.
+keys_path = "/root/1-lighthouse-reth-0-63-0/keys"
+# ValidatorsDir: full path to the secrets file/directory
+# For lighthouse, it's de path to the directory where the `<pubkey>.json` files are located.
+# For prysm, it's the path to the file containing the wallet decryption password.
+# For teku, it's the path to the directory where all `<pubkey>.txt` files are located.
+# For lodestar, it's the path to the file containing the decryption password.
+secrets_path = "/root/1-lighthouse-reth-0-63-0/secrets"
+# Configuration for how the Signer module should store proxy delegations. Supported types of store are:
+#   - File: store keys and delegations from a plain text file (unsafe, use only for testing purposes)
+#   - ERC2335: store keys and delegations safely using ERC-2335 style keystores. More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration#proxy-keys-store)
+# OPTIONAL, if missing proxies are lost on restart
+# [signer.local.store]
+# File: path to the keys file
+# proxy_dir = "./proxies"
+# ERC2335: path to the keys directory
+# keys_path = "./tests/data/proxy/keys"
+# ERC2335: path to the secrets directory
+# secrets_path = "./tests/data/proxy/secrets"
+
+```
+
+### Start commit-boost-signer Services
+
+Before start commit-boost-signer, you need to set the environment variables.
+
+#### Set Environment Variables
+
+```bash
+export CB_CONFIG=config.toml
+export CB_JWTS=taiyi=xxxxx
+export CB_SIGNER_PORT=20000
+```
+
+<Note>
+  Please generate your own jwt token for `CB_JWTS`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_JWTS` is the same as `CB_SIGNER_JWT` in the taiyi-boost env config.
+  You don't need to use engine_jwt here.
+</Note>
+
+#### Start commit-boost-signer
+
+```bash
+<path-to>/commit-boost-signer
+```
+
+You can probably see logs like below
+
+```
+2025-02-14T03:44:48.450459Z  INFO Starting signing service version="0.6.0" commit="adf548b6296fdb4ce38903260ac24be5c4e022bb" modules=["taiyi"] port=20000 loaded_consensus=64 loaded_proxies=0
+2025-02-14T03:44:48.453441Z  INFO Starting metrics server on port 10000
+```
+
+Now the signer module is up in port 20000
+
+
+### Start taiyi-boost Services
+
+Create `taiyi-boost-config.toml`, the example is as follows:
+
+```toml
 # Configuration for the PBS module
 [pbs]
 docker_image = "ghcr.io/commit-boost/pbs:latest"
@@ -80,15 +186,15 @@ min_bid_eth = 0.0
 relay_monitors = []
 late_in_slot_time_ms = 2000
 extra_validation_enabled = false
-rpc_url = "https://rpc.holesky.luban.wtf"
+rpc_url = "https://rpc.holesky.luban.wtf" # better to use your own rpc url
 
-# below are config for taiyi-boost specificall
-engine_api="https://rpc-execution.holesky.luban.wtf"
-execution_api="https://rpc.holesky.luban.wtf"
-beacon_api="https://beacon.holesky.luban.wtf"
-fee_recipient="0xD8F3183DEF51A987222D845be228e0Bbb932C222"
-builder_private_key="5168bdd781a2793f24f53f605f60e79a8bfa9a5737126a205b98db253ed339c2"
-engine_jwt="03d15cbd2b802dfe3449eaa2d2690a90191daa39f38e30282a255fcacfde8faf"
+# below are config for taiyi-boost specifically
+engine_api="https://rpc-execution.holesky.luban.wtf" # better to use your own engine api
+execution_api="https://rpc.holesky.luban.wtf" # better to use your own execution api
+beacon_api="https://beacon.holesky.luban.wtf" # better to use your own beacon api
+fee_recipient="0xD8F3183DEF51A987222D845be228e0Bbb932C222"  # you should use your own fee_recipient for building a fallback block
+builder_private_key="5168bdd781a2793f24f53f605f60e79a8bfa9a5737126a205b98db253ed339c2"  # you should use your own builder_private_key
+engine_jwt="03d15cbd2b802dfe3449eaa2d2690a90191daa39f38e30282a255fcacfde8faf"  # you should use your own engine_jwt
 network="holesky"
 
 # The PBS module needs one or more [[relays]] as defined below.
@@ -97,7 +203,9 @@ network="holesky"
 # OPTIONAL, DEFAULT: URL hostname
 id = "taiyi-relay"
 # Relay URL in the format scheme://pubkey@host
-url = "http://0xadc0fe12e62c14a505ea1e655dbe4d36fa505ed57b634ba37912153d29edd45c5bc5a77764e68b98c53e3f6f8ce9fa3b@relay.holesky.luban.wtf"
+# please do not change this !!!
+# It is connecting our builder to build a preconf block
+url = "https://b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9@relay.holesky.luban.wtf" 
 # Headers to send with each request for this relay
 # OPTIONAL
 # headers = { X-MyCustomHeader = "MyCustomValue" }
@@ -131,103 +239,26 @@ frequency_get_header_ms = 300
 # Maximum number of validators to register in a single request.
 # OPTIONAL, DEFAULT: "" (unlimited)
 validator_registration_batch_size = ""
-
-# Configuration for the Signer Module, only required if any `commit` module is present, or if `pbs.with_signer = true`
-# Currently two types of Signer modules are supported (only one can be used at a time):
-#   - Remote: a remote Web3Signer instance
-#   - Local: a local Signer module
-# More details on the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/#local-signer)
-# OPTIONAL
-# Remote:
-# [signer.remote]
-# URL of the Web3Signer instance
-# url = "https://remote.signer.url"
-# Local:
-[signer.local]
-# Docker image to use for the Signer module.
-# OPTIONAL, DEFAULT: ghcr.io/commit-boost/signer:latest
-docker_image = "ghcr.io/commit-boost/signer:latest"
-# Configuration for how the Signer module should load validator keys. Currently two types of loaders are supported:
-#   - File: load keys from a plain text file (unsafe, use only for testing purposes)
-#   - ValidatorsDir: load keys from a `keys` and `secrets` file/folder (ERC-2335 style keystores). More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration/)
-[signer.local.loader]
-# File: path to the keys file
-# key_path = "./tests/data/keys.example.json"
-# ValidatorsDir: format of the keystore (lighthouse, prysm, teku or lodestar)
-format = "lighthouse"
-# ValidatorsDir: full path to the keys directory
-# For lighthouse, it's de path to the directory where the `<pubkey>/voting-keystore.json` directories are located.
-# For prysm, it's the path to the `all-accounts.keystore.json` file.
-# For teku, it's the path to the directory where all `<pubkey>.json` files are located.
-# For lodestar, it's the path to the directory where all `<pubkey>.json` files are located.
-keys_path = "/root/1-lighthouse-reth-0-63-0/keys"
-# ValidatorsDir: full path to the secrets file/directory
-# For lighthouse, it's de path to the directory where the `<pubkey>.json` files are located.
-# For prysm, it's the path to the file containing the wallet decryption password.
-# For teku, it's the path to the directory where all `<pubkey>.txt` files are located.
-# For lodestar, it's the path to the file containing the decryption password.
-secrets_path = "/root/1-lighthouse-reth-0-63-0/secrets"
-# Configuration for how the Signer module should store proxy delegations. Supported types of store are:
-#   - File: store keys and delegations from a plain text file (unsafe, use only for testing purposes)
-#   - ERC2335: store keys and delegations safely using ERC-2335 style keystores. More details can be found in the docs (https://commit-boost.github.io/commit-boost-client/get_started/configuration#proxy-keys-store)
-# OPTIONAL, if missing proxies are lost on restart
-# [signer.local.store]
-# File: path to the keys file
-# proxy_dir = "./proxies"
-# ERC2335: path to the keys directory
-# keys_path = "./tests/data/proxy/keys"
-# ERC2335: path to the secrets directory
-# secrets_path = "./tests/data/proxy/secrets"
-
-# Configuration for how logs should be collected and stored
-# OPTIONAL, info to stdout if missing
-[logs]
-# Path to the log directory
-# OPTIONAL, DEFAULT: /var/logs/commit-boost
-log_dir_path = "./logs"
-# Log level. Supported values: trace, debug, info, warn, error
-# OPTIONAL, DEFAULT: debug to file, info to stdout
-log_level = "debug"
-# Maximum number of log files to keep
-# OPTIONAL
-max_log_files = 30
-
 ```
 
-### Set Environment Variables
+#### Set Environment Variables
 
 ```bash
-export CB_CONFIG=<path-to>/cb-config.toml
-export CB_JWTS=taiyi=xx
+export CB_CONFIG=taiyi-boost-config.toml
 export CB_SIGNER_JWT=taiyi=xx
 export CB_SIGNER_URL=http://localhost:20000
-export CB_SIGNER_PORT=20000
-export CB_METRICS_PORT=10000
-export CB_LOGS_DIR=./logs
 ```
+<Note>
+  Please generate your own jwt token for `CB_SIGNER_JWT`. You could use command `openssl rand -hex 32` to generate a random token.
+  Make sure the `CB_SIGNER_JWT` is the same as `CB_JWTS` in the commit-boost-signer env config.
+  You don't need to use engine_jwt here.
+</Note>
 
-### Start commit-boost-signer Services
-
-```bash
-<path-to>/commit-boost-signer
-```
-
-You can probably see logs like below
-
-```
-2025-02-14T03:44:48.450459Z  INFO Starting signing service version="0.6.0" commit="adf548b6296fdb4ce38903260ac24be5c4e022bb" modules=["taiyi"] port=20000 loaded_consensus=64 loaded_proxies=0
-2025-02-14T03:44:48.453441Z  INFO Starting metrics server on port 10000
-```
-
-Now the signer module is up in port 20000
-
-
-### Start taiyi-boost Services
+#### Start taiyi-boost
 
 ```bash
 <path-to>/taiyi-boost
 ```
-
 You can probably see logs like below
 
 ```
@@ -259,7 +290,7 @@ Put the taiyi-boost as your relays or mux relays in `config.toml`.
 ```toml
 [[relays]]
 id = "taiyi-relay"
-url = "http://127.0.0.1:18550"
+url = "http://127.0.0.1:18550" # your taiyi-boost service
 ```
 
 or 
@@ -267,7 +298,7 @@ or
 ```toml
 [[mux_relays]]
 id = "taiyi-relay"
-url = "http://127.0.0.1:18550"
+url = "http://127.0.0.1:18550" # your taiyi-boost service
 ```
 
 <Note>

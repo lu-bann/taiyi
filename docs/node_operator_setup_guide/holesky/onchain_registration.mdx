@@ -57,10 +57,20 @@ taiyi-cli register-validators \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
   --private-key <YOUR_PRIVATE_KEY> \
   --taiyi-validator-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS> \
-  --validator-pubkeys 0x0000000000000000000000000000000000000000000000000000000000000000,0x0000000000000000000000000000000000000000000000000000000000000001,... \
-  --pod-owners 0x0000000000000000000000000000000000000000,0x0000000000000000000000000000000000000001,... \
-  --delegated-gateways 0x0000000000000000000000000000000000000000000000000000000000000000,0x0000000000000000000000000000000000000000000000000000000000000001,... \
+  --validator-pubkeys 0xkey1,0xkey2,... \
+  --pod-owners 0xpodOwner1,0xpodOwner2,... \
+  --delegated-gateways b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9,b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9,... \
 ```
+
+<Note>
+The validator pubkeys should be your holesky validator's pubkey.
+
+If you have your validators already staking in network, you can use the existing validator keys to register with pod-owners 0x0000000000000000000000000000000000000000.
+
+If you have your validators alread natively staking in eigenlayer, you can use the existing validator keys to register with your own eigenlayer pod address.
+
+We don't support register as gateway avs operator right now,so make sure to delegated your preconf rights to luban holesky gateway pubkey: `b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9`
+</Note>
 
 ## 4. Delegate Validator Keys
 
@@ -80,7 +90,7 @@ Finally, delegate your validator keys to the Taiyi Gateway. This allows your val
 ```bash
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --gateway-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
   --network holesky \
   local-keystore \
   --path /path/to/validators \

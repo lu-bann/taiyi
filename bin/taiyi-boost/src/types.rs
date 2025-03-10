@@ -39,8 +39,6 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
 use tree_hash::TreeHash;
 
-pub const BUILDER_CONSTRAINTS_PATH: &str = "/constraints";
-
 /// A hash tree root.
 pub type AlloyHashTreeRoot = tree_hash::Hash256;
 
@@ -53,6 +51,7 @@ pub struct ExtraConfig {
     pub builder_private_key: BlsSecretKeyWrapper,
     pub engine_jwt: JwtSecretWrapper,
     pub network: Network,
+    pub auth_token: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -361,8 +360,10 @@ pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
     };
     TransactionSigned { transaction, signature, hash: hash.into() }
 }
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebSpec>> {
-    let blobs_bundle = transactions
+
+// NOTE: This returns an empty BlobsBundle if there are no blob transactions
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
+    transactions
         .iter()
         .filter_map(|tx| match tx {
             TxEnvelope::Eip4844(signed_tx) => match signed_tx.tx() {
@@ -391,12 +392,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> Option<BlobsBundle<DenebS
                 }
                 acc
             },
-        );
-    if blobs_bundle.commitments.is_empty() {
-        None
-    } else {
-        Some(blobs_bundle)
-    }
+        )
 }
 
 pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpec> {
