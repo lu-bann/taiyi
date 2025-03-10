@@ -64,24 +64,9 @@ body:
     validations:
       required: true
   - type: textarea
-    id: database-version
-    attributes:
-      label: What database version are you on?
-      description: This can be obtained with `reth db version`
-    validations:
-      required: true
-  - type: textarea
     id: network
     attributes:
       label: Which chain / network are you on?
       description: Valid options are `mainnet`, `holesky`, `helder`, custom network
     validations:
       required: true
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/lu-bann/taiyi/blob/main/CONTRIBUTING.md#code-of-conduct)
-      options:
-        - label: I agree to follow the Code of Conduct
-          required: true
