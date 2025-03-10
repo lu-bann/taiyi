@@ -12,6 +12,13 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
+struct PublicValuesStruct {
+    uint64 proofBlockNumber;
+    bytes32 proofBlockHash;
+    address gatewayAddress;
+    bytes signature;
+}
+
 contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
@@ -272,31 +279,30 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         );
 
         // Decode proof values
-        (
-            uint256 proofBlockNumber,
-            bytes32 proofBlockHash,
-            bytes32 proofChallengeId,
-            address proofCommitmentSigner
-        ) = abi.decode(proofValues, (uint256, bytes32, bytes32, address));
+        PublicValuesStruct memory publicValues =
+            abi.decode(proofValues, (PublicValuesStruct));
 
         // Decode preconf request from challenge data
         PreconfRequestBType memory preconfRequestBType =
             abi.decode(challenge.commitmentData, (PreconfRequestBType));
 
         // Verify the proof block number matches the target slot
-        if (proofBlockNumber != preconfRequestBType.blockspaceAllocation.targetSlot) {
+        if (
+            publicValues.proofBlockNumber
+                != preconfRequestBType.blockspaceAllocation.targetSlot
+        ) {
             revert TargetSlotDoesNotMatch();
         }
 
         // TODO: Verify the block hash
 
         // Verify the proof challenge ID matches the challenge ID
-        if (proofChallengeId != challenge.id) {
+        if (keccak256(publicValues.signature) != keccak256(challenge.signature)) {
             revert ChallengeIdDoesNotMatch();
         }
 
         // Verify the proof commitment signer matches the challenge commitment signer
-        if (proofCommitmentSigner != challenge.commitmentSigner) {
+        if (publicValues.gatewayAddress != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
         }
 
