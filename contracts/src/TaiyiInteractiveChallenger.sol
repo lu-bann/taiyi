@@ -86,10 +86,18 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     /// @inheritdoc ITaiyiInteractiveChallenger
     function getOpenChallenges() external view returns (Challenge[] memory) {
+        uint256 totalChallengeCount = challengeIDs.length();
+        uint256 counter = 0;
+
         Challenge[] memory openChallenges = new Challenge[](openChallengeCount);
 
-        for (uint256 i = 0; i < openChallengeCount; i++) {
-            openChallenges[i] = challenges[challengeIDs.at(i)];
+        for (uint256 i = 0; i < totalChallengeCount; i++) {
+            bytes32 challengeId = challengeIDs.at(i);
+
+            if (challenges[challengeId].status == ChallengeStatus.Open) {
+                openChallenges[counter] = challenges[challengeId];
+                counter++;
+            }
         }
 
         return openChallenges;
@@ -239,6 +247,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         challenges[id].status = ChallengeStatus.Succeded;
+        openChallengeCount--;
         emit ChallengeSucceded(id);
     }
 
@@ -300,6 +309,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             revert CommitmentSignerDoesNotMatch();
         }
 
+        openChallengeCount--;
         emit ChallengeFailed(id);
     }
 
