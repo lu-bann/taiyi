@@ -16,10 +16,6 @@ pub struct Ready {
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
     /// Assigned by the gateway to each preconf transaction in the order
     /// they should appear relative to the anchor.
-    ///
-    /// NOTE: Anchor Transaction will always have Sequencer Number = 0
-    /// NOTE: Tip Transaction will always have odd Sequencer Number
-    /// NOTE: Preconf Transaction will always have even Sequencer Number
     sequence_number: u64,
 }
 
@@ -29,8 +25,8 @@ impl Ready {
 
         let preconf_request = match preconf_request {
             PreconfRequest::TypeA(mut inner) => {
-                self.sequence_number += 2;
-                inner.sequence_number = Some(self.sequence_number);
+                inner.sequence_number = Some(self.sequence_number + 1);
+                self.sequence_number += inner.preconf_tx.len() as u64 + 1;
                 PreconfRequest::TypeA(inner)
             }
             b => b,

@@ -466,7 +466,7 @@ where
                     self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponse::success(request.request_id, Some(commitment)))
+                Ok(PreconfResponse::success(request.request_id, Some(commitment), None))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
@@ -517,7 +517,12 @@ where
                     self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
                         RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponse::success(request_id, Some(commitment)))
+                let sequence_num = if let PreconfRequest::TypeA(result) = result {
+                    result.sequence_number
+                } else {
+                    None
+                };
+                Ok(PreconfResponse::success(request_id, Some(commitment), sequence_num))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
