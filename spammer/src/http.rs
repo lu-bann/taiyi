@@ -1,4 +1,3 @@
-use alloy_consensus::TxEnvelope;
 use alloy_eips::eip4844::{
     builder::{SidecarBuilder, SimpleCoder},
     DATA_GAS_PER_BLOB,
@@ -174,7 +173,7 @@ impl HttpClient {
         Ok(response.data)
     }
 
-    pub async fn submit_type_a_request(
+    pub async fn _submit_type_a_request(
         &self,
         slot: u64,
         nonce: u64,
@@ -205,11 +204,8 @@ impl HttpClient {
             .build(&self.wallet)
             .await?;
 
-        let request = SubmitTypeATransactionRequest::new(
-            vec![TxEnvelope::from(preconf_transaction)],
-            TxEnvelope::from(tip_transaction),
-            slot,
-        );
+        let request =
+            SubmitTypeATransactionRequest::new(vec![preconf_transaction], tip_transaction, slot);
         let signature =
             hex::encode(self.signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
 
