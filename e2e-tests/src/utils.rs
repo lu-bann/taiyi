@@ -285,8 +285,10 @@ pub async fn verify_tx_in_block(
     Ok(tx_found)
 }
 
-pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Result<TxEnvelope> {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+pub async fn generate_tx(
+    execution_url: &str,
+    signer: PrivateKeySigner,
+) -> eyre::Result<TxEnvelope> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
     let chain_id = provider.get_chain_id().await?;
@@ -299,8 +301,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        // TODO: use the correct nonce, dont' why the nonce above is 3.
-        .with_nonce(1)
+        .with_nonce(nonce)
         .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)

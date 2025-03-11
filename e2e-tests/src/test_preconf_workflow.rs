@@ -91,7 +91,7 @@ async fn test_commitment_apis() -> eyre::Result<()> {
 
     // Submit transaction
     // Generate request and signature
-    let transaction = generate_tx(&config.execution_url, PRECONFER_ECDSA_SK).await.unwrap();
+    let transaction = generate_tx(&config.execution_url, signer.clone()).await.unwrap();
     let (request, signature) =
         generate_submit_transaction_request(signer.clone(), transaction, request_id).await;
 

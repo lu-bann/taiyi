@@ -19,7 +19,7 @@ use futures::StreamExt;
 use reqwest::Url;
 use taiyi_primitives::{
     BlockspaceAllocation, ConstraintsMessage, PreconfRequest, PreconfResponse, SignableBLS,
-    SignedConstraints, SlotInfo, SubmitTransactionRequest,
+    SignedConstraints, SlotInfo, SubmitTransactionRequest, TxExt,
 };
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -124,6 +124,8 @@ where
 
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
+                        let sponsor_nonce = nonce;
+                        nonce += 1;
                         for preconf_req in preconf_requests {
                             if let Some(ref tx) = preconf_req.transaction {
                                 // calculate gas used
@@ -180,11 +182,7 @@ where
                                     .await?;
                                 // increment nonce
                                 nonce += 1;
-                                let mut tx_encoded = Vec::new();
-                                get_tip_tx.encode_2718(&mut tx_encoded);
-                                let tx_ref: &[u8] = tx_encoded.as_ref();
-                                let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                                    tx_ref.try_into().expect("tx bytes too big");
+                                let tx_bytes = get_tip_tx.to_ssz_bytes();
                                 txs.push(tx_bytes);
                             }
                         }
@@ -193,20 +191,15 @@ where
                         let sponsor_tx = taiyi_core
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
-                            .with_nonce(nonce)
+                            .with_nonce(sponsor_nonce)
                             .with_chain_id(chain_id)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
                             .build(&wallet)
                             .await?;
-                        nonce += 1;
 
-                        let mut tx_bytes = Vec::new();
-                        sponsor_tx.encode_2718(&mut tx_bytes);
-                        let tx_ref: &[u8] = tx_bytes.as_ref();
-                        let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                            tx_ref.try_into().expect("tx bytes too big");
+                        let tx_bytes = sponsor_tx.to_ssz_bytes();
                         sponsoring_tx.push(tx_bytes);
                     }
                     Err(err) => {
@@ -264,11 +257,7 @@ where
                         // increment nonce
                         nonce += 1;
 
-                        let mut tx_encoded = Vec::new();
-                        exhaust_tx.encode_2718(&mut tx_encoded);
-                        let tx_ref: &[u8] = tx_encoded.as_ref();
-                        let tx_bytes: ByteList<MAX_BYTES_PER_TRANSACTION> =
-                            tx_ref.try_into().expect("tx bytes too big");
+                        let tx_bytes = exhaust_tx.to_ssz_bytes();
                         txs.push(tx_bytes);
                     }
                 }
