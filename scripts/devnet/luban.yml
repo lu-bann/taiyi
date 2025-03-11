@@ -6,6 +6,7 @@ participants:
       "--always-prepare-payload", 
       "--prepare-payload-lookahead=8000",
       ]
+    el_image: ethereum/client-go:v1.14.13
     count: 1
 mev_type: helix
 additional_services:
