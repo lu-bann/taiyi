@@ -3,36 +3,27 @@ use std::{net::SocketAddr, str::FromStr};
 use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use axum::{
-    extract::{Path, State},
+    extract::State,
     middleware,
     response::{IntoResponse, Json},
     routing::{get, post},
     Router,
 };
 use reqwest::header::HeaderMap;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfHash, PreconfResponse, PreconfStatusResponse,
-    SubmitTransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SlotInfo, SubmitTransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use super::state::SlotInfo;
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
-pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetPreconfRequestQuery {
-    preconf_hash: PreconfHash,
-}
+pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
 
 pub struct PreconfApiServer {
     /// The address to bind the server to
@@ -51,10 +42,9 @@ impl PreconfApiServer {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
             .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction))
-            .route(PRECONF_REQUEST_STATUS_PATH, get(get_preconf_request))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
-            .route(ESTIMATE_TIP_PATH, post(handle_preconf_fee))
+            .route(PRECONF_FEE_PATH, post(handle_preconf_fee))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
@@ -96,8 +86,6 @@ pub async fn handle_reserve_blockspace<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    info!("Received blockspace reservation request");
-
     // Extract the signer and signature from the headers
     let (signer, signature) = {
         let auth = headers
@@ -126,6 +114,8 @@ where
         return Err(RpcError::SignatureError("Invalid signature".to_string()));
     }
 
+    info!("Received blockspace reservation request, signer: {}", signer);
+
     match state.reserve_blockspace(request, signature, signer).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
@@ -152,16 +142,6 @@ where
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }
-}
-
-pub async fn get_preconf_request<P>(
-    State(state): State<PreconfState<P>>,
-    Path(params): Path<Uuid>,
-) -> Result<Json<PreconfStatusResponse>, RpcError>
-where
-    P: Provider + Clone + Send + Sync + 'static,
-{
-    Ok(Json(state.check_preconf_request_status(params).await?))
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch

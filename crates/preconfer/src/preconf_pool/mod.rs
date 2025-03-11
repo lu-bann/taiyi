@@ -78,8 +78,8 @@ impl PreconfPool {
             };
 
         // Verify that we have enough space
-        if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
-            || blockspace_avail.blobs < preconf_request.allocation.blob_count
+        if blockspace_avail.gas_limit <= preconf_request.allocation.gas_limit
+            || blockspace_avail.blobs <= preconf_request.allocation.blob_count
         {
             return Err(PoolError::BlockspaceNotAvailable);
         }
@@ -235,6 +235,7 @@ impl PreconfPool {
         self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
     }
 
+    #[cfg(test)]
     /// Returns the pool where the preconf request is currently in.
     pub fn get_pool(&self, request_id: Uuid) -> Result<PoolType, PoolError> {
         let pool_inner = self.pool_inner.read();
@@ -301,6 +302,7 @@ impl Default for BlockspaceAvailable {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolType {
     Pending,

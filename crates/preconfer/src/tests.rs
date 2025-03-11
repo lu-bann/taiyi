@@ -24,7 +24,7 @@ mod tests {
         network_state::NetworkState,
         preconf_api::{
             api::{
-                PreconfApiServer, ESTIMATE_TIP_PATH, RESERVE_BLOCKSPACE_PATH,
+                PreconfApiServer, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
                 SUBMIT_TRANSACTION_PATH,
             },
             state::PreconfState,
@@ -100,6 +100,7 @@ mod tests {
             rpc_url.parse().unwrap(),
             *escrow.address(),
             provider.clone(),
+            0,
         );
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
@@ -108,7 +109,7 @@ mod tests {
 
         // Estimate fee
         let request_endpoint =
-            Url::parse(&server_endpoint).unwrap().join(ESTIMATE_TIP_PATH).unwrap();
+            Url::parse(&server_endpoint).unwrap().join(PRECONF_FEE_PATH).unwrap();
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
             .json(network_state.available_slots().last().unwrap())
@@ -173,10 +174,10 @@ mod tests {
             .send()
             .await?;
         let status = response.status();
-        let body = response.bytes().await?;
+        let body = response.text().await?;
         println!("{:?}", body);
         println!("Current block number: {:?}", provider.get_block_number().await?);
-        let response: PreconfResponse = serde_json::from_slice(&body)?;
+        let response: PreconfResponse = serde_json::from_str(&body)?;
         assert_eq!(status, 200);
 
         Ok(())
