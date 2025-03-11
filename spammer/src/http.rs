@@ -2,7 +2,7 @@ use alloy_eips::eip4844::{
     builder::{SidecarBuilder, SimpleCoder},
     DATA_GAS_PER_BLOB,
 };
-use alloy_primitives::U256;
+use alloy_primitives::{Address, U256};
 use alloy_provider::network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer::Signer;
@@ -47,7 +47,7 @@ impl HttpClient {
         Ok(preconf_fee)
     }
 
-    pub async fn reserve_blockspace(&self, slot: u64) -> eyre::Result<Uuid> {
+    pub async fn reserve_blockspace(&self, slot: u64, recepient: Address) -> eyre::Result<Uuid> {
         let preconf_fee = self.preconf_fee(slot).await?;
 
         let gas_limit = 21_000;
@@ -61,6 +61,8 @@ impl HttpClient {
 
         let blockspace_data = BlockspaceAllocation {
             target_slot: slot,
+            sender: self.signer.address(),
+            recepient,
             deposit: fee,
             tip: fee,
             gas_limit,
@@ -204,6 +206,9 @@ impl HttpClient {
             .build(&self.wallet)
             .await?;
 
+        info!("Tip Transaction Hash: {:?}", tip_transaction.tx_hash());
+        info!("Preconf Transaction Hash: {:?}", preconf_transaction.tx_hash());
+
         let request =
             SubmitTypeATransactionRequest::new(vec![preconf_transaction], tip_transaction, slot);
         let signature =
@@ -218,9 +223,9 @@ impl HttpClient {
             .json(&request)
             .send()
             .await?;
-        let bytes = result.bytes().await?;
-        info!("Submit Transaction Response: {:?}", bytes);
-        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
+        let body = result.text().await?;
+        info!("Submit Transaction Response: {:?}", body);
+        let response: PreconfResponse = serde_json::from_str(&body)?;
         Ok(response.data)
     }
 }

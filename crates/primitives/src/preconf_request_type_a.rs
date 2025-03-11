@@ -35,12 +35,13 @@ impl PreconfRequestTypeA {
 
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
-        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         for tx in &self.preconf_tx {
             digest.extend_from_slice(tx.tx_hash().as_slice());
         }
+        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
+        digest.extend_from_slice(self.signer.expect("shouldn't be none").as_slice());
         keccak256(&digest)
     }
 }

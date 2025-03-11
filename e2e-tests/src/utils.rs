@@ -252,6 +252,8 @@ pub async fn generate_reserve_blockspace_request(
     let fee = U256::from(fee / 2);
     let request = BlockspaceAllocation {
         target_slot,
+        sender: signer_private.address(),
+        recepient: TAIYI_CONTRACT_ADDRESS.parse().unwrap(),
         deposit: fee,
         tip: fee,
         gas_limit,

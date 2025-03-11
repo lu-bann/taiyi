@@ -5,7 +5,7 @@ mod tests {
 
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{hex, U256};
+    use alloy_primitives::{hex, Address, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
@@ -191,6 +191,8 @@ mod tests {
         let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
             target_slot,
+            sender: signer.address(),
+            recepient: Address::default(),
             deposit: U256::from(fee * 21_000 / 2),
             tip: U256::from(fee * 21_000 / 2),
             gas_limit: 21_0000,

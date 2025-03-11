@@ -2,11 +2,8 @@
 use std::collections::HashMap;
 
 use alloy_eips::{self, merge::EPOCH_SLOTS};
-use alloy_primitives::{Address, U256};
-use alloy_provider::{
-    network::{EthereumWallet, TransactionBuilder},
-    Provider, ProviderBuilder,
-};
+use alloy_primitives::Address;
+use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
@@ -66,24 +63,24 @@ async fn main() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit into TaiyiCore
-    let contract_address = opts.taiyi_core_address;
-    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
-    let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    info!("Account Nonce: {:?}", account_nonce);
+    // let contract_address = opts.taiyi_core_address;
+    // let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+    // let account_nonce = provider.get_transaction_count(signer.address()).await?;
+    // info!("Account Nonce: {:?}", account_nonce);
 
-    let tx = taiyi_escrow
-        .deposit()
-        .value(U256::from(1_000_000_000_000_000_000u128))
-        .into_transaction_request()
-        .with_chain_id(chain_id)
-        .with_gas_limit(100_000)
-        .with_max_fee_per_gas(1000000010)
-        .with_max_priority_fee_per_gas(1000000000)
-        .with_nonce(account_nonce);
-    let pending_tx = provider.send_transaction(tx).await?;
-    info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
-    let receipt = pending_tx.get_receipt().await?;
-    info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+    // let tx = taiyi_escrow
+    //     .deposit()
+    //     .value(U256::from(1_000_000_000_000_000_000u128))
+    //     .into_transaction_request()
+    //     .with_chain_id(chain_id)
+    //     .with_gas_limit(100_000)
+    //     .with_max_fee_per_gas(1000000010)
+    //     .with_max_priority_fee_per_gas(1000000000)
+    //     .with_nonce(account_nonce);
+    // let pending_tx = provider.send_transaction(tx).await?;
+    // info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
+    // let receipt = pending_tx.get_receipt().await?;
+    // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
     let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
@@ -95,19 +92,19 @@ async fn main() -> eyre::Result<()> {
     let mut request_store = HashMap::new();
 
     // Query available slots and filter out the past slots
-    let mut slots = http_client.slots().await?;
+    let mut slots = http_client.slots().await?.iter().map(|slot| slot.slot).collect::<Vec<_>>();
     let head_slot = beacon_client.get_sync_status().await?.head_slot;
     info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
-    slots.retain(|slot| slot.slot > head_slot);
+    slots.retain(|slot| *slot > head_slot);
     info!("Available slots: {:?}", slots.len());
 
     // Send reserve blockspace requests for the slots
-    for slot in slots {
-        info!("Reserving blockspace for slot: {:?}", slot.slot);
-        let request_id = http_client.reserve_blockspace(slot.slot).await?;
-        info!("Request ID: {:?}", request_id);
-        request_store.insert(slot.slot, request_id);
-    }
+    // for slot in slots {
+    //     info!("Reserving blockspace for slot: {:?}", slot);
+    //     let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
+    //     info!("Request ID: {:?}", request_id);
+    //     request_store.insert(slot, request_id);
+    // }
 
     info!("Starts to subscribe to {}", beacon_url_head_event);
     let mut stream: mev_share_sse::client::EventStream<HeadEvent> =
@@ -119,9 +116,17 @@ async fn main() -> eyre::Result<()> {
         let epoch = slot / EPOCH_SLOTS;
         let next_slot = slot + 1;
 
+        let account_nonce = provider.get_transaction_count(signer.address()).await?;
+        info!("Submitting transactions for next slot: {:?}", next_slot);
+
+        if slots.contains(&next_slot) {
+            let data =
+                http_client._submit_type_a_request(next_slot, account_nonce, chain_id).await?;
+            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+            info!("Commitment type a: {:?}", format!("0x{}", commitment));
+        }
+
         if request_store.contains_key(&next_slot) {
-            info!("Submitting transaction for next slot: {:?}", next_slot);
-            let account_nonce = provider.get_transaction_count(signer.address()).await?;
             let data = http_client
                 .submit_transaction(
                     *request_store.get(&next_slot).unwrap(),
@@ -130,7 +135,7 @@ async fn main() -> eyre::Result<()> {
                 )
                 .await?;
             let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-            info!("Commitment: {:?}", commitment);
+            info!("Commitment type b: {:?}", format!("0x{}", commitment));
         }
 
         if event.epoch_transition {
@@ -143,7 +148,8 @@ async fn main() -> eyre::Result<()> {
 
             for slot in slots {
                 info!("Reserving blockspace for slot: {:?}", slot.slot);
-                let request_id = http_client.reserve_blockspace(slot.slot).await?;
+                let request_id =
+                    http_client.reserve_blockspace(slot.slot, opts.taiyi_core_address).await?;
                 info!("Request ID: {:?}", request_id);
                 request_store.insert(slot.slot, request_id);
             }

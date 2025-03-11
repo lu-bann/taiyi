@@ -51,11 +51,13 @@ impl PreconfRequestTypeB {
 /// Amount of blockspace to be allocated
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 pub struct BlockspaceAllocation {
-    /// The slot to reserve blockspace for
-    pub target_slot: u64,
     /// The gas limit for the block
     /// This is the maximum amount of gas that can be used in the block
     pub gas_limit: u64,
+    /// The address initiating the preconfirmation request
+    pub sender: Address,
+    /// The address receiving the preconfirmation tip
+    pub recepient: Address,
     /// The deposit to be paid for the blockspace allocation.
     /// This is the amount deducted from the user's escrow balance when the user fails to submit a transaction
     /// for the allocated blockspace.
@@ -69,27 +71,21 @@ pub struct BlockspaceAllocation {
     /// The tip is calculated as follows:
     /// { gas_limit * gas_fee + blob_count * DATA_GAS_PER_BLOB * blob_gas_fee } * 0.5
     pub tip: U256,
+    /// The slot to reserve blockspace for
+    pub target_slot: u64,
     /// Number of blobs to reserve
     pub blob_count: usize,
 }
 
 impl BlockspaceAllocation {
-    pub fn new(
-        target_slot: u64,
-        gas_limit: u64,
-        deposit: U256,
-        tip: U256,
-        blob_count: usize,
-    ) -> Self {
-        Self { target_slot, gas_limit, deposit, tip, blob_count }
-    }
-
     pub fn blockspace_digest(&self) -> Vec<u8> {
         let mut digest = Vec::new();
-        digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
+        digest.extend_from_slice(self.sender.as_slice());
+        digest.extend_from_slice(self.recepient.as_slice());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
+        digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         digest
     }
