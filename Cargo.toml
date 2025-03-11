@@ -17,6 +17,7 @@ members = [
     "crates/sp1-poni",
     "e2e-tests",
     "examples",
+    "spammer"
 ]
 default-members = [
     "bin/taiyi",
@@ -41,6 +42,7 @@ ignored = [
     "alloy-rpc-client",
     "ethereum_ssz",
     "ethereum_ssz_derive",
+    "log"
 ]
 
 [workspace.dependencies]

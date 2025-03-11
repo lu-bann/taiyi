@@ -18,7 +18,7 @@ use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::SlotInfo;
+use taiyi_preconfer::context_ext::ContextExt;
 use taiyi_primitives::{
     BlockspaceAllocation as BlockspaceAlloc, ContextExt, PreconfFeeResponse, PreconfRequest,
     PreconfResponse, SignedConstraints, SubmitTransactionRequest,
@@ -28,8 +28,8 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::constant::{
-    AVAILABLE_SLOT_PATH, ESTIMATE_TIP_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK,
-    PRECONFER_ECDSA_SK, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
+    AVAILABLE_SLOT_PATH, FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK,
+    PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH, SLOT_CHECK_INTERVAL_SECONDS,
     SUBMIT_TRANSACTION_PATH, TAIYI_CONTRACT_ADDRESS,
 };
 
@@ -233,8 +233,7 @@ pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> 
 
 pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
     let client = reqwest::Client::new();
-    let res =
-        client.post(&format!("{}{}", taiyi_url, ESTIMATE_TIP_PATH)).json(&slot).send().await?;
+    let res = client.post(&format!("{}{}", taiyi_url, PRECONF_FEE_PATH)).json(&slot).send().await?;
     let res_b = res.bytes().await?;
     let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
     Ok(preconf_fee)

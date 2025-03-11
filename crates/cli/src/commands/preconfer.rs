@@ -48,6 +48,18 @@ pub struct PreconferCommand {
     /// metrics port
     #[clap(long)]
     pub metrics_port: Option<u16>,
+
+    /// minimum fee per gas
+    #[clap(long)]
+    pub min_fee_per_gas: Option<u128>,
+
+    /// minimum priority fee per gas
+    #[clap(long)]
+    pub min_priority_fee_per_gas: Option<u128>,
+
+    /// minimum fee per blob gas
+    #[clap(long)]
+    pub min_fee_per_blob_gas: Option<u128>,
 }
 
 impl PreconferCommand {
@@ -61,6 +73,8 @@ impl PreconferCommand {
 
         let relay_url = self.relay_url.iter().map(|url| url.parse().expect("relay urls")).collect();
 
+        let min_fee_per_gas = self.min_fee_per_gas.unwrap_or(0);
+
         spawn_service(
             self.execution_rpc_url.clone(),
             self.beacon_rpc_url.clone(),
@@ -71,6 +85,7 @@ impl PreconferCommand {
             self.ecdsa_sk.clone(),
             relay_url,
             self.taiyi_escrow_address.parse()?,
+            min_fee_per_gas,
         )
         .await?;
 

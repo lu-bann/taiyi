@@ -29,8 +29,9 @@ impl ExecutionClient {
     }
 
     pub async fn get_account_state(&self, address: Address) -> eyre::Result<AccountState> {
-        let account = self.inner.get_account(address).await?;
-        Ok(AccountState { nonce: account.nonce, balance: account.balance })
+        let nonce = self.inner.get_transaction_count(address).await?;
+        let balance = self.inner.get_balance(address).await?;
+        Ok(AccountState { nonce, balance })
     }
 
     pub async fn balance_of(

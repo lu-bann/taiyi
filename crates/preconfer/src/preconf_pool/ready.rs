@@ -26,6 +26,7 @@ impl Ready {
         self.reqs_by_slot.entry(slot).or_default().push(request_id);
     }
 
+    #[cfg(test)]
     pub fn contains(&self, key: Uuid) -> bool {
         self.by_id.contains_key(&key)
     }

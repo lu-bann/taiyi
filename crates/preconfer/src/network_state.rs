@@ -22,7 +22,7 @@ impl NetworkState {
         }
     }
 
-    pub fn _chain_id(&self) -> u64 {
+    pub fn chain_id(&self) -> u64 {
         self.context.deposit_chain_id as u64
     }
 
@@ -39,7 +39,11 @@ impl NetworkState {
     }
 
     pub fn update_slot(&self, slot: u64) {
+        // Update the current slot
         self.current_slot.store(slot, Ordering::Relaxed);
+        // Remove the slots which are older than the given slot
+        let mut available_slots = self.available_slots.write();
+        available_slots.retain(|&s| s >= slot);
     }
 
     pub fn add_slot(&self, slot: u64) {
@@ -48,12 +52,6 @@ impl NetworkState {
 
     pub fn available_slots(&self) -> Vec<u64> {
         self.available_slots.read().clone()
-    }
-
-    /// Removes the slots which are older than epoch head slot
-    pub fn clear_slots(&self, epoch: u64) {
-        let mut available_slots = self.available_slots.write();
-        available_slots.retain(|&slot| slot >= epoch * self.context.slots_per_epoch);
     }
 
     pub fn contains_slot(&self, slot: u64) -> bool {

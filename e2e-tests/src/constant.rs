@@ -17,4 +17,4 @@ pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
 pub const PRECONF_REQUEST_STATUS_PATH: &str = "/commitments/v0/preconf_request/:preconf_hash";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
-pub const ESTIMATE_TIP_PATH: &str = "/commitments/v0/estimate_fee";
+pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";

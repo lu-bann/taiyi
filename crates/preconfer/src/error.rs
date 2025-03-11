@@ -30,6 +30,8 @@ pub enum RpcError {
     MalformedHeader,
     #[error("Gateway isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
+    #[error("max_fee_per_gas: Expected {0}, got {1}")]
+    MaxFeePerGasLessThanThreshold(u128, u128),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
