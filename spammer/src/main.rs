@@ -1,9 +1,14 @@
 #![allow(clippy::unwrap_used)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use std::collections::HashMap;
 
 use alloy_eips::{self, merge::EPOCH_SLOTS};
-use alloy_primitives::Address;
-use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
+use alloy_primitives::{Address, U256};
+use alloy_provider::{
+    network::{EthereumWallet, TransactionBuilder},
+    Provider, ProviderBuilder,
+};
 use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
@@ -99,12 +104,12 @@ async fn main() -> eyre::Result<()> {
     info!("Available slots: {:?}", slots.len());
 
     // Send reserve blockspace requests for the slots
-    // for slot in slots {
-    //     info!("Reserving blockspace for slot: {:?}", slot);
-    //     let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
-    //     info!("Request ID: {:?}", request_id);
-    //     request_store.insert(slot, request_id);
-    // }
+    for slot in slots {
+        info!("Reserving blockspace for slot: {:?}", slot);
+        let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
+        info!("Request ID: {:?}", request_id);
+        request_store.insert(slot, request_id);
+    }
 
     info!("Starts to subscribe to {}", beacon_url_head_event);
     let mut stream: mev_share_sse::client::EventStream<HeadEvent> =
@@ -119,12 +124,13 @@ async fn main() -> eyre::Result<()> {
         let account_nonce = provider.get_transaction_count(signer.address()).await?;
         info!("Submitting transactions for next slot: {:?}", next_slot);
 
-        if slots.contains(&next_slot) {
-            let data =
-                http_client._submit_type_a_request(next_slot, account_nonce, chain_id).await?;
-            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-            info!("Commitment type a: {:?}", format!("0x{}", commitment));
-        }
+        // if slots.contains(&next_slot) {
+        //     let data =
+        //         http_client.submit_type_a_request(next_slot, account_nonce, chain_id).await?;
+        //     let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+        //     info!("Commitment type a: {:?}", format!("0x{}", commitment));
+        //     info!("Sequence Number: {:?}", data.sequence_num.unwrap());
+        // }
 
         if request_store.contains_key(&next_slot) {
             let data = http_client

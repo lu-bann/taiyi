@@ -126,7 +126,7 @@ impl HttpClient {
         Ok(response.data)
     }
 
-    pub async fn _submit_blob_transaction(
+    pub async fn submit_blob_transaction(
         &self,
         request_id: Uuid,
         nonce: u64,
@@ -175,7 +175,7 @@ impl HttpClient {
         Ok(response.data)
     }
 
-    pub async fn _submit_type_a_request(
+    pub async fn submit_type_a_request(
         &self,
         slot: u64,
         nonce: u64,

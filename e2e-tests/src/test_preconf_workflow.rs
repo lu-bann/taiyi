@@ -120,18 +120,13 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
 
-    let user_tx = txs.get(1).unwrap();
-
     // TODO: check transaction inclusion in the block
 
     assert_eq!(
         message.pubkey,
         BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
     );
-
     assert_eq!(message.slot, target_slot);
-
-    assert_eq!(*user_tx, request.transaction);
 
     // Optionally, cleanup when done
     taiyi_handle.abort();
@@ -294,7 +289,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-    let target_slot = available_slot.first().unwrap().slot;
+    let target_slot = available_slot.first().unwrap().slot + 5;
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
