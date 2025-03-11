@@ -10,6 +10,7 @@ use tracing::{error, info};
 
 use crate::{
     clients::{relay_client::RelayClient, signer_client::SignerClient},
+    constraint_submit::spawn_constraint_submitter,
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
 };
@@ -61,7 +62,7 @@ pub async fn spawn_service(
             res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
                 error!("Error in cl process: {:?}", res);
             }
-            res = state.spawn_constraint_submitter() => {
+            res = spawn_constraint_submitter(state) => {
                 error!("Constraint submitter task exited. {:?}", res);
             },
             _ = tokio::signal::ctrl_c() => {
