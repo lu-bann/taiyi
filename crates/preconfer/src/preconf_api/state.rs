@@ -120,8 +120,8 @@ where
                 let mut type_b_txs = Vec::new();
                 let mut exhaust_txs = Vec::new();
 
-                let mut nonce = self.provider.get_transaction_count(sender).await?;
-
+                let anchor_tx_nonce = self.provider.get_transaction_count(sender).await?;
+                let mut nonce = anchor_tx_nonce + 1;
                 // Accounts to sponsor gas for
                 let mut accounts = Vec::new();
                 // Amounts to sponsor for each account
@@ -243,14 +243,13 @@ where
                         let sponsor_tx = taiyi_core
                             .sponsorEthBatch(accounts, amounts)
                             .into_transaction_request()
-                            .with_nonce(nonce)
+                            .with_nonce(anchor_tx_nonce)
                             .with_chain_id(chain_id)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
                             .with_max_priority_fee_per_gas(priority_fee)
                             .build(&wallet)
                             .await?;
-                        nonce += 1;
 
                         let mut tx_bytes = Vec::new();
                         sponsor_tx.encode_2718(&mut tx_bytes);

@@ -16,7 +16,7 @@ pub struct Ready {
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
     /// Assigned by the gateway to each preconf transaction in the order
     /// they should appear relative to the anchor.
-    sequence_number: u64,
+    sequence_number: HashMap<u64, u64>,
 }
 
 impl Ready {
@@ -25,8 +25,10 @@ impl Ready {
 
         let preconf_request = match preconf_request {
             PreconfRequest::TypeA(mut inner) => {
-                inner.sequence_number = Some(self.sequence_number + 1);
-                self.sequence_number += inner.preconf_tx.len() as u64 + 1;
+                inner.sequence_number = Some(*self.sequence_number.entry(slot).or_default() + 1);
+                self.sequence_number
+                    .entry(slot)
+                    .and_modify(|e| *e += inner.preconf_tx.len() as u64 + 1);
                 PreconfRequest::TypeA(inner)
             }
             b => b,
@@ -155,7 +157,7 @@ mod tests {
         let result = ready.insert(id, type_a.clone());
         if let PreconfRequest::TypeA(inner) = result {
             assert_eq!(inner.sequence_number, Some(1));
-            assert_eq!(ready.sequence_number, 2);
+            assert_eq!(*ready.sequence_number.get(&1).unwrap(), 2);
         } else {
             panic!("Expected TypeA request");
         }
