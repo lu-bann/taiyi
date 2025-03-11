@@ -23,4 +23,11 @@ impl PreconfRequest {
             PreconfRequest::TypeB(req) => req.digest(),
         }
     }
+
+    pub fn sequence_num(&self) -> Option<u64> {
+        match self {
+            PreconfRequest::TypeA(req) => req.sequence_number,
+            PreconfRequest::TypeB(_) => panic!("Type B does not have sequence number"),
+        }
+    }
 }
