@@ -88,7 +88,7 @@ async fn main() -> eyre::Result<()> {
     let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
     let client = EventClient::new(reqwest::Client::new());
-    
+
     let beacon_url_head_event =
         format!("{}eth/v1/events?topics=head", beacon_client.endpoint.as_str());
 

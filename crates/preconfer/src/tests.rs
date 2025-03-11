@@ -100,6 +100,7 @@ mod tests {
             rpc_url.parse().unwrap(),
             *escrow.address(),
             provider.clone(),
+            0,
         );
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
@@ -173,10 +174,10 @@ mod tests {
             .send()
             .await?;
         let status = response.status();
-        let body = response.bytes().await?;
+        let body = response.text().await?;
         println!("{:?}", body);
         println!("Current block number: {:?}", provider.get_block_number().await?);
-        let response: PreconfResponse = serde_json::from_slice(&body)?;
+        let response: PreconfResponse = serde_json::from_str(&body)?;
         assert_eq!(status, 200);
 
         Ok(())

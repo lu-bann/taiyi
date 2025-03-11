@@ -94,10 +94,10 @@ abstract contract EigenLayerMiddleware is
     modifier onlyRegisteredOperatorOrOwner() {
         if (
             !proposerRegistry.isOperatorRegisteredInAVS(
-                msg.sender, IProposerRegistry.AVSType.GATEWAY
+                msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
             )
                 && !proposerRegistry.isOperatorRegisteredInAVS(
-                    msg.sender, IProposerRegistry.AVSType.VALIDATOR
+                    msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
                 ) && msg.sender != owner()
         ) {
             revert OperatorNotRegistered();
@@ -477,26 +477,26 @@ abstract contract EigenLayerMiddleware is
     function verifyRegistration(address operator)
         external
         view
-        returns (bool isRegistered, IProposerRegistry.AVSType avsType)
+        returns (bool isRegistered, IProposerRegistry.RestakingServiceType avsType)
     {
         // First check if operator is registered in delegation manager
         bool isDelegated = DELEGATION_MANAGER.isOperator(operator);
 
         // Check registration in both AVS types
         bool isGateway = proposerRegistry.isOperatorRegisteredInAVS(
-            operator, IProposerRegistry.AVSType.GATEWAY
+            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
         );
         bool isValidator = proposerRegistry.isOperatorRegisteredInAVS(
-            operator, IProposerRegistry.AVSType.VALIDATOR
+            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
         );
 
         if (isDelegated && (isGateway || isValidator)) {
             isRegistered = true;
         }
         if (isGateway && !isValidator) {
-            avsType = IProposerRegistry.AVSType.GATEWAY;
+            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY;
         } else if (!isGateway && isValidator) {
-            avsType = IProposerRegistry.AVSType.VALIDATOR;
+            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR;
         }
 
         return (isRegistered, avsType);

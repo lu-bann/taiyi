@@ -42,6 +42,7 @@ ignored = [
     "alloy-rpc-client",
     "ethereum_ssz",
     "ethereum_ssz_derive",
+    "log"
 ]
 
 [workspace.dependencies]

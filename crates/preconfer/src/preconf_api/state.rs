@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use alloy_consensus::{constants::GWEI_TO_WEI, Header, Transaction};
+use alloy_consensus::{Header, Transaction};
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{
@@ -41,6 +41,7 @@ pub struct PreconfState<P> {
     relay_client: RelayClient,
     signer_client: SignerClient,
     provider: P,
+    min_fee_per_gas: u128,
 }
 
 impl<P> PreconfState<P>
@@ -54,9 +55,10 @@ where
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
+        min_fee_per_gas: u128,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider }
+        Self { relay_client, network_state, preconf_pool, signer_client, provider, min_fee_per_gas }
     }
 
     pub fn spawn_constraint_submitter(self) -> impl Future<Output = eyre::Result<()>> {
@@ -442,24 +444,10 @@ where
         }
 
         // Check for gas fee caps
-        if request.transaction.max_fee_per_gas() < GWEI_TO_WEI.into() {
+        if request.transaction.max_fee_per_gas() < self.min_fee_per_gas {
             return Err(RpcError::MaxFeePerGasLessThanThreshold(
-                GWEI_TO_WEI,
+                self.min_fee_per_gas,
                 request.transaction.max_fee_per_gas(),
-            ));
-        }
-
-        if request.transaction.max_priority_fee_per_gas() < Some(GWEI_TO_WEI.into()) {
-            return Err(RpcError::MaxPriorityFeePerGasLessThanThreshold(
-                GWEI_TO_WEI,
-                request.transaction.max_priority_fee_per_gas().expect("max priority fee"),
-            ));
-        }
-
-        if request.transaction.max_fee_per_blob_gas() < Some(GWEI_TO_WEI.into()) {
-            return Err(RpcError::MaxFeePerBlobGasLessThanThreshold(
-                GWEI_TO_WEI,
-                request.transaction.max_fee_per_blob_gas().expect("max fee per blob gas"),
             ));
         }
 

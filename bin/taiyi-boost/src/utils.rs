@@ -20,10 +20,8 @@ pub(crate) mod tests {
     use std::env;
 
     use alloy_network::TransactionBuilder;
-    use alloy_node_bindings::{Anvil, AnvilInstance};
     use alloy_primitives::{address, Address, Bytes, B256, U256};
     use alloy_rpc_types_eth::TransactionRequest;
-    use ethereum_consensus::networks::Network;
     use eyre::Result;
     use lighthouse_types::{ExecPayload, MainnetEthSpec, SignedBeaconBlockDeneb};
     use reqwest::Url;
@@ -39,18 +37,24 @@ pub(crate) mod tests {
         "/testdata/signed-mainnet-beacon-block.bin.ssz"
     ));
 
-    /// Launch a local instance of the Anvil test chain.
-    pub fn launch_anvil() -> AnvilInstance {
-        Anvil::new().block_time(1).chain_id(1337).spawn()
-    }
+    pub fn get_test_config() -> Result<Option<ExtraConfig>> {
+        if env::var("ENGINE_API").is_err()
+            || env::var("EXECUTION_API").is_err()
+            || env::var("BEACON_API").is_err()
+            || env::var("JWT_SECRET").is_err()
+            || env::var("NETWORK").is_err()
+        {
+            return Ok(None);
+        }
 
-    pub fn get_test_config() -> Result<ExtraConfig> {
-        let engine_api = env::var("TAIYI_ENGINE_API").expect("Fail to read env TAIYI_ENGINE_API");
-        let execution_api =
-            env::var("TAIYI_EXECUTION_API").expect("Fail to read env TAIYI_EXECUTION_API");
-        let beacon_api = env::var("TAIYI_BEACON_API").expect("Fail to read env TAIYI_BEACON_API");
-        let jwt_secret = env::var("TAIYI_JWT_SECRET").expect("Fail to read env TAIYI_JWT_SECRET");
-        Ok(ExtraConfig {
+        let engine_api = env::var("ENGINE_API").unwrap();
+        let execution_api = env::var("EXECUTION_API").unwrap();
+        let beacon_api = env::var("BEACON_API").unwrap();
+        let jwt_secret = env::var("JWT_SECRET").unwrap();
+        let auth_token = env::var("AUTH_TOKEN").ok();
+        let network = env::var("NETWORK").unwrap();
+
+        Ok(Some(ExtraConfig {
             engine_api: Url::parse(&engine_api)?,
             execution_api: Url::parse(&execution_api)?,
             beacon_api: Url::parse(&beacon_api)?,
@@ -59,8 +63,9 @@ pub(crate) mod tests {
                 "0x6b845831c99c6bf43364bee624447d39698465df5c07f2cc4dca6e0acfbe46cd",
             ),
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
-            network: Network::from("holesky".to_string()),
-        })
+            network: network.clone().into(),
+            auth_token,
+        }))
     }
 
     pub fn gen_test_tx_request(

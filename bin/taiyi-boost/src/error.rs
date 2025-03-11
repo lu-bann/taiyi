@@ -3,8 +3,6 @@ use alloy_rpc_types_engine::{ClientCode, PayloadStatusEnum};
 use ethereum_consensus::ssz::prelude::MerkleizationError;
 
 #[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-#[allow(missing_docs)]
 pub enum BuilderError {
     #[error("Failed to parse from integer: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
@@ -26,8 +24,8 @@ pub enum BuilderError {
     InvalidTransactions(String),
     #[error("Got an unexpected response from engine_newPayload query: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
-    #[error("Failed to parse any hints from engine API validation error")]
-    FailedToParseHintsFromEngine,
+    #[error("Failed to parse any hints from engine API validation error: {0}")]
+    FailedToParseHintsFromEngine(String),
     #[error("Unsupported engine hint: {0}")]
     UnsupportedEngineHint(String),
     #[error("Unsupported engine client: {0}")]
