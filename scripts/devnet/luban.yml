@@ -1,5 +1,5 @@
 participants:
-  - el_type: reth
+  - el_type: geth
     cl_type: lighthouse
     vc_extra_params: ["--prefer-builder-proposals"]
     cl_extra_params: [
