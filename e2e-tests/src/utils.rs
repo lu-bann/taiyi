@@ -16,6 +16,7 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
+use taiyi_preconfer::context_ext::ContextExt;
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfRequest, PreconfResponse, SignedConstraints,
     SlotInfo, SubmitTransactionRequest,
