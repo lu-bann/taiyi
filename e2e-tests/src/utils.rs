@@ -231,21 +231,19 @@ pub async fn get_block_from_slot(beacon_url: &str, slot: u64) -> eyre::Result<u6
 
     Ok(block_number)
 }
+
 pub async fn verify_tx_in_block(
     execution_url: &str,
     block_number: u64,
     target_tx_hash: TxHash,
-) -> eyre::Result<bool> {
+) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
 
-    // Get block with transactions
-    let tx_receipt = provider
-        .get_transaction_by_hash(target_tx_hash)
-        .await?
-        .ok_or_else(|| eyre::eyre!("Block not found"))?;
-
-    Ok(tx_receipt.block_number.expect("expect block number") == block_number)
+    let tx_receipt =
+        provider.get_transaction_by_hash(target_tx_hash).await?.expect("tx receipt not found");
+    assert_eq!(tx_receipt.block_number.expect("expect block number"), block_number);
+    Ok(())
 }
 
 pub async fn generate_tx(

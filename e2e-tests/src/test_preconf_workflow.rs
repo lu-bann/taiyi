@@ -128,12 +128,14 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     assert_eq!(message.slot, target_slot);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
     assert!(
-        verify_tx_in_block(&config.execution_url, block_number, transaction.tx_hash().clone()).await?,
+        verify_tx_in_block(&config.execution_url, block_number, transaction.tx_hash().clone())
+            .await
+            .is_ok(),
         "tx is not in the block"
     );
     // Optionally, cleanup when done
@@ -329,6 +331,31 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     // check if constraints contains our transaction
     assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
     assert!(txs.contains(&request.tip_transaction));
+
+    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request.tip_transaction.tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "tip tx is not in the block"
+    );
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request.preconf_transaction.first().unwrap().tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "preconf tx is not in the block"
+    );
 
     // Optionally, cleanup when done
     taiyi_handle.abort();
