@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+taiyi-cmd = { workspace = true }
+
 alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-network = { workspace = true }
