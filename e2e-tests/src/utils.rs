@@ -3,13 +3,13 @@
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::TxEnvelope;
-use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
-use alloy_primitives::{Address, U256};
+use alloy_eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
+use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
-use alloy_rpc_types::TransactionRequest;
+use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
@@ -213,8 +213,43 @@ pub async fn wati_until_deadline_of_slot(
     Ok(())
 }
 
-pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Result<TxEnvelope> {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
+pub async fn get_block_from_slot(beacon_url: &str, slot: u64) -> eyre::Result<u64> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&format!("{}/eth/v2/beacon/blocks/{}", beacon_url, slot))
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let block_number = response["data"]["message"]["body"]["execution_payload"]["block_number"]
+        .as_str()
+        .unwrap()
+        .parse::<u64>()?;
+
+    Ok(block_number)
+}
+pub async fn verify_tx_in_block(
+    execution_url: &str,
+    block_number: u64,
+    target_tx_hash: TxHash,
+) -> eyre::Result<bool> {
+    let provider =
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
+
+    // Get block with transactions
+    let tx_receipt = provider
+        .get_transaction_by_hash(target_tx_hash)
+        .await?
+        .ok_or_else(|| eyre::eyre!("Block not found"))?;
+
+    Ok(tx_receipt.block_number.expect("expect block number") == block_number)
+}
+
+pub async fn generate_tx(
+    execution_url: &str,
+    signer: PrivateKeySigner,
+) -> eyre::Result<TxEnvelope> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
     let chain_id = provider.get_chain_id().await?;
@@ -227,8 +262,7 @@ pub async fn generate_tx(execution_url: &str, signer_private: &str) -> eyre::Res
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
-        // TODO: use the correct nonce, dont' why the nonce above is 3.
-        .with_nonce(1)
+        .with_nonce(nonce)
         .with_gas_limit(21_000)
         .with_to(sender)
         .with_max_fee_per_gas(fees.max_fee_per_gas)
