@@ -213,34 +213,7 @@ pub async fn wati_until_deadline_of_slot(
     Ok(())
 }
 
-pub async fn wait_slot_to_be_available(beacon_url: &str, slot: u64) -> eyre::Result<u64> {
-    let client = reqwest::Client::new();
-    let url = format!("{}/eth/v1/beacon/headers/head", beacon_url);
-    let response = client.get(&url).send().await?;
-    let json: serde_json::Value = response.json().await?;
-    let current_slot = json["data"]["header"]["message"]["slot"]
-        .as_str()
-        .ok_or_else(|| eyre::eyre!("Failed to get slot from beacon node"))?
-        .parse::<u64>()?;
-
-    while current_slot < slot {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        let response = client.get(&url).send().await?;
-        let json: serde_json::Value = response.json().await?;
-        info!("current slot: {:?}", json);
-        let new_slot = json["data"]["header"]["message"]["slot"]
-            .as_str()
-            .ok_or_else(|| eyre::eyre!("Failed to get slot from beacon node"))?
-            .parse::<u64>()?;
-        if new_slot >= slot {
-            break;
-        }
-    }
-    let block_number = get_block_from_slot(beacon_url, slot).await?;
-    Ok(block_number)
-}
-
-async fn get_block_from_slot(beacon_url: &str, slot: u64) -> eyre::Result<u64> {
+pub async fn get_block_from_slot(beacon_url: &str, slot: u64) -> eyre::Result<u64> {
     let client = reqwest::Client::new();
     let response = client
         .get(&format!("{}/eth/v2/beacon/blocks/{}", beacon_url, slot))
@@ -265,24 +238,12 @@ pub async fn verify_tx_in_block(
         ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
 
     // Get block with transactions
-    let block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Hashes)
+    let tx_receipt = provider
+        .get_transaction_by_hash(target_tx_hash)
         .await?
         .ok_or_else(|| eyre::eyre!("Block not found"))?;
 
-    // Log block info
-    info!("Block {} contains {} transactions", block_number, block.transactions.len());
-
-    // Check if our transaction is in the block
-    let tx_found = block.transactions.hashes().any(|tx_hash| tx_hash == target_tx_hash);
-
-    if tx_found {
-        info!("Transaction {} found in block {}", target_tx_hash, block_number);
-    } else {
-        info!("Transaction {} not found in block {}", target_tx_hash, block_number);
-    }
-
-    Ok(tx_found)
+    Ok(tx_receipt.block_number.expect("expect block number") == block_number)
 }
 
 pub async fn generate_tx(
