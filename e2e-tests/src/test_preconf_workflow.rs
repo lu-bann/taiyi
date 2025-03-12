@@ -133,7 +133,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     info!("Block number: {}", block_number);
 
     assert!(
-        verify_tx_in_block(&config.execution_url, block_number, user_tx.tx_hash().clone()).await?,
+        verify_tx_in_block(&config.execution_url, block_number, transaction.tx_hash().clone()).await?,
         "tx is not in the block"
     );
     // Optionally, cleanup when done
