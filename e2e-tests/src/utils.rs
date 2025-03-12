@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::context_ext::ContextExt;
 use taiyi_primitives::{
-    BlockspaceAllocation as BlockspaceAlloc, ContextExt, PreconfFeeResponse, PreconfRequest,
-    PreconfResponse, SignedConstraints, SubmitTransactionRequest,
+    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest, PreconfResponse,
+    SignedConstraints, SlotInfo, SubmitTransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};

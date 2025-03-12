@@ -16,8 +16,9 @@ use crate::{
     contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        get_available_slot, get_constraints_from_relay, get_preconf_fee, health_check, new_account,
-        send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
+        get_available_slot, get_block_from_slot, get_constraints_from_relay, get_preconf_fee,
+        health_check, new_account, send_reserve_blockspace_request,
+        send_submit_transaction_request, setup_env, verify_tx_in_block,
         wait_until_deadline_of_slot, ErrorResponse,
     },
 };
@@ -132,7 +133,7 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     assert_eq!(*user_tx, request.transaction);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
