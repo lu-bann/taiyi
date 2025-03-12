@@ -16,10 +16,10 @@ use crate::{
     contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        generate_type_a_request, get_available_slot, get_constraints_from_relay, get_preconf_fee,
-        health_check, new_account, send_reserve_blockspace_request,
-        send_submit_transaction_request, send_type_a_request, setup_env,
-        wati_until_deadline_of_slot, ErrorResponse,
+        generate_type_a_request, get_available_slot, get_block_from_slot,
+        get_constraints_from_relay, get_preconf_fee, health_check, new_account,
+        send_reserve_blockspace_request, send_submit_transaction_request, send_type_a_request,
+        setup_env, verify_tx_in_block, wati_until_deadline_of_slot, ErrorResponse,
     },
 };
 
@@ -69,6 +69,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    info!("available_slot: {:?}", available_slot);
     let target_slot = available_slot.first().unwrap().slot;
 
     // Fetch preconf fee for the target slot
@@ -91,7 +92,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 
     // Submit transaction
     // Generate request and signature
-    let transaction = generate_tx(&config.execution_url, PRECONFER_ECDSA_SK).await.unwrap();
+    let transaction = generate_tx(&config.execution_url, signer.clone()).await.unwrap();
     let (request, signature) =
         generate_submit_transaction_request(signer.clone(), transaction.clone(), request_id).await;
 
@@ -120,14 +121,21 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
 
-    // TODO: check transaction inclusion in the block
-
     assert_eq!(
         message.pubkey,
         BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
     );
     assert_eq!(message.slot, target_slot);
 
+    info!("Waiting for slot {} to be available", target_slot);
+    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
+    assert!(
+        verify_tx_in_block(&config.execution_url, block_number, user_tx.tx_hash().clone()).await?,
+        "tx is not in the block"
+    );
     // Optionally, cleanup when done
     taiyi_handle.abort();
     Ok(())

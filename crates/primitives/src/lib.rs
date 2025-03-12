@@ -4,6 +4,7 @@ mod preconf_request;
 mod preconf_request_type_a;
 mod preconf_request_type_b;
 mod preconf_response;
+mod tx_ext;
 
 pub use constraints::{ConstraintsMessage, SignableBLS, SignedConstraints};
 pub use preconf_fee::PreconfFeeResponse;
@@ -22,3 +23,4 @@ pub struct SlotInfo {
     pub blobs_available: usize,
     pub constraints_available: u32,
 }
+pub use tx_ext::TxExt;
