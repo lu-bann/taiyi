@@ -138,6 +138,10 @@ impl LookaheadFetcher {
                 let past_epoch = self.network_state.get_current_epoch();
                 info!("Epoch transition occured, current: {new_epoch} previous: {past_epoch}");
                 self.get_delegation_for(new_epoch + 1).await?;
+
+                // Update the fee recipients for the new epoch
+                let fee_recipients = self.relay_client.get_current_epoch_validators().await?;
+                self.network_state.update_fee_recipients(fee_recipients);
             }
             self.network_state.update_slot(new_slot);
         }

@@ -1,6 +1,5 @@
-use alloy_primitives::Address;
 use ethereum_consensus::{
-    builder::{SignedValidatorRegistration, ValidatorRegistration},
+    builder::SignedValidatorRegistration,
     primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
 };

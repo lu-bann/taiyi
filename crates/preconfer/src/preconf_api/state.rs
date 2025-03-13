@@ -11,6 +11,7 @@ use alloy_primitives::{
     keccak256, private::alloy_rlp::Decodable, Address, Bytes, PrimitiveSignature, U256,
 };
 use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
+use alloy_rpc_types::TransactionRequest;
 use ethereum_consensus::{
     clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
     ssz::prelude::ByteList,
@@ -127,6 +128,8 @@ where
                 let mut amounts = Vec::new();
 
                 let mut cummalative_preconf_tips = U256::ZERO;
+                let fee_reciepient =
+                    self.network_state.get_fee_recipient(next_slot).unwrap_or_default();
 
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
@@ -305,6 +308,21 @@ where
                         exhaust_txs.push(tx_bytes);
                     }
                 }
+
+                // Validator Payout Transaction
+                let value = cummalative_preconf_tips * U256::from(0.1);
+                let validator_payout_tx = TransactionRequest::default()
+                    .with_nonce(nonce)
+                    .with_chain_id(chain_id)
+                    .with_gas_limit(21_000)
+                    .with_max_fee_per_gas(base_fee)
+                    .with_max_priority_fee_per_gas(priority_fee)
+                    .with_to(fee_reciepient)
+                    .with_value(value)
+                    .build(&wallet)
+                    .await?;
+                let tx_bytes = validator_payout_tx.to_ssz_bytes();
+                exhaust_txs.push(tx_bytes);
 
                 constraints.extend(sponsoring_tx);
                 constraints.extend(type_a_txs);
