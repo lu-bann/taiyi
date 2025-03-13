@@ -1,5 +1,5 @@
-use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, B256};
+use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_primitives::{keccak256, Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -31,6 +31,10 @@ impl PreconfRequestTypeA {
     /// Target slot
     pub fn target_slot(&self) -> u64 {
         self.target_slot
+    }
+
+    pub fn preconf_tip(&self) -> U256 {
+        self.tip_transaction.value()
     }
 
     pub fn digest(&self) -> B256 {

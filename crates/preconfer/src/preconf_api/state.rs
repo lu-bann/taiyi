@@ -126,11 +126,14 @@ where
                 // Amounts to sponsor for each account
                 let mut amounts = Vec::new();
 
+                let mut cummalative_preconf_tips = U256::ZERO;
+
                 match self.preconf_pool.ready_requests(next_slot) {
                     Ok(preconf_requests) => {
                         let sponsor_nonce = nonce;
                         nonce += 1;
                         for preconf_req in preconf_requests {
+                            cummalative_preconf_tips += preconf_req.preconf_tip();
                             match preconf_req {
                                 PreconfRequest::TypeA(request) => {
                                     let tip_tx_gas_uesd = self
