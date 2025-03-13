@@ -5,14 +5,17 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{hex, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
-use alloy_sol_types::SolCall;
+use alloy_sol_types::{SolCall, SolType};
 use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use reqwest::Url;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
-use taiyi_zkvm_types::types::{
-    AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeB, PreconfTypeB, TxMerkleProof,
+use taiyi_zkvm_types::{
+    types::{
+        AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeB, PreconfTypeB, TxMerkleProof,
+    },
+    utils::PublicValuesStruct,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -268,19 +271,18 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // gateway address
     stdin.write(&sponsorship_transaction.from);
 
-    println!("stdin: {:?}", stdin);
-
-    // TODO: proof generation and proof verification
-
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
+
     println!("Generating proof...");
-
-    let (mut public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+    let (public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
     println!("Executed program with {} cycles", report.total_instruction_count());
-    println!("Raw public values: {:?}", public_values.raw());
 
-    println!("Public values: {:?}", public_values);
+    let public_values_struct =
+        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+
+    assert_eq!(public_values_struct.proofBlockNumber, block_number);
+    assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
     Ok(())
 }
