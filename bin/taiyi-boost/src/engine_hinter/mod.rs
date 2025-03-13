@@ -120,7 +120,7 @@ impl EngineHinter {
             Ok(Some(hint)) => hint,
             Ok(None) => {
                 let el_name = ctx.el_client_code.client_name().to_string();
-                return Err(BuilderError::FailedToParseHintsFromEngine(el_name));
+                return Err(BuilderError::FailedToParseHintsFromEngine(el_name, validation_error));
             }
             Err(e) => return Err(e),
         };
