@@ -219,7 +219,7 @@ impl HttpClient {
             .http
             .post(target)
             .header("content-type", "application/json")
-            .header("x-luban-signature", format!("{}:0x{}", self.signer.address(), signature))
+            .header("x-luban-signature", format!("0x{signature}"))
             .json(&request)
             .send()
             .await?;

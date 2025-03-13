@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, str::FromStr};
 
-use alloy_primitives::{Address, PrimitiveSignature};
+use alloy_primitives::PrimitiveSignature;
 use alloy_provider::Provider;
 use axum::{
     extract::State,
@@ -21,11 +21,11 @@ use uuid::Uuid;
 
 use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
-pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
-pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_transaction";
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
 pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
-pub const SUBMIT_TYPEA_TRANSACTION_PATH: &str = "/commitments/v0/submit_typea_transaction";
+pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
+pub const SUBMIT_TYPEA_TRANSACTION_PATH: &str = "/commitments/v0/submit_tx_type_a";
+pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_tx_type_b";
 
 pub struct PreconfApiServer {
     /// The address to bind the server to
@@ -89,33 +89,19 @@ pub async fn handle_reserve_blockspace<P>(
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    // Extract the signer and signature from the headers
-    let (signer, signature) = {
+    let signature = {
         let auth = headers
             .get("x-luban-signature")
             .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
-        // Remove the "0x" prefix
-        let auth = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
-
-        let mut split = auth.split(':');
-
-        let address = split.next().ok_or(RpcError::MalformedHeader)?;
-        let address = Address::from_str(address).map_err(|_| RpcError::MalformedHeader)?;
-
-        let sig = split.next().ok_or(RpcError::MalformedHeader)?;
-        let sig = PrimitiveSignature::from_str(sig).expect("Failed to parse signature");
-
-        (address, sig)
+        let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+        PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
     // verify the signature
-    let recovered_signer = signature
+    let signer = signature
         .recover_address_from_prehash(&request.digest())
         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-    if recovered_signer != signer {
-        return Err(RpcError::SignatureError("Invalid signature".to_string()));
-    }
 
     info!("Received blockspace reservation request, signer: {}", signer);
 
@@ -128,7 +114,7 @@ where
 pub async fn handle_submit_transaction<P>(
     headers: HeaderMap,
     State(state): State<PreconfState<P>>,
-    Json(param): Json<SubmitTransactionRequest>,
+    Json(request): Json<SubmitTransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
@@ -141,7 +127,8 @@ where
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
-    match state.submit_transaction(param, signature).await {
+
+    match state.submit_transaction(request, signature).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }
@@ -170,32 +157,25 @@ where
 pub async fn handle_submit_typea_transaction<P>(
     headers: HeaderMap,
     State(state): State<PreconfState<P>>,
-    Json(param): Json<SubmitTypeATransactionRequest>,
+    Json(request): Json<SubmitTypeATransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    // Extract the signer and signature from the headers
-    let (signer, signature) = {
+    let signature = {
         let auth = headers
             .get("x-luban-signature")
             .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
-        // Remove the "0x" prefix
-        let auth = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
-
-        let mut split = auth.split(':');
-
-        let address = split.next().ok_or(RpcError::MalformedHeader)?;
-        let address = Address::from_str(address).map_err(|_| RpcError::MalformedHeader)?;
-
-        let sig = split.next().ok_or(RpcError::MalformedHeader)?;
-        let sig = PrimitiveSignature::from_str(sig).expect("Failed to parse signature");
-
-        (address, sig)
+        let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
+        PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
-    match state.submit_typea_transaction(param, signature, signer).await {
+    let signer = signature
+        .recover_address_from_prehash(&request.digest())
+        .map_err(|e| RpcError::SignatureError(e.to_string()))?;
+
+    match state.submit_typea_transaction(request, signature, signer).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }

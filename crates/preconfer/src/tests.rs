@@ -169,7 +169,7 @@ mod tests {
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
             .header("content-type", "application/json")
-            .header("x-luban-signature", format!("0x{}", signature))
+            .header("x-luban-signature", format!("0x{signature}"))
             .json(&submit_transaction_request)
             .send()
             .await?;
@@ -199,6 +199,6 @@ mod tests {
             blob_count: 0,
         };
         let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
-        (request, format!("{}:0x{}", signer.address(), signature))
+        (request, format!("0x{signature}"))
     }
 }

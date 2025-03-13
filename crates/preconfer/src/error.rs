@@ -78,8 +78,10 @@ pub enum ValidationError {
     BlobCountExceedsLimit(usize, usize),
     #[error("Tip tarnsaction must be a valid ETH transfer")]
     InvalidTipTransaction,
-    #[error("Nonce not continuous, tip_tx_nonce: {0}, preconf_tx_nonce: {1}")]
+    #[error("Nonce not continuous, expected: {0}, got: {1}")]
     InvalidNonceSequence(u64, u64),
+    #[error("Invalid signer, expected: {0}, got: {1}")]
+    InvalidSigner(Address, Address),
 }
 
 #[derive(Debug, Error)]

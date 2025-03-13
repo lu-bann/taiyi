@@ -291,7 +291,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     Ok(())
 }
 
-// ~~~~~~~ Type A preconf request ~~~~~~~
+// ============================= Type A preconf request =============================
 
 #[tokio::test]
 async fn test_type_a_preconf_request() -> eyre::Result<()> {
@@ -299,16 +299,6 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
 
     let signer = new_account(&config).await?;
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(EthereumWallet::new(signer.clone()))
-        .on_builtin(&config.execution_url)
-        .await?;
-
-    // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
-    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;

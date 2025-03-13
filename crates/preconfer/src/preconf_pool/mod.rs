@@ -224,7 +224,7 @@ impl PreconfPool {
 
         let mut all_transactions = vec![preconf_request.tip_transaction.clone()];
         all_transactions.extend(preconf_request.preconf_tx.clone());
-        Self::verify_nonce_continuity(&all_transactions)?;
+        Self::verify_nonce_continuity_and_signer(&all_transactions)?;
 
         // Balance check
         let total_value = preconf_request.preconf_tx.iter().map(|tx| tx.value()).sum::<U256>()
@@ -324,19 +324,38 @@ impl PreconfPool {
 
     /// Verifies that nonces in a sequence of transactions are continuous,
     /// with each transaction's nonce being exactly one more than the previous transaction's nonce.
-    fn verify_nonce_continuity(transactions: &[TxEnvelope]) -> Result<(), ValidationError> {
+    ///
+    /// Also verifies that all transactions have the smae signer.
+    fn verify_nonce_continuity_and_signer(
+        transactions: &[TxEnvelope],
+    ) -> Result<(), ValidationError> {
         if transactions.len() <= 1 {
             return Ok(());
         }
 
-        for i in 1..transactions.len() {
-            let prev_nonce = transactions[i - 1].nonce();
-            let curr_nonce = transactions[i].nonce();
+        // Recover the first signer
+        let first_signer = transactions[0].recover_signer().map_err(|_| {
+            ValidationError::Internal("Failed to recover signer from transaction".to_string())
+        })?;
 
-            if curr_nonce != prev_nonce + 1 {
-                return Err(ValidationError::InvalidNonceSequence(prev_nonce, curr_nonce));
+        let mut prev_nonce = transactions[0].nonce();
+        for tx in &transactions[1..] {
+            let signer = tx.recover_signer().map_err(|_| {
+                ValidationError::Internal("Failed to recover signer from transaction".to_string())
+            })?;
+
+            if signer != first_signer {
+                return Err(ValidationError::InvalidSigner(first_signer, signer));
             }
+
+            let curr_nonce = tx.nonce();
+            if curr_nonce != prev_nonce + 1 {
+                return Err(ValidationError::InvalidNonceSequence(prev_nonce + 1, curr_nonce));
+            }
+
+            prev_nonce = curr_nonce;
         }
+
         Ok(())
     }
 

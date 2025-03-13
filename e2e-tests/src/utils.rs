@@ -294,7 +294,7 @@ pub async fn generate_reserve_blockspace_request(
     };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
-    (request, format!("{}:0x{}", signer_private.address(), signature))
+    (request, format!("0x{signature}"))
 }
 
 pub async fn generate_submit_transaction_request(
@@ -305,7 +305,7 @@ pub async fn generate_submit_transaction_request(
     let request = SubmitTransactionRequest { transaction: tx, request_id };
     let signature =
         hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
-    (request, format!("0x{}", signature))
+    (request, format!("0x{signature}"))
 }
 
 pub async fn generate_type_a_request(
@@ -352,7 +352,7 @@ pub async fn generate_type_a_request(
         target_slot,
     );
     let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
-    Ok((request, format!("{}:0x{}", signer.address(), signature)))
+    Ok((request, format!("0x{signature}")))
 }
 
 pub async fn send_reserve_blockspace_request(
