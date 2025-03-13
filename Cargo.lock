@@ -8702,6 +8702,7 @@ dependencies = [
  "reqwest 0.12.12",
  "serde",
  "serde_json",
+ "serde_with",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "taiyi-primitives",
  "thiserror 2.0.12",

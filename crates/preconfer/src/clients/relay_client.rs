@@ -1,9 +1,12 @@
+use alloy_primitives::Address;
 use ethereum_consensus::{
+    builder::{SignedValidatorRegistration, ValidatorRegistration},
     primitives::{BlsPublicKey, BlsSignature},
     ssz::prelude::*,
 };
 use eyre::Context as _;
 use reqwest::Url;
+use serde_with::{serde_as, DisplayFromStr};
 use taiyi_primitives::SignedConstraints;
 use tracing::{debug, error};
 
@@ -54,8 +57,7 @@ impl RelayClient {
     }
 
     pub async fn set_constraints(&self, constraints: Vec<SignedConstraints>) -> eyre::Result<()> {
-        let url = self.urls.first().expect("relay");
-        let url = url.join("/constraints/v1/builder/constraints")?;
+        let url = self.urls.first().expect("relay").join("/constraints/v1/builder/constraints")?;
 
         let response = self.client.post(url.clone()).json(&constraints).send().await?;
         let code = response.status();
@@ -71,12 +73,32 @@ impl RelayClient {
 
         Ok(())
     }
+
+    /// Calls /relay/v1/builder/validators to get "validator registrations for validators scheduled to propose in the current and next epoch."
+    /// The result will contain the validators for each slot.
+    pub async fn get_current_epoch_validators(&self) -> eyre::Result<Vec<ValidatorSlotData>> {
+        let url = self.urls.first().expect("relay").join("/relay/v1/builder/validators")?;
+        let req = self.client.get(url);
+        let validators = req.send().await?.json::<Vec<ValidatorSlotData>>().await?;
+        Ok(validators)
+    }
+}
+
+/// Info about a registered validator selected as proposer for a slot.
+#[serde_as]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ValidatorSlotData {
+    #[serde_as(as = "DisplayFromStr")]
+    pub slot: u64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub validator_index: u64,
+    pub entry: SignedValidatorRegistration,
 }
 
 #[cfg(test)]
 mod tests {
 
-    use crate::clients::relay_client::SignedDelegation;
+    use crate::clients::relay_client::{RelayClient, SignedDelegation};
 
     #[ignore = "Fix this test"]
     #[test]
@@ -109,5 +131,16 @@ mod tests {
             },
             "signature": "0xb067c33c6b8018086ba0b294e069063d185a01116475caa6e4cf36d08d62422ad68ef83ec0b01b4e13dfd95a914f2ed50301e1bfd945d0339b11a0330b06bd532a8bb9cd8017452e1f44f7c64c1ab4888266e87f99c916c90d5fd95614b0dfc4"
         }]"#
+    }
+
+    #[tokio::test]
+    async fn test_get_current_epoch_validators() -> eyre::Result<()> {
+        let relay_clinet = RelayClient::new(vec![reqwest::Url::parse(
+            "https://relay.taiyi-devnet-0.preconfs.org",
+        )
+        .unwrap()]);
+        let res = relay_clinet.get_current_epoch_validators().await;
+        assert!(res.is_ok());
+        Ok(())
     }
 }
