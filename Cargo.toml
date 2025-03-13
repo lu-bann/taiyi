@@ -17,7 +17,7 @@ members = [
     "crates/sp1-poni",
     "e2e-tests",
     "examples",
-    "spammer"
+    "spammer",
 ]
 default-members = [
     "bin/taiyi",
@@ -42,7 +42,7 @@ ignored = [
     "alloy-rpc-client",
     "ethereum_ssz",
     "ethereum_ssz_derive",
-    "log"
+    "log",
 ]
 
 [workspace.dependencies]
@@ -52,7 +52,7 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
-taiyi-zkvm-types ={ path = "crates/sp1-types" }
+taiyi-zkvm-types = { path = "crates/sp1-types" }
 taiyi-poi = { path = "crates/sp1-poi" }
 taiyi-poni = { path = "crates/sp1-poni" }
 
@@ -88,7 +88,9 @@ alloy-sol-types = "0.8.15"
 alloy-node-bindings = { version = "0.8.1", default-features = false }
 alloy-rpc-client = { version = "0.8.1", default-features = false }
 alloy-transport-http = { version = "0.8.1", default-features = false }
-alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
+alloy-rpc-types-eth = { version = "0.8.1", default-features = false, features = [
+    "serde",
+] }
 alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
 alloy-trie = "0.7.9"
 

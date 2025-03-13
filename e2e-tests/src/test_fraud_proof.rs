@@ -9,7 +9,7 @@ use alloy_sol_types::SolCall;
 use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use reqwest::Url;
-use sp1_sdk::{include_elf, SP1Stdin};
+use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
 use taiyi_zkvm_types::types::{
     AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeB, PreconfTypeB, TxMerkleProof,
@@ -22,9 +22,9 @@ use crate::{
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        getTipCall, get_available_slot, get_constraints_from_relay, get_preconf_fee, new_account,
-        send_reserve_blockspace_request, send_submit_transaction_request, setup_env,
-        wait_until_deadline_of_slot, PreconfTypeBJson,
+        getTipCall, get_available_slot, get_block_from_slot, get_constraints_from_relay,
+        get_preconf_fee, new_account, send_reserve_blockspace_request,
+        send_submit_transaction_request, setup_env, wait_until_deadline_of_slot, PreconfTypeBJson,
     },
 };
 
@@ -35,10 +35,7 @@ const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 // TODO: type A not included test, can be dynamic
 
 #[tokio::test]
-#[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
-    let preconf = PreconfTypeBJson::from_file("testdata/preconf_type_b.json").unwrap();
-
     let (_taiyi_handle, config) = setup_env().await?;
 
     let signer = new_account(&config).await?;
@@ -49,30 +46,107 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         .on_builtin(&config.execution_url)
         .await?;
 
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
+
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+
+    // Pick a slot from the lookahead
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    info!("available_slot: {:?}", available_slot);
+    let target_slot = available_slot.first().unwrap().slot;
+
+    // Fetch preconf fee for the target slot
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) =
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+
+    info!("Submitting request for target slot: {:?}", target_slot);
+
+    // Reserve blockspace
+    let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    let body = res.bytes().await?;
+    info!("reserve_blockspace response: {:?}", body);
+
+    let request_id = serde_json::from_slice::<Uuid>(&body)?;
+    assert_eq!(status, 200);
+
+    // Submit transaction
+    // Generate request and signature
+    let transaction = generate_tx(&config.execution_url, signer.clone()).await.unwrap();
+    let (request, signature) =
+        generate_submit_transaction_request(signer.clone(), transaction, request_id).await;
+
+    let res =
+        send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    assert_eq!(status, 200);
+    let body = res.bytes().await?;
+    info!("submit transaction response: {:?}", body);
+    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    assert_eq!(preconf_response.data.request_id, request_id);
+
+    wait_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
+    }
+    assert_eq!(txs.len(), 3);
+
+    let signed_constraints = constraints.first().unwrap().clone();
+    let message = signed_constraints.message;
+
+    let sponsorship_tx = txs.get(0).unwrap();
+    let user_tx = txs.get(1).unwrap();
+    let tip_tx = txs.get(2).unwrap();
+
+    assert_eq!(
+        message.pubkey,
+        BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
+    );
+
+    assert_eq!(message.slot, target_slot);
+
+    assert_eq!(*user_tx, request.transaction);
+
+    info!("Waiting for slot {} to be available", target_slot);
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
     let user_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&preconf.user_transaction_hash).unwrap())
-        .await?
-        .unwrap();
-    let get_tip_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&preconf.gateway_get_tip_transaction_hash).unwrap())
-        .await?
-        .unwrap();
-    let sponsorship_transaction = provider
-        .get_transaction_by_hash(
-            B256::from_str(&preconf.gateway_sponsorship_transaction_hash).unwrap(),
-        )
+        .get_transaction_by_hash(B256::from_str(&user_tx.tx_hash().to_string()).unwrap())
         .await?
         .unwrap();
 
-    let target_slot = preconf.slot.parse::<u64>()?;
+    let get_tip_transaction = provider
+        .get_transaction_by_hash(B256::from_str(&tip_tx.tx_hash().to_string()).unwrap())
+        .await?
+        .unwrap();
+
+    let sponsorship_transaction = provider
+        .get_transaction_by_hash(B256::from_str(&sponsorship_tx.tx_hash().to_string()).unwrap())
+        .await?
+        .unwrap();
 
     let inclusion_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(target_slot), BlockTransactionsKind::Full)
+        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
         .await?
         .unwrap();
 
     let previous_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(target_slot - 1), BlockTransactionsKind::Full)
+        .get_block_by_number(
+            BlockNumberOrTag::Number(block_number - 1),
+            BlockTransactionsKind::Full,
+        )
         .await?
         .unwrap();
 
@@ -82,8 +156,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     let account_proof = provider
         .get_proof(user_transaction.from, vec![])
-        .block_id((target_slot - 1).into())
+        .block_id((block_number - 1).into())
         .await?;
+
     let account_merkle_proof = AccountMerkleProof {
         address: account_proof.address,
         nonce: account_proof.nonce,
@@ -97,7 +172,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // tx proof
     let url = Url::parse(&config.execution_url).unwrap();
     let mut txs_mpt_handler = TxsMptHandler::new(url).unwrap();
-    txs_mpt_handler.build_tx_tree_from_block(target_slot).await.unwrap();
+    txs_mpt_handler.build_tx_tree_from_block(block_number).await.unwrap();
 
     let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
 
@@ -159,35 +234,53 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         )
         .unwrap(),
         transaction: user_transaction.into(),
-        preconf_sig: PrimitiveSignature::from_str(&preconf.preconf_gateway_signature).unwrap(),
+        preconf_sig: preconf_response.data.commitment.unwrap(),
     };
+
     let preconf_type_b = PreconfTypeB {
         preconf: preconf_b,
-        sponsorship_tx: sponsorship_transaction.into(),
+        sponsorship_tx: sponsorship_transaction.clone().into(),
         tx_merkle_proof,
         account_merkle_proof,
     };
-    stdin.write(&preconf_type_b);
+
+    // Serialize the preconf_type_b
+    let preconf_type_b_serialized = serde_json::to_string(&preconf_type_b).unwrap();
+    stdin.write(&preconf_type_b_serialized);
 
     // is type a
     stdin.write(&false);
 
     // inclusion block header
-    stdin.write(&inclusion_block.header);
+    let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
+    stdin.write(&inclusion_block_header_serialized);
 
     // inclusion block hash
     stdin.write(&inclusion_block.header.hash_slow());
 
     // previous block header
-    stdin.write(&previous_block.header);
+    let previous_block_header_serialized = serde_json::to_string(&previous_block.header).unwrap();
+    stdin.write(&previous_block_header_serialized);
 
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
     // gateway address
-    stdin.write(&preconf.gateway_address);
+    stdin.write(&sponsorship_transaction.from);
+
+    println!("stdin: {:?}", stdin);
 
     // TODO: proof generation and proof verification
+
+    println!("Using the local/cpu SP1 prover.");
+    let client = ProverClient::builder().cpu().build();
+    println!("Generating proof...");
+
+    let (mut public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+    println!("Executed program with {} cycles", report.total_instruction_count());
+    println!("Raw public values: {:?}", public_values.raw());
+
+    println!("Public values: {:?}", public_values);
 
     Ok(())
 }

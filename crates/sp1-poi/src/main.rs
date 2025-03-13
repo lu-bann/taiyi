@@ -19,11 +19,17 @@ pub fn main() {
     // Read an input to the program.
     let preconf = sp1_zkvm::io::read::<String>(); // preconfirmation request encoded as serde string (TODO: change to bytes?)
     let is_type_a = sp1_zkvm::io::read::<bool>(); // true if the preconf req is of type A, false otherwise
-    let inclusion_block_header = sp1_zkvm::io::read::<Header>(); // block header of the inclusion block
+    let inclusion_block_header = sp1_zkvm::io::read::<String>(); // block header of the inclusion block encoded as serde string
     let inclusion_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the inclusion block
-    let previous_block_header = sp1_zkvm::io::read::<Header>(); // block header of the previous block
+    let previous_block_header = sp1_zkvm::io::read::<String>(); // block header of the previous block encoded as serde string
     let previous_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the previous block
     let gateway_address = sp1_zkvm::io::read::<Address>(); // address of the gateway
+
+    let inclusion_block_header = serde_json::from_str::<Header>(&inclusion_block_header).unwrap();
+    let previous_block_header = serde_json::from_str::<Header>(&previous_block_header).unwrap();
+
+    println!("Inclusion block header: {:?}", inclusion_block_header);
+    println!("Previous block header: {:?}", previous_block_header);
 
     assert_eq!(inclusion_block_header.hash_slow(), inclusion_block_hash);
     assert_eq!(previous_block_header.hash_slow(), previous_block_hash);
@@ -148,6 +154,17 @@ pub fn main() {
     } else {
         let preconf_req_b = serde_json::from_str::<PreconfTypeB>(&preconf).unwrap();
         let tx = preconf_req_b.preconf.clone().transaction;
+
+        println!("gateway_address: {:?}", gateway_address);
+        println!(
+            "recover_address_from_msg: {:?}",
+            preconf_req_b
+                .preconf
+                .preconf_sig
+                .recover_address_from_msg(preconf_req_b.preconf.digest())
+        );
+
+        println!("preconf_req_b_digest: {:?}", preconf_req_b.preconf.digest());
 
         assert!(
             gateway_address
