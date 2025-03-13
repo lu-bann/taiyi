@@ -120,8 +120,7 @@ where
                 let mut type_b_txs = Vec::new();
                 let mut exhaust_txs = Vec::new();
 
-                let anchor_tx_nonce = self.provider.get_transaction_count(sender).await?;
-                let mut nonce = anchor_tx_nonce + 1;
+                let mut nonce = self.provider.get_transaction_count(sender).await?;
                 // Accounts to sponsor gas for
                 let mut accounts = Vec::new();
                 // Amounts to sponsor for each account

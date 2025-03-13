@@ -297,6 +297,19 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 async fn test_type_a_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+
+    let signer = new_account(&config).await?;
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(EthereumWallet::new(signer.clone()))
+        .on_builtin(&config.execution_url)
+        .await?;
+
+    // Deposit 1ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
+    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot + 5;
@@ -306,8 +319,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_type_a_request(PRECONFER_ECDSA_SK, target_slot, &config.execution_url, fee)
-            .await?;
+        generate_type_a_request(signer, target_slot, &config.execution_url, fee).await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;

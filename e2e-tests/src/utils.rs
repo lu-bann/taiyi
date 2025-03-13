@@ -309,12 +309,11 @@ pub async fn generate_submit_transaction_request(
 }
 
 pub async fn generate_type_a_request(
-    signer_private: &str,
+    signer: PrivateKeySigner,
     target_slot: u64,
     execution_url: &str,
     fee: PreconfFeeResponse,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let signer: PrivateKeySigner = signer_private.parse().unwrap();
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
     let chain_id = provider.get_chain_id().await?;
