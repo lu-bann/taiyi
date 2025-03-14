@@ -15,6 +15,14 @@ use taiyi_zkvm_types::{types::*, utils::*};
 
 sp1_zkvm::entrypoint!(main);
 
+const SLOT_TIME: u64 = 12;
+const GENESIS_TIMESTAMP: u64 = 1741938010;
+
+// TODO: Check and verify why we need to subtract "1"
+pub fn get_slot_from_timestamp(timestamp: u64) -> u64 {
+    ((timestamp - GENESIS_TIMESTAMP) / SLOT_TIME) - 1
+}
+
 pub fn main() {
     // Read an input to the program.
     let preconf = sp1_zkvm::io::read::<String>(); // preconfirmation request encoded as serde string (TODO: change to bytes?)
@@ -158,10 +166,10 @@ pub fn main() {
         preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 
         // Target slot verification
-
-        // TODO: How to get slot number instead of block number?
-        // TODO: Uncomment this
-        // assert_eq!(inclusion_block_header.number, preconf_req_b.preconf.allocation.target_slot);
+        assert_eq!(
+            get_slot_from_timestamp(inclusion_block_header.timestamp),
+            preconf_req_b.preconf.allocation.target_slot
+        );
 
         // Account verification
         let account_merkle_proof = preconf_req_b.account_merkle_proof.clone();

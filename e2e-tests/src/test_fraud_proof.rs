@@ -123,7 +123,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     assert_eq!(*user_tx, request.transaction);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
