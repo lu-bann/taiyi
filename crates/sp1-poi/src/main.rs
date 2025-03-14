@@ -146,26 +146,14 @@ pub fn main() {
         let preconf_req_b = serde_json::from_str::<PreconfTypeB>(&preconf).unwrap();
         let tx = preconf_req_b.preconf.clone().transaction;
 
-        println!("gateway_address: {:?}", gateway_address);
-        println!(
-            "recover_address_from_msg: {:?}",
-            preconf_req_b
-                .preconf
-                .preconf_sig
-                .recover_address_from_msg(preconf_req_b.preconf.digest())
-        );
-
-        println!("preconf_req_b_digest: {:?}", preconf_req_b.preconf.digest());
-
-        // TODO: Uncomment this
-        // assert!(
-        //     gateway_address
-        //         == preconf_req_b
-        //             .preconf
-        //             .preconf_sig
-        //             .recover_address_from_msg(preconf_req_b.preconf.digest())
-        //             .unwrap()
-        // ); // check that the gateway address matches the preconf req type a signer
+        assert!(
+            gateway_address
+                == preconf_req_b
+                    .preconf
+                    .preconf_sig
+                    .recover_address_from_prehash(&preconf_req_b.preconf.digest())
+                    .unwrap()
+        ); // check that the gateway address matches the preconf req type a signer
 
         preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 

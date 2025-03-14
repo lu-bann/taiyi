@@ -5,9 +5,11 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{hex, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
+use alloy_signer::k256;
 use alloy_sol_types::{SolCall, SolType};
 use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
+use hex::ToHex;
 use reqwest::Url;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
@@ -21,7 +23,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_BLS_PK, PRECONFER_ECDSA_SK},
+    constant::{PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, TAIYI_CONTRACT_ADDRESS},
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -206,12 +208,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // preconf type b
     let preconf_b = PreconfRequestTypeB {
         allocation: BlockspaceAllocation {
-            target_slot: get_tip_call
-                .preconfRequestBType
-                .blockspaceAllocation
-                .targetSlot
-                .try_into()
-                .unwrap(),
+            sender: signer.address(),
+            recepient: TAIYI_CONTRACT_ADDRESS.parse().unwrap(),
             gas_limit: get_tip_call
                 .preconfRequestBType
                 .blockspaceAllocation
@@ -225,6 +223,12 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
                 .try_into()
                 .unwrap(),
             tip: get_tip_call.preconfRequestBType.blockspaceAllocation.tip.try_into().unwrap(),
+            target_slot: get_tip_call
+                .preconfRequestBType
+                .blockspaceAllocation
+                .targetSlot
+                .try_into()
+                .unwrap(),
             blob_count: get_tip_call
                 .preconfRequestBType
                 .blockspaceAllocation
@@ -269,20 +273,35 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     stdin.write(&previous_block.header.hash_slow());
 
     // gateway address
-    stdin.write(&sponsorship_transaction.from);
+    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+        k256::ecdsa::SigningKey::from_slice(&hex::decode(
+            PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
+        )?)?,
+    );
+    let gateway_address = private_key_signer.address();
+    stdin.write(&gateway_address);
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
 
-    println!("Generating proof...");
+    println!("Executing program...");
     let (public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
     println!("Executed program with {} cycles", report.total_instruction_count());
 
     let public_values_struct =
         PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
 
+    // Check block number is correct
     assert_eq!(public_values_struct.proofBlockNumber, block_number);
+    // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+    // Check gateway address is correct
+    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check signature is correct
+    assert_eq!(
+        public_values_struct.signature,
+        Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
+    );
 
     Ok(())
 }

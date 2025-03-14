@@ -26,20 +26,24 @@ impl PreconfRequestTypeA {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BlockspaceAllocation {
-    pub target_slot: u64,
+    pub sender: Address,
+    pub recepient: Address,
     pub gas_limit: u64,
     pub deposit: U256,
     pub tip: U256,
+    pub target_slot: u64,
     pub blob_count: usize,
 }
 
 impl BlockspaceAllocation {
     pub fn blockspace_digest(&self) -> Vec<u8> {
         let mut digest = Vec::new();
-        digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
+        digest.extend_from_slice(self.sender.as_slice());
+        digest.extend_from_slice(self.recepient.as_slice());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
+        digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         digest
     }
