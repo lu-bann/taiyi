@@ -98,7 +98,6 @@ where
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
-    // verify the signature
     let signer = signature
         .recover_address_from_prehash(&request.digest())
         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
