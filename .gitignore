@@ -11,6 +11,6 @@ crates/cli/src/pb
 crates/sp1-interactive-fraud-proof/*.bin
 
 # e2e
-1-lighthouse-reth-0-63-0
+1-lighthouse-geth-0-63-0
 el_cl_genesis_data
 1-lighthouse-geth-0-63-0

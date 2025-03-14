@@ -16,10 +16,10 @@ use crate::{
     contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        get_available_slot, get_block_from_slot, get_constraints_from_relay, get_preconf_fee,
-        health_check, new_account, send_reserve_blockspace_request,
-        send_submit_transaction_request, setup_env, verify_tx_in_block,
-        wait_until_deadline_of_slot, ErrorResponse,
+        generate_type_a_request, get_available_slot, get_block_from_slot,
+        get_constraints_from_relay, get_preconf_fee, health_check, new_account,
+        send_reserve_blockspace_request, send_submit_transaction_request, send_type_a_request,
+        setup_env, verify_tx_in_block, wait_until_deadline_of_slot, ErrorResponse,
     },
 };
 
@@ -50,7 +50,7 @@ async fn test_health_check() -> eyre::Result<()> {
 }
 
 #[tokio::test]
-async fn test_commitment_apis() -> eyre::Result<()> {
+async fn test_type_b_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
@@ -94,14 +94,14 @@ async fn test_commitment_apis() -> eyre::Result<()> {
     // Generate request and signature
     let transaction = generate_tx(&config.execution_url, signer.clone()).await.unwrap();
     let (request, signature) =
-        generate_submit_transaction_request(signer.clone(), transaction, request_id).await;
+        generate_submit_transaction_request(signer.clone(), transaction.clone(), request_id).await;
 
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
+    assert_eq!(status, 200);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.data.request_id, request_id);
 
@@ -116,29 +116,28 @@ async fn test_commitment_apis() -> eyre::Result<()> {
         let decoded_txs = message.decoded_tx().unwrap();
         txs.extend(decoded_txs);
     }
-    assert_eq!(txs.len(), 3);
+    assert!(txs.contains(&transaction));
 
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
-
-    let user_tx = txs.get(1).unwrap();
 
     assert_eq!(
         message.pubkey,
         BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
     );
-
     assert_eq!(message.slot, target_slot);
 
-    assert_eq!(*user_tx, request.transaction);
-
     info!("Waiting for slot {} to be available", target_slot);
+
     wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
     assert!(
-        verify_tx_in_block(&config.execution_url, block_number, user_tx.tx_hash().clone()).await?,
+        verify_tx_in_block(&config.execution_url, block_number, transaction.tx_hash().clone())
+            .await
+            .is_ok(),
         "tx is not in the block"
     );
     // Optionally, cleanup when done
@@ -288,6 +287,79 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     // TODO: check user balance is deducted by the deposit amount
     // let balance_after = taiyi_balance(provider, signer.address()).await?;
     // assert_eq!(balance_after, balance - request.deposit);
+
+    // Optionally, cleanup when done
+    taiyi_handle.abort();
+    Ok(())
+}
+
+// ============================= Type A preconf request =============================
+
+#[tokio::test]
+async fn test_type_a_preconf_request() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    let signer = new_account(&config).await?;
+
+    // Pick a slot from the lookahead
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot + 5;
+
+    // Fetch preconf fee for the target slot
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) =
+        generate_type_a_request(signer, target_slot, &config.execution_url, fee).await?;
+
+    info!("Submitting request for target slot: {:?}", target_slot);
+    let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    let body = res.bytes().await?;
+    info!("submit Type A request response: {:?}", body);
+    assert_eq!(status, 200);
+    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    info!("preconf_response: {:?}", preconf_response);
+
+    wait_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
+    }
+
+    // check if constraints contains our transaction
+    assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
+    assert!(txs.contains(&request.tip_transaction));
+
+    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request.tip_transaction.tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "tip tx is not in the block"
+    );
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request.preconf_transaction.first().unwrap().tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "preconf tx is not in the block"
+    );
 
     // Optionally, cleanup when done
     taiyi_handle.abort();

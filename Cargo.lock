@@ -8189,6 +8189,7 @@ dependencies = [
  "mev-share-sse 0.4.0",
  "reqwest 0.12.9",
  "serde_json",
+ "taiyi-preconfer",
  "taiyi-primitives",
  "tokio",
  "tracing",

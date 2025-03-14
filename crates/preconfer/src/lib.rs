@@ -1,4 +1,5 @@
 mod clients;
+mod constraint_submit;
 pub mod context_ext;
 mod contract;
 mod error;
@@ -23,3 +24,8 @@ pub const PATH_BUILDER_CONSTRAINTS: &str = "/constraints";
 pub const PATH_CONSTRAINTS_API: &str = "/constraints/v1";
 
 pub const PATH_SUBMIT_BUILDER_CONSTRAINTS: &str = "/builder/constraints";
+
+pub use preconf_api::api::{
+    AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH,
+    SUBMIT_TYPEA_TRANSACTION_PATH,
+};
