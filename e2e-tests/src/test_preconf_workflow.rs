@@ -118,6 +118,17 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     }
     assert!(txs.contains(&transaction));
 
+    // Check if there's a payout transaction to the fee recipient
+    let fee_recipient = Address::from_str("0x8943545177806ed17b9f23f0a21ee5948ecaa776").unwrap();
+    let mut payout_tx = None;
+    for tx in &txs {
+        if tx.to().unwrap() == fee_recipient {
+            payout_tx = Some(tx.clone());
+            break;
+        }
+    }
+    assert!(payout_tx.is_some());
+
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
 
@@ -128,7 +139,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     assert_eq!(message.slot, target_slot);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
+    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -138,6 +149,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
             .is_ok(),
         "tx is not in the block"
     );
+
     // Optionally, cleanup when done
     taiyi_handle.abort();
     Ok(())
