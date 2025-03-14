@@ -88,9 +88,7 @@ alloy-sol-types = "0.8.15"
 alloy-node-bindings = { version = "0.8.1", default-features = false }
 alloy-rpc-client = { version = "0.8.1", default-features = false }
 alloy-transport-http = { version = "0.8.1", default-features = false }
-alloy-rpc-types-eth = { version = "0.8.1", default-features = false, features = [
-    "serde",
-] }
+alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
 alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
 alloy-trie = "0.7.9"
 
