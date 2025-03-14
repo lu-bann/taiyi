@@ -5,7 +5,7 @@ mod tests {
 
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{hex, U256};
+    use alloy_primitives::{hex, Address, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
@@ -169,7 +169,7 @@ mod tests {
         let response = reqwest::Client::new()
             .post(request_endpoint.clone())
             .header("content-type", "application/json")
-            .header("x-luban-signature", format!("0x{}", signature))
+            .header("x-luban-signature", format!("0x{signature}"))
             .json(&submit_transaction_request)
             .send()
             .await?;
@@ -191,12 +191,14 @@ mod tests {
         let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
             target_slot,
+            sender: signer.address(),
+            recepient: Address::default(),
             deposit: U256::from(fee * 21_000 / 2),
             tip: U256::from(fee * 21_000 / 2),
             gas_limit: 21_0000,
             blob_count: 0,
         };
         let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
-        (request, format!("{}:0x{}", signer.address(), signature))
+        (request, format!("0x{signature}"))
     }
 }

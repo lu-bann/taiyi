@@ -6,7 +6,7 @@ use alloy_provider::{
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use reqwest::Url;
-use taiyi_primitives::{BlockspaceAllocation, PreconfRequest, SlotInfo};
+use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB, SlotInfo};
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -48,7 +48,7 @@ async fn main() -> eyre::Result<()> {
     let tx_hash = transaction.tx_hash();
     println!("tx_hash: {:?}", tx_hash);
 
-    let preconf_request = PreconfRequest {
+    let preconf_request = PreconfRequestTypeB {
         allocation: BlockspaceAllocation::default(),
         alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
         transaction: Some(transaction.clone()),

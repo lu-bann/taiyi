@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use alloy_consensus::BlobTransactionValidationError;
+use alloy_eips::eip4844::BlobTransactionValidationError;
 use alloy_primitives::{Address, U256};
 use axum::{
     response::{IntoResponse, Response},
@@ -76,6 +76,12 @@ pub enum ValidationError {
     BlobValidation(#[from] BlobTransactionValidationError),
     #[error("Blob count exceeds limit, expected not more than {0}, got {1}")]
     BlobCountExceedsLimit(usize, usize),
+    #[error("Tip tarnsaction must be a valid ETH transfer")]
+    InvalidTipTransaction,
+    #[error("Nonce not continuous, expected: {0}, got: {1}")]
+    InvalidNonceSequence(u64, u64),
+    #[error("Invalid signer, expected: {0}, got: {1}")]
+    InvalidSigner(Address, Address),
 }
 
 #[derive(Debug, Error)]
