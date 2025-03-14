@@ -37,6 +37,11 @@ impl PreconfRequestTypeB {
         self.allocation.target_slot
     }
 
+    /// preconf tip
+    pub fn preconf_tip(&self) -> U256 {
+        self.allocation.preconf_tip()
+    }
+
     /// Digest over allocation and transaction
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
@@ -98,6 +103,10 @@ impl BlockspaceAllocation {
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
         digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         keccak256(&digest)
+    }
+
+    fn preconf_tip(&self) -> U256 {
+        self.tip + self.deposit
     }
 }
 

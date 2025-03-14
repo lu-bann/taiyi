@@ -1,4 +1,4 @@
-use alloy_primitives::B256;
+use alloy_primitives::{B256, U256};
 use serde::{Deserialize, Serialize};
 
 use crate::{PreconfRequestTypeA, PreconfRequestTypeB};
@@ -28,6 +28,14 @@ impl PreconfRequest {
         match self {
             PreconfRequest::TypeA(req) => req.sequence_number,
             PreconfRequest::TypeB(_) => panic!("Type B does not have sequence number"),
+        }
+    }
+
+    /// Amount to be paid to the gateway
+    pub fn preconf_tip(&self) -> U256 {
+        match self {
+            PreconfRequest::TypeA(req) => req.preconf_tip(),
+            PreconfRequest::TypeB(req) => req.preconf_tip(),
         }
     }
 }
