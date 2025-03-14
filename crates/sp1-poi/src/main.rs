@@ -16,11 +16,11 @@ use taiyi_zkvm_types::{types::*, utils::*};
 sp1_zkvm::entrypoint!(main);
 
 const SLOT_TIME: u64 = 12;
-const GENESIS_TIMESTAMP: u64 = 1741938010;
+const GENESIS_TIMESTAMP: u64 = 1741948692;
+const GENESIS_DELAY: u64 = 20;
 
-// TODO: Check and verify why we need to subtract "1"
 pub fn get_slot_from_timestamp(timestamp: u64) -> u64 {
-    ((timestamp - GENESIS_TIMESTAMP) / SLOT_TIME) - 1
+    (timestamp - GENESIS_TIMESTAMP - GENESIS_DELAY) / SLOT_TIME
 }
 
 pub fn main() {
