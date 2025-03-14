@@ -49,6 +49,10 @@ impl LookaheadFetcher {
         // Fetch gateway delegations for the next epoch
         self.get_delegation_for(epoch + 1).await?;
         self.network_state.update_slot(slot);
+
+        // Update the fee recipients for the current epoch
+        let fee_recipients = self.relay_client.get_current_epoch_validators().await?;
+        self.network_state.update_fee_recipients(fee_recipients);
         Ok(())
     }
 

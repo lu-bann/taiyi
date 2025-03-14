@@ -96,6 +96,7 @@ where
             let mut cummalative_preconf_tips = U256::ZERO;
             let fee_reciepient =
                 state.network_state.get_fee_recipient(next_slot).unwrap_or_default();
+            info!(fee_reciepient=?fee_reciepient);
 
             match state.preconf_pool.ready_requests(next_slot) {
                 Ok(preconf_requests) => {
@@ -206,6 +207,21 @@ where
                         .await?;
                     let tx_bytes = sponsor_tx.to_ssz_bytes();
                     sponsoring_tx.push(tx_bytes);
+
+                    // Validator Payout Transaction
+                    let value = cummalative_preconf_tips;
+                    let validator_payout_tx = TransactionRequest::default()
+                        .with_nonce(nonce)
+                        .with_chain_id(chain_id)
+                        .with_gas_limit(21_000)
+                        .with_max_fee_per_gas(base_fee)
+                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_to(fee_reciepient)
+                        .with_value(value)
+                        .build(&wallet)
+                        .await?;
+                    let tx_bytes = validator_payout_tx.to_ssz_bytes();
+                    type_b_txs.push(tx_bytes);
                 }
                 Err(err) => {
                     debug!(?err, "Error fetching preconf requests for slot");
@@ -265,21 +281,6 @@ where
                     exhaust_txs.push(tx_bytes);
                 }
             }
-
-            // Validator Payout Transaction
-            let value = cummalative_preconf_tips * U256::from(0.1);
-            let validator_payout_tx = TransactionRequest::default()
-                .with_nonce(nonce)
-                .with_chain_id(chain_id)
-                .with_gas_limit(21_000)
-                .with_max_fee_per_gas(base_fee)
-                .with_max_priority_fee_per_gas(priority_fee)
-                .with_to(fee_reciepient)
-                .with_value(value)
-                .build(&wallet)
-                .await?;
-            let tx_bytes = validator_payout_tx.to_ssz_bytes();
-            exhaust_txs.push(tx_bytes);
 
             constraints.extend(sponsoring_tx);
             constraints.extend(type_a_txs);

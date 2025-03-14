@@ -297,12 +297,11 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 async fn test_type_a_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
-
     let signer = new_account(&config).await?;
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-    let target_slot = available_slot.first().unwrap().slot + 5;
+    let target_slot = available_slot.first().unwrap().slot;
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
