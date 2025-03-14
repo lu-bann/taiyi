@@ -13,7 +13,7 @@ import { EnumerableSet } from
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
 struct PublicValuesStruct {
-    uint64 proofBlockNumber;
+    uint64 proofBlockTimestamp;
     bytes32 proofBlockHash;
     address gatewayAddress;
     bytes signature;
@@ -289,9 +289,9 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         PreconfRequestBType memory preconfRequestBType =
             abi.decode(challenge.commitmentData, (PreconfRequestBType));
 
-        // Verify the proof block number matches the target slot
+        // Verify the inclusion block slot matches the target slot
         if (
-            publicValues.proofBlockNumber
+            _getSlotFromTimestamp(publicValues.proofBlockTimestamp)
                 != preconfRequestBType.blockspaceAllocation.targetSlot
         ) {
             revert TargetSlotDoesNotMatch();

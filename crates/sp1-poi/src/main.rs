@@ -16,11 +16,9 @@ use taiyi_zkvm_types::{types::*, utils::*};
 sp1_zkvm::entrypoint!(main);
 
 const SLOT_TIME: u64 = 12;
-const GENESIS_TIMESTAMP: u64 = 1741948692;
-const GENESIS_DELAY: u64 = 20;
 
-pub fn get_slot_from_timestamp(timestamp: u64) -> u64 {
-    (timestamp - GENESIS_TIMESTAMP - GENESIS_DELAY) / SLOT_TIME
+pub fn get_slot_from_timestamp(timestamp: u64, genesis_timestamp: u64) -> u64 {
+    (timestamp - genesis_timestamp) / SLOT_TIME
 }
 
 pub fn main() {
@@ -32,6 +30,7 @@ pub fn main() {
     let previous_block_header = sp1_zkvm::io::read::<String>(); // block header of the previous block encoded as serde string
     let previous_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the previous block
     let gateway_address = sp1_zkvm::io::read::<Address>(); // address of the gateway
+    let genesis_timestamp = sp1_zkvm::io::read::<u64>(); // genesis timestamp
 
     let inclusion_block_header = serde_json::from_str::<Header>(&inclusion_block_header).unwrap();
     let previous_block_header = serde_json::from_str::<Header>(&previous_block_header).unwrap();
@@ -167,7 +166,7 @@ pub fn main() {
 
         // Target slot verification
         assert_eq!(
-            get_slot_from_timestamp(inclusion_block_header.timestamp),
+            get_slot_from_timestamp(inclusion_block_header.timestamp, genesis_timestamp),
             preconf_req_b.preconf.allocation.target_slot
         );
 
@@ -273,7 +272,7 @@ pub fn main() {
 
     // Encode the public values of the program.
     let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
-        proofBlockNumber: inclusion_block_header.number,
+        proofBlockTimestamp: inclusion_block_header.timestamp,
         proofBlockHash: inclusion_block_hash,
         gatewayAddress: gateway_address,
         signature: Bytes::from(preconf_sig),

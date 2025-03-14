@@ -281,6 +281,12 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let gateway_address = private_key_signer.address();
     stdin.write(&gateway_address);
 
+    let genesis_time = match config.context.genesis_time() {
+        Ok(genesis_time) => genesis_time,
+        Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
+    };
+    stdin.write(&genesis_time);
+
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
 
@@ -291,8 +297,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let public_values_struct =
         PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
 
-    // Check block number is correct
-    assert_eq!(public_values_struct.proofBlockNumber, block_number);
+    // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
+    assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
     // Check gateway address is correct

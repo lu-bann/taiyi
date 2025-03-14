@@ -3,7 +3,7 @@ use alloy_sol_types::sol;
 sol! {
      /// The public values encoded as a struct that can be easily deserialized inside Solidity.
      struct PublicValuesStruct {
-        uint64 proofBlockNumber;
+        uint64 proofBlockTimestamp;
         bytes32 proofBlockHash;
         address gatewayAddress;
         bytes signature;
