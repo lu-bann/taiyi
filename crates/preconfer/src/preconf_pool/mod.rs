@@ -9,11 +9,11 @@ use ready::Ready;
 use reqwest::Url;
 use taiyi_primitives::{PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB};
 use uuid::Uuid;
+use validator::PreconfValidator;
 
 use crate::{
     error::{PoolError, ValidationError},
     preconf_pool::inner::PreconfPoolInner,
-    validator::PreconfValidator,
 };
 
 mod inner;
@@ -21,6 +21,7 @@ mod pending;
 mod ready;
 #[cfg(test)]
 mod tests;
+mod validator;
 
 #[derive(Debug)]
 pub struct PreconfPoolBuilder;
