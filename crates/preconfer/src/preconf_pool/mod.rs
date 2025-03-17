@@ -2,6 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_primitives::{Address, U256};
+use ethereum_consensus::{clock::from_system_time, deneb::Context};
+use futures::StreamExt;
 use inner::BlockspaceAvailable;
 use parking_lot::RwLock;
 use pending::Pending;
@@ -12,6 +14,8 @@ use uuid::Uuid;
 use validator::PreconfValidator;
 
 use crate::{
+    clients::execution_client::AccountState,
+    context_ext::ContextExt,
     error::{PoolError, ValidationError},
     preconf_pool::inner::PreconfPoolInner,
 };
@@ -47,6 +51,8 @@ pub struct PreconfPool {
     validator: PreconfValidator,
     /// escrow contract
     pub taiyi_escrow_address: Address,
+    /// Account state cache
+    state_cache: RwLock<HashMap<Address, AccountState>>,
 }
 
 impl PreconfPool {
@@ -59,6 +65,36 @@ impl PreconfPool {
             }),
             validator,
             taiyi_escrow_address,
+            state_cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub async fn state_cache_cleanup(self: Arc<Self>, context: Context) {
+        let clock = from_system_time(
+            context.actual_genesis_time(),
+            context.seconds_per_slot,
+            context.slots_per_epoch,
+        );
+        let mut slot_stream = clock.into_stream();
+
+        while (slot_stream.next().await).is_some() {
+            let accounts_to_check = {
+                let cache = self.state_cache.read();
+                cache.keys().cloned().collect::<Vec<Address>>()
+            };
+
+            // Accounts which don't have any preconf requests in the pool
+            let accounts_to_remove: Vec<Address> = accounts_to_check
+                .into_iter()
+                .filter(|&address| !self.has_preconf_requests(address))
+                .collect();
+
+            if !accounts_to_remove.is_empty() {
+                let mut cache = self.state_cache.write();
+                for address in accounts_to_remove {
+                    cache.remove(&address);
+                }
+            }
         }
     }
 
@@ -67,11 +103,8 @@ impl PreconfPool {
         preconf_request: PreconfRequestTypeB,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
-        self.has_enough_balance(
-            preconf_request.signer.expect("signer"),
-            preconf_request.allocation.deposit,
-        )
-        .await?;
+        self.has_enough_balance(preconf_request.signer(), preconf_request.allocation.deposit)
+            .await?;
 
         let mut pool_inner = self.pool_inner.write();
 
@@ -108,14 +141,30 @@ impl PreconfPool {
         preconf_request: PreconfRequest,
         request_id: Uuid,
     ) -> Result<PreconfRequest, PoolError> {
+        let mut account_state = self.state_cache.read().get(&preconf_request.signer()).cloned();
+
+        if account_state.is_none() {
+            let state = self
+                .validator
+                .execution_client
+                .get_account_state(preconf_request.signer())
+                .await
+                .map_err(|_| ValidationError::AccountStateNotFound(preconf_request.signer()))?;
+
+            self.state_cache.write().insert(preconf_request.signer(), state.clone());
+            account_state = Some(state);
+        }
+
         match preconf_request {
             PreconfRequest::TypeA(preconf_request) => {
-                self.validate_typea(&preconf_request).await?;
+                self.validate_typea(&preconf_request, &account_state.expect("can't be none"))
+                    .await?;
                 Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
             }
             PreconfRequest::TypeB(preconf_request) => {
                 if preconf_request.transaction.is_some() {
-                    self.validate_typeb(&preconf_request).await?;
+                    self.validate_typeb(&preconf_request, &account_state.expect("can't be none"))
+                        .await?;
                     // Move the request from pending to ready pool
                     self.delete_pending(request_id);
                     Ok(self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request)))
@@ -152,12 +201,8 @@ impl PreconfPool {
     async fn validate_typea(
         &self,
         preconf_request: &PreconfRequestTypeA,
+        account_state: &AccountState,
     ) -> eyre::Result<(), ValidationError> {
-        let signer = match preconf_request.signer() {
-            Some(signer) => signer,
-            None => return Err(ValidationError::SignerNotFound),
-        };
-
         let tip_tx_gas_limit = preconf_request.tip_transaction.gas_limit();
         let preconf_tx_gas_limit =
             preconf_request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>();
@@ -196,12 +241,7 @@ impl PreconfPool {
             }
         }
 
-        let account_state = self
-            .validator
-            .execution_client
-            .get_account_state(signer)
-            .await
-            .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
+        // State validation
 
         let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
@@ -228,8 +268,7 @@ impl PreconfPool {
         Self::verify_nonce_continuity_and_signer(&all_transactions)?;
 
         // Balance check
-        let total_value = preconf_request.preconf_tx.iter().map(|tx| tx.value()).sum::<U256>()
-            + preconf_request.tip_transaction.value();
+        let total_value = preconf_request.value();
         if account_balance < total_value {
             return Err(ValidationError::LowBalance(total_value - account_balance));
         }
@@ -252,6 +291,15 @@ impl PreconfPool {
             }
         }
 
+        // Update state cache
+        self.state_cache.write().insert(
+            preconf_request.signer(),
+            AccountState {
+                balance: account_balance - total_value,
+                nonce: account_nonce + preconf_request.preconf_tx.len() as u64 + 1,
+            },
+        );
+
         Ok(())
     }
 
@@ -259,25 +307,16 @@ impl PreconfPool {
     async fn validate_typeb(
         &self,
         preconf_request: &PreconfRequestTypeB,
+        account_state: &AccountState,
     ) -> eyre::Result<(), ValidationError> {
-        let signer = match preconf_request.signer {
-            Some(signer) => signer,
-            None => return Err(ValidationError::SignerNotFound),
-        };
         let transaction = match preconf_request.transaction.clone() {
             Some(transaction) => transaction,
             None => return Err(ValidationError::TransactionNotFound),
         };
 
-        let account_state = self
-            .validator
-            .execution_client
-            .get_account_state(signer)
-            .await
-            .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
-
         let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
+
         // Check if sender has enough balance to cover transaction cost
         // For EIP-1559 transactions: tx_value.
         let cost = transaction.value();
@@ -320,6 +359,12 @@ impl PreconfPool {
             transaction.validate_blob(self.validator.kzg_settings.get())?;
         }
 
+        // Update state cache
+        self.state_cache.write().insert(
+            preconf_request.signer(),
+            AccountState { balance: account_balance - cost, nonce: account_nonce + 1 },
+        );
+
         Ok(())
     }
 
@@ -360,9 +405,20 @@ impl PreconfPool {
         Ok(())
     }
 
+    /// Checks if an address has any preconf requests in the pool.
+    pub fn has_preconf_requests(&self, address: Address) -> bool {
+        self.pool_inner.read().has_preconf_requests(address)
+    }
+
     /// Returns preconf requests in pending pool for a given slot.
     pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
         self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
+    }
+
+    #[allow(dead_code)]
+    /// Inserts a preconf request into the pending pool.
+    fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
+        self.pool_inner.write().pending.insert(request_id, preconf_request);
     }
 
     /// Returns a preconf request from the pending pool.
@@ -375,18 +431,13 @@ impl PreconfPool {
         self.pool_inner.write().pending.remove(request_id)
     }
 
-    /// Inserts a preconf request into the pending pool.
-    fn _insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
-        self.pool_inner.write().pending.insert(request_id, preconf_request);
-    }
-
     /// Inserts a preconf request into the ready sub-pool.
     fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
         self.pool_inner.write().ready.insert(request_id, preconf_request)
     }
 
     /// Returns preconf requests in ready pool.
-    pub fn ready_requests(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
+    pub fn fetch_ready(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
         self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
     }
 

@@ -33,6 +33,10 @@ impl PreconfPoolInner {
     pub fn update_blockspace(&mut self, slot: u64, blockspace: BlockspaceAvailable) {
         self.blockspace_issued.insert(slot, blockspace);
     }
+
+    pub fn has_preconf_requests(&self, account: Address) -> bool {
+        self.pending.has_preconf_requests(account) || self.ready.has_preconf_requests(account)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

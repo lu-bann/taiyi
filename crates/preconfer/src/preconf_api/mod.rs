@@ -52,7 +52,9 @@ pub async fn spawn_service(
         taiyi_escrow_address,
         provider,
         min_fee_per_gas,
-    );
+        context,
+    )
+    .await;
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));

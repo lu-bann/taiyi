@@ -52,7 +52,7 @@ async fn main() -> eyre::Result<()> {
         allocation: BlockspaceAllocation::default(),
         alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
         transaction: Some(transaction.clone()),
-        signer: Some(sender),
+        signer: sender,
     };
     let request_endpoint = Url::parse(&taiyi_url).unwrap().join(PRECONF_REQUEST_PATH).unwrap();
     let response =
