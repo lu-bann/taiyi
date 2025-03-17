@@ -246,6 +246,18 @@ pub async fn verify_tx_in_block(
     Ok(())
 }
 
+pub async fn verify_txs_inclusion(execution_url: &str, txs: Vec<TxEnvelope>) -> eyre::Result<()> {
+    let provider =
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
+
+    for tx in &txs {
+        let tx_receipt = provider.get_transaction_by_hash(*tx.tx_hash()).await?;
+        assert!(tx_receipt.is_some());
+    }
+
+    Ok(())
+}
+
 pub async fn generate_tx(
     execution_url: &str,
     signer: PrivateKeySigner,
@@ -258,6 +270,33 @@ pub async fn generate_tx(
     let fees = provider.estimate_eip1559_fees(None).await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
+    info!("Transaction nonce: {}", nonce);
+    let transaction = TransactionRequest::default()
+        .with_from(sender)
+        .with_value(U256::from(1000))
+        .with_nonce(nonce)
+        .with_gas_limit(21_000)
+        .with_to(sender)
+        .with_max_fee_per_gas(fees.max_fee_per_gas)
+        .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+        .with_chain_id(chain_id)
+        .build(&wallet)
+        .await?;
+    Ok(transaction)
+}
+
+pub async fn generate_tx_with_nonce(
+    execution_url: &str,
+    signer: PrivateKeySigner,
+    nonce: u64,
+) -> eyre::Result<TxEnvelope> {
+    let provider =
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let chain_id = provider.get_chain_id().await?;
+
+    let sender = signer.address();
+    let fees = provider.estimate_eip1559_fees(None).await?;
+    let wallet = EthereumWallet::from(signer);
     info!("Transaction nonce: {}", nonce);
     let transaction = TransactionRequest::default()
         .with_from(sender)
