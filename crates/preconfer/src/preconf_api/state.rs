@@ -6,7 +6,6 @@ use std::{
 use alloy_consensus::Transaction;
 use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
-use ethereum_consensus::deneb::Context;
 use reqwest::Url;
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponse, SlotInfo,
@@ -37,7 +36,7 @@ where
     P: Provider + Clone + Send + Sync + 'static,
 {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         network_state: NetworkState,
         relay_client: RelayClient,
         signer_client: SignerClient,
@@ -45,10 +44,8 @@ where
         taiyi_escrow_address: Address,
         provider: P,
         min_fee_per_gas: u128,
-        context: Context,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        preconf_pool.clone().state_cache_cleanup(context).await;
         Self { relay_client, network_state, preconf_pool, signer_client, provider, min_fee_per_gas }
     }
 

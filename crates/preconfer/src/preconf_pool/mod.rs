@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_primitives::{Address, U256};
@@ -10,6 +10,7 @@ use pending::Pending;
 use ready::Ready;
 use reqwest::Url;
 use taiyi_primitives::{PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB};
+use tracing::info;
 use uuid::Uuid;
 use validator::PreconfValidator;
 
@@ -69,7 +70,10 @@ impl PreconfPool {
         }
     }
 
-    pub async fn state_cache_cleanup(self: Arc<Self>, context: Context) {
+    pub async fn state_cache_cleanup(
+        self: Arc<Self>,
+        context: Context,
+    ) -> impl Future<Output = eyre::Result<()>> {
         let clock = from_system_time(
             context.actual_genesis_time(),
             context.seconds_per_slot,
@@ -77,24 +81,29 @@ impl PreconfPool {
         );
         let mut slot_stream = clock.into_stream();
 
-        while (slot_stream.next().await).is_some() {
-            let accounts_to_check = {
-                let cache = self.state_cache.read();
-                cache.keys().cloned().collect::<Vec<Address>>()
-            };
+        async move {
+            while (slot_stream.next().await).is_some() {
+                let accounts_to_check = {
+                    let cache = self.state_cache.read();
+                    cache.keys().cloned().collect::<Vec<Address>>()
+                };
 
-            // Accounts which don't have any preconf requests in the pool
-            let accounts_to_remove: Vec<Address> = accounts_to_check
-                .into_iter()
-                .filter(|&address| !self.has_preconf_requests(address))
-                .collect();
+                // Accounts which don't have any preconf requests in the pool
+                let accounts_to_remove: Vec<Address> = accounts_to_check
+                    .into_iter()
+                    .filter(|&address| !self.has_preconf_requests(address))
+                    .collect();
 
-            if !accounts_to_remove.is_empty() {
-                let mut cache = self.state_cache.write();
-                for address in accounts_to_remove {
-                    cache.remove(&address);
+                if !accounts_to_remove.is_empty() {
+                    let mut cache = self.state_cache.write();
+                    for address in accounts_to_remove {
+                        cache.remove(&address);
+                    }
                 }
             }
+
+            info!("Shutting down state cache cleanup task");
+            Ok(())
         }
     }
 

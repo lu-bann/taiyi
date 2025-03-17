@@ -101,9 +101,8 @@ mod tests {
             *escrow.address(),
             provider.clone(),
             0,
-            context,
-        )
-        .await;
+        );
+
         let preconfapiserver =
             PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
         let server_endpoint = preconfapiserver.endpoint();
