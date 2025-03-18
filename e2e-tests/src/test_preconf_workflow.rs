@@ -8,7 +8,7 @@ use alloy_sol_types::sol;
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
 use taiyi_preconfer::metrics::provider;
-use taiyi_primitives::{PreconfResponse, SubmitTransactionRequest};
+use taiyi_primitives::{PreconfResponseData, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -104,8 +104,8 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
     assert_eq!(status, 200);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
-    assert_eq!(preconf_response.data.request_id, request_id);
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
+    assert_eq!(preconf_response.request_id, request_id);
 
     // TODO: verify the commitment signature with gateway pub key
 
@@ -239,10 +239,10 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     let status = res.status();
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     // CUrrently revert tx is not rejected.
     assert_eq!(status, 200);
-    assert_eq!(preconf_response.data.request_id, request_id);
+    assert_eq!(preconf_response.request_id, request_id);
     taiyi_handle.abort();
     Ok(())
 }
@@ -330,7 +330,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit Type A request response: {:?}", body);
     assert_eq!(status, 200);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
 
     wati_until_deadline_of_slot(&config, target_slot).await?;
@@ -423,7 +423,7 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         let body = res.bytes().await?;
         info!("submit Type A request response: {:?}", body);
         assert_eq!(status, 200);
-        let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+        let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
         info!("preconf_response: {:?}", preconf_response);
         submitted_txs.push(request.tip_transaction.clone());
         submitted_txs.push(request.preconf_transaction.first().unwrap().clone());

@@ -73,7 +73,7 @@ impl PreconferCommand {
 
         let relay_url = self.relay_url.iter().map(|url| url.parse().expect("relay urls")).collect();
 
-        let min_fee_per_gas = self.min_fee_per_gas.unwrap_or(0);
+        let _min_fee_per_gas = self.min_fee_per_gas.unwrap_or(0);
 
         spawn_service(
             self.execution_rpc_url.clone(),
@@ -85,7 +85,6 @@ impl PreconferCommand {
             self.ecdsa_sk.clone(),
             relay_url,
             self.taiyi_escrow_address.parse()?,
-            min_fee_per_gas,
         )
         .await?;
 

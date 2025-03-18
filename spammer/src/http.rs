@@ -13,7 +13,7 @@ use taiyi_preconfer::{
     SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, PreconfResponseData, SlotInfo,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponseData, SlotInfo,
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tracing::info;
@@ -122,8 +122,8 @@ impl HttpClient {
             .await?;
         let bytes = result.bytes().await?;
         info!("Submit Transaction Response: {:?}", bytes);
-        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_slice(&bytes)?;
+        Ok(response)
     }
 
     pub async fn submit_blob_transaction(
@@ -171,8 +171,8 @@ impl HttpClient {
             .await?;
         let bytes = result.bytes().await?;
         info!("Submit Blob Transaction Response: {:?}", bytes);
-        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_slice(&bytes)?;
+        Ok(response)
     }
 
     pub async fn submit_type_a_request(
@@ -225,7 +225,7 @@ impl HttpClient {
             .await?;
         let body = result.text().await?;
         info!("Submit Transaction Response: {:?}", body);
-        let response: PreconfResponse = serde_json::from_str(&body)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_str(&body)?;
+        Ok(response)
     }
 }
