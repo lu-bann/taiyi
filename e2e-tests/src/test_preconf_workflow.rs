@@ -247,7 +247,6 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     Ok(())
 }
 
-#[ignore = "TODO: check for exhaust tx"]
 #[tokio::test]
 async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Result<()> {
     // Start taiyi command in background
@@ -304,7 +303,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     }
     assert!(exhaust_called);
 
-    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
+    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
 
     // TODO: check user balance is deducted by the deposit amount
     let balance_after = taiyi_balance(provider, signer.address()).await?;
