@@ -11,20 +11,19 @@ pub struct PreconfRequestTypeB {
     pub alloc_sig: PrimitiveSignature,
     /// Preconf transaction
     pub transaction: Option<TxEnvelope>,
-    /// The signer of the transaction
-    #[serde(skip)]
-    pub signer: Option<Address>,
+    /// The signer of the request
+    pub signer: Address,
 }
 
 impl PreconfRequestTypeB {
-    /// Returns the transaction signer.
-    pub fn signer(&self) -> Option<Address> {
+    /// Returns the request signer.
+    pub fn signer(&self) -> Address {
         self.signer
     }
 
     /// Sets the signer.
     pub fn set_signer(&mut self, signer: Address) {
-        self.signer = Some(signer);
+        self.signer = signer;
     }
 
     /// Set alloc signature

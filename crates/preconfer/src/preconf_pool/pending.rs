@@ -28,18 +28,16 @@ impl Pending {
 
     pub fn insert(&mut self, key: Uuid, value: PreconfRequestTypeB) {
         self.by_id.insert(key, value.clone());
-        self.by_account.entry(value.signer().expect("signer")).or_default().push(key);
+        self.by_account.entry(value.signer()).or_default().push(key);
         self.reqs_by_slot.entry(value.target_slot()).or_default().push(key);
     }
 
     pub fn remove(&mut self, key: Uuid) -> Option<PreconfRequestTypeB> {
         if let Some(preconf) = self.by_id.get(&key) {
-            if let Some(account) = preconf.signer() {
-                if let Some(ids) = self.by_account.get_mut(&account) {
-                    ids.retain(|id| *id != key);
-                    if ids.is_empty() {
-                        self.by_account.remove(&account);
-                    }
+            if let Some(ids) = self.by_account.get_mut(&preconf.signer()) {
+                ids.retain(|id| *id != key);
+                if ids.is_empty() {
+                    self.by_account.remove(&preconf.signer());
                 }
             }
         }
@@ -64,6 +62,10 @@ impl Pending {
             .get(&slot)
             .map(|ids| ids.iter().filter_map(|id| self.by_id.get(id)).cloned().collect())
     }
+
+    pub fn has_preconf_requests(&self, account: Address) -> bool {
+        self.by_account.contains_key(&account)
+    }
 }
 
 #[cfg(test)]
@@ -81,7 +83,7 @@ mod tests {
             allocation: BlockspaceAllocation::default(),
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
-            signer: Some(Address::default()),
+            signer: Address::default(),
         };
 
         let id = Uuid::new_v4();
@@ -102,13 +104,13 @@ mod tests {
             allocation: BlockspaceAllocation { deposit: U256::from(100), ..Default::default() },
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
-            signer: Some(account),
+            signer: account,
         };
         let request2 = PreconfRequestTypeB {
             allocation: BlockspaceAllocation { deposit: U256::from(200), ..Default::default() },
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: None,
-            signer: Some(account),
+            signer: account,
         };
 
         let id1 = Uuid::new_v4();

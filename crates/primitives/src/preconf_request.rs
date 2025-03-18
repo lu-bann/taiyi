@@ -1,4 +1,4 @@
-use alloy_primitives::{B256, U256};
+use alloy_primitives::{Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 use crate::{PreconfRequestTypeA, PreconfRequestTypeB};
@@ -36,6 +36,13 @@ impl PreconfRequest {
         match self {
             PreconfRequest::TypeA(req) => req.preconf_tip(),
             PreconfRequest::TypeB(req) => req.preconf_tip(),
+        }
+    }
+
+    pub fn signer(&self) -> Address {
+        match self {
+            PreconfRequest::TypeA(req) => req.signer(),
+            PreconfRequest::TypeB(req) => req.signer(),
         }
     }
 }

@@ -61,7 +61,7 @@ pub fn to_solidity_type(
     core::TaiyiCore::PreconfRequestBType {
         blockspaceAllocation: core::TaiyiCore::BlockspaceAllocation {
             gasLimit: U256::from(request.allocation.gas_limit),
-            sender: request.signer.expect("signer is required"),
+            sender: request.signer(),
             recipient: taiyi_core,
             deposit: request.allocation.deposit,
             tip: request.allocation.tip,
