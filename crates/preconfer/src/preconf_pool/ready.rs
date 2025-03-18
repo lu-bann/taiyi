@@ -39,31 +39,6 @@ impl Ready {
         preconf_request
     }
 
-    #[allow(dead_code)]
-    pub fn contains(&self, key: Uuid) -> bool {
-        self.by_id.contains_key(&key)
-    }
-
-    #[allow(dead_code)]
-    pub fn remove_preconfs_for_slot(
-        &mut self,
-        slot: u64,
-    ) -> Result<HashMap<Uuid, PreconfRequest>, PoolError> {
-        if let Some(reqs) = self.reqs_by_slot.remove(&slot) {
-            let mut preconfs = HashMap::new();
-            for req_id in reqs {
-                let preconf_request = match self.by_id.remove(&req_id) {
-                    Some(req) => req,
-                    None => return Err(PoolError::PreconfRequestNotFound(req_id)),
-                };
-                preconfs.insert(req_id, preconf_request);
-            }
-            Ok(preconfs)
-        } else {
-            Err(PoolError::RequestsNotFoundForSlot(slot))
-        }
-    }
-
     pub fn fetch_preconf_requests_for_slot(
         &self,
         slot: u64,
@@ -99,6 +74,35 @@ impl Ready {
                 .sum()
         })
     }
+
+    pub fn has_preconf_requests(&self, account: Address) -> bool {
+        self.by_account.contains_key(&account)
+    }
+
+    #[allow(dead_code)]
+    pub fn contains(&self, key: Uuid) -> bool {
+        self.by_id.contains_key(&key)
+    }
+
+    #[allow(dead_code)]
+    pub fn remove_preconfs_for_slot(
+        &mut self,
+        slot: u64,
+    ) -> Result<HashMap<Uuid, PreconfRequest>, PoolError> {
+        if let Some(reqs) = self.reqs_by_slot.remove(&slot) {
+            let mut preconfs = HashMap::new();
+            for req_id in reqs {
+                let preconf_request = match self.by_id.remove(&req_id) {
+                    Some(req) => req,
+                    None => return Err(PoolError::PreconfRequestNotFound(req_id)),
+                };
+                preconfs.insert(req_id, preconf_request);
+            }
+            Ok(preconfs)
+        } else {
+            Err(PoolError::RequestsNotFoundForSlot(slot))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -126,7 +130,7 @@ mod tests {
             allocation: BlockspaceAllocation { target_slot: 1, ..Default::default() },
             alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
             transaction: Some(transaction),
-            signer: Some(Address::default()),
+            signer: Address::default(),
         };
 
         let id = Uuid::new_v4();
@@ -150,7 +154,7 @@ mod tests {
             preconf_tx: vec![transaction.clone()],
             target_slot: 1,
             sequence_number: None,
-            signer: Some(Address::default()),
+            signer: Address::default(),
         });
 
         let id = Uuid::new_v4();

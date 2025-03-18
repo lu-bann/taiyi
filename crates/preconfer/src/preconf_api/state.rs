@@ -35,6 +35,7 @@ impl<P> PreconfState<P>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network_state: NetworkState,
         relay_client: RelayClient,
@@ -78,12 +79,8 @@ where
         }
 
         // Construct a preconf request
-        let preconf_request = PreconfRequestTypeB {
-            allocation: request,
-            alloc_sig,
-            transaction: None,
-            signer: Some(signer),
-        };
+        let preconf_request =
+            PreconfRequestTypeB { allocation: request, alloc_sig, transaction: None, signer };
 
         self.preconf_pool.reserve_blockspace(preconf_request).await.map_err(RpcError::PoolError)
     }
@@ -102,10 +99,7 @@ where
         let recovered_signer = signature
             .recover_address_from_prehash(&request.digest())
             .map_err(|e| RpcError::SignatureError(e.to_string()))?;
-        let signer = match preconf_request.signer() {
-            Some(signer) => signer,
-            None => return Err(RpcError::UnknownError("No signer found".to_string())),
-        };
+        let signer = preconf_request.signer();
         if recovered_signer != signer {
             return Err(RpcError::SignatureError("Invalid signature".to_string()));
         }
@@ -183,7 +177,7 @@ where
             tip_transaction: request.clone().tip_transaction,
             target_slot: request.target_slot,
             sequence_number: None,
-            signer: Some(signer),
+            signer,
         };
 
         match self

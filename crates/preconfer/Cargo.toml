@@ -35,6 +35,7 @@ reqwest = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = "3.12.0"
 ssz_rs = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }

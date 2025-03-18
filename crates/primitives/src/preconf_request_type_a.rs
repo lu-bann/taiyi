@@ -1,5 +1,5 @@
-use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, B256};
+use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_primitives::{keccak256, Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -12,25 +12,28 @@ pub struct PreconfRequestTypeA {
     pub target_slot: u64,
     /// Relative position of the transaction wrt anchor tx
     pub sequence_number: Option<u64>,
-    /// The signer of the transaction
-    #[serde(skip)]
-    pub signer: Option<Address>,
+    /// The signer of the request
+    pub signer: Address,
 }
 
 impl PreconfRequestTypeA {
     /// Returns the transaction signer.
-    pub fn signer(&self) -> Option<Address> {
+    pub fn signer(&self) -> Address {
         self.signer
     }
 
     /// Sets the signer.
     pub fn set_signer(&mut self, signer: Address) {
-        self.signer = Some(signer);
+        self.signer = signer;
     }
 
     /// Target slot
     pub fn target_slot(&self) -> u64 {
         self.target_slot
+    }
+
+    pub fn preconf_tip(&self) -> U256 {
+        self.tip_transaction.value()
     }
 
     pub fn digest(&self) -> B256 {
@@ -41,8 +44,17 @@ impl PreconfRequestTypeA {
         digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
-        digest.extend_from_slice(self.signer.expect("shouldn't be none").as_slice());
+        digest.extend_from_slice(self.signer.as_slice());
         keccak256(&digest)
+    }
+
+    /// Returns the total value transfer
+    pub fn value(&self) -> U256 {
+        let mut total = self.tip_transaction.value();
+        for tx in &self.preconf_tx {
+            total += tx.value();
+        }
+        total
     }
 }
 

@@ -11,7 +11,6 @@ mod preconf_pool;
 mod pricer;
 #[cfg(test)]
 mod tests;
-mod validator;
 
 pub use preconf_api::spawn_service;
 

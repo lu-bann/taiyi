@@ -11,20 +11,19 @@ pub struct PreconfRequestTypeB {
     pub alloc_sig: PrimitiveSignature,
     /// Preconf transaction
     pub transaction: Option<TxEnvelope>,
-    /// The signer of the transaction
-    #[serde(skip)]
-    pub signer: Option<Address>,
+    /// The signer of the request
+    pub signer: Address,
 }
 
 impl PreconfRequestTypeB {
-    /// Returns the transaction signer.
-    pub fn signer(&self) -> Option<Address> {
+    /// Returns the request signer.
+    pub fn signer(&self) -> Address {
         self.signer
     }
 
     /// Sets the signer.
     pub fn set_signer(&mut self, signer: Address) {
-        self.signer = Some(signer);
+        self.signer = signer;
     }
 
     /// Set alloc signature
@@ -35,6 +34,11 @@ impl PreconfRequestTypeB {
     /// Target slot
     pub fn target_slot(&self) -> u64 {
         self.allocation.target_slot
+    }
+
+    /// preconf tip
+    pub fn preconf_tip(&self) -> U256 {
+        self.allocation.preconf_tip()
     }
 
     /// Digest over allocation and transaction
@@ -98,6 +102,10 @@ impl BlockspaceAllocation {
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
         digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         keccak256(&digest)
+    }
+
+    fn preconf_tip(&self) -> U256 {
+        self.tip + self.deposit
     }
 }
 

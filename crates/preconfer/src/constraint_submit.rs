@@ -8,6 +8,7 @@ use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{keccak256, private::alloy_rlp::Decodable, Bytes, U256};
 use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
+use alloy_rpc_types::TransactionRequest;
 use ethereum_consensus::{
     clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
     ssz::prelude::ByteList,
@@ -31,16 +32,15 @@ where
 {
     let relay_client = state.relay_client.clone();
     let context = state.network_state.context();
-    let genesis_time = match context.genesis_time() {
-        Ok(genesis_time) => genesis_time,
-        Err(_) => context.min_genesis_time + context.genesis_delay,
-    };
     let chain_id = state.network_state.chain_id();
     info!("Starting constraint submitter, chain_id: {chain_id}");
 
     async move {
-        let clock =
-            from_system_time(genesis_time, context.seconds_per_slot, context.slots_per_epoch);
+        let clock = from_system_time(
+            context.actual_genesis_time(),
+            context.seconds_per_slot,
+            context.slots_per_epoch,
+        );
         let mut slot_stream = clock.into_stream();
         while let Some(slot) = slot_stream.next().await {
             let next_slot = slot + 1;
@@ -92,11 +92,17 @@ where
             // Amounts to sponsor for each account
             let mut amounts = Vec::new();
 
-            match state.preconf_pool.ready_requests(next_slot) {
+            let mut cummalative_preconf_tips = U256::ZERO;
+            let fee_reciepient =
+                state.network_state.get_fee_recipient(next_slot).unwrap_or_default();
+            info!(fee_reciepient=?fee_reciepient);
+
+            match state.preconf_pool.fetch_ready(next_slot) {
                 Ok(preconf_requests) => {
                     let sponsor_nonce = nonce;
                     nonce += 1;
                     for preconf_req in preconf_requests {
+                        cummalative_preconf_tips += preconf_req.preconf_tip();
                         match preconf_req {
                             PreconfRequest::TypeA(request) => {
                                 let tip_tx_gas_uesd = state
@@ -110,7 +116,7 @@ where
                                     preconf_tx_gas_used += gas_used;
                                 }
 
-                                accounts.push(request.signer().expect("Signer must be present"));
+                                accounts.push(request.signer());
                                 amounts.push(U256::from(
                                     (tip_tx_gas_uesd + preconf_tx_gas_used) as u128 * base_fee,
                                 ));
@@ -129,9 +135,7 @@ where
                                     let gas_used =
                                         state.preconf_pool.calculate_gas_used(tx.clone()).await?;
 
-                                    accounts.push(
-                                        preconf_req.signer().expect("Signer must be present"),
-                                    );
+                                    accounts.push(preconf_req.signer());
                                     amounts.push(U256::from(gas_used as u128 * base_fee));
 
                                     // preconf tx
@@ -200,6 +204,21 @@ where
                         .await?;
                     let tx_bytes = sponsor_tx.to_ssz_bytes();
                     sponsoring_tx.push(tx_bytes);
+
+                    // Validator Payout Transaction
+                    let value = cummalative_preconf_tips;
+                    let validator_payout_tx = TransactionRequest::default()
+                        .with_nonce(nonce)
+                        .with_chain_id(chain_id)
+                        .with_gas_limit(21_000)
+                        .with_max_fee_per_gas(base_fee)
+                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_to(fee_reciepient)
+                        .with_value(value)
+                        .build(&wallet)
+                        .await?;
+                    let tx_bytes = validator_payout_tx.to_ssz_bytes();
+                    type_b_txs.push(tx_bytes);
                 }
                 Err(err) => {
                     debug!(?err, "Error fetching preconf requests for slot");

@@ -37,11 +37,11 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: None,
-            signer: Some(Address::default()),
+            signer: Address::default(),
         };
 
         let request_id = Uuid::new_v4();
-        preconf_pool._insert_pending(request_id, preconf.clone());
+        preconf_pool.insert_pending(request_id, preconf.clone());
         assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Pending);
 
         // set transaction
@@ -102,9 +102,12 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction),
-            signer: Some(*sender),
+            signer: *sender,
         };
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -165,9 +168,11 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
-            signer: Some(*sender),
+            signer: *sender,
         };
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -228,9 +233,11 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
-            signer: Some(*sender),
+            signer: *sender,
         };
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
@@ -279,9 +286,11 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
-            signer: Some(*sender),
+            signer: *sender,
         };
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -329,10 +338,12 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
-            signer: Some(*sender),
+            signer: *sender,
         };
 
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -401,9 +412,11 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: Some(transaction.clone()),
-            signer: Some(*sender),
+            signer: *sender,
         };
-        let validation_result = preconf_pool.validate_typeb(&preconf_request).await;
+        let account_state =
+            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
         assert!(validation_result.is_err());
         Ok(())
     }

@@ -53,6 +53,7 @@ pub async fn spawn_service(
         provider,
         min_fee_per_gas,
     );
+    let preconf_pool_clone = state.preconf_pool.clone();
 
     // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
@@ -64,6 +65,9 @@ pub async fn spawn_service(
             }
             res = spawn_constraint_submitter(state) => {
                 error!("Constraint submitter task exited. {:?}", res);
+            },
+            res = preconf_pool_clone.state_cache_cleanup(context).await => {
+                error!("Error in state cache cleanup: {:#?}", res);
             },
             _ = tokio::signal::ctrl_c() => {
                 info!("Ctrl-C received, shutting down...");
