@@ -4,10 +4,10 @@ use alloy_consensus::Transaction;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
+use alloy_sol_types::{sol, SolCall};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
-use taiyi_preconfer::metrics::provider;
+use taiyi_preconfer::TaiyiCore::{self, TaiyiCoreCalls};
 use taiyi_primitives::{PreconfResponse, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -290,15 +290,25 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
         txs.extend(decoded_txs);
     }
 
-    let signed_constraints = constraints.first().unwrap().clone();
-    let message = signed_constraints.message;
-    assert_eq!(message.slot, target_slot);
+    let exhaust_func_selector = TaiyiCore::exhaustCall::SELECTOR;
 
-    // TODO: check transaction inclusion in the block
+    let mut exhaust_called = false;
+    for tx in &txs {
+        if tx.kind().is_call() {
+            let selector = tx.input().get(0..4).unwrap();
+            if selector == exhaust_func_selector {
+                exhaust_called = true;
+                break;
+            }
+        }
+    }
+    assert!(exhaust_called);
+
+    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
 
     // TODO: check user balance is deducted by the deposit amount
-    // let balance_after = taiyi_balance(provider, signer.address()).await?;
-    // assert_eq!(balance_after, balance - request.deposit);
+    let balance_after = taiyi_balance(provider, signer.address()).await?;
+    assert_eq!(balance_after, balance - request.deposit);
 
     // Optionally, cleanup when done
     taiyi_handle.abort();

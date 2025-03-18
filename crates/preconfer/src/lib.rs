@@ -28,3 +28,4 @@ pub use preconf_api::api::{
     AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH,
     SUBMIT_TYPEA_TRANSACTION_PATH,
 };
+pub use contract::core::TaiyiCore;
