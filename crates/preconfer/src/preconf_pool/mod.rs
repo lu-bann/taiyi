@@ -112,8 +112,7 @@ impl PreconfPool {
         preconf_request: PreconfRequestTypeB,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
-        self.has_enough_balance(preconf_request.signer(), preconf_request.allocation.deposit)
-            .await?;
+        self.has_enough_balance(preconf_request.signer(), preconf_request.preconf_tip()).await?;
 
         let mut pool_inner = self.pool_inner.write();
 
@@ -187,7 +186,7 @@ impl PreconfPool {
     pub async fn has_enough_balance(
         &self,
         account: Address,
-        deposit: U256,
+        preconf_tip: U256,
     ) -> Result<(), PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
         let escrow_balance =
@@ -197,8 +196,8 @@ impl PreconfPool {
             Ok(balance) => {
                 let effective_balance =
                     balance - U256::from(pending_diffs_for_account.unwrap_or_default());
-                if effective_balance < deposit {
-                    Err(PoolError::InsufficientEscrowBalance(effective_balance, deposit))
+                if effective_balance < preconf_tip {
+                    Err(PoolError::InsufficientEscrowBalance(effective_balance, preconf_tip))
                 } else {
                     Ok(())
                 }
