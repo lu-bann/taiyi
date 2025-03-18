@@ -7,7 +7,7 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{sol, SolCall};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
-use taiyi_preconfer::TaiyiCore::{self, TaiyiCoreCalls};
+use taiyi_preconfer::TaiyiCore;
 use taiyi_primitives::{PreconfResponse, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
