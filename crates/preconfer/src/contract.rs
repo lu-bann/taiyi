@@ -47,7 +47,7 @@ pub mod core {
     }
 }
 
-use alloy_primitives::{Address, Bytes, PrimitiveSignature, U256};
+use alloy_primitives::{Bytes, PrimitiveSignature, U256};
 use taiyi_primitives::PreconfRequestTypeB;
 
 pub fn to_solidity_type(
@@ -56,13 +56,12 @@ pub fn to_solidity_type(
     blockspace_allocation_sig_gateway: PrimitiveSignature,
     raw_tx: Bytes,
     gateway_signed_raw_tx: PrimitiveSignature,
-    taiyi_core: Address,
 ) -> core::TaiyiCore::PreconfRequestBType {
     core::TaiyiCore::PreconfRequestBType {
         blockspaceAllocation: core::TaiyiCore::BlockspaceAllocation {
             gasLimit: U256::from(request.allocation.gas_limit),
             sender: request.signer(),
-            recipient: taiyi_core,
+            recipient: request.allocation.recipient,
             deposit: request.allocation.deposit,
             tip: request.allocation.tip,
             targetSlot: U256::from(request.allocation.target_slot),

@@ -193,7 +193,7 @@ mod tests {
         let request = BlockspaceAllocation {
             target_slot,
             sender: signer.address(),
-            recepient: Address::default(),
+            recipient: Address::default(),
             deposit: U256::from(fee * 21_000 / 2),
             tip: U256::from(fee * 21_000 / 2),
             gas_limit: 21_0000,

@@ -168,7 +168,6 @@ where
                                         blockspace_allocation_sig_gateway,
                                         tx_encoded.into(),
                                         gateway_signed_raw_tx,
-                                        state.preconf_pool.taiyi_escrow_address,
                                     );
 
                                     // Call getTip() on TaiyiCore contract
@@ -257,7 +256,6 @@ where
                                     "Failed to issue commitment: {e:?}"
                                 ))
                             })?,
-                        state.preconf_pool.taiyi_escrow_address,
                     );
 
                     // Call exhaust() on TaiyiCore contract

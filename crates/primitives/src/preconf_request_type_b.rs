@@ -61,7 +61,7 @@ pub struct BlockspaceAllocation {
     /// The address initiating the preconfirmation request
     pub sender: Address,
     /// The address receiving the preconfirmation tip
-    pub recepient: Address,
+    pub recipient: Address,
     /// The deposit to be paid for the blockspace allocation.
     /// This is the amount deducted from the user's escrow balance when the user fails to submit a transaction
     /// for the allocated blockspace.
@@ -86,7 +86,7 @@ impl BlockspaceAllocation {
         let mut digest = Vec::new();
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
         digest.extend_from_slice(self.sender.as_slice());
-        digest.extend_from_slice(self.recepient.as_slice());
+        digest.extend_from_slice(self.recipient.as_slice());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
         digest.extend_from_slice(&self.target_slot.to_le_bytes());
