@@ -47,4 +47,4 @@ jobs:
           make e2e-setup
       - name: Run e2e tests
         run: |
-          make e2e-test
+          make e2e-test ARGS="--features ci"

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
 use alloy_consensus::{Account, Transaction};
 use alloy_eips::BlockNumberOrTag;
@@ -11,7 +11,7 @@ use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use hex::ToHex;
 use reqwest::Url;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
 use taiyi_zkvm_types::{
     types::{
@@ -39,6 +39,7 @@ const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 // TODO: type A included test
 // TODO: type A not included test, can be dynamic
 
+#[cfg_attr(feature = "ci", ignore)]
 #[tokio::test]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let (_taiyi_handle, config) = setup_env().await?;
@@ -291,11 +292,25 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let client = ProverClient::builder().cpu().build();
 
     println!("Executing program...");
-    let (public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+    let (_, report) = client.execute(ELF_POI, &stdin).run().unwrap();
     println!("Executed program with {} cycles", report.total_instruction_count());
 
+    // Generate the proof for the given program and input.
+    let (pk, vk) = client.setup(ELF_POI);
+
+    // Time proof generation
+    let start = Instant::now();
+
+    // Generate proof
+    // TODO: Use plonk
+    let proof = client.prove(&pk, &stdin).core().run().unwrap();
+
+    let duration = start.elapsed();
+    println!("Proof generation time: {:?}", duration);
+
+    // Decode public values
     let public_values_struct =
-        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+        PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true).unwrap();
 
     // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
     assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
@@ -308,6 +323,11 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         public_values_struct.signature,
         Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
     );
+
+    // Verify proof and public values
+    client.verify(&proof, &vk).expect("verification failed");
+
+    proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
 
     Ok(())
 }
