@@ -425,7 +425,7 @@ impl PreconfPool {
 
     #[allow(dead_code)]
     /// Inserts a preconf request into the pending pool.
-    fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
+    pub fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
         self.pool_inner.write().pending.insert(request_id, preconf_request);
     }
 
