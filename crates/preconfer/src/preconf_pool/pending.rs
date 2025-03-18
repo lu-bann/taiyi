@@ -44,13 +44,12 @@ impl Pending {
         self.by_id.remove(&key)
     }
 
-    /// Calculates the total pending deposit for all parked transactions.
-    /// This is the sum of the deposit of all parked transactions.
-    pub fn get_pending_diffs_for_account(&self, account: Address) -> Option<U256> {
+    /// Returns the sum of all preconf tips for all preconf requests from a given account
+    pub fn get_balance_diffs_for_account(&self, account: Address) -> Option<U256> {
         self.by_account.get(&account).map(|ids| {
             ids.iter()
                 .filter_map(|id| self.by_id.get(id))
-                .map(|preconf| preconf.allocation.deposit)
+                .map(|preconf| preconf.preconf_tip())
                 .sum()
         })
     }
@@ -118,12 +117,12 @@ mod tests {
         pending.insert(id1, request1.clone());
         pending.insert(id2, request2.clone());
 
-        assert_eq!(pending.get_pending_diffs_for_account(account), Some(U256::from(300)));
+        assert_eq!(pending.get_balance_diffs_for_account(account), Some(U256::from(300)));
 
         pending.remove(id1);
-        assert_eq!(pending.get_pending_diffs_for_account(account), Some(U256::from(200)));
+        assert_eq!(pending.get_balance_diffs_for_account(account), Some(U256::from(200)));
 
         pending.remove(id2);
-        assert_eq!(pending.get_pending_diffs_for_account(account), None);
+        assert_eq!(pending.get_balance_diffs_for_account(account), None);
     }
 }
