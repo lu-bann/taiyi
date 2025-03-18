@@ -291,21 +291,33 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 
     let exhaust_func_selector = TaiyiCore::exhaustCall::SELECTOR;
 
-    let mut exhaust_called = false;
+    let mut exhaust_tx = None;
     for tx in &txs {
         if tx.kind().is_call() {
             let selector = tx.input().get(0..4).unwrap();
             if selector == exhaust_func_selector {
-                exhaust_called = true;
+                exhaust_tx = Some(tx.clone());
                 break;
             }
         }
     }
-    assert!(exhaust_called);
+    assert!(exhaust_tx.is_some());
 
     wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
 
-    // TODO: check user balance is deducted by the deposit amount
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            exhaust_tx.unwrap().tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "exhaust tx is not in the block"
+    );
+
     let balance_after = taiyi_balance(provider, signer.address()).await?;
     assert_eq!(balance_after, balance - request.deposit);
 
