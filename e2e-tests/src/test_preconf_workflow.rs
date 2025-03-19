@@ -9,7 +9,7 @@ use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
 use taiyi_preconfer::TaiyiCore;
-use taiyi_primitives::{PreconfResponse, SubmitTransactionRequest};
+use taiyi_primitives::{PreconfRequestTypeA, PreconfResponse, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -117,7 +117,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     transaction.clone().encode_2718(&mut tx_bytes);
     let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
     let data =
-        keccak256((blockspace_request.hash(chain_id), raw_tx.as_bytes()).abi_encode_sequence());
+        keccak256((blockspace_request.hash(chain_id), raw_tx.as_bytes()).abi_encode_packed());
     let signer = commitment.recover_address_from_prehash(&data).unwrap();
     assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
 
@@ -367,6 +367,10 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
 
+    let provider =
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(&config.execution_url).await?;
+    let chain_id = provider.get_chain_id().await?;
+
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot;
@@ -376,7 +380,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_type_a_request(signer, target_slot, &config.execution_url, fee).await?;
+        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee).await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
@@ -386,6 +390,18 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     assert_eq!(status, 200);
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
+
+    let commitment = preconf_response.data.commitment.unwrap();
+    let type_a = PreconfRequestTypeA {
+        tip_transaction: request.tip_transaction.clone(),
+        preconf_tx: request.preconf_transaction.clone(),
+        target_slot: request.target_slot,
+        sequence_number: preconf_response.data.sequence_num,
+        signer: signer.address(),
+    };
+    let data = type_a.digest(chain_id);
+    let signer = commitment.recover_address_from_prehash(&data).unwrap();
+    assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
 
     wati_until_deadline_of_slot(&config, target_slot).await?;
 
