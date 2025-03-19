@@ -123,13 +123,8 @@ pub fn main() {
 
         // User transactions and anchor tx inclusion
 
-        // PANICS: called `Result::unwrap()` on an `Err` value: InvalidStateRoot
         let memdb = Arc::new(MemoryDB::new(true));
-        let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
-
-        // Works
-        let memdb = Arc::new(MemoryDB::new(true));
-        let trie = EthTrie::from(memdb, previous_block_header.transactions_root).unwrap();
+        let trie = EthTrie::new(memdb);
 
         assert!(preconf_req_a.tx_merkle_proof.len() == txs.len() + 1); // +1 for the anchor tx
         for (index, merkle_proof) in preconf_req_a.tx_merkle_proof.iter().enumerate() {
@@ -260,9 +255,10 @@ pub fn main() {
            // TODO: check that the user tx is before the sponsorship tx
 
         let memdb = Arc::new(MemoryDB::new(true));
-        let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
+        let trie = EthTrie::new(memdb);
 
         for (index, merkle_proof) in preconf_req_b.tx_merkle_proof.iter().enumerate() {
+            assert!(merkle_proof.root == inclusion_block_header.transactions_root);
             if index == 0 {
                 assert!(merkle_proof.key == tx.tx_hash().as_slice());
                 trie.verify_proof(
