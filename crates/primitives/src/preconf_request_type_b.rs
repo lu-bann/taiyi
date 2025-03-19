@@ -1,5 +1,6 @@
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, PrimitiveSignature, B256, U256};
+use alloy_eips::eip2718::Encodable2718;
+use alloy_primitives::{hex, keccak256, Address, PrimitiveSignature, B256, U256};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -46,7 +47,10 @@ impl PreconfRequestTypeB {
         let mut digest = Vec::new();
         digest.extend_from_slice(&self.allocation.blockspace_digest());
         if let Some(tx) = &self.transaction {
-            digest.extend_from_slice(tx.tx_hash().as_slice());
+            let mut tx_bytes = Vec::new();
+            tx.encode_2718(&mut tx_bytes);
+            let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
+            digest.extend_from_slice(raw_tx.as_bytes());
         }
         keccak256(&digest)
     }
@@ -95,13 +99,7 @@ impl BlockspaceAllocation {
     }
 
     pub fn digest(&self) -> B256 {
-        let mut digest = Vec::new();
-        digest.extend_from_slice(&self.target_slot.to_le_bytes());
-        digest.extend_from_slice(&self.gas_limit.to_le_bytes());
-        digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
-        digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
-        digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
-        keccak256(&digest)
+        keccak256(self.blockspace_digest())
     }
 
     fn preconf_tip(&self) -> U256 {
