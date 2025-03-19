@@ -62,6 +62,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
         .wallet(EthereumWallet::new(signer.clone()))
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
     taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
@@ -79,7 +80,8 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee, chain_id)
+            .await;
 
     info!("Submitting request for target slot: {:?}", target_slot);
 
@@ -168,6 +170,8 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
         .wallet(wallet.clone())
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
+
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
     assert_eq!(balance, U256::from(0));
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -178,7 +182,8 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee, chain_id)
+            .await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -203,6 +208,8 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
         .wallet(wallet.clone())
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
+
     taiyi_deposit(provider.clone(), 100_000, &config).await?;
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
     assert_eq!(balance, U256::from(100_000));
@@ -218,7 +225,8 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 100000, 0, fee, chain_id)
+            .await;
 
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
@@ -258,6 +266,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
         .wallet(EthereumWallet::new(signer.clone()))
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
     taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
@@ -271,7 +280,8 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee, chain_id)
+            .await;
 
     // Reserve blockspace
     let res =
@@ -409,6 +419,7 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         .wallet(EthereumWallet::new(signer.clone()))
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
     taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
@@ -450,8 +461,15 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         submitted_txs.push(request.preconf_transaction.first().unwrap().clone());
 
         // Generate request and signature
-        let (request, signature) =
-            generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+        let (request, signature) = generate_reserve_blockspace_request(
+            signer.clone(),
+            target_slot,
+            21_0000,
+            0,
+            fee,
+            chain_id,
+        )
+        .await;
 
         // Reserve blockspace
         let res = send_reserve_blockspace_request(request.clone(), signature, &config.taiyi_url())

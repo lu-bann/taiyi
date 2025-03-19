@@ -329,6 +329,7 @@ pub async fn generate_reserve_blockspace_request(
     gas_limit: u64,
     blob_count: u64,
     preocnf_fee: PreconfFeeResponse,
+    chain_id: u64,
 ) -> (BlockspaceAllocation, String) {
     let fee = preocnf_fee.gas_fee * (gas_limit as u128)
         + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
@@ -345,7 +346,7 @@ pub async fn generate_reserve_blockspace_request(
     };
     info!("block space allocation request: {:?}", request);
     let signature =
-        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
+        hex::encode(signer_private.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
     (request, format!("0x{signature}"))
 }
 
