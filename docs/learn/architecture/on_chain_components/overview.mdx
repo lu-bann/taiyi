@@ -1,0 +1,161 @@
+---
+title: Overview
+description: An overview of the dual restaking service architecture in Taiyi
+icon: 'map'
+---
+Taiyi implements two dual-restaking services on EigenLayer and Symbiotic respectively:
+1. **Validator Service** - Allows validators to opt-in and earn rewards from preconfirmations via delegation to operators from Preconf Service. 
+2. **Preconf Service** - Enables opt-in operators to build preconfirmation blocks on behalf of opt-in validators from the Validator Service. 
+
+<Note>
+Taiyi's dual-restaking services are designed to work with any underlying restaking protocol, not just a specific one. Throughout our documentation, when we use the term "AVS" we are typically referring to EigenLayer's implementation, while "Network" refers to Symbiotic's implementation. However, the core concepts and architecture remain the same regardless of which protocol is used.
+</Note>
+
+
+<Note>
+Validator Service operator could opt-in to both services through self-delegation.
+</Note>
+
+
+```mermaid
+graph TB
+        subgraph "Gateway Service"
+            GW[Gateway Operators]
+            GW_LOGIC[Advanced Pricing & Preconf Logic]
+            GW --> GW_LOGIC
+            style GW fill:#ffe0b3,stroke:#ff9900
+            style GW_LOGIC fill:#ffe0b3,stroke:#ff9900
+        end
+        
+        subgraph "Validator Service"
+            VAL[Validators]
+            VAL_LOGIC[Basic ETH Client + Commit-boost]
+            VAL --> VAL_LOGIC
+            style VAL fill:#ddffdd,stroke:#3f9c35
+            style VAL_LOGIC fill:#ddffdd,stroke:#3f9c35
+        end
+        
+        EL[Restaking Protocol]
+        style EL fill:#a6c8ff,stroke:#0034e5
+        
+        GW --> EL
+        VAL --> EL
+```
+
+## Why Dual Restaking Services?
+
+### Different Software Requirements
+- **Validator Service**: Minimal changes to existing ETH client with commit-boost integration
+- **Gateway Service**: Sophisticated setup with advanced pricing and preconfirmation logic
+
+### Different Risk/Reward Profiles
+| Aspect | Validator Service | Gateway Service |
+|--------|--------------|-------------|
+| System Approach | Passive restaking | Active participation with restaking security |
+| Setup Complexity | Basic EL + CL + Commit-boost | Sophisticated Gateway + pricing strategy |
+| Risk/Reward Profile | Lower risk/reward | Higher risk/reward |
+
+## System Components
+
+```mermaid
+graph TB
+    subgraph "Contract Architecture"
+        TPR[TaiyiProposerRegistry]
+        GAVS[Gateway Service Middleware]
+        VAVS[Validator Service Middleware]
+        ELM[Restaking Protocol Middleware]
+        
+        TPR --> GAVS
+        TPR --> VAVS
+        GAVS --> ELM
+        VAVS --> ELM
+        
+        style TPR fill:#ffffcc,stroke:#777700
+        style GAVS fill:#ffe0b3,stroke:#ff9900
+        style VAVS fill:#ddffdd,stroke:#3f9c35
+        style ELM fill:#a6c8ff,stroke:#0034e5
+    end
+```
+
+### Core Contracts
+1. **[TaiyiProposerRegistry](./taiyi_proposer_registry)**: Registry contract managing validators and operators in both AVSs
+2. **[Restaking Protocol Middleware](./restaking_protocol_middleware)**: Middleware contract for interacting with the restaking protocol
+3. **GatewayAVS**: Contract handling gateway functionality and preconfirmation tasks
+4. **ValidatorAVS**: Contract managing validator logic and basic staking operations
+
+## Registration Flow
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant DM as DelegationManager
+    participant GAVS as GatewayRestakingService
+    participant VAVS as ValidatorRestakingService
+    participant TPR as TaiyiProposerRegistry
+    
+    Note over Operator,TPR: Step 1: Restaking Protocol Registration (Required for all paths)
+    Operator->>DM: registerAsOperator()
+        
+    Note over Operator,TPR: Option A: Validator Restaking Service Only
+    rect rgb(221, 255, 221)
+        Operator->>VAVS: registerOperator()
+        Note over VAVS: Provides operator signature
+        VAVS->>TPR: Register as Validator Restaking Service Operator
+        Note over TPR: ✓ Can now receive validator rewards
+    end
+    
+    Note over Operator,TPR: Option B: Gateway Restaking Service Only
+    rect rgb(255, 224, 179)
+        Operator->>GAVS: registerOperator()
+        Note over GAVS: Provides BLS key + signature
+        GAVS->>TPR: Register as Gateway Restaking Service Operator
+        Note over TPR: ✓ Can now receive gateway rewards
+    end
+    
+    Note over Operator,TPR: Option C: Both Restaking Services (Self-Delegation)
+    rect rgb(255, 242, 230)
+        Operator->>GAVS: 1. registerOperator()
+        GAVS->>TPR: Register as Gateway Restaking Service Operator
+        Operator->>VAVS: 2. registerOperator()
+        Note over VAVS: Self-delegates to own Gateway
+        VAVS->>TPR: Register as Validator Restaking Service Operator
+        Note over TPR: ✓ Can now receive validator + gateway rewards
+    end
+```
+
+## Reward Distribution
+The dual-restaking service implements a collaborative approach to block proposals with shared tips and fees between Restaking Services:
+```mermaid
+graph TD
+    RI[Reward Initiator] --> GAVS[Gateway Restaking Service]
+    GAVS --> |Gateway Portion|GO[Gateway Operators]
+    GAVS --> |Validator Portion|VAVS[Validator Restaking Service]
+    VAVS --> |Distributed by Validator Count|VO[Validator Operators]
+    
+    style RI fill:#f9f,stroke:#333
+    style GAVS fill:#ffe0b3,stroke:#ff9900
+    style VAVS fill:#ddffdd,stroke:#3f9c35
+    style GO fill:#ffe0b3,stroke:#ff9900
+    style VO fill:#ddffdd,stroke:#3f9c35
+```
+
+<Note>
+ Example Reward Flow
+Consider a reward distribution of 1000 tokens:
+
+1. Gateway Restaking Service receives two submissions:
+   - "Gateway" portion (1000 tokens)
+   - "Validator" placeholder
+
+2. GatewayAVS splits the tokens:
+   - 70% (700 tokens) distributed among 5 Gateway operators
+   - 30% (300 tokens) reserved for ValidatorAVS
+
+3. Validator Restaking Service distributes 300 tokens among 3 operators based on validator count:
+   - Operator1 (50 validators): 150 tokens
+   - Operator2 (30 validators): 90 tokens  
+   - Operator3 (20 validators): 60 tokens
+
+4. Operators claim their shares from Rewards Coordinator
+</Note>
+

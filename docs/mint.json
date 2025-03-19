@@ -1,0 +1,190 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Taiyi V1",
+  "logo": {
+    "dark": "/logo/luban-logo-v.png",
+    "light": "/logo/luban-logo-v.png"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#E53935",
+    "light": "#F0E6DD",
+    "dark": "#1A0F0F",
+    "background": {
+      "light": "#FFF3E9",
+      "dark": "#231515"
+    }
+  },
+  "theme": "quill",
+  "font": {
+    "headings": {
+      "family": "Futura",
+      "weight": 400
+    },
+    "body": {
+      "family": "Futura"
+    }
+  },
+  "topbar": {
+    "style": "gradient"
+ },
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/lu-bann/taiyi"
+  },
+  "tabs": [
+    {
+      "name": "Preconfirmer API Endpoints",
+      "url": "preconfirmer-api-endpoints"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Github",
+      "icon": "github",
+      "url": "https://github.com/lu-bann"
+    },
+    {
+      "name": "X",
+      "icon": "x",
+      "url": "https://x.com/lu_ban_"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "taiyi_overview",
+        {
+          "group": "Node Operator Setup Guide",
+          "icon": "computer",
+          "pages": [
+            "node_operator_setup_guide/helder_devnet",
+            {
+              "group": "Holesky Testnet",
+              "icon": "ethereum",
+              "pages": [
+                "node_operator_setup_guide/holesky/overview",
+                "node_operator_setup_guide/holesky/system_requirements",
+                "node_operator_setup_guide/holesky/installation_and_configuration",
+                "node_operator_setup_guide/holesky/onchain_registration"
+              ]
+            }
+          ]
+        },
+        "send_your_first_preconfirmation",
+        "using_preconf_aggregator",
+        {
+            "group": "Taiyi CLI User Guide",
+            "icon": "terminal",
+            "pages": [
+              "taiyi-cli/register",
+              "taiyi-cli/deposit",
+              "taiyi-cli/delegate",
+              "taiyi-cli/deregister"
+            ]
+        }
+      ]
+    },
+    {
+      "group": "Build",
+      "pages": [
+        {
+          "group": "Examples",
+          "icon": "laptop-binary",
+          "pages": [
+            "build/examples/send_preconf_tx"
+          ]
+        },
+        {
+          "group": "API Reference",
+          "icon": "scanner-keyboard",
+          "pages": [
+            "build/api_reference/preconfer_api",
+            "build/api_reference/builder_api",
+            "build/api_reference/relay_api"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Learn",
+      "pages": [
+        {
+          "group": "Concepts",
+          "icon": "bulldozer",
+          "pages": [
+            "learn/fundamentals/what",
+            "learn/fundamentals/life_cycle_of_a_preconf_tx",
+            "learn/fundamentals/preconf_fungibility",
+            "learn/fundamentals/blockspace_derivatives",
+            "learn/fundamentals/preconf_pricing_backtesting",
+            "learn/fundamentals/pricing_preconf",
+            "learn/fundamentals/fair_exchange_problem",
+            "learn/fundamentals/based_sequencing",
+            "learn/fundamentals/economic_security"
+          ]
+        },
+        {
+          "group": "System Architecture",
+          "icon": "bridge",
+          "pages": [
+            {
+              "group": "Off-Chain Components",
+              "icon": "satellite",
+              "pages": [
+                "learn/architecture/off_chain_components/overview",
+                "learn/architecture/off_chain_components/builder",
+                "learn/architecture/off_chain_components/relay",
+                "learn/architecture/off_chain_components/commit_boost"
+              ]
+            },
+            {
+              "group": "On-Chain Components",
+              "icon": "link",
+              "pages": [
+                {
+                  "group": "Restaking Service Contracts",
+                  "icon": "circle-nodes",
+                  "pages": [
+                    "learn/architecture/on_chain_components/overview",
+                    "learn/architecture/on_chain_components/network_middleware_contracts",
+                    "learn/architecture/on_chain_components/avs_middleware_contracts",
+                    "learn/architecture/on_chain_components/taiyi_proposer_registry"
+                  ]
+                },
+                "learn/architecture/on_chain_components/luban_core"
+              ]
+            }
+          ]
+        },
+        "learn/glossary"
+      ]
+    },
+    {
+      "group": "Network Information",
+      "pages": [
+        "network_info/supported_endpoints",
+        "network_info/contract_addresses"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "preconfirmer-api-endpoints/introduction"
+      ]
+    },
+    {
+      "group": "Endpoint Examples",
+      "pages": [
+        "preconfirmer-api-endpoints/endpoint/get",
+        "preconfirmer-api-endpoints/endpoint/create",
+        "preconfirmer-api-endpoints/endpoint/delete"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/lu_ban_",
+    "github": "https://github.com/lu-bann"
+  }
+}

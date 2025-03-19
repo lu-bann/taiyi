@@ -1,0 +1,45 @@
+name: e2e tests
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - dev
+  pull_request:
+
+env:
+  ENCLAVE_NAME: luban
+
+jobs:
+  e2e:
+    name: Run e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install kurtosis
+        run: |
+          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt update
+          sudo apt install kurtosis-cli
+      - name: Run kurtosis devnet
+        run: |
+          make e2e-network
+      - name: Pre setup taiyi
+        run: |
+          make e2e-setup
+      - name: Run e2e tests
+        run: |
+          make e2e-test

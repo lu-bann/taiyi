@@ -1,0 +1,410 @@
+---
+title: Taiyi Proposer Registry
+icon: 'registered'
+---
+
+# Key Responsibilities
+
+The Taiyi Proposer Registry is a core contract that serves as the central coordination point for both Validator AVS and Gateway AVS operators in the Taiyi protocol. It manages operator registrations, validator registrations, delegations, and operational status tracking. 
+
+## Core Functions
+
+### Contract Setup
+
+#### initialize
+```solidity
+function initialize(address _owner) external initializer
+```
+Initializes the contract with the specified owner address. This can only be called once as per the initializer modifier.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `_owner` | `address` | Address of the contract owner |
+
+#### setAVSContracts
+```solidity
+function setAVSContracts(address gatewayAVSAddr, address validatorAVSAddr) external onlyOwner
+```
+Sets the addresses of the GatewayAVS and ValidatorAVS contracts. Can only be called by the contract owner.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `gatewayAVSAddr` | `address` | Address of the GatewayAVS contract |
+| `validatorAVSAddr` | `address` | Address of the ValidatorAVS contract |
+
+### Middleware Management
+
+#### addRestakingMiddlewareContract
+```solidity
+function addRestakingMiddlewareContract(address middlewareContract) external onlyOwner
+```
+Adds a new middleware contract to the registry. Only callable by the owner, used to expand supported middleware contracts.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `middlewareContract` | `address` | Address of middleware contract to add |
+
+#### removeRestakingMiddlewareContract
+```solidity
+function removeRestakingMiddlewareContract(address middlewareContract) external onlyOwner
+```
+Removes a middleware contract from the registry. Only callable by the owner, used to manage supported middleware contracts.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `middlewareContract` | `address` | Address of middleware contract to remove |
+
+### Operator Management
+
+#### registerOperator
+```solidity
+function registerOperator(address operatorAddress, AVSType avsType, bytes calldata blsKey) external
+```
+Registers a new operator in the specified AVS type (GATEWAY or VALIDATOR). For GATEWAY type, requires a valid BLS public key.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `operatorAddress` | `address` | The address of the operator to register |
+| `avsType` | `AVSType` | The type of AVS (GATEWAY or VALIDATOR) |
+| `blsKey` | `bytes` | The BLS public key for the operator (only for GATEWAY type) |
+
+#### deregisterOperator
+```solidity
+function deregisterOperator(address operatorAddress) external
+```
+Deregisters an operator from the system. Cannot be called if the operator has active validators or validators in cooldown.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `operatorAddress` | `address` | The address of the operator to deregister |
+
+### Validator Management
+
+#### registerValidator
+```solidity
+function registerValidator(
+    BLS12381.G1Point calldata pubkey,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature,
+    address delegatee
+) external payable
+```
+Registers a validator with their BLS public key and optional delegatee.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkey` | `BLS12381.G1Point` | The BLS public key of the validator |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+| `delegatee` | `address` | Address of the delegatee for preconfirmations |
+
+#### batchRegisterValidators
+```solidity
+function batchRegisterValidators(
+    BLS12381.G1Point[] calldata pubkeys,
+    uint256 signatureExpiry,
+    BLS12381.G2Point[] calldata signatures,
+    address[] calldata delegatees
+) external payable
+```
+Registers multiple validators in a single transaction for gas efficiency.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkeys` | `BLS12381.G1Point[]` | Array of validator BLS public keys |
+| `signatureExpiry` | `uint256` | Expiry timestamp for all signatures |
+| `signatures` | `BLS12381.G2Point[]` | Array of BLS signatures proving control of pubkeys |
+| `delegatees` | `address[]` | Array of delegatee addresses |
+
+### Opt-Out Management
+
+#### initOptOut
+```solidity
+function initOptOut(
+    bytes32 pubKeyHash,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature
+) external
+```
+Initiates the opt-out process for a validator, starting the cooldown period.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+#### confirmOptOut
+```solidity
+function confirmOptOut(bytes32 pubKeyHash) external
+```
+Confirms validator opt-out after cooldown period has elapsed.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+
+### View Functions
+
+#### getGatewayAVS
+```solidity
+function getGatewayAVS() external view returns (IGatewayAVS)
+```
+Returns the GatewayAVS contract instance.
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `IGatewayAVS` | The GatewayAVS contract interface |
+
+#### getValidatorAVS
+```solidity
+function getValidatorAVS() external view returns (IValidatorAVS)
+```
+Returns the ValidatorAVS contract instance.
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `IValidatorAVS` | The ValidatorAVS contract interface |
+
+#### getOperator
+```solidity
+function getOperator(bytes32 pubKeyHash) external view returns (address)
+```
+Returns the operator address for a given validator by their public key hash.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of the validator's BLS public key |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `address` | The operator's address |
+
+#### getValidatorOperator
+```solidity
+function getValidatorOperator(bytes calldata pubkey) external view returns (address)
+```
+Returns the operator address for a given validator by their full public key.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkey` | `bytes` | The BLS public key of the validator |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `address` | The operator's address |
+
+#### getValidatorStatus
+```solidity
+function getValidatorStatus(bytes32 pubKeyHash) external view returns (ValidatorStatus)
+function getValidatorStatus(bytes calldata pubKey) external view returns (ValidatorStatus)
+```
+Returns the current status of a validator (NotRegistered, OptedOut, Active, OptingOut).
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of the validator's BLS public key |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `ValidatorStatus` | The current status of the validator |
+
+#### getValidator
+```solidity
+function getValidator(bytes32 pubKeyHash) external view returns (Validator memory)
+```
+Returns complete validator information including status, operator, and delegation details.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of the validator's BLS public key |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `Validator` | Complete validator information |
+
+#### getValidatorCountForOperatorInAVS
+```solidity
+function getValidatorCountForOperatorInAVS(address operator) external view returns (uint256)
+```
+Returns the number of validators registered to a specific operator.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `operator` | `address` | The address of the operator |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `uint256` | The number of validators registered to the operator |
+
+#### getRegisteredOperator
+```solidity
+function getRegisteredOperator(address operatorAddr) external view returns (Operator memory gatewayOp, Operator memory validatorOp)
+```
+Returns the registration information for an operator in both Gateway and Validator AVS roles.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `operatorAddr` | `address` | The address of the operator |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `Operator` | Registration information for the operator in Gateway and Validator AVS roles |
+
+#### getActiveOperatorsForAVS
+```solidity
+function getActiveOperatorsForAVS(address avs) external view returns (address[] memory)
+```
+Returns an array of active operator addresses for a specific AVS type.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `avs` | `address` | The address of the AVS |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `address[]` | Array of active operator addresses |
+
+#### getTotalValidatorCountForAVS
+```solidity
+function getTotalValidatorCountForAVS(address avs) external view returns (uint256)
+```
+Returns the total number of validators registered in a specific AVS.
+
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `avs` | `address` | The address of the AVS |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `uint256` | The total number of validators registered in the AVS |
+
+## `TaiyiProposerRegistry.sol`
+Maintains registry of opted-in validators and manages their status and delegations. Handles BLS signature verification for validator registration and opt-out processes.
+
+- Maintains registry of opted-in validators
+- Handles BLS signature verification for validator registration
+- Manages validator status and delegations
+- Coordinates opt-in/opt-out processes with cooldown periods
+
+### Functions
+#### `registerValidator`
+```solidity
+function registerValidator(
+    BLS12381.G1Point calldata pubkey,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature,
+    address delegatee
+) external payable
+```
+Registers a validator with their BLS public key and optional delegatee.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubkey` | `BLS12381.G1Point` | The BLS public key of the validator |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+| `delegatee` | `address` | Address of the delegatee for preconfirmations |
+
+#### `initOptOut`
+```solidity
+function initOptOut(
+    bytes32 pubKeyHash,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature
+) external
+```
+Initiates the opt-out process for a validator, starting the cooldown period.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+#### `confirmOptOut`
+```solidity
+function confirmOptOut(bytes32 pubKeyHash) external
+```
+Confirms validator opt-out after cooldown period has elapsed.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `pubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+
+#### `delegatePreconfDuty`
+```solidity
+function delegatePreconfDuty(
+    PreconferElection calldata preconferElection,
+    BLS12381.G2Point memory signature
+) external
+```
+Allows a validator to delegate preconfirmation duties to a registered preconfirmer.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `preconferElection` | `PreconferElection` | Struct containing delegation details including validator pubkey and preconfirmer address |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of validator pubkey |
+
+#### `revokeDelegation`
+```solidity
+function revokeDelegation(
+    bytes32 validatorPubKeyHash,
+    uint256 signatureExpiry,
+    BLS12381.G2Point calldata signature
+) external
+```
+Revokes an existing delegation for a validator.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `validatorPubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+| `signatureExpiry` | `uint256` | Expiry timestamp for the signature |
+| `signature` | `BLS12381.G2Point` | BLS signature proving control of pubkey |
+
+### View Functions
+
+#### `getDelegatedPreconfirmer`
+```solidity
+function getDelegatedPreconfirmer(bytes32 validatorPubKeyHash) external view returns (address)
+```
+Returns the current delegated preconfirmer for a validator.
+Parameters:
+| Name | Type | Description |
+|------|------|-------------|
+| `validatorPubKeyHash` | `bytes32` | Hash of validator's BLS public key |
+
+Returns:
+| Type | Description |
+|------|-------------|
+| `address` | Address of the delegated preconfirmer |
+
+

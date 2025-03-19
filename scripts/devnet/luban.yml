@@ -1,0 +1,26 @@
+participants:
+  - el_type: geth
+    cl_type: lighthouse
+    vc_extra_params: ["--prefer-builder-proposals"]
+    cl_extra_params: [
+      "--always-prepare-payload", 
+      "--prepare-payload-lookahead=8000",
+      ]
+    el_image: ethereum/client-go:v1.14.13
+    count: 1
+mev_type: helix
+additional_services:
+  - tx_spammer
+  - blob_spammer
+  - custom_flood
+  - dora
+  - rbuilder
+  # - blockscout
+mev_params:
+  mev_boost_image: ghcr.io/commit-boost/pbs:v0.6.0
+network_params:
+  seconds_per_slot: 12
+helix_params:
+  helix_image: "lubann/helix:latest"
+rbuilder_params:
+  rbuilder_image: "lubann/reth-rbuilder:latest"

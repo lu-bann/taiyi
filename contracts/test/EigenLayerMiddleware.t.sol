@@ -1,0 +1,904 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import { ERC20PresetFixedSupplyUpgradeable } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/token/ERC20/presets/ERC20PresetFixedSupplyUpgradeable.sol";
+
+import { IERC20 } from
+    "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
+import { IDelegationManager } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import { IDelegationManagerTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+
+import { IEigenPod } from "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IEigenPodTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IEigenPod.sol";
+import { IRewardsCoordinator } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinatorTypes } from
+    "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { ISignatureUtils } from
+    "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
+
+import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
+import { EigenLayerMiddleware } from "src/eigenlayer-avs/EigenLayerMiddleware.sol";
+
+import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
+import { GatewayAVS } from "src/eigenlayer-avs/GatewayAVS.sol";
+import { ValidatorAVS } from "src/eigenlayer-avs/ValidatorAVS.sol";
+import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
+
+import { StdUtils } from "forge-std/StdUtils.sol";
+import "forge-std/Test.sol";
+import { BLS12381 } from "src/libs/BLS12381.sol";
+
+import { TransparentUpgradeableProxy } from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
+contract EigenlayerMiddlewareTest is Test {
+    using BLS12381 for BLS12381.G1Point;
+
+    ValidatorAVS public validatorAVS;
+    GatewayAVS public gatewayAVS;
+    TaiyiProposerRegistry public proposerRegistry;
+    EigenlayerDeployer public eigenLayerDeployer;
+
+    address public owner;
+    address staker;
+    address operator;
+    address rewardsInitiator;
+    uint256 operatorSecretKey;
+    bytes operatorBLSPubKey;
+
+    uint256 constant STAKE_AMOUNT = 32 ether;
+    uint256 constant GATEWAY_SHARE_BIPS = 8000; // 80%
+
+    // Events to track
+    event ValidatorOperatorRegistered(
+        address indexed operator,
+        address indexed avs,
+        bytes delegatedGatewayPubKey,
+        bytes validatorPubKey
+    );
+
+    // Modifiers
+    modifier impersonate(address user) {
+        vm.startPrank(user);
+        _;
+        vm.stopPrank();
+    }
+
+    /// @notice Performs initial setup for the test environment by deploying and initializing contracts
+    function setUp() public {
+        eigenLayerDeployer = new EigenlayerDeployer();
+        staker = eigenLayerDeployer.setUp();
+
+        (operator, operatorSecretKey) = makeAddrAndKey("operator");
+        owner = makeAddr("owner");
+        rewardsInitiator = makeAddr("rewardInitiator");
+        address proxyAdmin = makeAddr("proxyAdmin"); // Create separate admin for proxies
+
+        // Create mock BLS key
+        operatorBLSPubKey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            operatorBLSPubKey[i] = 0xab;
+        }
+
+        vm.startPrank(owner);
+
+        // Deploy TaiyiProposerRegistry as an upgradeable instance
+        TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
+        TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
+            address(registryImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
+        );
+        proposerRegistry = TaiyiProposerRegistry(address(registryProxy));
+
+        // Deploy ValidatorAVS
+        ValidatorAVS validatorImpl = new ValidatorAVS();
+        TransparentUpgradeableProxy validatorProxy = new TransparentUpgradeableProxy(
+            address(validatorImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(
+                ValidatorAVS.initialize.selector,
+                owner,
+                address(proposerRegistry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
+        );
+        validatorAVS = ValidatorAVS(address(validatorProxy));
+
+        // Deploy GatewayAVS
+        GatewayAVS gatewayImpl = new GatewayAVS();
+        TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
+            address(gatewayImpl),
+            proxyAdmin, // Use proxyAdmin instead of owner
+            abi.encodeWithSelector(
+                GatewayAVS.initialize.selector,
+                owner,
+                address(proposerRegistry),
+                address(eigenLayerDeployer.avsDirectory()),
+                address(eigenLayerDeployer.delegation()),
+                address(eigenLayerDeployer.strategyManager()),
+                address(eigenLayerDeployer.eigenPodManager()),
+                address(eigenLayerDeployer.rewardsCoordinator()),
+                rewardsInitiator,
+                GATEWAY_SHARE_BIPS
+            )
+        );
+        gatewayAVS = GatewayAVS(address(gatewayProxy));
+
+        // Set AVS contracts in registry
+        proposerRegistry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
+
+        // Register AVS contracts with the registry
+        // proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
+        // proposerRegistry.addRestakingMiddlewareContract(address(gatewayAVS));
+
+        // Set AVS types in the registry
+        // proposerRegistry.setAvsType(
+        //     address(validatorAVS),
+        //     IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
+        // );
+        // proposerRegistry.setAvsType(
+        //     address(gatewayAVS), IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+        // );
+
+        vm.stopPrank();
+    }
+
+    function test_StakeWETH() public {
+        uint256 shares = _stakeWETH();
+        assertEq(eigenLayerDeployer.wethStrat().sharesToUnderlyingView(shares), 69 ether);
+    }
+
+    function test_StakerDelegationToOperator() public {
+        _operatorRegistration(operator);
+        _delegationToOperator(staker, operator);
+        assertEq(eigenLayerDeployer.delegation().delegatedTo(staker), operator);
+    }
+
+    function testGatewayOperatorAVSRegistration() public {
+        _operatorRegistration(operator);
+        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+            ),
+            "Gateway operator registration failed"
+        );
+
+        (
+            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory validatorOpData
+        ) = proposerRegistry.getRegisteredOperator(operator);
+        validatorOpData;
+        assertEq(
+            keccak256(gatewayOpData.blsKey),
+            keccak256(operatorBLSPubKey),
+            "BLS key should match"
+        );
+    }
+
+    function testValidatorOperatorAVSRegistration() public {
+        _operatorRegistration(operator);
+        _validatorOperatorAVSRegistration(operator, operatorSecretKey, 0);
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
+            ),
+            "Validator operator registration failed"
+        );
+    }
+
+    /// @notice Tests Gateway operator registration and event emission
+    /// @dev Verifies:
+    /// 1. Operator can register with GatewayAVS
+    /// 2. BLS key is properly stored
+    /// 3. Events are emitted for preconf delegation message
+    function test_GatewayOperatorRegistration() public {
+        // Register operator in EigenLayer first
+        _operatorRegistration(operator);
+
+        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
+
+        // Verify registration
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+            ),
+            "Operator should be registered in GatewayAVS"
+        );
+
+        // Verify BLS key storage
+        (
+            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory validatorOpData
+        ) = proposerRegistry.getRegisteredOperator(operator);
+        validatorOpData;
+        assertEq(
+            keccak256(gatewayOpData.blsKey),
+            keccak256(operatorBLSPubKey),
+            "BLS key should match"
+        );
+    }
+
+    /// @notice Tests EigenPod creation
+    /// @dev Verifies that a user can create an EigenPod and it's properly registered
+    function test_EigenPodCreation() public {
+        address podOwner = makeAddr("podOwner");
+
+        vm.startPrank(podOwner);
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
+        vm.stopPrank();
+
+        assertTrue(
+            validatorAVS.getEigenPodManager().hasPod(podOwner), "Pod should be registered"
+        );
+        assertEq(
+            address(eigenLayerDeployer.eigenPodManager().ownerToPod(podOwner)),
+            podAddress,
+            "Pod address should match"
+        );
+    }
+
+    /// @notice Tests EigenPod delegation to an operator who's not the pod owner
+    /// @dev Verifies that a pod owner can delegate their pod to an operator
+    function test_EigenPodDelegation() public {
+        address podOwner = makeAddr("podOwner");
+
+        // Create pod
+        vm.startPrank(podOwner);
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
+        podAddress;
+        vm.stopPrank();
+
+        // Register operator
+        _operatorRegistration(operator);
+
+        // Delegate pod to operator
+        vm.startPrank(podOwner);
+        ISignatureUtils.SignatureWithExpiry memory operatorSignature =
+            ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
+        eigenLayerDeployer.delegation().delegateTo(
+            operator, operatorSignature, bytes32(0)
+        );
+        vm.stopPrank();
+        // Verify delegation
+        assertEq(
+            eigenLayerDeployer.delegation().delegatedTo(podOwner),
+            operator,
+            "Pod should be delegated to operator"
+        );
+    }
+
+    /// @notice Tests complete validator registration flow through the middleware
+    /// including pod creation, operator setup, and validator registration
+    function test_CompleteValidatorRegistration() public {
+        // Create and verify pod
+        address mockPodOwner = vm.addr(1);
+        vm.label(mockPodOwner, "mockPodOwner");
+
+        vm.startPrank(mockPodOwner);
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
+        assertTrue(
+            eigenLayerDeployer.eigenPodManager().hasPod(mockPodOwner),
+            "Pod should be created."
+        );
+        vm.stopPrank();
+
+        // 3. Register operator in EigenLayer and self delegate
+        _operatorRegistration(mockPodOwner);
+
+        bytes memory mockPodOwnerBLSPubKey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            mockPodOwnerBLSPubKey[i] = 0xcd;
+        }
+
+        // 4. Register as Operator in GatewayAVS
+        _gatewayOperatorAVSRegistration(mockPodOwner, 1, 0, mockPodOwnerBLSPubKey);
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                mockPodOwner, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+            ),
+            "Operator should be registered in GatewayAVS"
+        );
+
+        // 5. Register as Operator in ValidatorAVS
+        _validatorOperatorAVSRegistration(mockPodOwner, 1, 1);
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                mockPodOwner, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
+            ),
+            "Operator should be registered in ValidatorAVS"
+        );
+
+        // 6. Create test validator pubkey and delegatee
+        bytes memory validatorPubkey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            validatorPubkey[i] = 0xab;
+        }
+        _cheatValidatorPubkeyActive(podAddress, validatorPubkey);
+
+        // 7. Register validator
+        bytes[][] memory valPubKeys = new bytes[][](1);
+        valPubKeys[0] = new bytes[](1);
+        valPubKeys[0][0] = validatorPubkey;
+
+        address[] memory podOwners = new address[](1);
+        podOwners[0] = mockPodOwner;
+
+        bytes[] memory delegatedGateways = new bytes[](1);
+        delegatedGateways[0] = mockPodOwnerBLSPubKey;
+
+        vm.prank(mockPodOwner);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+
+        // 8. Verify registration status in proposer registry
+        bytes32 pubkeyHash = keccak256(validatorPubkey);
+        IProposerRegistry.ValidatorStatus validatorStatus =
+            proposerRegistry.getValidatorStatus(pubkeyHash);
+        assertEq(uint8(validatorStatus), uint8(IProposerRegistry.ValidatorStatus.Active));
+
+        // 9. Verify delegatee
+        IProposerRegistry.Validator memory validator =
+            proposerRegistry.getValidator(pubkeyHash);
+        assertEq(keccak256(validator.delegatee), keccak256(mockPodOwnerBLSPubKey));
+
+        // 10. Verify validator status in EigenPod
+        IEigenPod pod = validatorAVS.getEigenPodManager().getPod(mockPodOwner);
+        IEigenPod.ValidatorInfo memory info = pod.validatorPubkeyToInfo(validatorPubkey);
+        assertEq(uint8(info.status), uint8(IEigenPodTypes.VALIDATOR_STATUS.ACTIVE));
+    }
+
+    /// @notice Tests validator registration in ValidatorAVS
+    /// @dev Verifies:
+    /// 1. Multiple validators can be registered
+    /// 2. Each validator has correct delegatee
+    /// 3. Events are emitted correctly
+    /// 4. Validator counts are tracked
+    function test_MultipleValidatorRegistration() public {
+        address podOwner = makeAddr("podOwner");
+
+        // Setup pod and operator
+        vm.startPrank(podOwner);
+        address podAddress = validatorAVS.getEigenPodManager().createPod();
+        vm.stopPrank();
+
+        // Register operator in EigenLayer
+        _operatorRegistration(operator);
+        _delegationToOperator(podOwner, operator);
+
+        // Register operator in both AVS
+        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
+        _validatorOperatorAVSRegistration(operator, operatorSecretKey, 1);
+
+        // Prepare multiple validator keys
+        uint256 validatorCount = 3;
+        bytes[][] memory valPubKeys = new bytes[][](1);
+        valPubKeys[0] = new bytes[](validatorCount);
+        bytes[] memory delegatedGateways = new bytes[](1);
+        delegatedGateways[0] = operatorBLSPubKey; // Use operator's BLS key as delegatee
+        address[] memory podOwners = new address[](1);
+        podOwners[0] = podOwner;
+
+        for (uint256 i = 0; i < validatorCount; i++) {
+            valPubKeys[0][i] = new bytes(48);
+            for (uint256 j = 0; j < 48; j++) {
+                valPubKeys[0][i][j] = bytes1(uint8(0xab + i));
+            }
+            _cheatValidatorPubkeyActive(podAddress, valPubKeys[0][i]);
+        }
+
+        // Register validators
+        vm.prank(podOwner);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+
+        // Verify registrations
+        for (uint256 i = 0; i < validatorCount; i++) {
+            bytes32 pubkeyHash = keccak256(valPubKeys[0][i]);
+            IProposerRegistry.Validator memory validator =
+                proposerRegistry.getValidator(pubkeyHash);
+
+            assertEq(validator.operator, operator, "Wrong operator");
+            assertEq(
+                keccak256(validator.delegatee),
+                keccak256(operatorBLSPubKey),
+                "Wrong delegatee"
+            );
+            assertEq(
+                uint8(validator.status),
+                uint8(IProposerRegistry.ValidatorStatus.Active),
+                "Wrong status"
+            );
+        }
+
+        // Verify validator count
+        assertEq(
+            proposerRegistry.getValidatorCountForOperatorInAVS(operator),
+            validatorCount,
+            "Wrong validator count"
+        );
+    }
+
+    /// @notice Tests reward distribution between GatewayAVS and ValidatorAVS
+    function test_RewardDistribution() public {
+        // Setup reward token and get shares
+        (IERC20 rewardToken, uint256 gatewayShare, uint256 validatorShare) =
+            _setupRewardToken();
+        validatorShare;
+
+        // Setup operators
+        (
+            address gatewayOp,
+            address validatorOp1,
+            address validatorOp2,
+            uint256 gatewayOpKey,
+            uint256 validatorOp1Key,
+            uint256 validatorOp2Key
+        ) = _setupOperators();
+        gatewayOpKey;
+
+        // Setup validator operators in both AVSs
+        _setupValidatorOperatorsInAVS(
+            validatorOp1, validatorOp2, validatorOp1Key, validatorOp2Key
+        );
+
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategyAndMultipliers =
+            new IRewardsCoordinatorTypes.StrategyAndMultiplier[](1);
+        strategyAndMultipliers[0] = IRewardsCoordinatorTypes.StrategyAndMultiplier({
+            strategy: eigenLayerDeployer.wethStrat(),
+            multiplier: 1 ether
+        });
+
+        // First submission: Gateway rewards
+        IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
+            new IRewardsCoordinator.OperatorReward[](3);
+
+        // Create rewards with operators (already in ascending order from _setupOperators)
+        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: gatewayOp,
+            amount: gatewayShare
+        });
+        gatewayRewards[1] =
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp1, amount: 0 });
+        gatewayRewards[2] =
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp2, amount: 0 });
+
+        // Second submission: Validator rewards (with sorted operators)
+        IRewardsCoordinatorTypes.OperatorReward[] memory validatorRewards =
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
+        validatorRewards[0] =
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp1, amount: 0 });
+        validatorRewards[1] =
+            IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp2, amount: 0 });
+
+        // Create the submissions array
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](2);
+
+        _warpToNextInterval(7 days + 1);
+
+        // Gateway submission
+        submissions[0] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategyAndMultipliers,
+            token: rewardToken,
+            operatorRewards: gatewayRewards,
+            startTimestamp: uint32(block.timestamp - 14 days),
+            duration: 7 days,
+            description: "gateway"
+        });
+
+        // Validator submission
+        submissions[1] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategyAndMultipliers,
+            token: rewardToken,
+            operatorRewards: validatorRewards,
+            startTimestamp: uint32(block.timestamp - 14 days),
+            duration: 7 days,
+            description: "validator"
+        });
+
+        uint256 beforeBal =
+            rewardToken.balanceOf(address(eigenLayerDeployer.rewardsCoordinator()));
+
+        vm.expectEmit(true, true, false, true);
+        emit GatewayAVS.ValidatorAmountForwarded(200 ether); // 1000 ether * 20%
+
+        // Submit rewards as rewardsInitiator
+        vm.prank(rewardsInitiator);
+        gatewayAVS.createOperatorDirectedAVSRewardsSubmission(submissions);
+
+        uint256 afterBal =
+            rewardToken.balanceOf(address(eigenLayerDeployer.rewardsCoordinator()));
+
+        assertApproxEqAbs(
+            afterBal,
+            beforeBal + 1000e18,
+            1,
+            "Coordinator balance should have increased by 1000 tokens"
+        );
+
+        // Todo: test the processClaim
+        // vm.prank(gatewayOp);
+        // gatewayAVS.processClaim(gatewayOp, address(rewardToken));
+        // assertApproxEqAbs(
+        //     rewardToken.balanceOf(gatewayOp), gatewayShare, 1, "Wrong gateway reward"
+        // );
+        // assertApproxEqAbs(
+        //     rewardToken.balanceOf(validatorOp1),
+        //     (validatorShare * 2) / 3,
+        //     1,
+        //     "Wrong validator1 reward"
+        // );
+        // assertApproxEqAbs(
+        //     rewardToken.balanceOf(validatorOp2),
+        //     validatorShare / 3,
+        //     1,
+        //     "Wrong validator2 reward"
+        // );
+    }
+
+    function _warpToNextInterval(uint256 secondsToAdd) internal {
+        uint32 interval =
+            eigenLayerDeployer.rewardsCoordinator().CALCULATION_INTERVAL_SECONDS();
+        uint32 startTimestamp = uint32(block.timestamp + 1000 days); // time travel baby
+        uint256 warpTarget = startTimestamp + secondsToAdd;
+        uint256 alignedWarp = (warpTarget / interval) * interval;
+        if (alignedWarp <= warpTarget) {
+            alignedWarp += interval;
+        }
+        vm.warp(alignedWarp);
+    }
+
+    /// @notice Helper function to setup reward token and transfer initial amount
+    function _setupRewardToken() internal returns (IERC20, uint256, uint256) {
+        ERC20PresetFixedSupplyUpgradeable rewardToken =
+            new ERC20PresetFixedSupplyUpgradeable();
+        rewardToken.initialize("Mock Reward Token", "MRT", 2000 ether, rewardsInitiator);
+        IERC20 reward = IERC20(address(rewardToken));
+
+        uint256 totalReward = 1000 ether;
+        uint256 gatewayShare = totalReward;
+
+        // First approve gatewayAVS to spend tokens from rewardsInitiator
+        vm.startPrank(rewardsInitiator);
+        reward.approve(address(gatewayAVS), type(uint256).max);
+        vm.stopPrank();
+
+        // Then approve RewardsCoordinator to spend tokens from gatewayAVS
+        vm.prank(address(gatewayAVS));
+        reward.approve(
+            address(eigenLayerDeployer.rewardsCoordinator()), type(uint256).max
+        );
+
+        return (reward, gatewayShare, 0 ether);
+    }
+
+    /// @notice Helper function to setup operators
+    function _setupOperators()
+        internal
+        returns (
+            address gatewayOp,
+            address validatorOp1,
+            address validatorOp2,
+            uint256 gatewayOpKey,
+            uint256 validatorOp1Key,
+            uint256 validatorOp2Key
+        )
+    {
+        // Create operators in ascending order by manipulating the labels
+        (gatewayOp, gatewayOpKey) = makeAddrAndKey("aaa_gateway1");
+        (validatorOp1, validatorOp1Key) = makeAddrAndKey("bbb_validator1");
+        (validatorOp2, validatorOp2Key) = makeAddrAndKey("ccc_validator2");
+
+        _setupOperator(gatewayOp, true, gatewayOpKey);
+        _setupOperator(validatorOp1, false, validatorOp1Key);
+        _setupOperator(validatorOp2, false, validatorOp2Key);
+    }
+
+    /// @notice Helper function to setup validator operators in AVS
+    function _setupValidatorOperatorsInAVS(
+        address validatorOp1,
+        address validatorOp2,
+        uint256 validatorOp1Key,
+        uint256 validatorOp2Key
+    )
+        internal
+    {
+        bytes memory validatorOp1BLSPubKey = _generateMockBLSKey();
+        bytes memory validatorOp2BLSPubKey = _generateMockBLSKey();
+
+        _gatewayOperatorAVSRegistration(
+            validatorOp1, validatorOp1Key, 1, validatorOp1BLSPubKey
+        );
+        _gatewayOperatorAVSRegistration(
+            validatorOp2, validatorOp2Key, 2, validatorOp2BLSPubKey
+        );
+
+        vm.startPrank(validatorOp1);
+        validatorAVS.getEigenPodManager().createPod();
+        vm.stopPrank();
+
+        vm.startPrank(validatorOp2);
+        validatorAVS.getEigenPodManager().createPod();
+        vm.stopPrank();
+
+        _registerValidatorsForOperator(validatorOp1, 2); // First operator has 2 validators
+        _registerValidatorsForOperator(validatorOp2, 1); // Second operator has 1 validator
+    }
+
+    function _generateMockBLSKey() internal pure returns (bytes memory) {
+        bytes memory blsKey = new bytes(48);
+        for (uint256 i = 0; i < 48; i++) {
+            blsKey[i] = bytes1(uint8(0xab + i));
+        }
+        return blsKey;
+    }
+
+    /// @notice Helper function to create gateway rewards submission
+    function _createGatewayRewardsSubmission(
+        IERC20 rewardToken,
+        address gatewayOperator1,
+        address gatewayOperator2,
+        uint256 gatewayShare
+    )
+        internal
+        view
+        returns (IRewardsCoordinator.OperatorDirectedRewardsSubmission memory)
+    {
+        IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
+        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: gatewayOperator1,
+            amount: gatewayShare / 2
+        });
+        gatewayRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: gatewayOperator2,
+            amount: gatewayShare / 2
+        });
+
+        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: new IRewardsCoordinatorTypes.StrategyAndMultiplier[](0),
+            token: rewardToken,
+            operatorRewards: gatewayRewards,
+            startTimestamp: uint32(block.timestamp),
+            duration: 7 days,
+            description: "gateway"
+        });
+    }
+
+    /// @notice Helper function to create validator rewards submission
+    function _createValidatorRewardsSubmission(
+        IERC20 rewardToken,
+        address validatorOperator1,
+        address validatorOperator2,
+        uint256 validatorShare
+    )
+        internal
+        view
+        returns (IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission memory)
+    {
+        IRewardsCoordinatorTypes.OperatorReward[] memory validatorRewards =
+            new IRewardsCoordinatorTypes.OperatorReward[](2);
+        validatorRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: validatorOperator1,
+            amount: (validatorShare * 2) / 3 // 2/3 of validator share (2 validators)
+         });
+        validatorRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: validatorOperator2,
+            amount: validatorShare / 3 // 1/3 of validator share (1 validator)
+         });
+
+        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: new IRewardsCoordinatorTypes.StrategyAndMultiplier[](0),
+            token: rewardToken,
+            operatorRewards: validatorRewards,
+            startTimestamp: uint32(block.timestamp),
+            duration: 7 days,
+            description: "validator"
+        });
+    }
+
+    function _setupOperator(
+        address localOperator,
+        bool isGateway,
+        uint256 localOperatorSecretKey
+    )
+        internal
+        impersonate(localOperator)
+    {
+        bytes memory blsKey = isGateway ? new bytes(48) : bytes("");
+        if (isGateway) {
+            for (uint256 i = 0; i < 48; i++) {
+                blsKey[i] = 0xab;
+            }
+        }
+
+        eigenLayerDeployer.delegation().registerAsOperator(
+            address(0), 0, "https://taiyi.wtf"
+        );
+
+        ISignatureUtils.SignatureWithSaltAndExpiry memory sig = _getOperatorSignature(
+            isGateway ? address(gatewayAVS) : address(validatorAVS),
+            localOperator,
+            localOperatorSecretKey,
+            0
+        );
+
+        if (isGateway) {
+            gatewayAVS.registerOperatorToAVSWithPubKey(localOperator, sig, blsKey);
+        } else {
+            validatorAVS.registerOperatorToAVS(localOperator, sig);
+        }
+    }
+
+    function _registerValidatorsForOperator(
+        address localOperator,
+        uint256 count
+    )
+        internal
+    {
+        bytes[][] memory valPubKeys = new bytes[][](1);
+        valPubKeys[0] = new bytes[](count);
+        bytes[] memory delegatedGateways = new bytes[](1);
+        delegatedGateways[0] = operatorBLSPubKey;
+        address[] memory podOwners = new address[](1);
+        podOwners[0] = localOperator;
+
+        address podAddress =
+            address(validatorAVS.getEigenPodManager().ownerToPod(localOperator));
+        for (uint256 i = 0; i < count; i++) {
+            valPubKeys[0][i] = new bytes(48);
+            for (uint256 j = 0; j < 48; j++) {
+                // Use both operator address and index to ensure uniqueness
+                if (j < 20) {
+                    valPubKeys[0][i][j] =
+                        bytes1(uint8(uint256(uint160(localOperator)) >> (8 * (19 - j))));
+                } else {
+                    valPubKeys[0][i][j] = bytes1(uint8(i + 1));
+                }
+            }
+            _cheatValidatorPubkeyActive(podAddress, valPubKeys[0][i]);
+        }
+
+        vm.prank(localOperator);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+    }
+
+    /// @notice Helper function to simulate a validator being active in EigenLayer by manipulating storage
+    function _cheatValidatorPubkeyActive(
+        address podAddress,
+        bytes memory pubkey
+    )
+        internal
+    {
+        // The contract uses sha256 on (pubkey || bytes16(0)).
+        //    So replicate that here, to match exactly.
+        bytes32 pubkeyHash = sha256(abi.encodePacked(pubkey, bytes16(0)));
+
+        // The _validatorPubkeyHashToInfo mapping is at storage slot 54 on EigenPod.sol
+        //    via 'forge inspect lib/eigenlayer-contracts/src/contracts/pods/EigenPod.sol:EigenPod storage'
+        //    Key is keccak256(pubkeyHash, 54).
+        bytes32 infoSlot = keccak256(abi.encode(pubkeyHash, uint256(54)));
+
+        // Fill in the ValidatorInfo fields. If VALIDATOR_STATUS.ACTIVE = 1,
+        //    we shift 1 by 192 bits for the status portion:
+        uint64 validatorIndex = 123;
+        uint64 restakedBalanceGwei = 32_000_000_000; // example: 32 ETH in Gwei
+        uint64 lastCheckpointedAt = 9_999_999_999; // arbitrary placeholder
+        uint256 statusActive = 1 << 192; // 1 = ACTIVE in IEigenPod.VALIDATOR_STATUS
+
+        // Pack them into one 256-bit word.
+        uint256 packed = uint256(validatorIndex);
+        packed |= uint256(restakedBalanceGwei) << 64;
+        packed |= uint256(lastCheckpointedAt) << 128;
+        packed |= statusActive;
+
+        vm.store(podAddress, infoSlot, bytes32(packed));
+    }
+
+    /// @notice Registers an operator in the DelegationManager
+    function _operatorRegistration(address localOperator)
+        internal
+        impersonate(localOperator)
+    {
+        eigenLayerDeployer.delegation().registerAsOperator(
+            address(0), 0, "https://taiyi.wtf"
+        );
+    }
+
+    /// @notice Stakes WETH tokens through the EigenLayer strategy
+    function _stakeWETH() internal impersonate(staker) returns (uint256 shares) {
+        eigenLayerDeployer.weth().approve(
+            address(eigenLayerDeployer.strategyManager()), 69 ether
+        );
+
+        shares = eigenLayerDeployer.strategyManager().depositIntoStrategy(
+            eigenLayerDeployer.wethStrat(), eigenLayerDeployer.weth(), 69 ether
+        );
+    }
+
+    /// @notice Delegates the staker to the operator within the DelegationManager
+    function _delegationToOperator(
+        address delegator,
+        address delegateeOperator
+    )
+        internal
+        impersonate(delegator)
+    {
+        ISignatureUtils.SignatureWithExpiry memory delegateeSignature =
+            ISignatureUtils.SignatureWithExpiry(bytes("signature"), 0);
+        eigenLayerDeployer.delegation().delegateTo(
+            delegateeOperator, delegateeSignature, bytes32(0)
+        );
+    }
+
+    /// @notice Registers operator with Gateway AVS using signed message
+    function _gatewayOperatorAVSRegistration(
+        address localOperator,
+        uint256 localOperatorSecretKey,
+        uint256 salt,
+        bytes memory blsPubKey
+    )
+        internal
+        impersonate(localOperator)
+    {
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        _getOperatorSignature(
+            address(gatewayAVS), localOperator, localOperatorSecretKey, salt
+        );
+        gatewayAVS.registerOperatorToAVSWithPubKey(
+            localOperator, operatorSignature, blsPubKey
+        );
+    }
+
+    /// @notice Registers operator with Validator AVS using signed message
+    function _validatorOperatorAVSRegistration(
+        address localOperator,
+        uint256 localOperatorSecretKey,
+        uint256 salt
+    )
+        internal
+        impersonate(localOperator)
+    {
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        _getOperatorSignature(
+            address(validatorAVS), localOperator, localOperatorSecretKey, salt
+        );
+        validatorAVS.registerOperatorToAVS(localOperator, operatorSignature);
+    }
+
+    /// @notice Generates operator signature for AVS registration
+    function _getOperatorSignature(
+        address avs,
+        address localOperator,
+        uint256 localOperatorSecretKey,
+        uint256 salt
+    )
+        internal
+        view
+        returns (ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
+    {
+        bytes32 digest = eigenLayerDeployer.avsDirectory()
+            .calculateOperatorAVSRegistrationDigestHash({
+            operator: localOperator,
+            avs: avs,
+            salt: bytes32(salt),
+            expiry: type(uint256).max
+        });
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(localOperatorSecretKey, digest);
+        bytes memory sig = abi.encodePacked(r, s, v);
+        operatorSignature = ISignatureUtils.SignatureWithSaltAndExpiry(
+            sig, bytes32(salt), type(uint256).max
+        );
+    }
+}

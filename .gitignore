@@ -1,0 +1,15 @@
+/target
+.env
+.envrc
+/local
+.vscode
+/node_modules
+/package-lock.json
+/package.json
+/contracts/script/output/
+crates/cli/src/pb
+crates/sp1-interactive-fraud-proof/*.bin
+
+# e2e
+1-lighthouse-geth-0-63-0
+el_cl_genesis_data

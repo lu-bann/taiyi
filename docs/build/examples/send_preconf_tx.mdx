@@ -1,0 +1,178 @@
+---
+title: 'Send Preconf Tx'
+---
+
+
+# How to Submit a Preconf Transaction
+
+This guide will walk you through the process of submitting a preconfirmation (preconf) transaction using the Taiyi protocol.
+<Note type="info">
+To see the full code for this example, including imports and additional details, check out the [source code on GitHub](https://github.com/lu-bann/taiyi/blob/main/examples/src/submit-preconf-request.rs).
+
+</Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+1. Rust installed on your system
+2. A private key for signing transactions
+
+
+## Step 1: Configure Connection Details
+
+First, set up the connection details for the Taiyi, Ethereum execution layer, and your private key.
+
+
+```rust
+    // Configure connection details
+    let taiyi_url = std::env::var("TAIYI_PRECONFER_URL")
+        .unwrap_or_else(|| "http://127.0.0.1:5656".to_string());
+    let el_url = std::env::var("EL_URL")
+        .unwrap_or_else(|| "http://127.0.0.1:8545".to_string());
+    let signer_private = std::env::var("PRIVATE_KEY")
+        .expect("Private key must be provided");
+    let signer: PrivateKeySigner = signer_private.parse()?;
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .on_builtin(&el_url)
+        .await?;
+
+```
+
+
+## Step 2: Query Available Slots
+
+Query the Taiyi for available slots to submit your preconf transaction.
+
+
+```rust
+    // Query available slots from the Taiyi 
+    let client = reqwest::Client::new();
+    let res = client
+        .get(&format!("{}/commitments/v1/slots", taiyi_url))
+        .send()
+        .await?;
+    let available_slot: AvailableSlotResponse = res.json().await?;
+
+    // Check if there are any available slots
+    let target_slot = available_slot
+        .available_slots
+        .last()
+        .map(|slot| slot.slot)
+        .ok_or_else(|| anyhow::anyhow!("No available slot"))?;
+```
+
+## Step 3: Prepare Transaction Details
+
+Prepare the necessary details for your preconf transaction, including nonces and gas estimates.
+
+```rust
+    // Initialize TaiyiCore contract instance
+    let contract = TaiyiCore::TaiyiCoreInstance::new(
+        TAIYI_CORE_ADDRESS.parse()?,
+        provider.clone(),
+    );
+
+    // Fetch tip and preconf nonces
+    let tip_nonce = contract.get_tip_nonce(sender).call().await?.nonce;
+    let preconf_nonce = contract.get_preconf_nonce(sender).call().await?.nonce;
+
+    // Estimate EIP-1559 fees
+    let estimate = provider.estimate_eip1559_fees(None).await?;
+```
+
+## Step 4: Create TipTransaction
+
+Create a `TipTransaction` object with the necessary details for the preconfirmation request.
+
+```rust
+    // Create a TipTransaction with estimated fees and transaction details
+    let tip_tx = TipTransaction {
+        gas_limit: U256::from(21_000),  // Standard gas limit for simple transfers
+        from: sender,
+        to: preconfer_address,
+        pre_pay: estimate.max_fee_per_gas * U256::from(2_000),
+        after_pay: estimate.max_fee_per_gas * U256::from(1_000),
+        nonce: tip_nonce,
+        target_slot: U256::from(target_slot),
+    };
+```
+
+## Step 5: Sign TipTransaction
+
+Sign the `TipTransaction` using your private key.
+
+```rust
+    // Calculate the hash of the tip transaction
+    let tip_hash = tip_tx.tip_tx_hash(U256::from(chain_id));
+
+    // Sign the tip transaction hash using the signer
+    let tip_sig = signer.sign_hash_sync(&tip_hash)?;
+```
+
+## Step 6: Create and Sign PreconfTx
+
+Create a `PreconfTx` object and sign it with your private key.
+
+```rust
+    // Create a PreconfTx with transaction details
+    let mut preconf_tx = PreconfTx {
+        from: sender,
+        to: to_addr,
+        value: U256::from(10_000_000_000_000_000u64), // 0.01 ETH in wei
+        call_data: Default::default(),
+        call_gas_limit: U256::from(1_000_000),
+        nonce: preconf_nonce,
+        signature: Default::default(),
+    };
+
+    // Calculate the hash of the preconf transaction
+    let preconf_hash = preconf_tx.hash();
+
+    // Sign the preconf transaction hash
+    let preconf_sig = signer.sign_hash_sync(&preconf_hash)?;
+
+    // Set the signature in the preconf transaction
+    preconf_tx.signature = preconf_sig.into();
+```
+
+
+## Step 7: Create PreconfRequest
+
+Combine the `TipTransaction` and `PreconfTx` into a `PreconfRequest` object.
+
+```rust
+    // Create a PreconfRequest with the tip transaction, signatures, and preconf transaction
+    let preconf_request = PreconfRequest {
+        tip_tx: tip_tx.into(),
+        tip_tx_signature: tip_sig,
+        preconf_tx: Some(preconf_tx),
+        preconfer_signature: None,
+        preconf_req_signature: None,
+    };
+```
+
+
+## Step 8: Submit PreconfRequest
+
+Finally, submit the `PreconfRequest` to the Taiyi using an HTTP POST request.
+
+```rust
+// Submit the PreconfRequest to the Taiyi 
+let response = client
+    .post(&format!("{}/commitments/v1/preconf_request", taiyi_url))
+    .json(&preconf_request)
+    .send()
+    .await?;
+
+// Get the response body as text
+let response_body = response.text().await?;
+
+// Process the response (e.g., log it, parse it, etc.)
+// ......
+```
+
+
+
+

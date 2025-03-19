@@ -1,0 +1,17 @@
+[package]
+name = "taiyi-primitives"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-consensus = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+derive_more = { workspace = true }
+ethereum-consensus = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+ssz_rs = { workspace = true }
+uuid = { workspace = true }
+
+[lib]

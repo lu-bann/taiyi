@@ -1,0 +1,55 @@
+---
+title: 'Pricing Preconf Txs Backtesting'
+description: "Pricing Preconf Txs Backtesting"
+icon: 'arrow-trend-up'
+---
+
+## Mutual Insurance
+
+Luban introduces a blockspace marketplace to stabilize transaction costs across the EVM blockchains with the focus on based ecosystem. The platform will let users lock in their transaction fees in advance by paying an upfront premium to the preconfer. These payments initially will be directed towards the set of blocks in the next 2 epochs, but we are working on offering users weekly or monthly basis blockspace lock in, creating a convenient subscription plan tailored to the individual use case.
+
+In the future we aim to create a mutual insurance vault mechanism for the preconf underwriters. This approach averages and distributes the risk of having to pay gas for preconfirmed transaction promises at high prices. By sharing the risk coming from individual preconf buyers across all of the underwriters, we achieve smoother yields and significantly decrease the tail risk for the validator that opts into offering preconfs.
+
+## Integrating Validator Yields
+
+Significant amounts of ETH being staked in LSD protocols are evidence of large existing demand for low-risk ETH-denominated yield products. The size of this demand is orders of magnitude larger than the set of speculators willing to take the short side of gas futures. By introducing a novel ETH-based yield source with a diversified risk we are disrupting the LSD yields landscape and offering more choices to ETH holders.
+
+Validator revenue is correlated with high gas prices, since in the periods of high base fees, priority fees also rise. Providing preconfirmations creates the net yield via premium collection that is anti-correlated with gas price. By integrating these yields, we can offset some of the total yield variation and create a more streamlined yield product.
+
+## Synthetic Multidimensional Fee Market
+
+Designing gas volatility underwriting as a mutual insurance provides further benefits. Feedback gathered from our partners revealed that companies have diverse on-chain activity profiles and gas volatility exposures. Uniform derivative pricing is not the most fair approach and could jeopardize the vault's funds when large total activity scale is reached. However, with a vault and our future B2B offering, we can implement a sharded vault accounting system. This system allows each of our partners to pay premiums adjusted to their activity while yield seekers can choose different risk tranches based on their yield appetite.
+
+<img
+  className="block dark:hidden"
+  src="/images/pricing_preconf.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/pricing_preconf.png"
+  alt="Hero Dark"
+/>
+
+The proposed design allows us to underwrite sponsorships with differentiated pricing for various market segments accurately. Additionally, it offers vault depositors a choice of yield and risk exposure. This resembles a synthetic multidimensional fee market created through blockspace derivatives. Instead of pricing different transaction components separately, we add a time dimension by pricing gas volatility among different user categories. This approach provides more granular data and a more expressive protocol fee market. At scale, it would also help to reduce congestion by
+prioritizing different user profiles based on their execution needs. We believe this model could complement [the future Ethereum in-protocol work](https://vitalik.eth.limo/general/2024/05/09/multidim.html) rather than compete with it.
+
+## Backtesting
+
+We have analyzed Ethereum L1 gas prices from May 2023 to April 2024, testing a range of subscription parameters to evaluate how both sides of our marketplace are impacted. Our backtest assumed a gas payout constraint between the average expected gas price from our model and 500 gwei. The backtest also assumed that the subscription was sold as a bundle of 10 AMM swaps sold monthly to 1000 buyers. For the LSD yield component, we assumed a 5% annualized yield on 70% of the vault’s TVL, which was taken to be 500 ETH.
+
+<img
+  className="block dark:hidden"
+  src="/images/lsd-yields.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/lsd-yields.png"
+  alt="Hero Dark"
+/>
+This results in a total yearly yield of ~16.8%. Without the LSD component, the yield would have been 13%, indicating that while most of the yield comes from preconfirmation underwriting, the LSD component helps mitigate monthly fluctuations on the downside. The average swap cost of a Taiyi-mediated transaction over the 12 months was only $1.7 more expensive (around 2%) than the cost without it, providing users with the freedom to transact any time at high gas prices (up to 500 gwei) without worry as the cost of those swaps was already locked in.
+
+The costs and yield stability will further improve as we refine our model. Implementing a vault sharding system with different risk tranches for underwriters and individualized pricing for different customer classes will enable Luban to offer a new fundamental source of ETH yield tied to on-chain activity, allowing validators to increase their yields in other ways than just leveraging the same risk they are already exposed to.
+
+This is just the first step in verifying our pricing approach. We will continue to enhance the model fidelity, improve capital efficiency, and diversify our offering.

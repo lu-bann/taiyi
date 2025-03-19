@@ -1,0 +1,29 @@
+---
+title: 'Pricing the Preconf'
+icon: 'dollar-sign'
+---
+
+1. Taiyi pricing approach 
+
+At Luban we price the prefonfirmations with a data-driven approach tailored for the unique supply-demand dynamics of blockspace. While methods such as Black-Scholes options pricing are wildly recognized to form a basis of options-like derivatives pricing, assumptions on which they are formed are often not relevant to intricate flows of real markets.
+
+This is particularly pronounced in on-chain blockspace markets. Stabilizing gas prices for end users requires a multi-layered approach that considers both the base fee and tip fee, current block congestion, and eventually, mempool dynamics for intra-block pre-confirmations pricing.
+
+We draw insights from industries like fluctuating electricity markets, where variable costs are converted into stable contracts for end consumers. Instead of rigid theoretical financial methods that often miss the critical features of real market dynamics, we are applying robust analysis of gas price distribution dynamics and learning from how they shift and flow to more accurately predict the future gas price distributions.
+This, together with boosting our pricing confidence with the first 5 blocks fees based on Blocknative API query seamlessly tied to our distribution-prediction model forms the basis of Taiyi pricing approach.
+
+2. Making the model more advanced
+
+As we refine our models and gather insights from live operations, we are getting ready to expand our pricing mechanisms. Below we highlight some high level ideas that are in the pipeline:
+
+- Granular and Long-Term Distribution Tracking: By monitoring gas price distribution shifts over both short and extended periods, we can better structure fixed-cost blockspace allocation for B2B solutions (see section 3).
+- Implementing temporal structure into the price prediction with Long Short-Term Memory neural network. This will help us expect price variability in the short term to more accurately quote pricing for each block in the lookahead.
+- Activity-specific pricing. Analyzing activity patterns of on-chain actors, will guide our pricing more accurately to serve multiple different niches at the same time, each with fair and customizable pricing.
+
+1. Future batch-sold B2B blockspace allocation in Blockspace-as-a-Service mode
+
+In addition to evolving our technical pricing models, we recognize the growing demand for bulk transactions with fixed gas costs. Many businesses operating on-chain face the challenge of managing volatile gas expenses, which can detract from their core focus of building products for their customers.
+
+Whether it's an L3 game operator, an L2 struggling with transaction posting costs to L1, or wallet services aiming to provide a seamless user experience, unpredictable gas fees can disrupt their operations.
+
+To address this, we plan to introduce customizable packages for fixed-cost transactions, tailored to various on-chain business needs. These offerings will allow companies to offload the complexities of blockspace allocation to experts, freeing up their resources to concentrate on innovation and product development, rather than on fluctuating operational costs.

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - dev
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+  API_KEY_INFURA: ${{ secrets.API_KEY_INFURA }}
+
+jobs:
+  build-rust:
+    name: Rust Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy,rustfmt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-sort,cargo-machete
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: false
+      - name: Install SP1 toolchain
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          ~/.sp1/bin/sp1up --version v4.0.1
+          ~/.sp1/bin/cargo-prove prove --version
+      - name: Cargo check
+        run: cargo check
+      - name: Lint check
+        run: |
+          make lint
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Run tests
+        run: |
+          make test
+
+  build-foundry:
+    name: Foundry Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Run Forge build
+        working-directory: contracts
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+      - name: Run Forge tests
+        working-directory: contracts
+        run: |
+          forge test -vvv
+        id: test
+      - name: Check code formatting
+        working-directory: contracts
+        run: |
+          forge fmt --check
+        id: fmt-check

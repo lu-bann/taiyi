@@ -1,0 +1,61 @@
+[package]
+name = "taiyi-boost"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+taiyi-cmd = { workspace = true }
+
+alloy-consensus = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true, features = ["debug-api", "engine-api"] }
+alloy-rlp = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
+alloy-rpc-types-eth = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-transport = { workspace = true }
+alloy-transport-http = { workspace = true, features = ["jwt-auth"] }
+async-trait = { workspace = true }
+axum = { workspace = true }
+beacon-api-client = { workspace = true }
+blst = { workspace = true }
+cb-common = { workspace = true }
+cb-pbs = { workspace = true }
+commit-boost = { workspace = true }
+const-hex = "1.13.2"
+ethereum-consensus = { workspace = true }
+ethereum_ssz = { workspace = true }
+ethereum_ssz_derive = { workspace = true }
+eyre = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+http-body-util = { workspace = true }
+lazy_static = { workspace = true }
+parking_lot = { workspace = true }
+prometheus = { workspace = true }
+regex = "1.11.1"
+reqwest = { workspace = true, features = ["json"] }
+reth-primitives = { workspace = true }
+scc = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+ssz_rs = { workspace = true }
+ssz_types = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tower = { workspace = true }
+tracing = { workspace = true }
+tree_hash = { workspace = true }
+tree_hash_derive = { workspace = true }
+
+[dev-dependencies]
+alloy-node-bindings = { workspace = true }
+ethereum-consensus = { workspace = true }
+ethereum_ssz = { workspace = true }
+lighthouse-types = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
