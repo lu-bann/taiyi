@@ -15,7 +15,7 @@
   solc = "0.8.27"
   src = "src"
   test = "test"
-  via_ir = false
+  via_ir = true
 
 remappings = [
   "forge-std/=lib/forge-std/src/",
