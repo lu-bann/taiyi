@@ -162,83 +162,11 @@ contract ValidatorAVS is EigenLayerMiddleware {
     )
         internal
         override
+        onlyPodOwnerOrOperator(podOwner)
     {
         require(
             delegatedGatewayPubKey.length > 0,
             "ValidatorAVS: Must choose a valid Gateway delegate"
-        );
-
-        // Verify the delegated gateway belongs to a registered gateway operator
-        _validateGatewayDelegatee(delegatedGatewayPubKey);
-
-        // Check if caller is a registered operator in ValidatorAVS
-        bool isRegisteredOperator = proposerRegistry.isOperatorRegisteredInAVS(
-            msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
-        );
-
-        if (podOwner != address(0)) {
-            // Path 1: EigenPod validator registration
-            _registerEigenPodValidators(
-                valPubKeys, podOwner, delegatedGatewayPubKey, isRegisteredOperator
-            );
-        } else {
-            // Path 2: Regular validator registration
-            _registerRegularValidators(
-                valPubKeys, delegatedGatewayPubKey, isRegisteredOperator
-            );
-        }
-    }
-
-    /// @dev Validates that the delegated gateway public key belongs to a registered gateway operator
-    /// @param delegatedGatewayPubKey The gateway public key to validate
-    function _validateGatewayDelegatee(bytes calldata delegatedGatewayPubKey)
-        internal
-        view
-    {
-        // Cache the delegated key hash to avoid computing it multiple times
-        bytes32 delegatedKeyHash = keccak256(delegatedGatewayPubKey);
-
-        // Get all gateway operators
-        address[] memory gatewayOperators =
-            proposerRegistry.getActiveOperatorsForAVS(getGatewayAVSAddress());
-
-        bool isValidGatewayDelegatee = false;
-        for (uint256 i = 0; i < gatewayOperators.length; i++) {
-            (bytes memory operatorGatewayPubKey, bool isActive) = proposerRegistry
-                .operatorInfo(
-                gatewayOperators[i],
-                IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
-            );
-
-            // Check key hash first as it's cheaper than checking isActive
-            if (keccak256(operatorGatewayPubKey) == delegatedKeyHash && isActive) {
-                isValidGatewayDelegatee = true;
-                break;
-            }
-        }
-
-        require(
-            isValidGatewayDelegatee,
-            "ValidatorAVS: Delegated gateway must be a registered gateway operator"
-        );
-    }
-
-    function _registerEigenPodValidators(
-        bytes[] calldata valPubKeys,
-        address podOwner,
-        bytes calldata delegatedGatewayPubKey,
-        bool isRegisteredOperator
-    )
-        internal
-    {
-        // Check caller permissions
-        bool isPodOwner = msg.sender == podOwner;
-        bool isDelegatedOperator =
-            msg.sender == getDelegationManager().delegatedTo(podOwner);
-
-        require(
-            isPodOwner || isDelegatedOperator || isRegisteredOperator,
-            "Caller must be pod owner, delegated operator, or registered operator"
         );
 
         // Get the operator delegated to by the pod owner.
@@ -286,33 +214,6 @@ contract ValidatorAVS is EigenLayerMiddleware {
             // Emit event to track validator registration
             emit ValidatorOperatorRegistered(
                 operator, address(this), delegatedGatewayPubKey, valPubKeys[i]
-            );
-        }
-    }
-
-    /// @dev Registers regular validators that are not part of EigenLayer
-    function _registerRegularValidators(
-        bytes[] calldata valPubKeys,
-        bytes calldata delegatedGatewayPubKey,
-        bool isRegisteredOperator
-    )
-        internal
-    {
-        // Only registered operators can register regular validators
-        require(
-            isRegisteredOperator,
-            "Only registered operators can register regular validators"
-        );
-
-        for (uint256 i = 0; i < valPubKeys.length; ++i) {
-            proposerRegistry.registerValidator(
-                valPubKeys[i],
-                msg.sender, // operator is the caller
-                delegatedGatewayPubKey
-            );
-
-            emit ValidatorOperatorRegistered(
-                msg.sender, address(this), delegatedGatewayPubKey, valPubKeys[i]
             );
         }
     }

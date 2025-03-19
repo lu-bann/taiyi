@@ -10,8 +10,13 @@ import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
 
 import { EigenLayerOperatorManagement } from "./libs/EigenLayerOperatorManagement.sol";
+import { SymbioticOperatorManagement } from "./libs/SymbioticOperatorManagement.sol";
 import { ValidatorManagement } from "./libs/ValidatorManagement.sol";
 import { TaiyiProposerRegistryStorage } from "./storage/TaiyiProposerRegistryStorage.sol";
+
+import { SymbioticNetworkMiddleware } from
+    "./symbiotic-network/SymbioticNetworkMiddleware.sol";
+import { Subnetwork } from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
@@ -40,7 +45,12 @@ contract TaiyiProposerRegistry is
     using
     EigenLayerOperatorManagement
     for EigenLayerOperatorManagement.EigenLayerOperatorState;
+    using
+    SymbioticOperatorManagement
+    for SymbioticOperatorManagement.SymbioticOperatorState;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Subnetwork for address;
+    using Subnetwork for bytes32;
 
     /// @notice Error thrown when trying to deregister an operator with active validators
     error CannotDeregisterActiveValidator();
@@ -56,6 +66,9 @@ contract TaiyiProposerRegistry is
 
     /// @notice Error thrown when trying to set an invalid AVS address
     error InvalidAVSAddress();
+
+    /// @notice Error thrown when trying to set an invalid network address
+    error InvalidNetworkAddress();
 
     /// @notice Error thrown when trying to update key for non-registered operator
     error NotAuthorized();
@@ -91,6 +104,17 @@ contract TaiyiProposerRegistry is
 
         _avsTypes[gatewayAVSAddr] = RestakingServiceType.EIGENLAYER_GATEWAY;
         _avsTypes[validatorAVSAddr] = RestakingServiceType.EIGENLAYER_VALIDATOR;
+    }
+
+    /// @notice Sets the Symbiotic network contracts in the registry
+    /// @param symbioticMiddlewareAddr Address of the Symbiotic middleware contract
+    function setNetworkContracts(address symbioticMiddlewareAddr) external onlyOwner {
+        if (symbioticMiddlewareAddr == address(0)) {
+            revert InvalidNetworkAddress();
+        }
+        _symbioticMiddlewareAddress = symbioticMiddlewareAddr;
+        _gatewaySubnetwork = symbioticMiddlewareAddr.subnetwork(1);
+        _validatorSubnetwork = symbioticMiddlewareAddr.subnetwork(2);
     }
 
     /// @notice Register an operator for a specific service type
@@ -278,6 +302,15 @@ contract TaiyiProposerRegistry is
         return eigenLayerOperatorState.getActiveOperators(avsAddress);
     }
 
+    /// @notice Returns active operators for a specific subnetwork
+    function getActiveOperatorsForNetwork(bytes32 subnetwork)
+        external
+        view
+        returns (address[] memory)
+    {
+        return symbioticOperatorState.getActiveOperators(subnetwork);
+    }
+
     /// @notice Returns the total validator count for a specific AVS
     function getTotalValidatorCountForAVS(address avsAddress)
         external
@@ -329,29 +362,6 @@ contract TaiyiProposerRegistry is
         return IValidatorAVS(_validatorAVSAddress);
     }
 
-    /// @notice Returns the operator's public key and other info for a specific AVS type
-    function operatorInfo(
-        address operator,
-        RestakingServiceType avsType
-    )
-        external
-        view
-        returns (bytes memory pubKey, bool isActive)
-    {
-        (Operator memory gatewayData, Operator memory validatorData) =
-            this.getRegisteredOperator(operator);
-
-        if (avsType == RestakingServiceType.EIGENLAYER_GATEWAY) {
-            pubKey = gatewayData.blsKey;
-            isActive = gatewayData.operatorAddress != address(0);
-        } else {
-            pubKey = validatorData.blsKey;
-            isActive = validatorData.operatorAddress != address(0);
-        }
-
-        return (pubKey, isActive);
-    }
-
     // ============ Internal Functions ============
 
     /// @dev Internal function to register an operator
@@ -363,11 +373,20 @@ contract TaiyiProposerRegistry is
         internal
     {
         require(
-            msg.sender == _gatewayAVSAddress || msg.sender == _validatorAVSAddress,
+            msg.sender == _symbioticMiddlewareAddress || msg.sender == _gatewayAVSAddress
+                || msg.sender == _validatorAVSAddress,
             "Unauthorized middleware"
         );
 
-        bool isGateway = (serviceType == RestakingServiceType.EIGENLAYER_GATEWAY);
+        bool isEigenLayer = (
+            serviceType == RestakingServiceType.EIGENLAYER_GATEWAY
+                || serviceType == RestakingServiceType.EIGENLAYER_VALIDATOR
+        );
+
+        bool isGateway = (
+            serviceType == RestakingServiceType.EIGENLAYER_GATEWAY
+                || serviceType == RestakingServiceType.SYMBIOTIC_GATEWAY
+        );
 
         // Validate BLS key requirements for all operators
         if (isGateway) {
@@ -376,13 +395,29 @@ contract TaiyiProposerRegistry is
             require(blsKey.length == 0, "BLS key not allowed for validator operators");
         }
 
-        // Register with EigenLayer operator management
-        if (isGateway) {
-            eigenLayerOperatorState.registerGatewayOperator(
-                operatorAddress, blsKey, msg.sender
-            );
+        // Register with appropriate operator management system
+        if (isEigenLayer) {
+            // EigenLayer operator registration
+            if (isGateway) {
+                eigenLayerOperatorState.registerGatewayOperator(
+                    operatorAddress, blsKey, msg.sender
+                );
+            } else {
+                eigenLayerOperatorState.registerValidatorOperator(
+                    operatorAddress, msg.sender
+                );
+            }
         } else {
-            eigenLayerOperatorState.registerValidatorOperator(operatorAddress, msg.sender);
+            // Symbiotic operator registration
+            if (isGateway) {
+                symbioticOperatorState.registerGatewayOperator(
+                    operatorAddress, blsKey, msg.sender
+                );
+            } else {
+                symbioticOperatorState.registerValidatorOperator(
+                    operatorAddress, msg.sender
+                );
+            }
         }
 
         emit OperatorRegistered(operatorAddress, msg.sender, serviceType);
@@ -396,17 +431,21 @@ contract TaiyiProposerRegistry is
     )
         internal
     {
-        // Only AVS contracts can register validators
-        require(
-            msg.sender == _validatorAVSAddress,
-            "Only AVS contracts can register validators"
-        );
+        // Determine protocol type based on caller
+        bool isEigenLayer = msg.sender == _validatorAVSAddress;
+        bool isSymbiotic = msg.sender == _symbioticMiddlewareAddress;
+        require(isEigenLayer || isSymbiotic, "Only AVS contracts can register validators");
+
+        // Get appropriate service type based on protocol
+        RestakingServiceType serviceType = isEigenLayer
+            ? RestakingServiceType.EIGENLAYER_VALIDATOR
+            : RestakingServiceType.SYMBIOTIC_VALIDATOR;
 
         // Check if operator is registered with correct protocol and service type
         require(
-            _isOperatorRegisteredInAVS(
-                operator, RestakingServiceType.EIGENLAYER_VALIDATOR
-            ),
+            isEigenLayer
+                ? _isOperatorRegisteredInAVS(operator, serviceType)
+                : _isOperatorRegisteredInSymbiotic(operator, serviceType),
             "Operator not registered with correct service"
         );
         require(delegatee.length > 0, "Invalid delegatee");
@@ -416,12 +455,26 @@ contract TaiyiProposerRegistry is
     }
 
     /// @dev Internal function to deregister an operator
+    /// @dev Flow:
+    /// 1. Validates caller is an authorized AVS contract (Gateway, Validator or Symbiotic)
+    /// 2. Determines service type based on caller:
+    ///    - EigenLayer Gateway -> EIGENLAYER_GATEWAY
+    ///    - EigenLayer Validator -> EIGENLAYER_VALIDATOR
+    ///    - Symbiotic -> Checks if registered as SYMBIOTIC_GATEWAY or SYMBIOTIC_VALIDATOR
+    /// 3. For validator operators (both EigenLayer and Symbiotic):
+    ///    - Checks all validator pubkeys associated with operator
+    ///    - Validates validators are not active or in cooldown
+    ///    - Requires validators to be fully opted out
+    ///    - Clears operator association with validators
+    /// 4. For Symbiotic operators:
+    ///    - Deregisters from Symbiotic operator state
     function _deregisterOperator(address operatorAddress) internal {
         bool isEigenGateway = msg.sender == _gatewayAVSAddress;
         bool isEigenValidator = msg.sender == _validatorAVSAddress;
+        bool isSymbioticMiddleware = msg.sender == _symbioticMiddlewareAddress;
 
         require(
-            isEigenGateway || isEigenValidator,
+            isEigenGateway || isEigenValidator || isSymbioticMiddleware,
             "Only AVS contracts can deregister operators"
         );
 
@@ -430,9 +483,26 @@ contract TaiyiProposerRegistry is
             serviceType = RestakingServiceType.EIGENLAYER_GATEWAY;
         } else if (isEigenValidator) {
             serviceType = RestakingServiceType.EIGENLAYER_VALIDATOR;
+        } else if (isSymbioticMiddleware) {
+            if (
+                _isOperatorRegisteredInSymbiotic(
+                    operatorAddress, RestakingServiceType.SYMBIOTIC_GATEWAY
+                )
+            ) {
+                serviceType = RestakingServiceType.SYMBIOTIC_GATEWAY;
+            } else if (
+                _isOperatorRegisteredInSymbiotic(
+                    operatorAddress, RestakingServiceType.SYMBIOTIC_VALIDATOR
+                )
+            ) {
+                serviceType = RestakingServiceType.SYMBIOTIC_VALIDATOR;
+            }
         }
 
-        if (serviceType == RestakingServiceType.EIGENLAYER_VALIDATOR) {
+        if (
+            serviceType == RestakingServiceType.EIGENLAYER_VALIDATOR
+                || serviceType == RestakingServiceType.SYMBIOTIC_VALIDATOR
+        ) {
             bytes[] memory pubkeys = validatorState.getOperatorValidators(operatorAddress);
             for (uint256 i = 0; i < pubkeys.length; i++) {
                 bytes32 pubkeyHash = keccak256(pubkeys[i]);
@@ -451,9 +521,15 @@ contract TaiyiProposerRegistry is
             validatorState.clearOperatorForValidator(operatorAddress);
         }
 
-        eigenLayerOperatorState.deregisterOperator(
-            operatorAddress, serviceType, msg.sender
-        );
+        if (isSymbioticMiddleware) {
+            symbioticOperatorState.deregisterOperator(
+                operatorAddress, serviceType, msg.sender
+            );
+        } else {
+            eigenLayerOperatorState.deregisterOperator(
+                operatorAddress, serviceType, msg.sender
+            );
+        }
         emit OperatorDeregistered(operatorAddress, msg.sender);
     }
 
@@ -493,6 +569,18 @@ contract TaiyiProposerRegistry is
         returns (bool)
     {
         return eigenLayerOperatorState.isRegistered(operatorAddress, serviceType);
+    }
+
+    /// @dev Internal function to check if an operator is registered in the Symbiotic network
+    function _isOperatorRegisteredInSymbiotic(
+        address operatorAddress,
+        RestakingServiceType serviceType
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return symbioticOperatorState.isRegistered(operatorAddress, serviceType);
     }
 
     /// @dev Internal function to validate opt-out cooldown

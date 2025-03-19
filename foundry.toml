@@ -1,0 +1,21 @@
+[profile.default]
+src = "contracts/src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.27"  # Default version for most contracts
+
+[profile.core]
+src = "lib/core/src"
+solc_version = "0.8.25"
+
+# If you need to override specific paths with different versions
+[profile.default.model_checker]
+contracts = { 'lib/core/src/**/*.sol' = '0.8.25' }
+
+# Remappings
+remappings = [
+    "@symbiotic/=lib/symbiotic/",
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "@openzeppelin-contracts/=lib/openzeppelin-contracts/",
+    "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/"
+] 

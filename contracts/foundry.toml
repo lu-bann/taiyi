@@ -15,7 +15,7 @@
   solc = "0.8.27"
   src = "src"
   test = "test"
-  via_ir = true
+  via_ir = false
 
 remappings = [
   "forge-std/=lib/forge-std/src/",
@@ -23,9 +23,10 @@ remappings = [
   "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
   "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
+  "@symbiotic/=lib/middleware-sdk/lib/core/src",
+  "@symbiotic-test/=lib/middleware-sdk/lib/core/test/",
   "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
 
-  "@symbiotic/=lib/core/src/",
   "@symbiotic-middleware-sdk/=lib/middleware-sdk/src/",
 
   "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",
