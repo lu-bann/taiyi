@@ -224,6 +224,7 @@ mod tests {
             .wallet(wallet.clone())
             .on_builtin(&rpc_url)
             .await?;
+        let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract
         let escrow = TaiyiEscrow::deploy(&provider).await?;
@@ -245,7 +246,7 @@ mod tests {
             tip: U256::from(100_000),
             ..Default::default()
         };
-        let signature = signer.sign_hash(&blockspace_request.digest()).await.unwrap();
+        let signature = signer.sign_hash(&blockspace_request.hash(chain_id)).await.unwrap();
         let preconf_request = PreconfRequestTypeB {
             allocation: blockspace_request,
             alloc_sig: signature,
