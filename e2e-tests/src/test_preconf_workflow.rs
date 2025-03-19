@@ -122,15 +122,28 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     }
     assert!(txs.contains(&transaction));
 
-    // Check if there's a payout transaction to the fee recipient
     let fee_recipient = Address::from_str("0x8943545177806ed17b9f23f0a21ee5948ecaa776").unwrap();
+    let sponsor_eth_selector = TaiyiCore::sponsorEthBatchCall::SELECTOR;
+    let get_tip_selector = TaiyiCore::getTipCall::SELECTOR;
+    let mut sponsor_tx = None;
+    let mut get_tip_tx = None;
     let mut payout_tx = None;
     for tx in &txs {
-        if tx.to().unwrap() == fee_recipient {
+        if tx.kind().is_call() {
+            let selector = tx.input().get(0..4).unwrap_or_default();
+            if selector == sponsor_eth_selector {
+                sponsor_tx = Some(tx.clone());
+            } else if selector == get_tip_selector {
+                get_tip_tx = Some(tx.clone());
+            }
+        }
+
+        if payout_tx.is_none() && tx.to().unwrap() == fee_recipient {
             payout_tx = Some(tx.clone());
-            break;
         }
     }
+    assert!(sponsor_tx.is_some());
+    assert!(get_tip_tx.is_some());
     assert!(payout_tx.is_some());
 
     let signed_constraints = constraints.first().unwrap().clone();
@@ -498,7 +511,8 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         nonce += 1;
     }
 
-    wati_until_deadline_of_slot(&config, available_slot.last().unwrap().slot + 1).await?;
+    wati_until_deadline_of_slot(&config, available_slot.get(requests_lim - 1).unwrap().slot + 1)
+        .await?;
     assert!(verify_txs_inclusion(&config.execution_url, submitted_txs).await.is_ok());
 
     taiyi_handle.abort();
