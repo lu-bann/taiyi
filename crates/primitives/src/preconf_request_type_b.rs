@@ -1,6 +1,7 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{hex, keccak256, Address, PrimitiveSignature, B256, U256};
+use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -105,6 +106,41 @@ impl BlockspaceAllocation {
     fn preconf_tip(&self) -> U256 {
         self.tip + self.deposit
     }
+
+    pub fn struct_hash(&self) -> B256 {
+        keccak256(
+            (
+                blockspace_allocation_type_hash(),
+                self.gas_limit,
+                self.sender,
+                self.recipient,
+                self.deposit,
+                self.tip,
+                self.target_slot,
+                self.blob_count as u64,
+            )
+                .abi_encode_sequence(),
+        )
+    }
+
+    pub fn hash(&self, chain_id: u64) -> B256 {
+        keccak256(("\x19\x01", domain_separator(chain_id), self.struct_hash()).abi_encode_packed())
+    }
+}
+
+pub fn eip712_domain_type_hash() -> B256 {
+    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+}
+
+pub fn blockspace_allocation_type_hash() -> B256 {
+    keccak256("BlockspaceAllocation(uint256 gasLimit,address sender,address recipient,uint256 deposit,uint256 tip,uint256 targetSlot,uint256 blobCount)")
+}
+
+pub fn domain_separator(chain_id: u64) -> B256 {
+    let type_hash = eip712_domain_type_hash();
+    let contract_name = keccak256("TaiyiCore".as_bytes());
+    let version = keccak256("1.0".as_bytes());
+    keccak256((type_hash, contract_name, version, chain_id).abi_encode_sequence())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
