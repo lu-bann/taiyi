@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
 use alloy_consensus::Transaction;
-use alloy_primitives::{Address, U256};
+use alloy_eips::eip2718::Encodable2718;
+use alloy_primitives::{keccak256, Address, U256};
 use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::{sol, SolCall};
+use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
 use taiyi_preconfer::TaiyiCore;
@@ -13,7 +14,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_BLS_PK, PRECONFER_ECDSA_SK},
+    constant::{PRECONFER_ADDRESS, PRECONFER_BLS_PK, PRECONFER_ECDSA_SK},
     contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -79,14 +80,16 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
 
     // Generate request and signature
-    let (request, signature) =
+    let (blockspace_request, signature) =
         generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee, chain_id)
             .await;
 
     info!("Submitting request for target slot: {:?}", target_slot);
 
     // Reserve blockspace
-    let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
+    let res =
+        send_reserve_blockspace_request(blockspace_request.clone(), signature, &config.taiyi_url())
+            .await?;
     let status = res.status();
     let body = res.bytes().await?;
     info!("reserve_blockspace response: {:?}", body);
@@ -109,7 +112,14 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.data.request_id, request_id);
 
-    // TODO: verify the commitment signature with gateway pub key
+    let commitment = preconf_response.data.commitment.unwrap();
+    let mut tx_bytes = Vec::new();
+    transaction.clone().encode_2718(&mut tx_bytes);
+    let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
+    let data =
+        keccak256((blockspace_request.hash(chain_id), raw_tx.as_bytes()).abi_encode_sequence());
+    let signer = commitment.recover_address_from_prehash(&data).unwrap();
+    assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
 
     wati_until_deadline_of_slot(&config, target_slot).await?;
 
