@@ -97,7 +97,6 @@ contract TaiyiCoreTest is Test {
 
     function fulfillPreconfRequestWithoutTx(BlockspaceAllocation memory blockspaceAllocation)
         internal
-        view
         returns (PreconfRequestBType memory preconfRequestBType)
     {
         bytes32 blockspaceHash = blockspaceAllocation.getBlockspaceAllocationHash();
@@ -108,7 +107,7 @@ contract TaiyiCoreTest is Test {
             vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
         bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
-        rawTx = new bytes(0);
+        bytes memory rawTx = new bytes(0);
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
         bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
 
