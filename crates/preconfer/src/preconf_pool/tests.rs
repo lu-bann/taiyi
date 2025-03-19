@@ -37,7 +37,7 @@ mod tests {
             allocation: request,
             alloc_sig: signature,
             transaction: None,
-            signer: Address::default(),
+            signer: signer.address(),
         };
 
         let request_id = Uuid::new_v4();

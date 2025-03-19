@@ -58,15 +58,14 @@ impl Ready {
         }
     }
 
-    /// Calculates the total pending deposit for all transactions.
-    /// This is the sum of the deposit of all transactions.
-    pub fn get_pending_diffs_for_account(&self, account: Address) -> Option<U256> {
+    /// Returns the sum of all preconf tips for all preconf requests from a given account
+    pub fn get_balance_diffs_for_account(&self, account: Address) -> Option<U256> {
         self.by_account.get(&account).map(|ids| {
             ids.iter()
                 .filter_map(|id| self.by_id.get(id))
                 .map(|preconf| {
                     if let PreconfRequest::TypeB(inner) = preconf {
-                        inner.allocation.deposit
+                        inner.preconf_tip()
                     } else {
                         U256::ZERO
                     }
