@@ -100,8 +100,9 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
     assert!(txs.contains(&request.tip_transaction));
 
-    let tip_tx = txs.get(0).unwrap();
-    let user_tx = txs.get(1).unwrap(); // TODO: Change to array
+    let anchor_tx = txs.get(0).unwrap();
+    let tip_tx = txs.get(1).unwrap();
+    let user_tx = txs.get(2).unwrap(); // TODO: Change to array
 
     println!("tip_tx: {:?}", tip_tx);
 
