@@ -51,14 +51,25 @@ pub fn main() {
                 == preconf_req_a
                     .preconf
                     .preconf_sig
-                    .recover_address_from_msg(preconf_req_a.preconf.digest())
+                    .recover_address_from_prehash(&preconf_req_a.preconf.digest())
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
         preconf_sig = preconf_req_a.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 
+        // Encode the public values of the program.
+        let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
+            proofBlockTimestamp: inclusion_block_header.timestamp,
+            proofBlockHash: inclusion_block_hash,
+            gatewayAddress: gateway_address,
+            signature: Bytes::from(preconf_sig.clone()),
+        });
+
         // Target slot verification
-        assert_eq!(inclusion_block_header.number, preconf_req_a.preconf.target_slot);
+        assert_eq!(
+            get_slot_from_timestamp(inclusion_block_header.timestamp, genesis_timestamp),
+            preconf_req_a.preconf.target_slot
+        );
 
         // Account verification
         for (index, tx) in txs.iter().enumerate() {
@@ -79,6 +90,8 @@ pub fn main() {
             )
             .unwrap(); // verify the account state
             if account.nonce >= tx.nonce() {
+                // Commit the public values of the program.
+                sp1_zkvm::io::commit_slice(&bytes);
                 return;
             }
             if tx.is_eip4844() {
@@ -92,6 +105,8 @@ pub fn main() {
                                 as u128,
                     )
                 {
+                    // Commit the public values of the program.
+                    sp1_zkvm::io::commit_slice(&bytes);
                     return;
                 }
             } else {
@@ -99,6 +114,8 @@ pub fn main() {
                 if account.balance
                     < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
                 {
+                    // Commit the public values of the program.
+                    sp1_zkvm::io::commit_slice(&bytes);
                     return;
                 }
             }
@@ -106,8 +123,13 @@ pub fn main() {
 
         // User transactions and anchor tx inclusion
 
+        // PANICS: called `Result::unwrap()` on an `Err` value: InvalidStateRoot
         let memdb = Arc::new(MemoryDB::new(true));
         let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
+
+        // Works
+        let memdb = Arc::new(MemoryDB::new(true));
+        let trie = EthTrie::from(memdb, previous_block_header.transactions_root).unwrap();
 
         assert!(preconf_req_a.tx_merkle_proof.len() == txs.len() + 1); // +1 for the anchor tx
         for (index, merkle_proof) in preconf_req_a.tx_merkle_proof.iter().enumerate() {
@@ -164,6 +186,14 @@ pub fn main() {
 
         preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>();
 
+        // Encode the public values of the program.
+        let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
+            proofBlockTimestamp: inclusion_block_header.timestamp,
+            proofBlockHash: inclusion_block_hash,
+            gatewayAddress: gateway_address,
+            signature: Bytes::from(preconf_sig.clone()),
+        });
+
         // Target slot verification
         assert_eq!(
             get_slot_from_timestamp(inclusion_block_header.timestamp, genesis_timestamp),
@@ -188,85 +218,88 @@ pub fn main() {
         )
         .unwrap(); // verify the account state
 
-        // Account nonce needs to be less than the tx nonce
-        if account.nonce < tx.nonce() {
-            if tx.is_eip4844() {
-                let tx_eip4844 = tx.as_eip4844().unwrap();
-                // check balance
-                if account.balance
-                    < U256::from(
-                        inclusion_block_header.blob_fee().unwrap()
-                            * DATA_GAS_PER_BLOB as u128
-                            * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len()
-                                as u128,
-                    )
-                {
-                    return;
-                }
-            } else {
-                // check balance
-                if account.balance
-                    < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
-                {
-                    return;
-                }
-            }
+        if account.nonce >= tx.nonce() {
+            // Commit the public values of the program.
+            sp1_zkvm::io::commit_slice(&bytes);
+            return;
+        }
 
-            // User transaction and sponsorship tx inclusion
-
-            assert!(preconf_req_b.tx_merkle_proof.len() == 2); // only verify the user tx and the sponsorship tx
-            assert!(preconf_req_b.tx_merkle_proof[0].key == tx.tx_hash().as_slice()); // check that the user tx is the first transaction
-            assert!(
-                preconf_req_b.tx_merkle_proof[1].key
-                    == preconf_req_b.sponsorship_tx.tx_hash().as_slice()
-            ); // check that the sponsorship tx is the second transaction
-               // TODO: check that the user tx is before the sponsorship tx
-
-            let memdb = Arc::new(MemoryDB::new(true));
-            let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
-
-            for (index, merkle_proof) in preconf_req_b.tx_merkle_proof.iter().enumerate() {
-                if index == 0 {
-                    assert!(merkle_proof.key == tx.tx_hash().as_slice());
-                    trie.verify_proof(
-                        merkle_proof.root,
-                        merkle_proof.key.as_slice(),
-                        merkle_proof.proof.clone(),
-                    )
-                    .unwrap()
-                    .unwrap();
-                } else {
-                    assert!(merkle_proof.key == preconf_req_b.sponsorship_tx.tx_hash().as_slice());
-                    trie.verify_proof(
-                        merkle_proof.root,
-                        merkle_proof.key.as_slice(),
-                        merkle_proof.proof.clone(),
-                    )
-                    .unwrap()
-                    .unwrap();
-                }
-            }
-            // Sponsorship tx verification (correct smart contract call and data passed)
-            let sponsorship_tx = preconf_req_b.sponsorship_tx;
-            assert!(
-                sponsorship_tx.to().unwrap()
-                    == address!("894B19A54A829b00Ad9F1394DD82cB6746531ce0")
-            ); // taiyi core address
-            let sponsor_call =
-                sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
-            let mut sender_found = false;
-            for (recipient, _amount) in
-                sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
+        if tx.is_eip4844() {
+            let tx_eip4844 = tx.as_eip4844().unwrap();
+            // check balance
+            if account.balance
+                < U256::from(
+                    inclusion_block_header.blob_fee().unwrap()
+                        * DATA_GAS_PER_BLOB as u128
+                        * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128,
+                )
             {
-                if recipient == &tx.recover_signer().unwrap() {
-                    // TODO: check amount
-                    sender_found = true;
-                    break;
-                }
+                // Commit the public values of the program.
+                sp1_zkvm::io::commit_slice(&bytes);
+                return;
             }
-            if !sender_found {
-                panic!("no sponsorship tx for sender.");
+        } else {
+            // check balance
+            if account.balance
+                < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
+            {
+                // Commit the public values of the program.
+                sp1_zkvm::io::commit_slice(&bytes);
+                return;
             }
+        }
+
+        // User transaction and sponsorship tx inclusion
+
+        assert!(preconf_req_b.tx_merkle_proof.len() == 2); // only verify the user tx and the sponsorship tx
+        assert!(preconf_req_b.tx_merkle_proof[0].key == tx.tx_hash().as_slice()); // check that the user tx is the first transaction
+        assert!(
+            preconf_req_b.tx_merkle_proof[1].key
+                == preconf_req_b.sponsorship_tx.tx_hash().as_slice()
+        ); // check that the sponsorship tx is the second transaction
+           // TODO: check that the user tx is before the sponsorship tx
+
+        let memdb = Arc::new(MemoryDB::new(true));
+        let trie = EthTrie::from(memdb, inclusion_block_header.transactions_root).unwrap();
+
+        for (index, merkle_proof) in preconf_req_b.tx_merkle_proof.iter().enumerate() {
+            if index == 0 {
+                assert!(merkle_proof.key == tx.tx_hash().as_slice());
+                trie.verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+            } else {
+                assert!(merkle_proof.key == preconf_req_b.sponsorship_tx.tx_hash().as_slice());
+                trie.verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+            }
+        }
+        // Sponsorship tx verification (correct smart contract call and data passed)
+        let sponsorship_tx = preconf_req_b.sponsorship_tx;
+        assert!(
+            sponsorship_tx.to().unwrap() == address!("894B19A54A829b00Ad9F1394DD82cB6746531ce0")
+        ); // taiyi core address
+        let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
+        let mut sender_found = false;
+        for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
+        {
+            if recipient == &tx.recover_signer().unwrap() {
+                // TODO: check amount
+                sender_found = true;
+                break;
+            }
+        }
+        if !sender_found {
+            panic!("no sponsorship tx for sender.");
         }
     }
 

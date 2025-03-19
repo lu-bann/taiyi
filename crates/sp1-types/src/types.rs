@@ -7,19 +7,21 @@ pub struct PreconfRequestTypeA {
     pub tip_transaction: TxEnvelope,
     pub transactions: Vec<TxEnvelope>,
     pub target_slot: u64,
-    pub sequence_number: u64,
+    pub sequence_number: Option<u64>,
     pub preconf_sig: PrimitiveSignature, /* signature by gateway (over tip transaction, preconf_txs, target_slot, and sequence_number) */
+    pub signer: Address,
 }
 
 impl PreconfRequestTypeA {
     pub fn digest(&self) -> B256 {
         let mut digest = Vec::new();
-        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         for tx in &self.transactions {
             digest.extend_from_slice(tx.tx_hash().as_slice());
         }
+        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
-        digest.extend_from_slice(&self.sequence_number.to_be_bytes());
+        digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
+        digest.extend_from_slice(self.signer.as_slice());
         keccak256(&digest)
     }
 }

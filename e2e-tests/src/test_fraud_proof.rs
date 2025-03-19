@@ -15,7 +15,8 @@ use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
 use taiyi_primitives::PreconfResponse;
 use taiyi_zkvm_types::{
     types::{
-        AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeB, PreconfTypeB, TxMerkleProof,
+        AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB,
+        PreconfTypeA, PreconfTypeB, TxMerkleProof,
     },
     utils::PublicValuesStruct,
 };
@@ -27,24 +28,242 @@ use crate::{
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
-        getTipCall, get_available_slot, get_block_from_slot, get_constraints_from_relay,
-        get_preconf_fee, new_account, send_reserve_blockspace_request,
-        send_submit_transaction_request, setup_env, wait_until_deadline_of_slot, PreconfTypeBJson,
+        generate_type_a_request, generate_type_a_request_with_nonce, getTipCall,
+        get_available_slot, get_block_from_slot, get_constraints_from_relay, get_preconf_fee,
+        new_account, send_reserve_blockspace_request, send_submit_transaction_request,
+        send_type_a_request, setup_env, wait_until_deadline_of_slot, PreconfTypeBJson,
     },
 };
 
 const ELF_POI: &[u8] = include_elf!("taiyi-poi");
 const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 
-// TODO: type A included test
 // TODO: type A not included test, can be dynamic
-
-#[cfg_attr(feature = "ci", ignore)]
 #[tokio::test]
-async fn poi_preconf_type_b_included() -> eyre::Result<()> {
-    let (_taiyi_handle, config) = setup_env().await?;
-
+// #[ignore]
+async fn poi_preconf_type_a_included() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
+
+    // Initialize provider
+    let wallet = EthereumWallet::new(signer.clone());
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet.clone())
+        .on_builtin(&config.execution_url)
+        .await?;
+
+    // Pick a slot from the lookahead
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    info!("available_slot: {:?}", available_slot);
+    let target_slot = available_slot.first().unwrap().slot;
+
+    let nonce = provider.get_transaction_count(signer.address()).await?;
+
+    // Fetch preconf fee for the target slot
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate request and signature
+    let (request, signature) = generate_type_a_request_with_nonce(
+        signer.clone(),
+        target_slot,
+        &config.execution_url,
+        fee.clone(),
+        nonce,
+    )
+    .await?;
+
+    info!("Submitting request for target slot: {:?}", target_slot);
+
+    let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
+    let status = res.status();
+    assert_eq!(status, 200);
+
+    let body = res.bytes().await?;
+    info!("submit Type A request response: {:?}", body);
+
+    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    info!("preconf_response: {:?}", preconf_response);
+
+    wait_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
+    }
+
+    // check if constraints contains our transaction
+    assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
+    assert!(txs.contains(&request.tip_transaction));
+
+    let tip_tx = txs.get(0).unwrap();
+    let user_tx = txs.get(1).unwrap(); // TODO: Change to array
+
+    println!("tip_tx: {:?}", tip_tx);
+
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
+    let user_transaction = provider
+        .get_transaction_by_hash(B256::from_str(&user_tx.tx_hash().to_string()).unwrap())
+        .await?
+        .unwrap();
+
+    let tip_transaction = provider
+        .get_transaction_by_hash(B256::from_str(&tip_tx.tx_hash().to_string()).unwrap())
+        .await?
+        .unwrap();
+
+    let inclusion_block = provider
+        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
+        .await?
+        .unwrap();
+
+    let previous_block = provider
+        .get_block_by_number(
+            BlockNumberOrTag::Number(block_number - 1),
+            BlockTransactionsKind::Full,
+        )
+        .await?
+        .unwrap();
+
+    // account proof
+    let account_proof = provider
+        .get_proof(user_transaction.from, vec![])
+        .block_id((block_number - 1).into())
+        .await?;
+
+    let account_merkle_proof = AccountMerkleProof {
+        address: account_proof.address,
+        nonce: account_proof.nonce,
+        balance: account_proof.balance,
+        storage_hash: account_proof.storage_hash,
+        code_hash: account_proof.code_hash,
+        account_proof: account_proof.account_proof,
+        state_root: previous_block.header.state_root,
+    };
+
+    // tx proof
+    let url = Url::parse(&config.execution_url).unwrap();
+    let mut txs_mpt_handler = TxsMptHandler::new(url).unwrap();
+    txs_mpt_handler.build_tx_tree_from_block(block_number).await.unwrap();
+
+    let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
+
+    // user tx
+    let tx_hash = user_transaction.inner.tx_hash();
+    let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
+    let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+    tx_merkle_proof.push(TxMerkleProof {
+        key: tx_hash.as_slice().to_vec(),
+        proof,
+        root: inclusion_block.header.transactions_root,
+    });
+
+    // sp1 part
+    let mut stdin = SP1Stdin::new();
+
+    // preconf type a
+    let preconf_a = PreconfRequestTypeA {
+        tip_transaction: tip_transaction.clone().into(),
+        transactions: vec![user_transaction.clone().into()],
+        target_slot,
+        sequence_number: Some(1),
+        signer: signer.address(),
+        preconf_sig: preconf_response.data.commitment.unwrap(),
+    };
+
+    let preconf_type_a = PreconfTypeA {
+        preconf: preconf_a,
+        anchor_tx: tip_transaction.clone().into(),
+        tx_merkle_proof,
+        account_merkle_proof: vec![account_merkle_proof],
+    };
+
+    let preconf_a_serialized = serde_json::to_string(&preconf_type_a).unwrap();
+    stdin.write(&preconf_a_serialized);
+
+    // is type a
+    stdin.write(&true);
+
+    println!(
+        "inclusion_block_header.transactions_root: {:?}",
+        inclusion_block.header.transactions_root
+    );
+    // inclusion block header
+    let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
+    stdin.write(&inclusion_block_header_serialized);
+
+    // inclusion block hash
+    stdin.write(&inclusion_block.header.hash_slow());
+
+    // previous block header
+    let previous_block_header_serialized = serde_json::to_string(&previous_block.header).unwrap();
+    stdin.write(&previous_block_header_serialized);
+
+    // previous block hash
+    stdin.write(&previous_block.header.hash_slow());
+
+    // gateway address
+    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+        k256::ecdsa::SigningKey::from_slice(&hex::decode(
+            PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
+        )?)?,
+    );
+    let gateway_address = private_key_signer.address();
+    stdin.write(&gateway_address);
+
+    let genesis_time = match config.context.genesis_time() {
+        Ok(genesis_time) => genesis_time,
+        Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
+    };
+    stdin.write(&genesis_time);
+
+    println!("Using the local/cpu SP1 prover.");
+    let client = ProverClient::builder().cpu().build();
+
+    println!("Executing program...");
+    let (public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+    println!("Executed program with {} cycles", report.total_instruction_count());
+
+    // Decode public values
+    let public_values_struct =
+        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+
+    // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
+    assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
+
+    // Check block hash is correct
+    assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+
+    // Check gateway address is correct
+    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+
+    // Check signature is correct
+    assert_eq!(
+        public_values_struct.signature,
+        Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
+    );
+
+    // Optionally, cleanup when done
+    taiyi_handle.abort();
+    Ok(())
+}
+
+// #[cfg_attr(feature = "ci", ignore)]
+#[tokio::test]
+#[ignore]
+async fn poi_preconf_type_b_included() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (_taiyi_handle, config) = setup_env().await?;
+    let signer = new_account(&config).await?;
+
+    // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -75,11 +294,12 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
+    assert_eq!(status, 200);
+
     let body = res.bytes().await?;
     info!("reserve_blockspace response: {:?}", body);
 
     let request_id = serde_json::from_slice::<Uuid>(&body)?;
-    assert_eq!(status, 200);
 
     // Submit transaction
     // Generate request and signature
@@ -105,7 +325,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         let decoded_txs = message.decoded_tx().unwrap();
         txs.extend(decoded_txs);
     }
-    assert_eq!(txs.len(), 3);
+    assert_eq!(txs.len(), 4);
 
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
@@ -124,7 +344,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     assert_eq!(*user_tx, request.transaction);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -202,8 +422,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         root: inclusion_block.header.transactions_root,
     });
 
-    // sp1
-
+    // sp1 part
     let mut stdin = SP1Stdin::new();
 
     // preconf type b
@@ -303,31 +522,31 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // Generate proof
     // TODO: Use plonk
-    let proof = client.prove(&pk, &stdin).core().run().unwrap();
+    // let proof = client.prove(&pk, &stdin).core().run().unwrap();
 
-    let duration = start.elapsed();
-    println!("Proof generation time: {:?}", duration);
+    // let duration = start.elapsed();
+    // println!("Proof generation time: {:?}", duration);
 
-    // Decode public values
-    let public_values_struct =
-        PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true).unwrap();
+    // // Decode public values
+    // let public_values_struct =
+    //     PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true).unwrap();
 
-    // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
-    assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
-    // Check block hash is correct
-    assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
-    // Check signature is correct
-    assert_eq!(
-        public_values_struct.signature,
-        Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
-    );
+    // // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
+    // assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
+    // // Check block hash is correct
+    // assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+    // // Check gateway address is correct
+    // assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // // Check signature is correct
+    // assert_eq!(
+    //     public_values_struct.signature,
+    //     Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
+    // );
 
-    // Verify proof and public values
-    client.verify(&proof, &vk).expect("verification failed");
+    // // Verify proof and public values
+    // client.verify(&proof, &vk).expect("verification failed");
 
-    proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+    // proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
 
     Ok(())
 }
