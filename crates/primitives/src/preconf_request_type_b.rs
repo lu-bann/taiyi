@@ -44,16 +44,11 @@ impl PreconfRequestTypeB {
     }
 
     /// Digest over allocation and transaction
-    pub fn digest(&self) -> B256 {
-        let mut digest = Vec::new();
-        digest.extend_from_slice(&self.allocation.blockspace_digest());
-        if let Some(tx) = &self.transaction {
-            let mut tx_bytes = Vec::new();
-            tx.encode_2718(&mut tx_bytes);
-            let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
-            digest.extend_from_slice(raw_tx.as_bytes());
-        }
-        keccak256(&digest)
+    pub fn digest(&self, chain_id: u64) -> B256 {
+        let mut tx_bytes = Vec::new();
+        self.transaction.clone().expect("Tx should be present").encode_2718(&mut tx_bytes);
+        let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
+        keccak256((self.allocation.hash(chain_id), raw_tx.as_bytes()).abi_encode_sequence())
     }
 }
 
@@ -87,22 +82,6 @@ pub struct BlockspaceAllocation {
 }
 
 impl BlockspaceAllocation {
-    pub fn blockspace_digest(&self) -> Vec<u8> {
-        let mut digest = Vec::new();
-        digest.extend_from_slice(&self.gas_limit.to_le_bytes());
-        digest.extend_from_slice(self.sender.as_slice());
-        digest.extend_from_slice(self.recipient.as_slice());
-        digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
-        digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
-        digest.extend_from_slice(&self.target_slot.to_le_bytes());
-        digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
-        digest
-    }
-
-    pub fn digest(&self) -> B256 {
-        keccak256(self.blockspace_digest())
-    }
-
     fn preconf_tip(&self) -> U256 {
         self.tip + self.deposit
     }
