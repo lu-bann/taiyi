@@ -8,7 +8,7 @@ import { TransparentUpgradeableProxy } from
     "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { POCBaseTest } from "@symbiotic-test/POCBase.t.sol";
 
-contract SymbioticDeployer is POCBaseTest {
+contract SymbioticMiddlewareTest is POCBaseTest {
     SymbioticNetworkMiddleware middleware;
     uint96 constant VALIDATOR_SUBNETWORK = 1;
     uint96 constant GATEWAY_SUBNETWORK = 2;
