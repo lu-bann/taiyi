@@ -202,7 +202,8 @@ mod tests {
             gas_limit: 21_0000,
             blob_count: 0,
         };
-        let signature = hex::encode(signer.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
+        let signature =
+            hex::encode(signer.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
         (request, format!("0x{signature}"))
     }
 }
