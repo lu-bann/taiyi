@@ -231,7 +231,6 @@ contract TaiyiCore is
             preconfRequestBType.gatewaySignedBlockspaceAllocation,
             "invalid gateway signature"
         );
-
     }
 
     /// @notice Burns gas by transferring the specified amount to the coinbase

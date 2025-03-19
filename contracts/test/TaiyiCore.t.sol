@@ -95,7 +95,9 @@ contract TaiyiCoreTest is Test {
         });
     }
 
-    function fulfillPreconfRequestWithoutTx(BlockspaceAllocation memory blockspaceAllocation)
+    function fulfillPreconfRequestWithoutTx(
+        BlockspaceAllocation memory blockspaceAllocation
+    )
         internal
         returns (PreconfRequestBType memory preconfRequestBType)
     {
