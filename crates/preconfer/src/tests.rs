@@ -65,7 +65,7 @@ mod tests {
             "03643b2c19f03891a7d103f50fab07ad0dbe7cb19477074d42488a28e345b07145".to_string();
         let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
 
-        let anvil = Anvil::new().block_time(12).chain_id(0).spawn();
+        let anvil = Anvil::new().block_time(12).chain_id(1).spawn();
         let rpc_url = anvil.endpoint();
 
         let sender = anvil.addresses().first().unwrap();
@@ -79,6 +79,7 @@ mod tests {
             .wallet(wallet.clone())
             .on_builtin(&rpc_url)
             .await?;
+        let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract
         let escrow = TaiyiEscrow::deploy(&provider).await?;
@@ -128,6 +129,7 @@ mod tests {
             signer.clone(),
             *network_state.available_slots().last().unwrap(),
             fee,
+            chain_id,
         )
         .await;
         let response = reqwest::Client::new()
@@ -188,6 +190,7 @@ mod tests {
         signer: PrivateKeySigner,
         target_slot: u64,
         preconf_fee: PreconfFeeResponse,
+        chain_id: u64,
     ) -> (BlockspaceAllocation, String) {
         let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
@@ -199,7 +202,7 @@ mod tests {
             gas_limit: 21_0000,
             blob_count: 0,
         };
-        let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+        let signature = hex::encode(signer.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
         (request, format!("0x{signature}"))
     }
 }
