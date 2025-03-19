@@ -48,7 +48,7 @@ impl PreconfRequestTypeB {
         let mut tx_bytes = Vec::new();
         self.transaction.clone().expect("Tx should be present").encode_2718(&mut tx_bytes);
         let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
-        keccak256((self.allocation.hash(chain_id), raw_tx.as_bytes()).abi_encode_sequence())
+        keccak256((self.allocation.hash(chain_id), raw_tx.as_bytes()).abi_encode_packed())
     }
 }
 
@@ -98,7 +98,7 @@ impl BlockspaceAllocation {
                 self.target_slot,
                 self.blob_count as u64,
             )
-                .abi_encode_sequence(),
+                .abi_encode(),
         )
     }
 
@@ -119,7 +119,7 @@ pub fn domain_separator(chain_id: u64) -> B256 {
     let type_hash = eip712_domain_type_hash();
     let contract_name = keccak256("TaiyiCore".as_bytes());
     let version = keccak256("1.0".as_bytes());
-    keccak256((type_hash, contract_name, version, chain_id).abi_encode_sequence())
+    keccak256((type_hash, contract_name, version, chain_id).abi_encode())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
