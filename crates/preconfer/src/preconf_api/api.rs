@@ -98,8 +98,10 @@ where
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
+    let chain_id =
+        state.provider.get_chain_id().await.map_err(|e| RpcError::UnknownError(e.to_string()))?;
     let signer = signature
-        .recover_address_from_prehash(&request.digest())
+        .recover_address_from_prehash(&request.hash(chain_id))
         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
     info!("Received blockspace reservation request, signer: {}", signer);
