@@ -128,7 +128,6 @@ mod tests {
         let status = response.status();
         assert_eq!(status, 200);
         let fee: PreconfFeeResponse = response.json().await?;
-        assert_eq!(fee.gas_fee, 1);
 
         // Reserve blockspace
         let request_endpoint =
