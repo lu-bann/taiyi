@@ -51,14 +51,7 @@ where
         pricer: Pricer<F>,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self {
-            relay_client,
-            network_state,
-            preconf_pool,
-            signer_client,
-            provider,
-            pricer,
-        }
+        Self { relay_client, network_state, preconf_pool, signer_client, provider, pricer }
     }
 
     /// reserve blockspace for a slot
@@ -131,12 +124,6 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let chain_id = self
-            .provider
-            .get_chain_id()
-            .await
-            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
-
         match self
             .preconf_pool
             .validate_and_store(
@@ -146,10 +133,13 @@ where
             .await
         {
             Ok(result) => {
-                let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
-                    )?;
+                let commitment = self
+                    .signer_client
+                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
+                    .await
+                    .map_err(|e| {
+                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                    })?;
                 Ok(PreconfResponseData {
                     request_id: request.request_id,
                     commitment: Some(commitment),
@@ -192,12 +182,6 @@ where
             signer,
         };
 
-        let chain_id = self
-            .provider
-            .get_chain_id()
-            .await
-            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
-
         match self
             .preconf_pool
             .validate_and_store(
@@ -207,10 +191,13 @@ where
             .await
         {
             Ok(result) => {
-                let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
-                    )?;
+                let commitment = self
+                    .signer_client
+                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
+                    .await
+                    .map_err(|e| {
+                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                    })?;
                 Ok(PreconfResponseData {
                     request_id,
                     commitment: Some(commitment),
