@@ -8773,6 +8773,7 @@ dependencies = [
  "alloy-consensus 0.8.1",
  "alloy-eips 0.8.1",
  "alloy-primitives 0.8.15",
+ "alloy-sol-types",
  "derive_more 1.0.0",
  "ethereum-consensus",
  "serde",
@@ -8786,6 +8787,7 @@ name = "taiyi-zkvm-types"
 version = "0.1.3"
 dependencies = [
  "alloy-consensus 0.8.1",
+ "alloy-eips 0.8.1",
  "alloy-primitives 0.8.15",
  "alloy-sol-types",
  "serde",

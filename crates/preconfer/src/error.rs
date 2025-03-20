@@ -14,24 +14,22 @@ use uuid::Uuid;
 pub enum RpcError {
     #[error("preconf tx already set")]
     PreconfTxAlreadySet,
-    #[error("unknown error {0:?}")]
-    UnknownError(String),
+    #[error("Header not set: {0:?}")]
+    NoHeader(String),
     #[error("exceed deadline for slot {0}")]
     ExceedDeadline(u64),
     #[error("Preconf pool error: {0:?}")]
     PoolError(#[from] PoolError),
-    #[error("Preconf request error: {0:?}")]
-    PreconfRequestError(String),
     #[error("Signature error: {0:?}")]
     SignatureError(String),
+    #[error("Internal: {0:?}")]
+    InternalError(String),
     #[error("Params error: {0:?}")]
     ParamsError(String),
     #[error("Malformed header")]
     MalformedHeader,
     #[error("Gateway isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
-    #[error("max_fee_per_gas: Expected {0}, got {1}")]
-    MaxFeePerGasLessThanThreshold(u128, u128),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,10 +38,22 @@ pub struct ErrorMessage {
     message: String,
 }
 
+impl From<RpcError> for StatusCode {
+    fn from(value: RpcError) -> Self {
+        match value {
+            RpcError::InternalError(_)
+            | RpcError::PoolError(PoolError::Validation(ValidationError::Internal(_))) => {
+                Self::INTERNAL_SERVER_ERROR
+            }
+            _ => Self::BAD_REQUEST,
+        }
+    }
+}
+
 impl IntoResponse for RpcError {
     fn into_response(self) -> Response {
         let message = self.to_string();
-        let code = StatusCode::BAD_REQUEST;
+        let code = StatusCode::from(self);
         (code, Json(ErrorMessage { code: code.as_u16(), message })).into_response()
     }
 }

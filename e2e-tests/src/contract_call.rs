@@ -11,10 +11,7 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use tracing::info;
 
-use crate::{
-    constant::{REVERTER_CONTRACT_ADDRESS, TAIYI_CONTRACT_ADDRESS},
-    TestProvider,
-};
+use crate::{constant::REVERTER_CONTRACT_ADDRESS, utils::TestConfig, TestProvider};
 
 sol! {
     #[sol(rpc)]
@@ -34,9 +31,12 @@ sol! {
     }
 }
 
-pub async fn taiyi_deposit(provider: TestProvider, amount: u128) -> eyre::Result<()> {
-    let contract_address: Address = TAIYI_CONTRACT_ADDRESS.parse()?;
-    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+pub async fn taiyi_deposit(
+    provider: TestProvider,
+    amount: u128,
+    test_config: &TestConfig,
+) -> eyre::Result<()> {
+    let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
     // Call deposit function
     let tx = taiyi_escrow.deposit().value(U256::from(amount)).into_transaction_request();
     let pending_tx = provider.send_transaction(tx).await?;
@@ -47,9 +47,12 @@ pub async fn taiyi_deposit(provider: TestProvider, amount: u128) -> eyre::Result
     Ok(())
 }
 
-pub async fn taiyi_balance(provider: TestProvider, address: Address) -> eyre::Result<U256> {
-    let contract_address: Address = TAIYI_CONTRACT_ADDRESS.parse()?;
-    let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+pub async fn taiyi_balance(
+    provider: TestProvider,
+    address: Address,
+    test_config: &TestConfig,
+) -> eyre::Result<U256> {
+    let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
     let balance = taiyi_escrow.balanceOf(address).call().await?;
     info!("Balance: {:?}", balance._0);
     Ok(balance._0)

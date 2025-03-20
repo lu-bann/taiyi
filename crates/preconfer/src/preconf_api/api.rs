@@ -12,8 +12,8 @@ use axum::{
 use reqwest::header::HeaderMap;
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SlotInfo, SubmitTransactionRequest,
-    SubmitTypeATransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponseData, SlotInfo,
+    SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -92,14 +92,16 @@ where
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
+    let chain_id =
+        state.provider.get_chain_id().await.map_err(|e| RpcError::InternalError(e.to_string()))?;
     let signer = signature
-        .recover_address_from_prehash(&request.digest())
+        .recover_address_from_prehash(&request.hash(chain_id))
         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
     info!("Received blockspace reservation request, signer: {}", signer);
@@ -114,14 +116,14 @@ pub async fn handle_submit_transaction<P>(
     headers: HeaderMap,
     State(state): State<PreconfState<P>>,
     Json(request): Json<SubmitTransactionRequest>,
-) -> Result<Json<PreconfResponse>, RpcError>
+) -> Result<Json<PreconfResponseData>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
@@ -157,14 +159,14 @@ pub async fn handle_submit_typea_transaction<P>(
     headers: HeaderMap,
     State(state): State<PreconfState<P>>,
     Json(request): Json<SubmitTypeATransactionRequest>,
-) -> Result<Json<PreconfResponse>, RpcError>
+) -> Result<Json<PreconfResponseData>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
+            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")

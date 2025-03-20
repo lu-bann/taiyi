@@ -29,7 +29,6 @@ pub async fn spawn_service(
     ecdsa_sk: String,
     relay_url: Vec<Url>,
     taiyi_escrow_address: Address,
-    min_fee_per_gas: u128,
 ) -> eyre::Result<()> {
     let provider =
         ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_rpc_url).await?;
@@ -51,7 +50,6 @@ pub async fn spawn_service(
         Url::parse(&execution_rpc_url)?,
         taiyi_escrow_address,
         provider,
-        min_fee_per_gas,
     );
     let preconf_pool_clone = state.preconf_pool.clone();
 

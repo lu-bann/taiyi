@@ -13,7 +13,7 @@ use taiyi_preconfer::{
     SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, PreconfResponseData, SlotInfo,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponseData, SlotInfo,
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tracing::info;
@@ -25,12 +25,13 @@ pub struct HttpClient {
     endpoint: Url,
     signer: PrivateKeySigner,
     wallet: EthereumWallet,
+    chain_id: u64,
 }
 
 impl HttpClient {
-    pub fn new(endpoint: Url, signer: PrivateKeySigner) -> Self {
+    pub fn new(endpoint: Url, signer: PrivateKeySigner, chain_id: u64) -> Self {
         let wallet = EthereumWallet::from(signer.clone());
-        Self { http: reqwest::Client::new(), endpoint, signer, wallet }
+        Self { http: reqwest::Client::new(), endpoint, signer, wallet, chain_id }
     }
 
     pub async fn slots(&self) -> eyre::Result<Vec<SlotInfo>> {
@@ -62,14 +63,15 @@ impl HttpClient {
         let blockspace_data = BlockspaceAllocation {
             target_slot: slot,
             sender: self.signer.address(),
-            recepient,
+            recipient: recepient,
             deposit: fee,
             tip: fee,
             gas_limit,
             blob_count: blob_count.try_into().unwrap(),
         };
-        let signature =
-            hex::encode(self.signer.sign_hash(&blockspace_data.digest()).await.unwrap().as_bytes());
+        let signature = hex::encode(
+            self.signer.sign_hash(&blockspace_data.hash(self.chain_id)).await.unwrap().as_bytes(),
+        );
         let target = self.endpoint.join(RESERVE_BLOCKSPACE_PATH)?;
         let result = self
             .http
@@ -122,8 +124,8 @@ impl HttpClient {
             .await?;
         let bytes = result.bytes().await?;
         info!("Submit Transaction Response: {:?}", bytes);
-        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_slice(&bytes)?;
+        Ok(response)
     }
 
     pub async fn submit_blob_transaction(
@@ -171,8 +173,8 @@ impl HttpClient {
             .await?;
         let bytes = result.bytes().await?;
         info!("Submit Blob Transaction Response: {:?}", bytes);
-        let response: PreconfResponse = serde_json::from_slice(&bytes)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_slice(&bytes)?;
+        Ok(response)
     }
 
     pub async fn submit_type_a_request(
@@ -225,7 +227,7 @@ impl HttpClient {
             .await?;
         let body = result.text().await?;
         info!("Submit Transaction Response: {:?}", body);
-        let response: PreconfResponse = serde_json::from_str(&body)?;
-        Ok(response.data)
+        let response: PreconfResponseData = serde_json::from_str(&body)?;
+        Ok(response)
     }
 }

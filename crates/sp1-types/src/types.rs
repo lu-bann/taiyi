@@ -1,5 +1,7 @@
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{keccak256, Address, Bytes, PrimitiveSignature, TxHash, B256, U256};
+use alloy_eips::eip2718::Encodable2718;
+use alloy_primitives::{hex, keccak256, Address, Bytes, PrimitiveSignature, TxHash, B256, U256};
+use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -8,29 +10,44 @@ pub struct PreconfRequestTypeA {
     pub transactions: Vec<TxEnvelope>,
     pub target_slot: u64,
     pub sequence_number: Option<u64>,
-    pub preconf_sig: PrimitiveSignature, /* signature by gateway (over tip transaction, preconf_txs, target_slot, and sequence_number) */
     pub signer: Address,
+    pub preconf_sig: PrimitiveSignature,
 }
 
 impl PreconfRequestTypeA {
-    pub fn digest(&self) -> B256 {
-        let mut digest = Vec::new();
+    pub fn digest(&self, chain_id: u64) -> B256 {
+        let mut preconf_txs: Vec<String> = Vec::new();
         for tx in &self.transactions {
-            digest.extend_from_slice(tx.tx_hash().as_slice());
+            let mut tx_bytes = Vec::new();
+            tx.encode_2718(&mut tx_bytes);
+            let hex_encoded_tx = format!("0x{}", hex::encode(&tx_bytes));
+            preconf_txs.push(hex_encoded_tx);
         }
-        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
-        digest.extend_from_slice(&self.target_slot.to_be_bytes());
-        digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
-        digest.extend_from_slice(self.signer.as_slice());
-        keccak256(&digest)
+
+        let mut tip_tx = Vec::new();
+        self.tip_transaction.encode_2718(&mut tip_tx);
+        let tip_tx_raw = format!("0x{}", hex::encode(&tip_tx));
+        let sequence_number = self.sequence_number.expect("Sequence number should be present");
+
+        keccak256(
+            (
+                tip_tx_raw.as_bytes(),
+                preconf_txs.iter().map(|s| s.as_bytes()).collect::<Vec<_>>(),
+                self.target_slot,
+                sequence_number,
+                self.signer,
+                chain_id,
+            )
+                .abi_encode_packed(),
+        )
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BlockspaceAllocation {
-    pub sender: Address,
-    pub recepient: Address,
     pub gas_limit: u64,
+    pub sender: Address,
+    pub recipient: Address,
     pub deposit: U256,
     pub tip: U256,
     pub target_slot: u64,
@@ -42,29 +59,64 @@ impl BlockspaceAllocation {
         let mut digest = Vec::new();
         digest.extend_from_slice(&self.gas_limit.to_le_bytes());
         digest.extend_from_slice(self.sender.as_slice());
-        digest.extend_from_slice(self.recepient.as_slice());
+        digest.extend_from_slice(self.recipient.as_slice());
         digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
         digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
         digest.extend_from_slice(&self.target_slot.to_le_bytes());
         digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
         digest
     }
+
+    pub fn struct_hash(&self) -> B256 {
+        keccak256(
+            (
+                blockspace_allocation_type_hash(),
+                self.gas_limit,
+                self.sender,
+                self.recipient,
+                self.deposit,
+                self.tip,
+                self.target_slot,
+                self.blob_count as u64,
+            )
+                .abi_encode(),
+        )
+    }
+
+    pub fn hash(&self, chain_id: u64) -> B256 {
+        keccak256(("\x19\x01", domain_separator(chain_id), self.struct_hash()).abi_encode_packed())
+    }
+}
+
+pub fn eip712_domain_type_hash() -> B256 {
+    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+}
+
+pub fn blockspace_allocation_type_hash() -> B256 {
+    keccak256("BlockspaceAllocation(uint256 gasLimit,address sender,address recipient,uint256 deposit,uint256 tip,uint256 targetSlot,uint256 blobCount)")
+}
+
+pub fn domain_separator(chain_id: u64) -> B256 {
+    let type_hash = eip712_domain_type_hash();
+    let contract_name = keccak256("TaiyiCore".as_bytes());
+    let version = keccak256("1.0".as_bytes());
+    keccak256((type_hash, contract_name, version, chain_id).abi_encode())
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PreconfRequestTypeB {
     pub allocation: BlockspaceAllocation,
-    pub alloc_sig: PrimitiveSignature, // signature by user (over allocation)
-    pub transaction: TxEnvelope,       // signed by user, TODO: change to array
-    pub preconf_sig: PrimitiveSignature, // signature by gateway (over allocation and transaction)
+    pub alloc_sig: PrimitiveSignature,
+    pub transaction: Option<TxEnvelope>,
+    pub preconf_sig: PrimitiveSignature,
 }
 
 impl PreconfRequestTypeB {
-    pub fn digest(&self) -> B256 {
-        let mut digest = Vec::new();
-        digest.extend_from_slice(&self.allocation.blockspace_digest());
-        digest.extend_from_slice(self.transaction.tx_hash().as_slice());
-        keccak256(&digest)
+    pub fn digest(&self, chain_id: u64) -> B256 {
+        let mut tx_bytes = Vec::new();
+        self.transaction.clone().expect("Tx should be present").encode_2718(&mut tx_bytes);
+        let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
+        keccak256((self.allocation.hash(chain_id), raw_tx.as_bytes()).abi_encode_packed())
     }
 }
 

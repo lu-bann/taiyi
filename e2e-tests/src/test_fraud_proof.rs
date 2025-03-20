@@ -12,7 +12,7 @@ use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs
 use hex::ToHex;
 use reqwest::Url;
 use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
-use taiyi_primitives::PreconfResponse;
+use taiyi_primitives::PreconfResponseData;
 use taiyi_zkvm_types::{
     types::{
         AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB,
@@ -24,7 +24,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, TAIYI_CONTRACT_ADDRESS},
+    constant::{PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK},
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -56,26 +56,17 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-    info!("available_slot: {:?}", available_slot);
     let target_slot = available_slot.first().unwrap().slot;
-
-    let nonce = provider.get_transaction_count(signer.address()).await?;
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
 
     // Generate request and signature
-    let (request, signature) = generate_type_a_request_with_nonce(
-        signer.clone(),
-        target_slot,
-        &config.execution_url,
-        fee.clone(),
-        nonce,
-    )
-    .await?;
+    let (request, signature) =
+        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee.clone())
+            .await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
-
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
     assert_eq!(status, 200);
@@ -83,7 +74,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit Type A request response: {:?}", body);
 
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
 
     wait_until_deadline_of_slot(&config, target_slot).await?;
@@ -189,7 +180,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         target_slot,
         sequence_number: Some(1),
         signer: signer.address(),
-        preconf_sig: preconf_response.data.commitment.unwrap(),
+        preconf_sig: preconf_response.commitment.unwrap(),
     };
 
     let preconf_type_a = PreconfTypeA {
@@ -257,7 +248,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Check signature is correct
     assert_eq!(
         public_values_struct.signature,
-        Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
+        Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
     );
 
     // Optionally, cleanup when done
@@ -280,11 +271,12 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         .wallet(wallet.clone())
         .on_builtin(&config.execution_url)
         .await?;
+    let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000).await?;
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
 
-    let balance = taiyi_balance(provider.clone(), signer.address()).await?;
+    let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
     assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
 
     // Pick a slot from the lookahead
@@ -297,7 +289,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee).await;
+        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee, chain_id)
+            .await;
 
     info!("Submitting request for target slot: {:?}", target_slot);
 
@@ -323,8 +316,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
-    assert_eq!(preconf_response.data.request_id, request_id);
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
+    assert_eq!(preconf_response.request_id, request_id);
 
     wait_until_deadline_of_slot(&config, target_slot).await?;
 
@@ -439,7 +432,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let preconf_b = PreconfRequestTypeB {
         allocation: BlockspaceAllocation {
             sender: signer.address(),
-            recepient: TAIYI_CONTRACT_ADDRESS.parse().unwrap(),
+            recipient: config.taiyi_core,
             gas_limit: get_tip_call
                 .preconfRequestBType
                 .blockspaceAllocation
@@ -471,7 +464,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         )
         .unwrap(),
         transaction: user_transaction.into(),
-        preconf_sig: preconf_response.data.commitment.unwrap(),
+        preconf_sig: preconf_response.commitment.unwrap(),
     };
 
     let preconf_type_b = PreconfTypeB {

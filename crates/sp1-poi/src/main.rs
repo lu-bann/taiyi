@@ -10,7 +10,6 @@ use alloy_primitives::{address, keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::{SolCall, SolType};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use eth_trie::{EthTrie, MemoryDB, Trie};
-// use eth_trie_proofs::tx::ConsensusTx;
 use hex::ToHex;
 use taiyi_zkvm_types::{types::*, utils::*};
 
@@ -40,19 +39,19 @@ pub fn main() {
     assert_eq!(previous_block_header.hash_slow(), previous_block_hash);
     assert_eq!(inclusion_block_header.parent_hash, previous_block_hash);
 
-    // Commit to the public data (public values).
     let preconf_sig: String;
-
     if is_type_a {
         let preconf_req_a = serde_json::from_str::<PreconfTypeA>(&preconf).unwrap();
         let txs = preconf_req_a.preconf.clone().transactions;
+
+        let chain_id = txs.first().unwrap().chain_id().unwrap();
 
         assert!(
             gateway_address
                 == preconf_req_a
                     .preconf
                     .preconf_sig
-                    .recover_address_from_prehash(&preconf_req_a.preconf.digest())
+                    .recover_address_from_prehash(&preconf_req_a.preconf.digest(chain_id))
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
@@ -176,14 +175,15 @@ pub fn main() {
         }
     } else {
         let preconf_req_b = serde_json::from_str::<PreconfTypeB>(&preconf).unwrap();
-        let tx = preconf_req_b.preconf.clone().transaction;
+        let tx = preconf_req_b.preconf.clone().transaction.unwrap();
+        let chain_id = tx.chain_id().unwrap();
 
         assert!(
             gateway_address
                 == preconf_req_b
                     .preconf
                     .preconf_sig
-                    .recover_address_from_prehash(&preconf_req_b.preconf.digest())
+                    .recover_address_from_prehash(&preconf_req_b.preconf.digest(chain_id))
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 

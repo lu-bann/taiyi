@@ -19,8 +19,8 @@ pub struct PreconfPoolInner {
 
 impl PreconfPoolInner {
     pub fn escrow_balance_diffs(&self, account: Address) -> Option<U256> {
-        let pending_diff = self.pending.get_pending_diffs_for_account(account);
-        let ready_diff = self.ready.get_pending_diffs_for_account(account);
+        let pending_diff = self.pending.get_balance_diffs_for_account(account);
+        let ready_diff = self.ready.get_balance_diffs_for_account(account);
 
         match (pending_diff, ready_diff) {
             (Some(pending_diff), Some(ready_diff)) => Some(pending_diff + ready_diff),
