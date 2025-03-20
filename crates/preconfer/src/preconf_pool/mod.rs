@@ -1,6 +1,7 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{Address, U256};
 use ethereum_consensus::{clock::from_system_time, deneb::Context};
 use futures::StreamExt;
@@ -9,7 +10,9 @@ use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reqwest::Url;
-use taiyi_primitives::{PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB};
+use taiyi_primitives::{
+    PreconfFeeResponse, PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB,
+};
 use tracing::info;
 use uuid::Uuid;
 use validator::PreconfValidator;
@@ -110,6 +113,7 @@ impl PreconfPool {
     pub async fn reserve_blockspace(
         &self,
         preconf_request: PreconfRequestTypeB,
+        preconf_fee: PreconfFeeResponse,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
         self.has_enough_balance(preconf_request.signer(), preconf_request.preconf_tip()).await?;
@@ -127,6 +131,20 @@ impl PreconfPool {
             || blockspace_avail.blobs <= preconf_request.allocation.blob_count
         {
             return Err(PoolError::BlockspaceNotAvailable);
+        }
+
+        // Verify preconf tips
+        let expected_tip = U256::from(
+            preconf_request.allocation.gas_limit as u128 * preconf_fee.gas_fee
+                + (preconf_request.allocation.blob_count as u128)
+                    * DATA_GAS_PER_BLOB as u128
+                    * preconf_fee.blob_gas_fee,
+        );
+        if preconf_request.preconf_tip() < expected_tip {
+            return Err(PoolError::Validation(ValidationError::InsufficientTip(
+                expected_tip,
+                preconf_request.preconf_tip(),
+            )));
         }
 
         // calculate diffs
@@ -148,6 +166,7 @@ impl PreconfPool {
         &self,
         preconf_request: PreconfRequest,
         request_id: Uuid,
+        preconf_fee: PreconfFeeResponse,
     ) -> Result<PreconfRequest, PoolError> {
         let mut account_state = self.state_cache.read().get(&preconf_request.signer()).cloned();
 
@@ -165,8 +184,12 @@ impl PreconfPool {
 
         match preconf_request {
             PreconfRequest::TypeA(preconf_request) => {
-                self.validate_typea(&preconf_request, &account_state.expect("can't be none"))
-                    .await?;
+                self.validate_typea(
+                    &preconf_request,
+                    &account_state.expect("can't be none"),
+                    preconf_fee,
+                )
+                .await?;
                 Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
             }
             PreconfRequest::TypeB(preconf_request) => {
@@ -210,10 +233,28 @@ impl PreconfPool {
         &self,
         preconf_request: &PreconfRequestTypeA,
         account_state: &AccountState,
+        preconf_fee: PreconfFeeResponse,
     ) -> eyre::Result<(), ValidationError> {
-        let tip_tx_gas_limit = preconf_request.tip_transaction.gas_limit();
-        let preconf_tx_gas_limit =
-            preconf_request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>();
+        // Tip transaction must be an ETH transfer
+        if !preconf_request.tip_transaction.is_eip1559() {
+            return Err(ValidationError::InvalidTipTransaction);
+        }
+
+        let request_gas_limit = preconf_request.tip_transaction.gas_limit()
+            + preconf_request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>();
+
+        let mut blob_count = 0;
+        for preconf_tx in preconf_request.preconf_tx.clone() {
+            if preconf_tx.is_eip4844() {
+                blob_count += preconf_tx
+                    .as_eip4844()
+                    .expect("Failed to decode 4844 transaction")
+                    .tx()
+                    .blob_versioned_hashes()
+                    .iter()
+                    .len();
+            }
+        }
 
         {
             let pool_inner = self.pool_inner.write();
@@ -224,43 +265,35 @@ impl PreconfPool {
                     None => BlockspaceAvailable::default(),
                 };
 
-            // Verify that we have enough space
-            if blockspace_avail.gas_limit < tip_tx_gas_limit + preconf_tx_gas_limit {
+            // Verify that we have enough blockspace
+            if blockspace_avail.gas_limit < request_gas_limit {
                 return Err(ValidationError::GasLimitTooHigh);
             }
 
-            for preconf_tx in preconf_request.preconf_tx.clone() {
-                if preconf_tx.is_eip4844() {
-                    let blob_count = preconf_tx
-                        .as_eip4844()
-                        .expect("Failed to decode 4844 transaction")
-                        .tx()
-                        .blob_versioned_hashes()
-                        .iter()
-                        .len();
-
-                    if blockspace_avail.blobs < blob_count {
-                        return Err(ValidationError::BlobCountExceedsLimit(
-                            blockspace_avail.blobs,
-                            blob_count,
-                        ));
-                    }
-                }
+            if blockspace_avail.blobs < blob_count {
+                return Err(ValidationError::BlobCountExceedsLimit(
+                    blockspace_avail.blobs,
+                    blob_count,
+                ));
             }
         }
 
-        // State validation
+        // Validate preconf tip
+        let expected_tip = U256::from(
+            preconf_fee.gas_fee * request_gas_limit as u128
+                + preconf_fee.blob_gas_fee * DATA_GAS_PER_BLOB as u128 * blob_count as u128,
+        );
 
-        let account_balance = account_state.balance;
-        let account_nonce = account_state.nonce;
-
-        // Tip transaction must be an ETH transfer
-        if !preconf_request.tip_transaction.is_eip1559() {
-            return Err(ValidationError::InvalidTipTransaction);
+        if preconf_request.preconf_tip() < expected_tip {
+            return Err(ValidationError::InsufficientTip(
+                expected_tip,
+                preconf_request.preconf_tip(),
+            ));
         }
 
-        // TODO: check tip
-        // NOTE: requires a price oracle to check the tip
+        // State validation
+        let account_balance = account_state.balance;
+        let account_nonce = account_state.nonce;
 
         // Nonce check
         let nonce = preconf_request.tip_transaction.nonce();

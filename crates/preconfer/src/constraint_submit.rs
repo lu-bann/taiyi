@@ -24,8 +24,8 @@ use crate::{
     preconf_api::state::PreconfState,
 };
 
-pub fn spawn_constraint_submitter<P>(
-    state: PreconfState<P>,
+pub fn spawn_constraint_submitter<P, F>(
+    state: PreconfState<P, F>,
 ) -> impl Future<Output = eyre::Result<()>>
 where
     P: Provider + Clone + Send + Sync + 'static,

@@ -14,7 +14,11 @@ use taiyi_primitives::{
 use uuid::Uuid;
 
 use crate::{
-    clients::{relay_client::RelayClient, signer_client::SignerClient},
+    clients::{
+        pricer::{PreconfPricer, Pricer},
+        relay_client::RelayClient,
+        signer_client::SignerClient,
+    },
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
@@ -22,17 +26,19 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PreconfState<P> {
+pub struct PreconfState<P, F> {
     pub network_state: NetworkState,
     pub preconf_pool: Arc<PreconfPool>,
     pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
+    pub pricer: Pricer<F>,
 }
 
-impl<P> PreconfState<P>
+impl<P, F> PreconfState<P, F>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -42,9 +48,10 @@ where
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
+        pricer: Pricer<F>,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider }
+        Self { relay_client, network_state, preconf_pool, signer_client, provider, pricer }
     }
 
     /// reserve blockspace for a slot
@@ -62,7 +69,7 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        // TODO: Check gas_fee & blob_gas_fee against the pricing service
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
 
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
@@ -80,7 +87,10 @@ where
         let preconf_request =
             PreconfRequestTypeB { allocation: request, alloc_sig, transaction: None, signer };
 
-        self.preconf_pool.reserve_blockspace(preconf_request).await.map_err(RpcError::PoolError)
+        self.preconf_pool
+            .reserve_blockspace(preconf_request, preconf_fee)
+            .await
+            .map_err(RpcError::PoolError)
     }
 
     pub async fn submit_transaction(
@@ -117,25 +127,24 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let chain_id = self
-            .provider
-            .get_chain_id()
-            .await
-            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
-
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
         match self
             .preconf_pool
             .validate_and_store(
                 taiyi_primitives::PreconfRequest::TypeB(preconf_request.clone()),
                 request.request_id,
+                preconf_fee,
             )
             .await
         {
             Ok(result) => {
-                let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
-                    )?;
+                let commitment = self
+                    .signer_client
+                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
+                    .await
+                    .map_err(|e| {
+                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                    })?;
                 Ok(PreconfResponseData {
                     request_id: request.request_id,
                     commitment: Some(commitment),
@@ -178,25 +187,24 @@ where
             signer,
         };
 
-        let chain_id = self
-            .provider
-            .get_chain_id()
-            .await
-            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
-
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
         match self
             .preconf_pool
             .validate_and_store(
                 taiyi_primitives::PreconfRequest::TypeA(preconf_request.clone()),
                 request_id,
+                preconf_fee,
             )
             .await
         {
             Ok(result) => {
-                let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
-                    )?;
+                let commitment = self
+                    .signer_client
+                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
+                    .await
+                    .map_err(|e| {
+                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                    })?;
                 Ok(PreconfResponseData {
                     request_id,
                     commitment: Some(commitment),

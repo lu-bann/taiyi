@@ -82,7 +82,7 @@ pub struct BlockspaceAllocation {
 }
 
 impl BlockspaceAllocation {
-    fn preconf_tip(&self) -> U256 {
+    pub fn preconf_tip(&self) -> U256 {
         self.tip + self.deposit
     }
 
