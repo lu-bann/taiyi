@@ -13,11 +13,6 @@
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 	commit = 828dbc357cd7975c0a31d919f6d4dcf7ef2dc427
 
-[submodule "contracts/lib/eigenlayer-middleware"]
-	path = contracts/lib/eigenlayer-middleware
-	url = https://github.com/Layr-Labs/eigenlayer-middleware
-	commit = 48e0aecae3f778356a5009f912ade946b285fe9b
-
 [submodule "contracts/lib/eigenlayer-contracts"]
 	path = contracts/lib/eigenlayer-contracts
 	url = https://github.com/Layr-Labs/eigenlayer-contracts
