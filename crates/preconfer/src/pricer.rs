@@ -25,7 +25,6 @@ where
 }
 
 pub trait PreconfPricer {
-    #[allow(dead_code)]
     fn get_optimal_base_gas_fee(
         &self,
     ) -> impl std::future::Future<Output = eyre::Result<u64, PricerError>> + Send;

@@ -32,6 +32,8 @@ pub enum RpcError {
     SlotNotAvailable(u64),
     #[error("max_fee_per_gas: Expected {0}, got {1}")]
     MaxFeePerGasLessThanThreshold(u128, u128),
+    #[error("Pricer error: {0:?}")]
+    PricerError(#[from] PricerError),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

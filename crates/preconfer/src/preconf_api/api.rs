@@ -19,7 +19,10 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
+use crate::{
+    clients::pricer::PreconfPricer, error::RpcError, metrics::metrics_middleware,
+    preconf_api::PreconfState,
+};
 
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
 pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
@@ -37,9 +40,10 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run<P>(self, state: PreconfState<P>) -> eyre::Result<()>
+    pub async fn run<P, F>(self, state: PreconfState<P, F>) -> eyre::Result<()>
     where
         P: Provider + Clone + Send + Sync + 'static,
+        F: PreconfPricer + Clone + Sync + Send + 'static,
     {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
@@ -81,13 +85,14 @@ pub async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "OK"}))
 }
 
-pub async fn handle_reserve_blockspace<P>(
+pub async fn handle_reserve_blockspace<P, F>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P>>,
+    State(state): State<PreconfState<P, F>>,
     Json(request): Json<BlockspaceAllocation>,
 ) -> Result<Json<Uuid>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers
@@ -112,13 +117,14 @@ where
     }
 }
 
-pub async fn handle_submit_transaction<P>(
+pub async fn handle_submit_transaction<P, F>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P>>,
+    State(state): State<PreconfState<P, F>>,
     Json(request): Json<SubmitTransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers
@@ -136,32 +142,35 @@ where
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
-pub async fn get_slots<P>(
-    State(state): State<PreconfState<P>>,
+pub async fn get_slots<P, F>(
+    State(state): State<PreconfState<P, F>>,
 ) -> Result<Json<Vec<SlotInfo>>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     Ok(Json(state.get_slots().await?))
 }
 
-pub async fn handle_preconf_fee<P>(
-    State(_): State<PreconfState<P>>,
-    Json(_request): Json<u64>,
+pub async fn handle_preconf_fee<P, F>(
+    State(state): State<PreconfState<P, F>>,
+    Json(request): Json<u64>,
 ) -> Result<Json<PreconfFeeResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
-    Ok(Json(PreconfFeeResponse { gas_fee: 1, blob_gas_fee: 1 }))
+    Ok(Json(state.pricer.pricer.get_preconf_fee(request).await?))
 }
 
-pub async fn handle_submit_typea_transaction<P>(
+pub async fn handle_submit_typea_transaction<P, F>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P>>,
+    State(state): State<PreconfState<P, F>>,
     Json(request): Json<SubmitTypeATransactionRequest>,
 ) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers

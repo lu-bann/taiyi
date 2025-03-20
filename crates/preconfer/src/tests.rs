@@ -21,7 +21,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        clients::{relay_client::RelayClient, signer_client::SignerClient},
+        clients::{pricer::{ExecutionClientPricer, Pricer}, relay_client::RelayClient, signer_client::SignerClient},
         network_state::NetworkState,
         preconf_api::{
             api::{
@@ -95,6 +95,8 @@ mod tests {
         let balance = builder.call().await?._0;
         assert_eq!(balance, U256::from(100_000));
 
+        let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+
         // spawn api server
         let state = PreconfState::new(
             network_state.clone(),
@@ -104,6 +106,7 @@ mod tests {
             *escrow.address(),
             provider.clone(),
             0,
+            pricer,
         );
 
         let preconfapiserver =

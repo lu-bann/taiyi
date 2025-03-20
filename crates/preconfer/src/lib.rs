@@ -8,7 +8,6 @@ pub mod metrics;
 mod network_state;
 mod preconf_api;
 mod preconf_pool;
-mod pricer;
 #[cfg(test)]
 mod tests;
 

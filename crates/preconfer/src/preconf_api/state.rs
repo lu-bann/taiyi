@@ -14,7 +14,11 @@ use taiyi_primitives::{
 use uuid::Uuid;
 
 use crate::{
-    clients::{relay_client::RelayClient, signer_client::SignerClient},
+    clients::{
+        pricer::{PreconfPricer, Pricer},
+        relay_client::RelayClient,
+        signer_client::SignerClient,
+    },
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
@@ -22,18 +26,20 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PreconfState<P> {
+pub struct PreconfState<P, F> {
     pub network_state: NetworkState,
     pub preconf_pool: Arc<PreconfPool>,
     pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
     pub min_fee_per_gas: u128,
+    pub pricer: Pricer<F>,
 }
 
-impl<P> PreconfState<P>
+impl<P, F> PreconfState<P, F>
 where
     P: Provider + Clone + Send + Sync + 'static,
+    F: PreconfPricer + Sync + Send + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -44,9 +50,18 @@ where
         taiyi_escrow_address: Address,
         provider: P,
         min_fee_per_gas: u128,
+        pricer: Pricer<F>,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider, min_fee_per_gas }
+        Self {
+            relay_client,
+            network_state,
+            preconf_pool,
+            signer_client,
+            provider,
+            min_fee_per_gas,
+            pricer,
+        }
     }
 
     /// reserve blockspace for a slot

@@ -86,6 +86,7 @@ impl PreconferCommand {
             relay_url,
             self.taiyi_escrow_address.parse()?,
             min_fee_per_gas,
+            self.taiyi_service_url.clone(),
         )
         .await?;
 
