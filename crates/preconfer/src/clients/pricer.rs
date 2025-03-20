@@ -95,3 +95,31 @@ where
         Ok(PreconfFeeResponse { gas_fee: estimate.max_fee_per_gas, blob_gas_fee })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy_provider::ProviderBuilder;
+
+    use crate::clients::pricer::PreconfPricer;
+
+    #[ignore = "requires a running pricing service"]
+    #[tokio::test]
+    async fn test_taiyi_pricer() {
+        let pricer_url = std::env::var("PRICER_URL").unwrap();
+        let pricer = crate::clients::pricer::TaiyiPricer::new(pricer_url, 1);
+        let preconf_fee = pricer.get_preconf_fee(0).await;
+        assert!(preconf_fee.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execution_client_pricer() -> eyre::Result<()> {
+        let anvil = alloy_node_bindings::Anvil::new().block_time(1).chain_id(0).spawn();
+        let rpc_url = anvil.endpoint();
+        let provider = ProviderBuilder::new().on_builtin(&rpc_url).await?;
+
+        let pricer = crate::clients::pricer::ExecutionClientPricer::new(provider);
+        let preconf_fee = pricer.get_preconf_fee(0).await;
+        assert!(preconf_fee.is_ok());
+        Ok(())
+    }
+}
