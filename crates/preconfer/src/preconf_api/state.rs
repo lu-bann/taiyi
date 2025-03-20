@@ -8,7 +8,7 @@ use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use reqwest::Url;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponse, SlotInfo,
+    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData, SlotInfo,
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use uuid::Uuid;
@@ -32,7 +32,6 @@ pub struct PreconfState<P, F> {
     pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
-    pub min_fee_per_gas: u128,
     pub pricer: Pricer<F>,
 }
 
@@ -49,7 +48,6 @@ where
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
-        min_fee_per_gas: u128,
         pricer: Pricer<F>,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
@@ -59,7 +57,6 @@ where
             preconf_pool,
             signer_client,
             provider,
-            min_fee_per_gas,
             pricer,
         }
     }
@@ -90,7 +87,7 @@ where
         }
 
         if request.gas_limit == 0 {
-            return Err(RpcError::UnknownError("Gas limit cannot be zero".to_string()));
+            return Err(RpcError::ParamsError("Gas limit cannot be zero".to_string()));
         }
 
         // Construct a preconf request
@@ -104,7 +101,7 @@ where
         &self,
         request: SubmitTransactionRequest,
         signature: PrimitiveSignature,
-    ) -> Result<PreconfResponse, RpcError> {
+    ) -> Result<PreconfResponseData, RpcError> {
         let mut preconf_request = self
             .preconf_pool
             .get_pending(request.request_id)
@@ -129,17 +126,7 @@ where
 
         // Check if blocksapce reserved matches with transaction gas limit
         if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
-            return Err(RpcError::UnknownError(
-                "Gas limit exceeds reserved blockspace".to_string(),
-            ));
-        }
-
-        // Check for gas fee caps
-        if request.transaction.max_fee_per_gas() < self.min_fee_per_gas {
-            return Err(RpcError::MaxFeePerGasLessThanThreshold(
-                self.min_fee_per_gas,
-                request.transaction.max_fee_per_gas(),
-            ));
+            return Err(RpcError::ParamsError("Gas limit exceeds reserved blockspace".to_string()));
         }
 
         preconf_request.transaction = Some(request.transaction.clone());
@@ -148,7 +135,7 @@ where
             .provider
             .get_chain_id()
             .await
-            .map_err(|_| RpcError::UnknownError("Failed to get chain id".to_string()))?;
+            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
 
         match self
             .preconf_pool
@@ -161,9 +148,13 @@ where
             Ok(result) => {
                 let commitment =
                     self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::SignatureError(format!("Failed to issue commitment: {e:?}")),
+                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
                     )?;
-                Ok(PreconfResponse::success(request.request_id, Some(commitment), None))
+                Ok(PreconfResponseData {
+                    request_id: request.request_id,
+                    commitment: Some(commitment),
+                    sequence_num: None,
+                })
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
@@ -174,7 +165,7 @@ where
         request: SubmitTypeATransactionRequest,
         signature: PrimitiveSignature,
         signer: Address,
-    ) -> Result<PreconfResponse, RpcError> {
+    ) -> Result<PreconfResponseData, RpcError> {
         let recovered_signer = signature
             .recover_address_from_prehash(&request.digest())
             .map_err(|e| RpcError::SignatureError(e.to_string()))?;
@@ -188,7 +179,7 @@ where
         }
 
         if request.preconf_transaction.is_empty() {
-            return Err(RpcError::UnknownError("No preconf transactions".to_string()));
+            return Err(RpcError::ParamsError("No preconf transactions".to_string()));
         }
 
         // Only for internal use.
@@ -205,7 +196,7 @@ where
             .provider
             .get_chain_id()
             .await
-            .map_err(|_| RpcError::UnknownError("Failed to get chain id".to_string()))?;
+            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
 
         match self
             .preconf_pool
@@ -218,9 +209,13 @@ where
             Ok(result) => {
                 let commitment =
                     self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
-                        |e| RpcError::SignatureError(format!("Failed to issue commitment: {e:?}")),
+                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
                     )?;
-                Ok(PreconfResponse::success(request_id, Some(commitment), result.sequence_num()))
+                Ok(PreconfResponseData {
+                    request_id,
+                    commitment: Some(commitment),
+                    sequence_num: result.sequence_num(),
+                })
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
