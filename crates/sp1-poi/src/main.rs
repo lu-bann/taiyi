@@ -2,11 +2,11 @@
 #![no_main]
 
 use core::panic;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use alloy_consensus::{Header, Transaction, TxEnvelope};
 use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB};
-use alloy_primitives::{address, keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::{SolCall, SolType};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use eth_trie::{EthTrie, MemoryDB, Trie};
@@ -155,7 +155,10 @@ pub fn main() {
         // Anchor/sponsorship tx verification (correct smart contract call and data passed)
         let anchor_tx = preconf_req_a.anchor_tx;
         // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
-        assert!(anchor_tx.to().unwrap() == address!("A791D59427B2b7063050187769AC871B497F4b3C")); // taiyi core address
+        assert!(
+            anchor_tx.to().unwrap()
+                == Address::from_str("0x1127a1e8248ae0ee1d5f1c7094ffd7dc37cbe714").unwrap()
+        ); // taiyi core address
         let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input(), true).unwrap();
         let mut senders_found: HashSet<Address> = HashSet::new();
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
@@ -284,8 +287,12 @@ pub fn main() {
         }
         // Sponsorship tx verification (correct smart contract call and data passed)
         let sponsorship_tx = preconf_req_b.sponsorship_tx;
+
+        // TODO: Check if correct
+        // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
         assert!(
-            sponsorship_tx.to().unwrap() == address!("A791D59427B2b7063050187769AC871B497F4b3C")
+            sponsorship_tx.to().unwrap()
+                == Address::from_str("0x1127a1e8248ae0ee1d5f1c7094ffd7dc37cbe714").unwrap()
         ); // taiyi core address
         let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
         let mut sender_found = false;

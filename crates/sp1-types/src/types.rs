@@ -55,18 +55,6 @@ pub struct BlockspaceAllocation {
 }
 
 impl BlockspaceAllocation {
-    pub fn blockspace_digest(&self) -> Vec<u8> {
-        let mut digest = Vec::new();
-        digest.extend_from_slice(&self.gas_limit.to_le_bytes());
-        digest.extend_from_slice(self.sender.as_slice());
-        digest.extend_from_slice(self.recipient.as_slice());
-        digest.extend_from_slice(&self.deposit.to_le_bytes::<32>());
-        digest.extend_from_slice(&self.tip.to_le_bytes::<32>());
-        digest.extend_from_slice(&self.target_slot.to_le_bytes());
-        digest.extend_from_slice(&(self.blob_count as u64).to_le_bytes());
-        digest
-    }
-
     pub fn struct_hash(&self) -> B256 {
         keccak256(
             (

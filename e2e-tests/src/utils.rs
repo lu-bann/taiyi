@@ -23,8 +23,9 @@ use taiyi_preconfer::{
     SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
-    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest, PreconfResponse,
-    SignedConstraints, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest,
+    PreconfResponseData, SignedConstraints, SlotInfo, SubmitTransactionRequest,
+    SubmitTypeATransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};

@@ -2,7 +2,7 @@ use std::{str::FromStr, time::Instant};
 
 use alloy_consensus::{Account, Transaction};
 use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::{hex, Bytes, PrimitiveSignature, B256, U256};
+use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
 use alloy_signer::k256;
@@ -12,6 +12,7 @@ use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs
 use hex::ToHex;
 use reqwest::Url;
 use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
+use taiyi_preconfer::TaiyiCore;
 use taiyi_primitives::PreconfResponseData;
 use taiyi_zkvm_types::{
     types::{
@@ -24,7 +25,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK},
+    constant::{PRECONFER_ADDRESS, PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK},
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -308,7 +309,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Generate request and signature
     let transaction = generate_tx(&config.execution_url, signer.clone()).await.unwrap();
     let (request, signature) =
-        generate_submit_transaction_request(signer.clone(), transaction, request_id).await;
+        generate_submit_transaction_request(signer.clone(), transaction.clone(), request_id).await;
 
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
@@ -329,13 +330,38 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         txs.extend(decoded_txs);
     }
     assert_eq!(txs.len(), 4);
+    assert!(txs.contains(&transaction));
 
     let signed_constraints = constraints.first().unwrap().clone();
     let message = signed_constraints.message;
 
-    let sponsorship_tx = txs.get(0).unwrap();
-    let user_tx = txs.get(1).unwrap();
-    let tip_tx = txs.get(2).unwrap();
+    let fee_recipient = Address::from_str("0x8943545177806ed17b9f23f0a21ee5948ecaa776").unwrap();
+    let sponsor_eth_selector = TaiyiCore::sponsorEthBatchCall::SELECTOR;
+    let get_tip_selector = TaiyiCore::getTipCall::SELECTOR;
+    let mut sponsor_tx = None;
+    let mut get_tip_tx = None;
+    let mut payout_tx = None;
+    for tx in &txs {
+        if tx.kind().is_call() {
+            let selector = tx.input().get(0..4).unwrap_or_default();
+            if selector == sponsor_eth_selector {
+                sponsor_tx = Some(tx.clone());
+            } else if selector == get_tip_selector {
+                get_tip_tx = Some(tx.clone());
+            }
+        }
+
+        if payout_tx.is_none() && tx.to().unwrap() == fee_recipient {
+            payout_tx = Some(tx.clone());
+        }
+    }
+    assert!(sponsor_tx.is_some());
+    assert!(get_tip_tx.is_some());
+    assert!(payout_tx.is_some());
+
+    let user_tx = transaction.clone();
+    let tip_tx = get_tip_tx.unwrap();
+    let sponsorship_tx = sponsor_tx.unwrap();
 
     assert_eq!(
         message.pubkey,
@@ -343,11 +369,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     );
 
     assert_eq!(message.slot, target_slot);
-
-    assert_eq!(*user_tx, request.transaction);
+    assert_eq!(user_tx, request.transaction);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -432,7 +457,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let preconf_b = PreconfRequestTypeB {
         allocation: BlockspaceAllocation {
             sender: signer.address(),
-            recipient: config.taiyi_core,
+            recipient: Address::from_str(PRECONFER_ADDRESS).unwrap(),
             gas_limit: get_tip_call
                 .preconfRequestBType
                 .blockspaceAllocation
@@ -463,7 +488,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             &get_tip_call.preconfRequestBType.blockspaceAllocationSignature.to_string(),
         )
         .unwrap(),
-        transaction: user_transaction.into(),
+        transaction: Some(user_transaction.into()),
         preconf_sig: preconf_response.commitment.unwrap(),
     };
 
@@ -496,12 +521,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     stdin.write(&previous_block.header.hash_slow());
 
     // gateway address
-    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
-        k256::ecdsa::SigningKey::from_slice(&hex::decode(
-            PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
-        )?)?,
-    );
-    let gateway_address = private_key_signer.address();
+    let gateway_address = Address::from_str(PRECONFER_ADDRESS).unwrap();
     stdin.write(&gateway_address);
 
     let genesis_time = match config.context.genesis_time() {
