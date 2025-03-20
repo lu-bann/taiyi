@@ -8722,6 +8722,7 @@ dependencies = [
  "alloy-consensus 0.8.3",
  "alloy-eips 0.8.3",
  "alloy-primitives 0.8.22",
+ "alloy-sol-types",
  "derive_more 1.0.0",
  "ethereum-consensus",
  "serde",

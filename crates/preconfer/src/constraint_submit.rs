@@ -6,7 +6,7 @@ use std::{
 use alloy_consensus::Header;
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
-use alloy_primitives::{keccak256, private::alloy_rlp::Decodable, Bytes, U256};
+use alloy_primitives::{hex, keccak256, private::alloy_rlp::Decodable, Bytes, U256};
 use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
 use alloy_rpc_types::TransactionRequest;
 use ethereum_consensus::{
@@ -150,12 +150,15 @@ where
                                     let blockspace_allocation_sig_user = preconf_req.alloc_sig;
                                     let blockspace_allocation_sig_gateway = state
                                         .signer_client
-                                        .sign_with_ecdsa(preconf_req.allocation.digest())
+                                        .sign_with_ecdsa(keccak256(
+                                            blockspace_allocation_sig_user.as_bytes(),
+                                        ))
                                         .await
                                         .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
+                                    let raw_tx = format!("0x{}", hex::encode(&tx_encoded));
                                     let gateway_signed_raw_tx = state
                                         .signer_client
-                                        .sign_with_ecdsa(keccak256(tx_encoded.clone()))
+                                        .sign_with_ecdsa(keccak256(raw_tx))
                                         .await
                                         .map_err(|e| {
                                             RpcError::SignatureError(format!(
@@ -168,7 +171,6 @@ where
                                         blockspace_allocation_sig_gateway,
                                         tx_encoded.into(),
                                         gateway_signed_raw_tx,
-                                        state.preconf_pool.taiyi_escrow_address,
                                     );
 
                                     // Call getTip() on TaiyiCore contract
@@ -238,11 +240,9 @@ where
                     let blockspace_allocation_sig_user = preconf_req.alloc_sig;
                     let blockspace_allocation_sig_gateway = state
                         .signer_client
-                        .sign_with_ecdsa(preconf_req.allocation.digest())
+                        .sign_with_ecdsa(keccak256(blockspace_allocation_sig_user.as_bytes()))
                         .await
-                        .map_err(|e| {
-                            RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
-                        })?;
+                        .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
                     let preconf_request_type_b = to_solidity_type(
                         preconf_req,
                         blockspace_allocation_sig_user,
@@ -250,6 +250,7 @@ where
                         Bytes::default(),
                         state
                             .signer_client
+                            // Empty raw tx
                             .sign_with_ecdsa(keccak256(Bytes::default()))
                             .await
                             .map_err(|e| {
@@ -257,7 +258,6 @@ where
                                     "Failed to issue commitment: {e:?}"
                                 ))
                             })?,
-                        state.preconf_pool.taiyi_escrow_address,
                     );
 
                     // Call exhaust() on TaiyiCore contract

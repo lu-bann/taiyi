@@ -87,7 +87,7 @@ async fn main() -> eyre::Result<()> {
     // let receipt = pending_tx.get_receipt().await?;
     // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
-    let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone());
+    let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone(), chain_id);
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
     let client = EventClient::new(reqwest::Client::new());
 

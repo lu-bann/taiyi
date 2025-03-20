@@ -44,8 +44,7 @@ struct BlockspaceAllocation {
 /// @param blockspaceAllocation The requested block space allocation details
 /// @param blockspaceAllocationSignature User's signature over the blockspace
 /// allocation
-/// @param gatewaySignedBlockspaceAllocation Gateway's signed version of the
-/// blockspace allocation
+/// @param gatewaySignedBlockspaceAllocation Gateway's signature over `blockspaceAllocationSignature`
 /// @param rawTx The raw transaction submitted by user at target slot
 /// @param gatewaySignedRawTx Gateway's signed version of the raw transaction
 /// for inclusion
