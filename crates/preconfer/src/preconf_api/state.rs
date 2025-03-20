@@ -4,8 +4,7 @@ use std::{
 };
 
 use alloy_consensus::Transaction;
-use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
-use alloy_primitives::{Address, PrimitiveSignature, U256};
+use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use reqwest::Url;
 use taiyi_primitives::{
@@ -21,7 +20,7 @@ use crate::{
         signer_client::SignerClient,
     },
     context_ext::ContextExt,
-    error::{PoolError, PricerError, RpcError},
+    error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{PreconfPool, PreconfPoolBuilder},
 };
@@ -70,20 +69,7 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        // Validate preconf tip
         let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
-        let expected_tip = U256::from(
-            request.gas_limit as u128 * preconf_fee.gas_fee
-                + (request.blob_count as u128)
-                    * DATA_GAS_PER_BLOB as u128
-                    * preconf_fee.blob_gas_fee,
-        );
-        if request.preconf_tip() <= expected_tip {
-            return Err(RpcError::PricerError(PricerError::InsufficientTip(
-                expected_tip,
-                request.preconf_tip(),
-            )));
-        }
 
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2

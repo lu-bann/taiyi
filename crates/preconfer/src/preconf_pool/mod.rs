@@ -140,7 +140,7 @@ impl PreconfPool {
                     * DATA_GAS_PER_BLOB as u128
                     * preconf_fee.blob_gas_fee,
         );
-        if preconf_request.preconf_tip() <= expected_tip {
+        if preconf_request.preconf_tip() < expected_tip {
             return Err(PoolError::Validation(ValidationError::InsufficientTip(
                 expected_tip,
                 preconf_request.preconf_tip(),
@@ -284,7 +284,7 @@ impl PreconfPool {
                 + preconf_fee.blob_gas_fee * DATA_GAS_PER_BLOB as u128 * blob_count as u128,
         );
 
-        if preconf_request.preconf_tip() <= expected_tip {
+        if preconf_request.preconf_tip() < expected_tip {
             return Err(ValidationError::InsufficientTip(
                 expected_tip,
                 preconf_request.preconf_tip(),

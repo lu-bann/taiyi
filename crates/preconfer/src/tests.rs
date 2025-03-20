@@ -92,12 +92,12 @@ mod tests {
         info!("Deployed contract at address: {}", escrow.address());
 
         // Deposit into the escrow contract
-        let builder = escrow.deposit().value(U256::from(100_000));
+        let builder = escrow.deposit().value(U256::from(1_000_000_000_000_000_000_u128));
         let tx_hash = builder.send().await?.watch().await?;
 
         let builder = escrow.balanceOf(*sender);
         let balance = builder.call().await?._0;
-        assert_eq!(balance, U256::from(100_000));
+        assert_eq!(balance, U256::from(1_000_000_000_000_000_000_u128));
 
         let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
 
@@ -163,7 +163,7 @@ mod tests {
             .with_from(sender)
             .with_value(U256::from(1000))
             .with_nonce(nonce)
-            .with_gas_limit(21_0000)
+            .with_gas_limit(21_000)
             .with_to(sender)
             .with_max_fee_per_gas(fees.max_fee_per_gas)
             .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
@@ -206,7 +206,7 @@ mod tests {
             recipient: Address::default(),
             deposit: U256::from(fee * 21_000 / 2),
             tip: U256::from(fee * 21_000 / 2),
-            gas_limit: 21_0000,
+            gas_limit: 21_000,
             blob_count: 0,
         };
         let signature =
