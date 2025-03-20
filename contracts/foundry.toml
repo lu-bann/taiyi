@@ -36,13 +36,6 @@ remappings = [
   "lib/eigenlayer-contracts/:ds-test/=lib/eigenlayer-contracts/lib/ds-test/src/",
   "lib/eigenlayer-contracts/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/",
   
-  "lib/eigenlayer-middleware/:@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/",
-  "lib/eigenlayer-middleware/:@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/",
-  "lib/eigenlayer-middleware/:@openzeppelin-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-v4.9.0/contracts/",
-  "lib/eigenlayer-middleware/:@openzeppelin-upgrades-v4.9.0/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable-v4.9.0/contracts/",
-  "lib/eigenlayer-middleware/:ds-test/=lib/eigenlayer-middleware/lib/ds-test/src/",
-  "lib/eigenlayer-middleware/lib/openzeppelin-contracts/:@openzeppelin/contracts/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/contracts/",
-
   "lib/core/:@openzeppelin/contracts/=lib/core/lib/openzeppelin-contracts/contracts/",
 
   "lib/middleware-sdk/:@openzeppelin/contracts/=lib/middleware-sdk/lib/openzeppelin-contracts/contracts/",
