@@ -41,25 +41,20 @@ import { ISignatureUtils } from
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
-import { IServiceManager } from
-    "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
-import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
 /// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
 /// @dev Both GatewayAVS and ValidatorAVS should inherit from this contract.
 abstract contract EigenLayerMiddleware is
     OwnableUpgradeable,
     UUPSUpgradeable,
-    IServiceManager,
     EigenLayerMiddlewareStorage
 {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using BitmapUtils for *;
 
     // ========= EVENTS =========
 
     event AVSDirectorySet(address indexed avsDirectory);
-
+    event RewardsInitiatorUpdated(address indexed previousRewardsInitiator, address indexed newRewardsInitiator);
     // ========= ERRORS =========
 
     error ValidatorNotActiveWithinEigenCore();
