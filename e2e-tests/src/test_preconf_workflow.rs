@@ -349,7 +349,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
     assert!(txs.contains(&request.tip_transaction));
 
-    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 

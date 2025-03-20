@@ -104,11 +104,14 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let tip_tx = txs.get(1).unwrap();
     let user_tx = txs.get(2).unwrap(); // TODO: Change to array
 
-    println!("tip_tx: {:?}", tip_tx);
-
-    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 2).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
+
+    let anchor_transaction = provider
+        .get_transaction_by_hash(B256::from_str(&anchor_tx.tx_hash().to_string()).unwrap())
+        .await?
+        .unwrap();
 
     let user_transaction = provider
         .get_transaction_by_hash(B256::from_str(&user_tx.tx_hash().to_string()).unwrap())
@@ -156,12 +159,22 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
 
+    // anchor tx
+    let tx_hash = anchor_transaction.inner.tx_hash();
+    let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
+    let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+    tx_merkle_proof.push(TxMerkleProof {
+        key: alloy_rlp::encode(U256::from(tx_index)),
+        proof,
+        root: inclusion_block.header.transactions_root,
+    });
+
     // user tx
     let tx_hash = user_transaction.inner.tx_hash();
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: tx_hash.as_slice().to_vec(),
+        key: alloy_rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -181,7 +194,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     let preconf_type_a = PreconfTypeA {
         preconf: preconf_a,
-        anchor_tx: tip_transaction.clone().into(),
+        anchor_tx: anchor_tx.clone().into(),
         tx_merkle_proof,
         account_merkle_proof: vec![account_merkle_proof],
     };
@@ -192,10 +205,6 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // is type a
     stdin.write(&true);
 
-    println!(
-        "inclusion_block_header.transactions_root: {:?}",
-        inclusion_block.header.transactions_root
-    );
     // inclusion block header
     let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
     stdin.write(&inclusion_block_header_serialized);
@@ -258,7 +267,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
 // #[cfg_attr(feature = "ci", ignore)]
 #[tokio::test]
-#[ignore]
+// #[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (_taiyi_handle, config) = setup_env().await?;
@@ -380,7 +389,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let get_tip_call = getTipCall::abi_decode(get_tip_transaction.input(), true).unwrap();
 
     // account proof
-
     let account_proof = provider
         .get_proof(user_transaction.from, vec![])
         .block_id((block_number - 1).into())
@@ -407,8 +415,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let tx_hash = user_transaction.inner.tx_hash();
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+
     tx_merkle_proof.push(TxMerkleProof {
-        key: tx_hash.as_slice().to_vec(),
+        key: alloy_rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -418,7 +427,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: tx_hash.as_slice().to_vec(),
+        key: alloy_rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });

@@ -4,12 +4,13 @@
 use core::panic;
 use std::{collections::HashSet, sync::Arc};
 
-use alloy_consensus::{Header, Transaction};
-use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
+use alloy_consensus::{Header, Transaction, TxEnvelope};
+use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB};
 use alloy_primitives::{address, keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::{SolCall, SolType};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use eth_trie::{EthTrie, MemoryDB, Trie};
+// use eth_trie_proofs::tx::ConsensusTx;
 use hex::ToHex;
 use taiyi_zkvm_types::{types::*, utils::*};
 
@@ -76,6 +77,7 @@ pub fn main() {
             let account_merkle_proof = preconf_req_a.account_merkle_proof[index].clone();
             let account_key = account_merkle_proof.address;
             assert_eq!(account_key, tx.recover_signer().unwrap()); // check that the account in proof matches the signer of the transaction
+
             let account = TrieAccount {
                 nonce: account_merkle_proof.nonce,
                 balance: account_merkle_proof.balance,
@@ -89,11 +91,13 @@ pub fn main() {
                 &account_merkle_proof.account_proof,
             )
             .unwrap(); // verify the account state
-            if account.nonce >= tx.nonce() {
+
+            if account.nonce > tx.nonce() {
                 // Commit the public values of the program.
                 sp1_zkvm::io::commit_slice(&bytes);
                 return;
             }
+
             if tx.is_eip4844() {
                 let tx_eip4844 = tx.as_eip4844().unwrap();
                 // check balance
@@ -122,33 +126,37 @@ pub fn main() {
         }
 
         // User transactions and anchor tx inclusion
-
         let memdb = Arc::new(MemoryDB::new(true));
         let trie = EthTrie::new(memdb);
 
         assert!(preconf_req_a.tx_merkle_proof.len() == txs.len() + 1); // +1 for the anchor tx
         for (index, merkle_proof) in preconf_req_a.tx_merkle_proof.iter().enumerate() {
-            if index == 0 {
-                assert!(merkle_proof.key == preconf_req_a.anchor_tx.tx_hash().as_slice());
-            // check that the first transaction is the anchor tx
-            } else {
-                assert!(merkle_proof.key == txs[index - 1].tx_hash().as_slice());
-                // check that the transactions are in the correct order
-            }
             assert!(merkle_proof.root == inclusion_block_header.transactions_root);
-            trie.verify_proof(
-                merkle_proof.root,
-                merkle_proof.key.as_slice(),
-                merkle_proof.proof.clone(),
-            )
-            .unwrap()
-            .unwrap();
+
+            let node = trie
+                .verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+
+            let tx = TxEnvelope::decode_2718(&mut node.as_slice()).unwrap();
+
+            if index == 0 {
+                // check that the first transaction is the anchor tx
+                assert!(tx.tx_hash() == preconf_req_a.anchor_tx.tx_hash());
+            } else {
+                // check that the transactions are in the correct order
+                assert!(tx.tx_hash() == txs[index - 1].tx_hash());
+            }
         }
 
         // Anchor/sponsorship tx verification (correct smart contract call and data passed)
-
         let anchor_tx = preconf_req_a.anchor_tx;
-        assert!(anchor_tx.to().unwrap() == address!("894B19A54A829b00Ad9F1394DD82cB6746531ce0")); // taiyi core address
+        // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
+        assert!(anchor_tx.to().unwrap() == address!("A791D59427B2b7063050187769AC871B497F4b3C")); // taiyi core address
         let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input(), true).unwrap();
         let mut senders_found: HashSet<Address> = HashSet::new();
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
@@ -199,6 +207,7 @@ pub fn main() {
         let account_merkle_proof = preconf_req_b.account_merkle_proof.clone();
         let account_key = account_merkle_proof.address;
         assert_eq!(account_key, tx.recover_signer().unwrap()); // check that the account in proof matches the signer of the transaction
+
         let account = TrieAccount {
             nonce: account_merkle_proof.nonce,
             balance: account_merkle_proof.balance,
@@ -213,7 +222,7 @@ pub fn main() {
         )
         .unwrap(); // verify the account state
 
-        if account.nonce >= tx.nonce() {
+        if account.nonce > tx.nonce() {
             // Commit the public values of the program.
             sp1_zkvm::io::commit_slice(&bytes);
             return;
@@ -246,43 +255,37 @@ pub fn main() {
 
         // User transaction and sponsorship tx inclusion
 
-        assert!(preconf_req_b.tx_merkle_proof.len() == 2); // only verify the user tx and the sponsorship tx
-        assert!(preconf_req_b.tx_merkle_proof[0].key == tx.tx_hash().as_slice()); // check that the user tx is the first transaction
-        assert!(
-            preconf_req_b.tx_merkle_proof[1].key
-                == preconf_req_b.sponsorship_tx.tx_hash().as_slice()
-        ); // check that the sponsorship tx is the second transaction
-           // TODO: check that the user tx is before the sponsorship tx
+        // only verify the user tx and the sponsorship tx
+        assert!(preconf_req_b.tx_merkle_proof.len() == 2);
 
         let memdb = Arc::new(MemoryDB::new(true));
         let trie = EthTrie::new(memdb);
 
         for (index, merkle_proof) in preconf_req_b.tx_merkle_proof.iter().enumerate() {
             assert!(merkle_proof.root == inclusion_block_header.transactions_root);
+
+            let node = trie
+                .verify_proof(
+                    merkle_proof.root,
+                    merkle_proof.key.as_slice(),
+                    merkle_proof.proof.clone(),
+                )
+                .unwrap()
+                .unwrap();
+
+            let decoded_tx = TxEnvelope::decode_2718(&mut node.as_slice()).unwrap();
             if index == 0 {
-                assert!(merkle_proof.key == tx.tx_hash().as_slice());
-                trie.verify_proof(
-                    merkle_proof.root,
-                    merkle_proof.key.as_slice(),
-                    merkle_proof.proof.clone(),
-                )
-                .unwrap()
-                .unwrap();
+                // check that the user tx is the first transaction
+                assert!(decoded_tx.tx_hash() == tx.tx_hash());
             } else {
-                assert!(merkle_proof.key == preconf_req_b.sponsorship_tx.tx_hash().as_slice());
-                trie.verify_proof(
-                    merkle_proof.root,
-                    merkle_proof.key.as_slice(),
-                    merkle_proof.proof.clone(),
-                )
-                .unwrap()
-                .unwrap();
+                // check that the sponsorship tx is the second transaction
+                assert!(decoded_tx.tx_hash() == preconf_req_b.sponsorship_tx.tx_hash());
             }
         }
         // Sponsorship tx verification (correct smart contract call and data passed)
         let sponsorship_tx = preconf_req_b.sponsorship_tx;
         assert!(
-            sponsorship_tx.to().unwrap() == address!("894B19A54A829b00Ad9F1394DD82cB6746531ce0")
+            sponsorship_tx.to().unwrap() == address!("A791D59427B2b7063050187769AC871B497F4b3C")
         ); // taiyi core address
         let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
         let mut sender_found = false;

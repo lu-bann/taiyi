@@ -8634,6 +8634,7 @@ dependencies = [
  "alloy-eips 0.8.1",
  "alloy-primitives 0.8.15",
  "alloy-provider 0.8.1",
+ "alloy-rlp",
  "alloy-rpc-types 0.8.1",
  "alloy-signer 0.8.1",
  "alloy-signer-local",
