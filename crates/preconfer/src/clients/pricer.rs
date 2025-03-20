@@ -54,14 +54,8 @@ impl TaiyiPricer {
         let url = format!("{}/prediction/fee/estimate-base-fee", self.url);
         let query =
             EstimateBaseFeeQuery { chain_id: self.chain_id as i64, block_number: slot as i64 };
-        let response = self
-            .client
-            .get(url)
-            .query(&query)
-            .send()
-            .await
-            .map_err(|e| PricerError::ReqwestError(e))?;
-        let body = response.text().await.map_err(|e| PricerError::ReqwestError(e))?;
+        let response = self.client.get(url).query(&query).send().await?;
+        let body = response.text().await?;
         let preconf_fee = serde_json::from_str::<EstimateBaseFeeResponse>(&body)
             .map_err(|e| PricerError::ParseError(e.to_string()))?;
         Ok(PreconfFeeResponse {

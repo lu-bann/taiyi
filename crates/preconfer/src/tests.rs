@@ -21,7 +21,11 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        clients::{pricer::{ExecutionClientPricer, Pricer}, relay_client::RelayClient, signer_client::SignerClient},
+        clients::{
+            pricer::{ExecutionClientPricer, Pricer},
+            relay_client::RelayClient,
+            signer_client::SignerClient,
+        },
         network_state::NetworkState,
         preconf_api::{
             api::{
