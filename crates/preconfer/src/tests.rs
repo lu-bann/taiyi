@@ -14,7 +14,7 @@ mod tests {
     use ethereum_consensus::deneb::Context;
     use reqwest::Url;
     use taiyi_primitives::{
-        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponseData,
         SubmitTransactionRequest,
     };
     use tracing::info;
@@ -103,7 +103,6 @@ mod tests {
             rpc_url.parse().unwrap(),
             *escrow.address(),
             provider.clone(),
-            0,
         );
 
         let preconfapiserver =
@@ -182,7 +181,7 @@ mod tests {
         let body = response.text().await?;
         println!("{:?}", body);
         println!("Current block number: {:?}", provider.get_block_number().await?);
-        let response: PreconfResponse = serde_json::from_str(&body)?;
+        let response: PreconfResponseData = serde_json::from_str(&body)?;
         assert_eq!(status, 200);
 
         Ok(())

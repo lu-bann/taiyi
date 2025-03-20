@@ -9,7 +9,7 @@ use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
 use taiyi_preconfer::TaiyiCore;
-use taiyi_primitives::{PreconfRequestTypeA, PreconfResponse, SubmitTransactionRequest};
+use taiyi_primitives::{PreconfRequestTypeA, PreconfResponseData, SubmitTransactionRequest};
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -109,10 +109,10 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
     assert_eq!(status, 200);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
-    assert_eq!(preconf_response.data.request_id, request_id);
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
+    assert_eq!(preconf_response.request_id, request_id);
 
-    let commitment = preconf_response.data.commitment.unwrap();
+    let commitment = preconf_response.commitment.unwrap();
     let mut tx_bytes = Vec::new();
     transaction.clone().encode_2718(&mut tx_bytes);
     let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
@@ -270,10 +270,10 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     let status = res.status();
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     // CUrrently revert tx is not rejected.
     assert_eq!(status, 200);
-    assert_eq!(preconf_response.data.request_id, request_id);
+    assert_eq!(preconf_response.request_id, request_id);
     taiyi_handle.abort();
     Ok(())
 }
@@ -388,15 +388,15 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let body = res.bytes().await?;
     info!("submit Type A request response: {:?}", body);
     assert_eq!(status, 200);
-    let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+    let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
 
-    let commitment = preconf_response.data.commitment.unwrap();
+    let commitment = preconf_response.commitment.unwrap();
     let type_a = PreconfRequestTypeA {
         tip_transaction: request.tip_transaction.clone(),
         preconf_tx: request.preconf_transaction.clone(),
         target_slot: request.target_slot,
-        sequence_number: preconf_response.data.sequence_num,
+        sequence_number: preconf_response.sequence_num,
         signer: signer.address(),
     };
     let data = type_a.digest(chain_id);
@@ -494,7 +494,7 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         let body = res.bytes().await?;
         info!("submit Type A request response: {:?}", body);
         assert_eq!(status, 200);
-        let preconf_response: PreconfResponse = serde_json::from_slice(&body)?;
+        let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
         info!("preconf_response: {:?}", preconf_response);
         submitted_txs.push(request.tip_transaction.clone());
         submitted_txs.push(request.preconf_transaction.first().unwrap().clone());
