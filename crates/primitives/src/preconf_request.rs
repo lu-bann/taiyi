@@ -17,10 +17,10 @@ impl PreconfRequest {
         }
     }
 
-    pub fn digest(&self) -> B256 {
+    pub fn digest(&self, chain_id: u64) -> B256 {
         match self {
-            PreconfRequest::TypeA(req) => req.digest(),
-            PreconfRequest::TypeB(req) => req.digest(),
+            PreconfRequest::TypeA(req) => req.digest(chain_id),
+            PreconfRequest::TypeB(req) => req.digest(chain_id),
         }
     }
 

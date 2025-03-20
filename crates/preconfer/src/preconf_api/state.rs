@@ -117,6 +117,12 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
+        let chain_id = self
+            .provider
+            .get_chain_id()
+            .await
+            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
+
         match self
             .preconf_pool
             .validate_and_store(
@@ -127,9 +133,9 @@ where
         {
             Ok(result) => {
                 let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
-                    })?;
+                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
+                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
+                    )?;
                 Ok(PreconfResponseData {
                     request_id: request.request_id,
                     commitment: Some(commitment),
@@ -172,6 +178,12 @@ where
             signer,
         };
 
+        let chain_id = self
+            .provider
+            .get_chain_id()
+            .await
+            .map_err(|_| RpcError::InternalError("Failed to get chain id".to_string()))?;
+
         match self
             .preconf_pool
             .validate_and_store(
@@ -182,9 +194,9 @@ where
         {
             Ok(result) => {
                 let commitment =
-                    self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
-                    })?;
+                    self.signer_client.sign_with_ecdsa(result.digest(chain_id)).await.map_err(
+                        |e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")),
+                    )?;
                 Ok(PreconfResponseData {
                     request_id,
                     commitment: Some(commitment),
