@@ -447,12 +447,14 @@ impl PreconfPool {
     }
 
     /// Checks if an address has any preconf requests in the pool.
+    /// NOTE: This only checks the ready pool since pending pool requests doesn't change the account state.
     pub fn has_preconf_requests(&self, address: Address) -> bool {
         self.pool_inner.read().has_preconf_requests(address)
     }
 
     /// Returns preconf requests in pending pool for a given slot.
-    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
+    /// Also removes them from the pool.
+    pub fn fetch_pending(&self, slot: u64) -> Result<Vec<PreconfRequestTypeB>, PoolError> {
         self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
     }
 
@@ -478,8 +480,9 @@ impl PreconfPool {
     }
 
     /// Returns preconf requests in ready pool.
+    /// Also removes them from the pool.
     pub fn fetch_ready(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
-        self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
+        self.pool_inner.write().ready.fetch_preconf_requests_for_slot(slot)
     }
 
     #[cfg(test)]
