@@ -75,6 +75,7 @@ pub struct TestConfig {
     pub taiyi_port: u16,
     pub context: Context,
     pub taiyi_core: Address,
+    pub sp1_private_key: String,
 }
 
 impl std::fmt::Debug for TestConfig {
@@ -98,6 +99,9 @@ impl TestConfig {
         let taiyi_port = std::env::var("TAIYI_PORT")
             .map(|res| res.parse::<u16>().expect("TAIYI_PORT is not a valid port"))
             .unwrap_or_else(|_| get_available_port());
+
+        let sp1_private_key = std::env::var("SP1_PRIVATE_KEY").unwrap_or_else(|_| "".to_string()); // Only required for the `generate-proof` feature
+
         let config_path = format!("{}/{}/config.yaml", working_dir, "el_cl_genesis_data");
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
@@ -111,6 +115,7 @@ impl TestConfig {
             taiyi_port,
             context,
             taiyi_core,
+            sp1_private_key,
         };
         info!("test config: {:?}", config);
         config

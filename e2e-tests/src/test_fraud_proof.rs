@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::{fs, str::FromStr, time::Instant};
 
 use alloy_consensus::{Account, Transaction};
 use alloy_eips::BlockNumberOrTag;
@@ -11,7 +11,10 @@ use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use hex::ToHex;
 use reqwest::Url;
-use sp1_sdk::{include_elf, Prover, ProverClient, SP1Stdin};
+use serde::{Deserialize, Serialize};
+use sp1_sdk::{
+    include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Stdin,
+};
 use taiyi_preconfer::TaiyiCore;
 use taiyi_primitives::PreconfResponseData;
 use taiyi_zkvm_types::{
@@ -43,10 +46,27 @@ const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 // TODO: type A not included test,
 // TODO: type B not included test,
 
-#[cfg(not(feature = "ci"))]
+#[derive(Serialize, Deserialize)]
+struct TestDataPreconfRequestTypeA {
+    vk: String,
+    proof: String,         // Hex encoded proof
+    public_values: String, // Hex encoded public values
+    preconf_request: PreconfRequestTypeA,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TestDataPreconfRequestTypeB {
+    vk: String,
+    proof: String,         // Hex encoded proof
+    public_values: String, // Hex encoded public values
+    preconf_request: PreconfRequestTypeB,
+}
+
+// #[cfg(not(feature = "ci"))]
 #[tokio::test]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
+
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
 
@@ -188,7 +208,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     };
 
     let preconf_type_a = PreconfTypeA {
-        preconf: preconf_a,
+        preconf: preconf_a.clone(),
         anchor_tx: anchor_tx.clone().into(),
         tx_merkle_proof,
         account_merkle_proof: vec![account_merkle_proof],
@@ -259,23 +279,42 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
-        let client = ProverClient::builder().network().build();
+        let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
 
         // Generate the proof for the given program and input.
         let (pk, vk) = client.setup(ELF_POI);
-
         // Time proof generation
         let start = Instant::now();
 
-        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
-        proof.save("poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+        let proof = client
+            .prove(&pk, &stdin)
+            .plonk()
+            .cycle_limit(1_000_000_000)
+            .strategy(FulfillmentStrategy::Hosted)
+            .skip_simulation(true)
+            .plonk()
+            .run()
+            .unwrap();
+
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
         // Verify proof and public values
         client.verify(&proof, &vk).expect("verification failed");
 
+        // Save proof in binary format
         proof.save("poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+
+        // Save proof and public values in json format
+        let test_data = TestDataPreconfRequestTypeA {
+            vk: vk.bytes32(),
+            proof: hex::encode(proof.bytes()),
+            public_values: hex::encode(public_values.as_slice()),
+            preconf_request: preconf_a,
+        };
+
+        let test_data_json = serde_json::to_string(&test_data).unwrap();
+        fs::write("poi-preconf-type-a-included-test-data.json", test_data_json).unwrap();
     }
 
     // Optionally, cleanup when done
@@ -445,7 +484,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     };
 
     let preconf_type_a = PreconfTypeA {
-        preconf: preconf_a,
+        preconf: preconf_a.clone(),
         anchor_tx: anchor_tx.clone().into(),
         tx_merkle_proof,
         account_merkle_proof: account_proofs,
@@ -516,7 +555,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
-        let client = ProverClient::builder().network().build();
+        let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
 
         // Generate the proof for the given program and input.
         let (pk, vk) = client.setup(ELF_POI);
@@ -524,7 +563,15 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         // Time proof generation
         let start = Instant::now();
 
-        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+        let proof = client
+            .prove(&pk, &stdin)
+            .plonk()
+            .cycle_limit(1_000_000_000)
+            .strategy(FulfillmentStrategy::Hosted)
+            .skip_simulation(true)
+            .plonk()
+            .run()
+            .unwrap();
         proof
             .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
@@ -537,6 +584,17 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         proof
             .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
+
+        let test_data = TestDataPreconfRequestTypeA {
+            vk: vk.bytes32(),
+            proof: hex::encode(proof.bytes()),
+            public_values: hex::encode(public_values.as_slice()),
+            preconf_request: preconf_a,
+        };
+
+        let test_data_serialized = serde_json::to_string(&test_data).unwrap();
+        fs::write("poi-preconf-type-a-multiple-txs-included-test-data.json", test_data_serialized)
+            .expect("saving test data failed");
     }
 
     // Optionally, cleanup when done
@@ -780,7 +838,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     };
 
     let preconf_type_b = PreconfTypeB {
-        preconf: preconf_b,
+        preconf: preconf_b.clone(),
         sponsorship_tx: sponsorship_transaction.clone().into(),
         tx_merkle_proof,
         account_merkle_proof,
@@ -844,7 +902,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
-        let client = ProverClient::builder().network().build();
+        let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
 
         // Generate the proof for the given program and input.
         let (pk, vk) = client.setup(ELF_POI);
@@ -852,7 +910,15 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         // Time proof generation
         let start = Instant::now();
 
-        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+        let proof = client
+            .prove(&pk, &stdin)
+            .plonk()
+            .cycle_limit(1_000_000_000)
+            .strategy(FulfillmentStrategy::Hosted)
+            .skip_simulation(true)
+            .plonk()
+            .run()
+            .unwrap();
         proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
@@ -861,6 +927,17 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         client.verify(&proof, &vk).expect("verification failed");
 
         proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+
+        let test_data = TestDataPreconfRequestTypeB {
+            vk: vk.bytes32(),
+            proof: hex::encode(proof.bytes()),
+            public_values: hex::encode(public_values.as_slice()),
+            preconf_request: preconf_b,
+        };
+
+        let test_data_serialized = serde_json::to_string(&test_data).unwrap();
+        fs::write("poi-preconf-type-b-included-test-data.json", test_data_serialized)
+            .expect("saving test data failed");
     }
 
     Ok(())
