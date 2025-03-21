@@ -338,7 +338,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     }
     assert!(exhaust_tx.is_some());
 
-    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
