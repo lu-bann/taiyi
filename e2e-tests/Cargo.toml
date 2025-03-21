@@ -41,4 +41,5 @@ sp1-build = { workspace = true }
 [lib]
 
 [features]
+generate-proof = []
 ci = []

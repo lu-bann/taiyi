@@ -43,6 +43,7 @@ const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
 // TODO: type A not included test,
 // TODO: type B not included test,
 
+#[cfg(not(feature = "ci"))]
 #[tokio::test]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
@@ -254,13 +255,37 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
     );
 
+    // Generate proof using prover network
+    #[cfg(feature = "generate-proof")]
+    {
+        println!("Using the prover network.");
+        let client = ProverClient::builder().network().build();
+
+        // Generate the proof for the given program and input.
+        let (pk, vk) = client.setup(ELF_POI);
+
+        // Time proof generation
+        let start = Instant::now();
+
+        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+        proof.save("poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+        let duration = start.elapsed();
+        println!("Proof generation time: {:?}", duration);
+
+        // Verify proof and public values
+        client.verify(&proof, &vk).expect("verification failed");
+
+        proof.save("poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+    }
+
     // Optionally, cleanup when done
     taiyi_handle.abort();
     Ok(())
 }
 
+#[cfg(not(feature = "ci"))]
 #[tokio::test]
-// #[ignore]
+#[ignore]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -487,12 +512,41 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
     );
 
+    // Generate proof using prover network
+    #[cfg(feature = "generate-proof")]
+    {
+        println!("Using the prover network.");
+        let client = ProverClient::builder().network().build();
+
+        // Generate the proof for the given program and input.
+        let (pk, vk) = client.setup(ELF_POI);
+
+        // Time proof generation
+        let start = Instant::now();
+
+        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+        proof
+            .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
+            .expect("saving proof failed");
+        let duration = start.elapsed();
+        println!("Proof generation time: {:?}", duration);
+
+        // Verify proof and public values
+        client.verify(&proof, &vk).expect("verification failed");
+
+        proof
+            .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
+            .expect("saving proof failed");
+    }
+
     // Optionally, cleanup when done
     taiyi_handle.abort();
     Ok(())
 }
 
+#[cfg(not(feature = "ci"))]
 #[tokio::test]
+#[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (_taiyi_handle, config) = setup_env().await?;
@@ -767,42 +821,47 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let client = ProverClient::builder().cpu().build();
 
     println!("Executing program...");
-    let (_, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+    let (public_values, report) = client.execute(ELF_POI, &stdin).run().unwrap();
     println!("Executed program with {} cycles", report.total_instruction_count());
 
-    // Generate the proof for the given program and input.
-    let (pk, vk) = client.setup(ELF_POI);
+    // Decode public values
+    let public_values_struct =
+        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
 
-    // Time proof generation
-    let start = Instant::now();
+    // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
+    assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
+    // Check block hash is correct
+    assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+    // Check gateway address is correct
+    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check signature is correct
+    assert_eq!(
+        public_values_struct.signature,
+        Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
+    );
 
-    // Generate proof
-    // TODO: Use plonk
-    // let proof = client.prove(&pk, &stdin).core().run().unwrap();
+    // Generate proof using prover network
+    #[cfg(feature = "generate-proof")]
+    {
+        println!("Using the prover network.");
+        let client = ProverClient::builder().network().build();
 
-    // let duration = start.elapsed();
-    // println!("Proof generation time: {:?}", duration);
+        // Generate the proof for the given program and input.
+        let (pk, vk) = client.setup(ELF_POI);
 
-    // // Decode public values
-    // let public_values_struct =
-    //     PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true).unwrap();
+        // Time proof generation
+        let start = Instant::now();
 
-    // // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
-    // assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
-    // // Check block hash is correct
-    // assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
-    // // Check gateway address is correct
-    // assert_eq!(public_values_struct.gatewayAddress, gateway_address);
-    // // Check signature is correct
-    // assert_eq!(
-    //     public_values_struct.signature,
-    //     Bytes::from(preconf_response.data.commitment.unwrap().as_bytes().encode_hex::<String>())
-    // );
+        let proof = client.prove(&pk, &stdin).plonk().run().unwrap();
+        proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+        let duration = start.elapsed();
+        println!("Proof generation time: {:?}", duration);
 
-    // // Verify proof and public values
-    // client.verify(&proof, &vk).expect("verification failed");
+        // Verify proof and public values
+        client.verify(&proof, &vk).expect("verification failed");
 
-    // proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+        proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+    }
 
     Ok(())
 }
