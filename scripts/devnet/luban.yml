@@ -1,11 +1,12 @@
 participants:
-  - el_type: reth
+  - el_type: geth
     cl_type: lighthouse
     vc_extra_params: ["--prefer-builder-proposals"]
     cl_extra_params: [
       "--always-prepare-payload", 
       "--prepare-payload-lookahead=8000",
       ]
+    el_image: ethereum/client-go:v1.14.13
     count: 1
 mev_type: helix
 additional_services:
@@ -16,7 +17,7 @@ additional_services:
   - rbuilder
   # - blockscout
 mev_params:
-  mev_boost_image: ghcr.io/commit-boost/pbs:v0.3.1
+  mev_boost_image: ghcr.io/commit-boost/pbs:v0.6.0
 network_params:
   seconds_per_slot: 12
 helix_params:

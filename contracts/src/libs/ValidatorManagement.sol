@@ -11,6 +11,11 @@ library ValidatorManagement {
         mapping(address => bytes[]) operatorToPubkeys;
     }
 
+    /// @notice Event emitted when a validator's delegatee is updated
+    event ValidatorDelegateeUpdated(
+        bytes32 indexed pubKeyHash, bytes oldDelegatee, bytes newDelegatee
+    );
+
     function registerValidator(
         ValidatorState storage self,
         bytes calldata pubkey,
@@ -51,17 +56,6 @@ library ValidatorManagement {
         internal
     {
         delete self.operatorToPubkeys[operator];
-    }
-
-    function getOperatorValidators(
-        ValidatorState storage self,
-        address operator
-    )
-        internal
-        view
-        returns (bytes[] memory)
-    {
-        return self.operatorToPubkeys[operator];
     }
 
     function initOptOut(
@@ -111,5 +105,35 @@ library ValidatorManagement {
         returns (IProposerRegistry.Validator memory)
     {
         return self.validators[pubKeyHash];
+    }
+
+    function getOperatorValidators(
+        ValidatorState storage self,
+        address operator
+    )
+        internal
+        view
+        returns (bytes[] memory)
+    {
+        return self.operatorToPubkeys[operator];
+    }
+
+    function updateValidatorDelegatee(
+        ValidatorState storage self,
+        bytes32 pubKeyHash,
+        bytes calldata newDelegatee
+    )
+        internal
+    {
+        require(
+            self.validators[pubKeyHash].status
+                != IProposerRegistry.ValidatorStatus.NotRegistered,
+            "Validator not registered"
+        );
+
+        bytes memory oldDelegatee = self.validators[pubKeyHash].delegatee;
+        self.validators[pubKeyHash].delegatee = newDelegatee;
+
+        emit ValidatorDelegateeUpdated(pubKeyHash, oldDelegatee, newDelegatee);
     }
 }

@@ -1,23 +1,35 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{Address, U256};
+use ethereum_consensus::{clock::from_system_time, deneb::Context};
+use futures::StreamExt;
+use inner::BlockspaceAvailable;
 use parking_lot::RwLock;
 use pending::Pending;
 use ready::Ready;
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
-use taiyi_primitives::PreconfRequest;
+use taiyi_primitives::{
+    PreconfFeeResponse, PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB,
+};
+use tracing::info;
 use uuid::Uuid;
+use validator::PreconfValidator;
 
 use crate::{
+    clients::execution_client::AccountState,
+    context_ext::ContextExt,
     error::{PoolError, ValidationError},
-    validator::PreconfValidator,
+    preconf_pool::inner::PreconfPoolInner,
 };
 
+mod inner;
 mod pending;
 mod ready;
+#[cfg(test)]
+mod tests;
+mod validator;
 
 #[derive(Debug)]
 pub struct PreconfPoolBuilder;
@@ -43,6 +55,8 @@ pub struct PreconfPool {
     validator: PreconfValidator,
     /// escrow contract
     pub taiyi_escrow_address: Address,
+    /// Account state cache
+    state_cache: RwLock<HashMap<Address, AccountState>>,
 }
 
 impl PreconfPool {
@@ -50,24 +64,59 @@ impl PreconfPool {
         Self {
             pool_inner: RwLock::new(PreconfPoolInner {
                 pending: Pending::new(),
-                ready: Ready::new(),
+                ready: Ready::default(),
                 blockspace_issued: HashMap::new(),
             }),
             validator,
             taiyi_escrow_address,
+            state_cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub async fn state_cache_cleanup(
+        self: Arc<Self>,
+        context: Context,
+    ) -> impl Future<Output = eyre::Result<()>> {
+        let clock = from_system_time(
+            context.actual_genesis_time(),
+            context.seconds_per_slot,
+            context.slots_per_epoch,
+        );
+        let mut slot_stream = clock.into_stream();
+
+        async move {
+            while (slot_stream.next().await).is_some() {
+                let accounts_to_check = {
+                    let cache = self.state_cache.read();
+                    cache.keys().cloned().collect::<Vec<Address>>()
+                };
+
+                // Accounts which don't have any preconf requests in the pool
+                let accounts_to_remove: Vec<Address> = accounts_to_check
+                    .into_iter()
+                    .filter(|&address| !self.has_preconf_requests(address))
+                    .collect();
+
+                if !accounts_to_remove.is_empty() {
+                    let mut cache = self.state_cache.write();
+                    for address in accounts_to_remove {
+                        cache.remove(&address);
+                    }
+                }
+            }
+
+            info!("Shutting down state cache cleanup task");
+            Ok(())
         }
     }
 
     pub async fn reserve_blockspace(
         &self,
-        preconf_request: PreconfRequest,
+        preconf_request: PreconfRequestTypeB,
+        preconf_fee: PreconfFeeResponse,
     ) -> Result<Uuid, PoolError> {
         // check if the sender has enough balance to lock the deposit
-        self.has_enough_balance(
-            preconf_request.signer.expect("signer"),
-            preconf_request.allocation.deposit,
-        )
-        .await?;
+        self.has_enough_balance(preconf_request.signer(), preconf_request.preconf_tip()).await?;
 
         let mut pool_inner = self.pool_inner.write();
 
@@ -78,10 +127,24 @@ impl PreconfPool {
             };
 
         // Verify that we have enough space
-        if blockspace_avail.gas_limit < preconf_request.allocation.gas_limit
-            || blockspace_avail.blobs < preconf_request.allocation.blob_count
+        if blockspace_avail.gas_limit <= preconf_request.allocation.gas_limit
+            || blockspace_avail.blobs <= preconf_request.allocation.blob_count
         {
             return Err(PoolError::BlockspaceNotAvailable);
+        }
+
+        // Verify preconf tips
+        let expected_tip = U256::from(
+            preconf_request.allocation.gas_limit as u128 * preconf_fee.gas_fee
+                + (preconf_request.allocation.blob_count as u128)
+                    * DATA_GAS_PER_BLOB as u128
+                    * preconf_fee.blob_gas_fee,
+        );
+        if preconf_request.preconf_tip() < expected_tip {
+            return Err(PoolError::Validation(ValidationError::InsufficientTip(
+                expected_tip,
+                preconf_request.preconf_tip(),
+            )));
         }
 
         // calculate diffs
@@ -98,26 +161,55 @@ impl PreconfPool {
         Ok(request_id)
     }
 
-    pub async fn submit_transaction(
+    /// Validates the transactions in the preconf request and stores it in the ready pool.
+    pub async fn validate_and_store(
         &self,
         preconf_request: PreconfRequest,
         request_id: Uuid,
-    ) -> Result<(), PoolError> {
-        if preconf_request.transaction.is_some() {
-            self.validate(&preconf_request).await?;
-            // Move the request from pending to ready pool
-            self.delete_pending(request_id);
-            self.insert_ready(request_id, preconf_request);
-            Ok(())
-        } else {
-            Err(PoolError::TransactionNotFound)
+        preconf_fee: PreconfFeeResponse,
+    ) -> Result<PreconfRequest, PoolError> {
+        let mut account_state = self.state_cache.read().get(&preconf_request.signer()).cloned();
+
+        if account_state.is_none() {
+            let state = self
+                .validator
+                .execution_client
+                .get_account_state(preconf_request.signer())
+                .await
+                .map_err(|_| ValidationError::AccountStateNotFound(preconf_request.signer()))?;
+
+            self.state_cache.write().insert(preconf_request.signer(), state.clone());
+            account_state = Some(state);
+        }
+
+        match preconf_request {
+            PreconfRequest::TypeA(preconf_request) => {
+                self.validate_typea(
+                    &preconf_request,
+                    &account_state.expect("can't be none"),
+                    preconf_fee,
+                )
+                .await?;
+                Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
+            }
+            PreconfRequest::TypeB(preconf_request) => {
+                if preconf_request.transaction.is_some() {
+                    self.validate_typeb(&preconf_request, &account_state.expect("can't be none"))
+                        .await?;
+                    // Move the request from pending to ready pool
+                    self.delete_pending(request_id);
+                    Ok(self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request)))
+                } else {
+                    Err(PoolError::TransactionNotFound)
+                }
+            }
         }
     }
 
     pub async fn has_enough_balance(
         &self,
         account: Address,
-        deposit: U256,
+        preconf_tip: U256,
     ) -> Result<(), PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
         let escrow_balance =
@@ -127,8 +219,8 @@ impl PreconfPool {
             Ok(balance) => {
                 let effective_balance =
                     balance - U256::from(pending_diffs_for_account.unwrap_or_default());
-                if effective_balance < deposit {
-                    Err(PoolError::InsufficientEscrowBalance(effective_balance, deposit))
+                if effective_balance < preconf_tip {
+                    Err(PoolError::InsufficientEscrowBalance(effective_balance, preconf_tip))
                 } else {
                     Ok(())
                 }
@@ -137,29 +229,135 @@ impl PreconfPool {
         }
     }
 
-    // NOTE: only checks account balance and nonce
-    async fn validate(
+    async fn validate_typea(
         &self,
-        preconf_request: &PreconfRequest,
+        preconf_request: &PreconfRequestTypeA,
+        account_state: &AccountState,
+        preconf_fee: PreconfFeeResponse,
     ) -> eyre::Result<(), ValidationError> {
-        let signer = match preconf_request.signer {
-            Some(signer) => signer,
-            None => return Err(ValidationError::SignerNotFound),
-        };
+        // Tip transaction must be an ETH transfer
+        if !preconf_request.tip_transaction.is_eip1559() {
+            return Err(ValidationError::InvalidTipTransaction);
+        }
+
+        let request_gas_limit = preconf_request.tip_transaction.gas_limit()
+            + preconf_request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>();
+
+        let mut blob_count = 0;
+        for preconf_tx in preconf_request.preconf_tx.clone() {
+            if preconf_tx.is_eip4844() {
+                blob_count += preconf_tx
+                    .as_eip4844()
+                    .expect("Failed to decode 4844 transaction")
+                    .tx()
+                    .blob_versioned_hashes()
+                    .iter()
+                    .len();
+            }
+        }
+
+        {
+            let pool_inner = self.pool_inner.write();
+
+            let blockspace_avail =
+                match pool_inner.blockspace_issued.get(&preconf_request.target_slot()) {
+                    Some(space) => space.clone(),
+                    None => BlockspaceAvailable::default(),
+                };
+
+            // Verify that we have enough blockspace
+            if blockspace_avail.gas_limit < request_gas_limit {
+                return Err(ValidationError::GasLimitTooHigh);
+            }
+
+            if blockspace_avail.blobs < blob_count {
+                return Err(ValidationError::BlobCountExceedsLimit(
+                    blockspace_avail.blobs,
+                    blob_count,
+                ));
+            }
+        }
+
+        // Validate preconf tip
+        let expected_tip = U256::from(
+            preconf_fee.gas_fee * request_gas_limit as u128
+                + preconf_fee.blob_gas_fee * DATA_GAS_PER_BLOB as u128 * blob_count as u128,
+        );
+
+        if preconf_request.preconf_tip() < expected_tip {
+            return Err(ValidationError::InsufficientTip(
+                expected_tip,
+                preconf_request.preconf_tip(),
+            ));
+        }
+
+        // State validation
+        let account_balance = account_state.balance;
+        let account_nonce = account_state.nonce;
+
+        // Nonce check
+        let nonce = preconf_request.tip_transaction.nonce();
+        if nonce > account_nonce {
+            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
+        }
+        if nonce < account_nonce {
+            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
+        }
+
+        let mut all_transactions = vec![preconf_request.tip_transaction.clone()];
+        all_transactions.extend(preconf_request.preconf_tx.clone());
+        Self::verify_nonce_continuity_and_signer(&all_transactions)?;
+
+        // Balance check
+        let total_value = preconf_request.value();
+        if account_balance < total_value {
+            return Err(ValidationError::LowBalance(total_value - account_balance));
+        }
+
+        // heavy blob tx validation
+        for preconf_tx in preconf_request.preconf_tx.clone() {
+            if preconf_tx.is_eip4844() {
+                let transaction = preconf_tx
+                    .as_eip4844()
+                    .expect("Failed to decode 4844 transaction")
+                    .tx()
+                    .clone()
+                    .try_into_4844_with_sidecar()
+                    .map_err(|_| {
+                        ValidationError::Internal("Failed to decode 4844 transaction".to_string())
+                    })?;
+
+                // validate the blob
+                transaction.validate_blob(self.validator.kzg_settings.get())?;
+            }
+        }
+
+        // Update state cache
+        self.state_cache.write().insert(
+            preconf_request.signer(),
+            AccountState {
+                balance: account_balance - total_value,
+                nonce: account_nonce + preconf_request.preconf_tx.len() as u64 + 1,
+            },
+        );
+
+        Ok(())
+    }
+
+    // NOTE: only checks account balance and nonce
+    async fn validate_typeb(
+        &self,
+        preconf_request: &PreconfRequestTypeB,
+        account_state: &AccountState,
+    ) -> eyre::Result<(), ValidationError> {
         let transaction = match preconf_request.transaction.clone() {
             Some(transaction) => transaction,
             None => return Err(ValidationError::TransactionNotFound),
         };
 
-        let account_state = self
-            .validator
-            .execution_client
-            .get_account_state(signer)
-            .await
-            .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
-
         let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
+
         // Check if sender has enough balance to cover transaction cost
         // For EIP-1559 transactions: tx_value.
         let cost = transaction.value();
@@ -171,12 +369,12 @@ impl PreconfPool {
         // Check nocne
         // transaction nonce
         let nonce = transaction.nonce();
-        if nonce > account_nonce {
-            return Err(ValidationError::NonceTooHigh(account_nonce, nonce));
-        }
-
-        if nonce < account_nonce {
-            return Err(ValidationError::NonceTooLow(account_nonce, nonce));
+        if nonce != account_nonce {
+            return Err(if nonce > account_nonce {
+                ValidationError::NonceTooHigh(account_nonce, nonce)
+            } else {
+                ValidationError::NonceTooLow(account_nonce, nonce)
+            });
         }
 
         // heavy blob tx validation
@@ -202,39 +400,89 @@ impl PreconfPool {
             transaction.validate_blob(self.validator.kzg_settings.get())?;
         }
 
+        // Update state cache
+        self.state_cache.write().insert(
+            preconf_request.signer(),
+            AccountState { balance: account_balance - cost, nonce: account_nonce + 1 },
+        );
+
         Ok(())
     }
 
+    /// Verifies that nonces in a sequence of transactions are continuous,
+    /// with each transaction's nonce being exactly one more than the previous transaction's nonce.
+    ///
+    /// Also verifies that all transactions have the smae signer.
+    fn verify_nonce_continuity_and_signer(
+        transactions: &[TxEnvelope],
+    ) -> Result<(), ValidationError> {
+        if transactions.len() <= 1 {
+            return Ok(());
+        }
+
+        // Recover the first signer
+        let first_signer = transactions[0].recover_signer().map_err(|_| {
+            ValidationError::Internal("Failed to recover signer from transaction".to_string())
+        })?;
+
+        let mut prev_nonce = transactions[0].nonce();
+        for tx in &transactions[1..] {
+            let signer = tx.recover_signer().map_err(|_| {
+                ValidationError::Internal("Failed to recover signer from transaction".to_string())
+            })?;
+
+            if signer != first_signer {
+                return Err(ValidationError::InvalidSigner(first_signer, signer));
+            }
+
+            let curr_nonce = tx.nonce();
+            if curr_nonce != prev_nonce + 1 {
+                return Err(ValidationError::InvalidNonceSequence(prev_nonce + 1, curr_nonce));
+            }
+
+            prev_nonce = curr_nonce;
+        }
+
+        Ok(())
+    }
+
+    /// Checks if an address has any preconf requests in the pool.
+    pub fn has_preconf_requests(&self, address: Address) -> bool {
+        self.pool_inner.read().has_preconf_requests(address)
+    }
+
     /// Returns preconf requests in pending pool for a given slot.
-    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequest>> {
+    pub fn fetch_pending(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
         self.pool_inner.write().pending.fetch_preconf_requests_for_slot(slot)
     }
 
+    #[allow(dead_code)]
+    /// Inserts a preconf request into the pending pool.
+    pub fn insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequestTypeB) {
+        self.pool_inner.write().pending.insert(request_id, preconf_request);
+    }
+
     /// Returns a preconf request from the pending pool.
-    pub fn get_pending(&self, request_id: Uuid) -> Option<PreconfRequest> {
+    pub fn get_pending(&self, request_id: Uuid) -> Option<PreconfRequestTypeB> {
         self.pool_inner.read().pending.get(request_id)
     }
 
     /// Deletes a preconf request from the pending pool.
-    pub fn delete_pending(&self, request_id: Uuid) -> Option<PreconfRequest> {
+    pub fn delete_pending(&self, request_id: Uuid) -> Option<PreconfRequestTypeB> {
         self.pool_inner.write().pending.remove(request_id)
     }
 
-    /// Inserts a preconf request into the pending pool.
-    fn _insert_pending(&self, request_id: Uuid, preconf_request: PreconfRequest) {
-        self.pool_inner.write().pending.insert(request_id, preconf_request);
-    }
-
-    /// Inserts a preconf request into the ready pool.
-    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) {
-        self.pool_inner.write().ready.insert(request_id, preconf_request);
+    /// Inserts a preconf request into the ready sub-pool.
+    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
+        self.pool_inner.write().ready.insert(request_id, preconf_request)
     }
 
     /// Returns preconf requests in ready pool.
-    pub fn ready_requests(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
+    pub fn fetch_ready(&self, slot: u64) -> Result<Vec<PreconfRequest>, PoolError> {
         self.pool_inner.read().ready.fetch_preconf_requests_for_slot(slot)
     }
 
+    #[cfg(test)]
     /// Returns the pool where the preconf request is currently in.
     pub fn get_pool(&self, request_id: Uuid) -> Result<PoolType, PoolError> {
         let pool_inner = self.pool_inner.read();
@@ -256,472 +504,9 @@ impl PreconfPool {
     }
 }
 
-#[derive(Debug)]
-pub struct PreconfPoolInner {
-    /// Stores requests without preconf transactions.
-    pending: Pending,
-    /// Stores requests with preconf transactions.
-    ready: Ready,
-    /// Blockspace issued for every slot is tracked here.
-    blockspace_issued: HashMap<u64, BlockspaceAvailable>,
-}
-
-impl PreconfPoolInner {
-    fn escrow_balance_diffs(&self, account: Address) -> Option<U256> {
-        let pending_diff = self.pending.get_pending_diffs_for_account(account);
-        let ready_diff = self.ready.get_pending_diffs_for_account(account);
-
-        match (pending_diff, ready_diff) {
-            (Some(pending_diff), Some(ready_diff)) => Some(pending_diff + ready_diff),
-            (Some(pending_diff), None) => Some(pending_diff),
-            (None, Some(ready_diff)) => Some(ready_diff),
-            (None, None) => None,
-        }
-    }
-
-    fn update_blockspace(&mut self, slot: u64, blockspace: BlockspaceAvailable) {
-        self.blockspace_issued.insert(slot, blockspace);
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BlockspaceAvailable {
-    pub gas_limit: u64,
-    pub blobs: usize,
-    pub num_of_constraints: u32,
-}
-
-impl Default for BlockspaceAvailable {
-    fn default() -> Self {
-        Self {
-            gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
-            blobs: MAX_BLOBS_PER_BLOCK,
-            num_of_constraints: 256,
-        }
-    }
-}
-
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolType {
     Pending,
     Ready,
-}
-
-#[allow(dead_code)]
-// TODO: add intermidiate state for preconf requests
-/// The current state of the pool.
-#[derive(Debug)]
-pub struct PoolState {
-    current_slot: u64,
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use alloy_consensus::{SidecarBuilder, SimpleCoder, TxEnvelope};
-    use alloy_eips::{
-        eip2718::Decodable2718,
-        eip4844::{BYTES_PER_BLOB, DATA_GAS_PER_BLOB},
-    };
-    use alloy_network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
-    use alloy_node_bindings::Anvil;
-    use alloy_primitives::{Address, U256};
-    use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_rpc_types::TransactionRequest;
-    use alloy_signer::Signer;
-    use alloy_signer_local::PrivateKeySigner;
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest};
-    use tokio::time::sleep;
-    use tracing::info;
-    use uuid::Uuid;
-
-    use crate::preconf_pool::{PoolType, PreconfPoolBuilder};
-
-    #[tokio::test]
-    async fn test_add_remove_request() {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-
-        let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-
-        let mut preconf = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: None,
-            signer: Some(Address::default()),
-        };
-
-        let request_id = Uuid::new_v4();
-        preconf_pool._insert_pending(request_id, preconf.clone());
-        assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Pending);
-
-        // set transaction
-        let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
-        let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
-        preconf.transaction = Some(transaction);
-        preconf_pool.delete_pending(request_id);
-        assert_eq!(preconf_pool.get_pending(request_id), None);
-
-        // insert into ready pool
-        preconf_pool.insert_ready(request_id, preconf.clone());
-        assert!(preconf_pool.get_pool(request_id).is_ok());
-        assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Ready);
-    }
-
-    #[tokio::test]
-    async fn test_validate() -> eyre::Result<()> {
-        tracing_subscriber::fmt::init();
-
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(10))
-            .with_nonce(0)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-        let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction),
-            signer: Some(*sender),
-        };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        info!("Validation result: {:?}", validation_result);
-
-        assert!(validation_result.is_ok());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_validate_4844_ok() -> eyre::Result<()> {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        // Create a sidecar with some data.
-        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
-        let data = vec![1u8; BYTES_PER_BLOB];
-        builder.ingest(&data);
-        builder.ingest(&data);
-        let sidecar = builder.build()?;
-        assert_eq!(sidecar.blobs.len(), 3);
-
-        let gas_price = provider.get_gas_price().await?;
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_nonce(0)
-            .with_to(*receiver)
-            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
-            .with_max_fee_per_blob_gas(gas_price)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .with_blob_sidecar(sidecar)
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-
-        let request = BlockspaceAllocation { blob_count: 3, ..Default::default() };
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction.clone()),
-            signer: Some(*sender),
-        };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        info!("Validation result: {:?}", validation_result);
-
-        assert!(validation_result.is_ok());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_validate_4844_err_esceed_blob_count_limit() -> eyre::Result<()> {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        // Create a sidecar with some data.
-        let mut builder: SidecarBuilder<SimpleCoder> = SidecarBuilder::with_capacity(3);
-        let data = vec![1u8; BYTES_PER_BLOB];
-        builder.ingest(&data);
-        builder.ingest(&data);
-        let sidecar = builder.build()?;
-        assert_eq!(sidecar.blobs.len(), 3);
-
-        let gas_price = provider.get_gas_price().await?;
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_nonce(0)
-            .with_to(*receiver)
-            .with_gas_limit(3 * DATA_GAS_PER_BLOB)
-            .with_max_fee_per_blob_gas(gas_price)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .with_blob_sidecar(sidecar.clone())
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-
-        let request = BlockspaceAllocation { blob_count: 1, ..Default::default() };
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction.clone()),
-            signer: Some(*sender),
-        };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        info!("Validation result: {:?}", validation_result);
-
-        assert!(validation_result.is_err());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_low_balance_err() -> eyre::Result<()> {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::MAX)
-            .with_nonce(0)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-
-        let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction.clone()),
-            signer: Some(*sender),
-        };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        assert!(validation_result.is_err());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_nonce_too_high() -> eyre::Result<()> {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(100))
-            .with_nonce(5)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-
-        let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction.clone()),
-            signer: Some(*sender),
-        };
-
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        assert!(validation_result.is_err());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_nonce_too_low() -> eyre::Result<()> {
-        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-        let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
-
-        let sender = anvil.addresses().first().unwrap();
-        let receiver = anvil.addresses().last().unwrap();
-        let sender_pk = anvil.keys().first().unwrap();
-        let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
-        let wallet = EthereumWallet::from(signer.clone());
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(10))
-            .with_nonce(0)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0);
-        let pending_tx = provider.send_transaction(transaction).await?;
-        info!("Pending transaction... {}", pending_tx.tx_hash());
-
-        // Wait for the transaction to be included and get the receipt.
-        let receipt = pending_tx.get_receipt().await?;
-
-        info!(
-            "Transaction included in block {}",
-            receipt.block_number.expect("Failed to get block number")
-        );
-        // wait for 2*block_time duration
-        sleep(Duration::from_secs(2)).await;
-
-        let fees = provider.estimate_eip1559_fees(None).await?;
-        info!(
-            "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
-            fees.max_fee_per_gas, fees.max_priority_fee_per_gas
-        );
-
-        let transaction = TransactionRequest::default()
-            .with_from(*sender)
-            .with_value(U256::from(100))
-            .with_nonce(0)
-            .with_gas_limit(21_0000)
-            .with_to(*receiver)
-            .with_max_fee_per_gas(fees.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
-            .with_chain_id(0)
-            .build(&wallet)
-            .await?;
-
-        info!("Transaction built: {:?}", transaction);
-        let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.digest()).await.unwrap();
-        let preconf_request = PreconfRequest {
-            allocation: request,
-            alloc_sig: signature,
-            transaction: Some(transaction.clone()),
-            signer: Some(*sender),
-        };
-        let validation_result = preconf_pool.validate(&preconf_request).await;
-        assert!(validation_result.is_err());
-        Ok(())
-    }
 }

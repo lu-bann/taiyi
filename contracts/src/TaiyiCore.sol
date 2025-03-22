@@ -194,6 +194,45 @@ contract TaiyiCore is
         );
     }
 
+    /// @notice Validates the given PreconfRequestBType without the raw transaction
+    /// @dev Checks the signatures of the provided PreconfRequestBType
+    /// @param preconfRequestBType The PreconfRequestBType to validate
+    function _validatePreconfRequestBTypeWithoutTx(
+        PreconfRequestBType calldata preconfRequestBType
+    )
+        public
+        view
+    {
+        require(
+            preconfRequestBType.blockspaceAllocation.recipient == owner(),
+            "Tip is not to the owner"
+        );
+
+        // Check that the raw transaction is empty
+        require(
+            preconfRequestBType.rawTx.length == 0,
+            "rawTx must be empty for PreconfRequestBTypeWithoutTx"
+        );
+
+        BlockspaceAllocation calldata blockspaceAllocation =
+            preconfRequestBType.blockspaceAllocation;
+        bytes32 blockspaceAllocationHash =
+            blockspaceAllocation.getBlockspaceAllocationHash();
+
+        Helper.verifySignature(
+            blockspaceAllocationHash,
+            blockspaceAllocation.sender,
+            preconfRequestBType.blockspaceAllocationSignature,
+            "invalid blockspace allocation signature"
+        );
+        Helper.verifySignature(
+            preconfRequestBType.blockspaceAllocationSignature,
+            blockspaceAllocation.recipient,
+            preconfRequestBType.gatewaySignedBlockspaceAllocation,
+            "invalid gateway signature"
+        );
+    }
+
     /// @notice Burns gas by transferring the specified amount to the coinbase
     /// @dev Attempts to transfer the given amount of gas to the block's coinbase
     /// @param amount The amount of gas to be burned
@@ -237,7 +276,7 @@ contract TaiyiCore is
     ///      processes payment, and marks the request as exhausted
     /// @param preconfRequestBType The preconfirmation request to exhaust
     function _exhaust(PreconfRequestBType calldata preconfRequestBType) internal {
-        _validatePreconfRequestBType(preconfRequestBType);
+        _validatePreconfRequestBTypeWithoutTx(preconfRequestBType);
         BlockspaceAllocation calldata blockspaceAllocation =
             preconfRequestBType.blockspaceAllocation;
         require(blockspaceAllocation.recipient == owner(), "Tip to is not the owner");

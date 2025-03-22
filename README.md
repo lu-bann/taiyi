@@ -1,8 +1,7 @@
 # Taiyi(太一) - an Ethereum L1 Preconfirmation Protocol
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/a34f1523-517e-4bbe-90e8-4516f61cdab7" alt="image_resized">
-</p>
+
+![image](https://github.com/user-attachments/assets/83a56bc0-da7f-45ef-8833-c0931cb01130)
 
 ## Setup
 
@@ -11,6 +10,7 @@
 - Compiled [commit-boost](https://github.com/Commit-Boost/commit-boost-client) for `signer_module` integration
 - Consensus layer (CL) client
 - Execution layer (EL) client
+- Installed [SP1 Toolchain](https://docs.succinct.xyz/docs/getting-started/install)
 
 ### Running Commit-Boost
 

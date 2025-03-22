@@ -116,9 +116,13 @@ impl EngineHinter {
         };
 
         // Parse the hint from the engine API response, based on the EL client code
-        let Some(hint) = parse_hint_from_engine_response(ctx.el_client_code, &validation_error)?
-        else {
-            return Err(BuilderError::FailedToParseHintsFromEngine);
+        let hint = match parse_hint_from_engine_response(ctx.el_client_code, &validation_error) {
+            Ok(Some(hint)) => hint,
+            Ok(None) => {
+                let el_name = ctx.el_client_code.client_name().to_string();
+                return Err(BuilderError::FailedToParseHintsFromEngine(el_name, validation_error));
+            }
+            Err(e) => return Err(e),
         };
 
         Ok(hint)

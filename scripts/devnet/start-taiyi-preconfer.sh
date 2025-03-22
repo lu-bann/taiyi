@@ -2,8 +2,8 @@ set -xe
 
 source "$(dirname "$0")/config.sh"
 
-export EXECUTION_URL="http://`kurtosis port print luban el-1-reth-lighthouse rpc`"
-export BEACON_URL="`kurtosis port print luban cl-1-lighthouse-reth http`"
+export EXECUTION_URL="http://`kurtosis port print luban el-1-geth-lighthouse rpc`"
+export BEACON_URL="`kurtosis port print luban cl-1-lighthouse-geth http`"
 export HELIX_URL="http://`kurtosis port print luban helix-relay api`"
 cargo run --bin taiyi preconfer \
   --bls_sk 4942d3308d3fbfbdb977c0bf4c09cb6990aec9fd5ce24709eaf23d96dba71148 \

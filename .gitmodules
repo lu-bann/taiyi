@@ -1,28 +1,63 @@
-[submodule "contracts/l1-preconf-contracts"]
-	path = contracts/l1-preconf-contracts
-	url = git@github.com:qi-protocol/l1-preconf-contracts.git
 [submodule "contracts/lib/forge-std"]
 	path = contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "contracts/lib/openzeppelin-contracts"]
-	path = contracts/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
-	path = contracts/lib/openzeppelin-contracts-upgradeable
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
-[submodule "contracts/lib/eigenlayer-contracts"]
-	path = contracts/lib/eigenlayer-contracts
-	url = https://github.com/Layr-Labs/eigenlayer-contracts
-[submodule "lib/eigenlayer-middleware"]
-	path = lib/eigenlayer-middleware
-	url = https://github.com/Layr-Labs/eigenlayer-middleware
-	branch = mainnet
-[submodule "contracts/lib/eigenlayer-middleware"]
-	path = contracts/lib/eigenlayer-middleware
-	url = https://github.com/Layr-Labs/eigenlayer-middleware
+	commit = 3b20d60d14b343ee4f908cb8079495c07f5e8981
+
 [submodule "contracts/lib/core"]
 	path = contracts/lib/core
 	url = https://github.com/symbioticfi/core
+	commit = 3b6add23921d89dc364458b94e1c35bfb6736e27
+
+[submodule "contracts/lib/openzeppelin-contracts"]
+	path = contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+	commit = 828dbc357cd7975c0a31d919f6d4dcf7ef2dc427
+
+[submodule "contracts/lib/eigenlayer-middleware"]
+	path = contracts/lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware
+	commit = fe5834371caed60c1d26ab62b5519b0cbdcb42fa
+
+[submodule "contracts/lib/eigenlayer-contracts"]
+	path = contracts/lib/eigenlayer-contracts
+	url = https://github.com/Layr-Labs/eigenlayer-contracts
+	commit = 916c924d63592c4665a2d25933a2b1f4369a14f5
+
+[submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = contracts/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+	commit = 6568bed3c6ff95168dee6778c6bd19fe8675b839
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/ds-test"]
+	path = contracts/lib/eigenlayer-contracts/lib/ds-test
+	url = https://github.com/dapphub/ds-test
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/forge-std"]
+	path = contracts/lib/eigenlayer-contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts"]
+	path = contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0"]
+	path = contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+
+[submodule "contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0"]
+	path = contracts/lib/eigenlayer-contracts/lib/openzeppelin-contracts-upgradeable-v4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+
 [submodule "contracts/lib/middleware-sdk"]
 	path = contracts/lib/middleware-sdk
 	url = https://github.com/symbioticfi/middleware-sdk
+	commit = a65b247c0f468cabac9e05712119d5dc2292a46a
+
+[submodule "contracts/lib/sp1-contracts"]
+	path = contracts/lib/sp1-contracts
+	url = https://github.com/succinctlabs/sp1-contracts
+	commit = 26651fdb1c1d6513443560d42888dedc3f68bde6
