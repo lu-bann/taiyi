@@ -121,20 +121,14 @@ async fn main() -> eyre::Result<()> {
         let epoch = slot / EPOCH_SLOTS;
         let next_slot = slot + 1;
 
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
         let account_nonce = provider.get_transaction_count(signer.address()).await?;
         info!("Submitting transactions for next slot: {:?}", next_slot);
 
-        // if slots.contains(&next_slot) {
-        //     let data =
-        //         http_client.submit_type_a_request(next_slot, account_nonce, chain_id).await?;
-        //     let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-        //     info!("Commitment type a: {:?}", format!("0x{}", commitment));
-        //     info!("Sequence Number: {:?}", data.sequence_num.unwrap());
-        // }
-
         if request_store.contains_key(&next_slot) {
             let data = http_client
-                .submit_transaction(
+                .submit_transaction_type_b(
                     *request_store.get(&next_slot).unwrap(),
                     account_nonce,
                     chain_id,
@@ -142,6 +136,12 @@ async fn main() -> eyre::Result<()> {
                 .await?;
             let commitment = hex::encode(data.commitment.unwrap().as_bytes());
             info!("Commitment type b: {:?}", format!("0x{}", commitment));
+
+            let data =
+                http_client.submit_type_a_request(next_slot, account_nonce + 1, chain_id).await?;
+            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+            info!("Commitment type a: {:?}", format!("0x{}", commitment));
+            info!("Sequence Number: {:?}", data.sequence_num.unwrap());
         }
 
         if event.epoch_transition {

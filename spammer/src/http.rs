@@ -87,7 +87,7 @@ impl HttpClient {
         Ok(request_id)
     }
 
-    pub async fn submit_transaction(
+    pub async fn submit_transaction_type_b(
         &self,
         request_id: Uuid,
         nonce: u64,
