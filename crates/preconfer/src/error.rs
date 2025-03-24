@@ -30,6 +30,8 @@ pub enum RpcError {
     MalformedHeader,
     #[error("Gateway isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
+    #[error("Pricer error: {0:?}")]
+    PricerError(#[from] PricerError),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -92,6 +94,8 @@ pub enum ValidationError {
     InvalidNonceSequence(u64, u64),
     #[error("Invalid signer, expected: {0}, got: {1}")]
     InvalidSigner(Address, Address),
+    #[error("Insufficient tip, expected: {0}, got: {1}")]
+    InsufficientTip(U256, U256),
 }
 
 #[derive(Debug, Error)]
@@ -112,6 +116,8 @@ pub enum PricerError {
     ParseError(String),
     #[error("custom error: {0}")]
     Custom(String),
+    #[error("Insufficient tip, expected: {0}, got: {1}")]
+    InsufficientTip(U256, U256),
 }
 
 #[derive(Debug, Error)]

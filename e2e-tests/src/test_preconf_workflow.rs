@@ -235,9 +235,9 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
         .await?;
     let chain_id = provider.get_chain_id().await?;
 
-    taiyi_deposit(provider.clone(), 100_000, &config).await?;
+    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(100_000));
+    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
 
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     if available_slot.is_empty() {

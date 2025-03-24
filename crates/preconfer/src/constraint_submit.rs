@@ -24,8 +24,8 @@ use crate::{
     preconf_api::state::PreconfState,
 };
 
-pub fn spawn_constraint_submitter<P>(
-    state: PreconfState<P>,
+pub fn spawn_constraint_submitter<P, F>(
+    state: PreconfState<P, F>,
 ) -> impl Future<Output = eyre::Result<()>>
 where
     P: Provider + Clone + Send + Sync + 'static,
@@ -42,6 +42,14 @@ where
             context.slots_per_epoch,
         );
         let mut slot_stream = clock.into_stream();
+
+        let signer = state.signer_client.ecdsa_signer();
+        let wallet = EthereumWallet::from(signer.clone());
+        let sender = state.signer_client.ecdsa_address();
+
+        let taiyi_core =
+            TaiyiCore::new(state.preconf_pool.taiyi_escrow_address, state.provider.clone());
+
         while let Some(slot) = slot_stream.next().await {
             let next_slot = slot + 1;
 
@@ -72,13 +80,6 @@ where
             tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
             info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
-
-            let signer = state.signer_client.ecdsa_signer();
-            let wallet = EthereumWallet::from(signer.clone());
-            let sender = state.signer_client.ecdsa_address();
-
-            let taiyi_core =
-                TaiyiCore::new(state.preconf_pool.taiyi_escrow_address, state.provider.clone());
 
             let mut constraints = Vec::new();
             let mut sponsoring_tx = Vec::new();
@@ -228,54 +229,58 @@ where
             }
 
             // Fetch all preconf requests for which the gateway must call exhaust() on TaiyiCore contract
-            let requests = state.preconf_pool.fetch_pending(next_slot);
-            if let Some(requests) = requests {
-                info!(
-                    "Found {} preconf requests for slot {} to be exhausted",
-                    requests.len(),
-                    next_slot
-                );
-
-                for preconf_req in requests {
-                    let blockspace_allocation_sig_user = preconf_req.alloc_sig;
-                    let blockspace_allocation_sig_gateway = state
-                        .signer_client
-                        .sign_with_ecdsa(keccak256(blockspace_allocation_sig_user.as_bytes()))
-                        .await
-                        .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
-                    let preconf_request_type_b = to_solidity_type(
-                        preconf_req,
-                        blockspace_allocation_sig_user,
-                        blockspace_allocation_sig_gateway,
-                        Bytes::default(),
-                        state
-                            .signer_client
-                            // Empty raw tx
-                            .sign_with_ecdsa(keccak256(Bytes::default()))
-                            .await
-                            .map_err(|e| {
-                                RpcError::SignatureError(format!(
-                                    "Failed to issue commitment: {e:?}"
-                                ))
-                            })?,
+            match state.preconf_pool.fetch_pending(next_slot) {
+                Ok(requests) => {
+                    info!(
+                        "Found {} preconf requests for slot {} to be exhausted",
+                        requests.len(),
+                        next_slot
                     );
 
-                    // Call exhaust() on TaiyiCore contract
-                    let exhaust_tx = taiyi_core
-                        .exhaust(preconf_request_type_b)
-                        .into_transaction_request()
-                        .with_chain_id(chain_id)
-                        .with_nonce(nonce)
-                        .with_gas_limit(1_000_000)
-                        .with_max_fee_per_gas(base_fee)
-                        .with_max_priority_fee_per_gas(priority_fee)
-                        .build(&wallet)
-                        .await?;
-                    // increment nonce
-                    nonce += 1;
+                    for preconf_req in requests {
+                        let blockspace_allocation_sig_user = preconf_req.alloc_sig;
+                        let blockspace_allocation_sig_gateway = state
+                            .signer_client
+                            .sign_with_ecdsa(keccak256(blockspace_allocation_sig_user.as_bytes()))
+                            .await
+                            .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
+                        let preconf_request_type_b = to_solidity_type(
+                            preconf_req,
+                            blockspace_allocation_sig_user,
+                            blockspace_allocation_sig_gateway,
+                            Bytes::default(),
+                            state
+                                .signer_client
+                                // Empty raw tx
+                                .sign_with_ecdsa(keccak256(Bytes::default()))
+                                .await
+                                .map_err(|e| {
+                                    RpcError::SignatureError(format!(
+                                        "Failed to issue commitment: {e:?}"
+                                    ))
+                                })?,
+                        );
 
-                    let tx_bytes = exhaust_tx.to_ssz_bytes();
-                    exhaust_txs.push(tx_bytes);
+                        // Call exhaust() on TaiyiCore contract
+                        let exhaust_tx = taiyi_core
+                            .exhaust(preconf_request_type_b)
+                            .into_transaction_request()
+                            .with_chain_id(chain_id)
+                            .with_nonce(nonce)
+                            .with_gas_limit(1_000_000)
+                            .with_max_fee_per_gas(base_fee)
+                            .with_max_priority_fee_per_gas(priority_fee)
+                            .build(&wallet)
+                            .await?;
+                        // increment nonce
+                        nonce += 1;
+
+                        let tx_bytes = exhaust_tx.to_ssz_bytes();
+                        exhaust_txs.push(tx_bytes);
+                    }
+                }
+                Err(err) => {
+                    debug!(?err, "Error fetching preconf requests for slot");
                 }
             }
 

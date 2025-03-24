@@ -276,7 +276,7 @@ contract TaiyiCore is
     ///      processes payment, and marks the request as exhausted
     /// @param preconfRequestBType The preconfirmation request to exhaust
     function _exhaust(PreconfRequestBType calldata preconfRequestBType) internal {
-        _validatePreconfRequestBType(preconfRequestBType);
+        _validatePreconfRequestBTypeWithoutTx(preconfRequestBType);
         BlockspaceAllocation calldata blockspaceAllocation =
             preconfRequestBType.blockspaceAllocation;
         require(blockspaceAllocation.recipient == owner(), "Tip to is not the owner");

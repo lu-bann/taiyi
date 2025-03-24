@@ -71,6 +71,7 @@ impl PreconferCommand {
             self.ecdsa_sk.clone(),
             relay_url,
             self.taiyi_escrow_address.parse()?,
+            self.taiyi_service_url.clone(),
         )
         .await?;
 
