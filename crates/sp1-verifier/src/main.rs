@@ -23,7 +23,7 @@ pub fn main() {
             println!("Proof is valid");
         }
         Err(e) => {
-            println!("Error verifying proof: {:?}", e);
+            println!("Error verifying proof: {e}");
         }
     }
 }
