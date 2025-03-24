@@ -13,7 +13,8 @@ use hex::ToHex;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
-    include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Stdin,
+    include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Proof,
+    SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use taiyi_preconfer::TaiyiCore;
 use taiyi_primitives::PreconfResponseData;
@@ -42,6 +43,7 @@ use crate::{
 
 const ELF_POI: &[u8] = include_elf!("taiyi-poi");
 const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
+const ELF_VERIFIER: &[u8] = include_elf!("taiyi-sp1-verifier");
 
 // TODO: type A not included test,
 // TODO: type B not included test,
@@ -62,8 +64,37 @@ struct TestDataPreconfRequestTypeB {
     preconf_request: PreconfRequestTypeB,
 }
 
-// #[cfg(not(feature = "ci"))]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
+    // Read proof from file
+    let proof =
+        SP1ProofWithPublicValues::load("test-data/poi-preconf-type-a-included-proof.bin").unwrap();
+
+    // Read json data
+    let test_data =
+        fs::read_to_string("test-data/poi-preconf-type-a-included-test-data.json").unwrap();
+    let test_data: TestDataPreconfRequestTypeA = serde_json::from_str(&test_data).unwrap();
+    let public_values = hex::decode(test_data.public_values).unwrap();
+    let vk = test_data.vk;
+
+    // Write the proof, public values, and vkey hash to the input stream.
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(proof.bytes());
+    stdin.write_vec(public_values);
+    stdin.write(&vk);
+
+    // Verify proof
+    let client = ProverClient::builder().cpu().build();
+    let (_, report) = client.execute(ELF_VERIFIER, &stdin).run().unwrap();
+    println!("executed plonk program with {} cycles", report.total_instruction_count());
+    println!("{}", report);
+
+    Ok(())
+}
+
+#[cfg(not(feature = "ci"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[ignore]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
 
@@ -292,7 +323,6 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
             .cycle_limit(1_000_000_000)
             .strategy(FulfillmentStrategy::Hosted)
             .skip_simulation(true)
-            .plonk()
             .run()
             .unwrap();
 
@@ -323,7 +353,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 }
 
 #[cfg(not(feature = "ci"))]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 #[ignore]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
@@ -569,7 +599,6 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             .cycle_limit(1_000_000_000)
             .strategy(FulfillmentStrategy::Hosted)
             .skip_simulation(true)
-            .plonk()
             .run()
             .unwrap();
         proof
@@ -603,7 +632,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 }
 
 #[cfg(not(feature = "ci"))]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 #[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
@@ -916,7 +945,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             .cycle_limit(1_000_000_000)
             .strategy(FulfillmentStrategy::Hosted)
             .skip_simulation(true)
-            .plonk()
             .run()
             .unwrap();
         proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
