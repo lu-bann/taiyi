@@ -17,7 +17,10 @@ interface IProposerRegistry {
     enum RestakingServiceType {
         // EigenLayer services
         EIGENLAYER_GATEWAY, // Gateway operator in EigenLayer
-        EIGENLAYER_VALIDATOR // Validator operator in EigenLayer
+        EIGENLAYER_VALIDATOR, // Validator operator in EigenLayer
+        // Symbiotic services
+        SYMBIOTIC_GATEWAY, // Gateway operator in Symbiotic
+        SYMBIOTIC_VALIDATOR // Validator operator in Symbiotic
 
     }
 
@@ -59,6 +62,7 @@ interface IProposerRegistry {
         address indexed restakingServiceAddress, RestakingServiceType serviceType
     );
     event ValidatorsOptedOut(address indexed operator, bytes[] pubkeys);
+    event NetworkTypeSet(bytes32 indexed subnetwork, RestakingServiceType serviceType);
 
     /// @notice Initializes the contract
     /// @param _owner Address of the contract owner
@@ -68,6 +72,10 @@ interface IProposerRegistry {
     /// @param gatewayAVSAddr Address of the GatewayAVS contract
     /// @param validatorAVSAddr Address of the ValidatorAVS contract
     function setAVSContracts(address gatewayAVSAddr, address validatorAVSAddr) external;
+
+    /// @notice Sets the Symbiotic network contracts in the registry
+    /// @param symbioticMiddlewareAddr Address of the Symbiotic middleware contract
+    function setNetworkContracts(address symbioticMiddlewareAddr) external;
 
     /// @notice Registers a new operator
     /// @param operatorAddress The operator's address
@@ -180,6 +188,14 @@ interface IProposerRegistry {
     /// @param avsAddress The address of the AVS
     /// @return Array of operator addresses
     function getActiveOperatorsForAVS(address avsAddress)
+        external
+        view
+        returns (address[] memory);
+
+    /// @notice Returns active operators for a specific subnetwork
+    /// @param subnetwork The subnetwork identifier
+    /// @return Array of operator addresses
+    function getActiveOperatorsForNetwork(bytes32 subnetwork)
         external
         view
         returns (address[] memory);
