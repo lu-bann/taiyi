@@ -5,6 +5,7 @@ import { GatewayAVS } from "../eigenlayer-avs/GatewayAVS.sol";
 import { ValidatorAVS } from "../eigenlayer-avs/ValidatorAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { EigenLayerOperatorManagement } from "../libs/EigenLayerOperatorManagement.sol";
+import { SymbioticOperatorManagement } from "../libs/SymbioticOperatorManagement.sol";
 import { ValidatorManagement } from "../libs/ValidatorManagement.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
@@ -26,6 +27,14 @@ import { EnumerableSet } from
 // | validatorState              | struct ValidatorManagement.ValidatorState                       | 6    | 0      | 64    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | eigenLayerOperatorState     | struct EigenLayerOperatorManagement.EigenLayerOperatorState     | 8    | 0      | 96    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | symbioticOperatorState      | struct SymbioticOperatorManagement.SymbioticOperatorState       | 11   | 0      | 96    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _symbioticMiddlewareAddress | address                                                         | 14   | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _gatewaySubnetwork          | bytes32                                                         | 15   | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
+// | _validatorSubnetwork        | bytes32                                                         | 16   | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | __gap                       | uint256[50]                                                     | 17   | 0      | 1600  | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // ╰-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------╯
@@ -61,6 +70,18 @@ contract TaiyiProposerRegistryStorage {
 
     /// @notice EigenLayer operator state
     EigenLayerOperatorManagement.EigenLayerOperatorState internal eigenLayerOperatorState;
+
+    /// @notice Symbiotic operator state
+    SymbioticOperatorManagement.SymbioticOperatorState internal symbioticOperatorState;
+
+    /// @notice Address of the symbiotic middleware contract
+    address internal _symbioticMiddlewareAddress;
+
+    /// @notice Symbiotic network subnetwork for the gateway
+    bytes32 internal _gatewaySubnetwork;
+
+    /// @notice Symbiotic network subnetwork for the validator
+    bytes32 internal _validatorSubnetwork;
 
     // Storage gap for future variable additions
     uint256[50] private __gap;
