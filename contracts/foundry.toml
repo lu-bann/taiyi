@@ -7,7 +7,7 @@
   evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
-  optimizer = false
+  optimizer = true
   optimizer_runs = 10_000
   out = "out"
   script = "script"
@@ -23,9 +23,10 @@ remappings = [
   "@openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
   "@eigenlayer-middleware/=lib/eigenlayer-middleware/",
   "@eigenlayer-contracts/=lib/eigenlayer-contracts/",
+  "@symbiotic/=lib/middleware-sdk/lib/core/src",
+  "@symbiotic-test/=lib/middleware-sdk/lib/core/test/",
   "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
 
-  "@symbiotic/=lib/core/src/",
   "@symbiotic-middleware-sdk/=lib/middleware-sdk/src/",
 
   "lib/eigenlayer-contracts/:@openzeppelin/=lib/eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/",

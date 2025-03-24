@@ -8,17 +8,13 @@ use alloy_primitives::{Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use reqwest::Url;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData, SlotInfo,
+    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponse, SlotInfo,
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use uuid::Uuid;
 
 use crate::{
-    clients::{
-        pricer::{PreconfPricer, Pricer},
-        relay_client::RelayClient,
-        signer_client::SignerClient,
-    },
+    clients::{relay_client::RelayClient, signer_client::SignerClient},
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
@@ -26,19 +22,18 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PreconfState<P, F> {
+pub struct PreconfState<P> {
     pub network_state: NetworkState,
     pub preconf_pool: Arc<PreconfPool>,
     pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
-    pub pricer: Pricer<F>,
+    pub min_fee_per_gas: u128,
 }
 
-impl<P, F> PreconfState<P, F>
+impl<P> PreconfState<P>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -48,10 +43,10 @@ where
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
-        pricer: Pricer<F>,
+        min_fee_per_gas: u128,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider, pricer }
+        Self { relay_client, network_state, preconf_pool, signer_client, provider, min_fee_per_gas }
     }
 
     /// reserve blockspace for a slot
@@ -69,7 +64,7 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+        // TODO: Check gas_fee & blob_gas_fee against the pricing service
 
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
@@ -80,24 +75,21 @@ where
         }
 
         if request.gas_limit == 0 {
-            return Err(RpcError::ParamsError("Gas limit cannot be zero".to_string()));
+            return Err(RpcError::UnknownError("Gas limit cannot be zero".to_string()));
         }
 
         // Construct a preconf request
         let preconf_request =
             PreconfRequestTypeB { allocation: request, alloc_sig, transaction: None, signer };
 
-        self.preconf_pool
-            .reserve_blockspace(preconf_request, preconf_fee)
-            .await
-            .map_err(RpcError::PoolError)
+        self.preconf_pool.reserve_blockspace(preconf_request).await.map_err(RpcError::PoolError)
     }
 
     pub async fn submit_transaction(
         &self,
         request: SubmitTransactionRequest,
         signature: PrimitiveSignature,
-    ) -> Result<PreconfResponseData, RpcError> {
+    ) -> Result<PreconfResponse, RpcError> {
         let mut preconf_request = self
             .preconf_pool
             .get_pending(request.request_id)
@@ -122,34 +114,35 @@ where
 
         // Check if blocksapce reserved matches with transaction gas limit
         if preconf_request.allocation.gas_limit < request.transaction.gas_limit() {
-            return Err(RpcError::ParamsError("Gas limit exceeds reserved blockspace".to_string()));
+            return Err(RpcError::UnknownError(
+                "Gas limit exceeds reserved blockspace".to_string(),
+            ));
+        }
+
+        // Check for gas fee caps
+        if request.transaction.max_fee_per_gas() < self.min_fee_per_gas {
+            return Err(RpcError::MaxFeePerGasLessThanThreshold(
+                self.min_fee_per_gas,
+                request.transaction.max_fee_per_gas(),
+            ));
         }
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
         match self
             .preconf_pool
             .validate_and_store(
                 taiyi_primitives::PreconfRequest::TypeB(preconf_request.clone()),
                 request.request_id,
-                preconf_fee,
             )
             .await
         {
             Ok(result) => {
-                let commitment = self
-                    .signer_client
-                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
-                    .await
-                    .map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                let commitment =
+                    self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
+                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponseData {
-                    request_id: request.request_id,
-                    commitment: Some(commitment),
-                    sequence_num: None,
-                })
+                Ok(PreconfResponse::success(request.request_id, Some(commitment), None))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
@@ -160,7 +153,7 @@ where
         request: SubmitTypeATransactionRequest,
         signature: PrimitiveSignature,
         signer: Address,
-    ) -> Result<PreconfResponseData, RpcError> {
+    ) -> Result<PreconfResponse, RpcError> {
         let recovered_signer = signature
             .recover_address_from_prehash(&request.digest())
             .map_err(|e| RpcError::SignatureError(e.to_string()))?;
@@ -174,7 +167,7 @@ where
         }
 
         if request.preconf_transaction.is_empty() {
-            return Err(RpcError::ParamsError("No preconf transactions".to_string()));
+            return Err(RpcError::UnknownError("No preconf transactions".to_string()));
         }
 
         // Only for internal use.
@@ -187,29 +180,20 @@ where
             signer,
         };
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
         match self
             .preconf_pool
             .validate_and_store(
                 taiyi_primitives::PreconfRequest::TypeA(preconf_request.clone()),
                 request_id,
-                preconf_fee,
             )
             .await
         {
             Ok(result) => {
-                let commitment = self
-                    .signer_client
-                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
-                    .await
-                    .map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
+                let commitment =
+                    self.signer_client.sign_with_ecdsa(result.digest()).await.map_err(|e| {
+                        RpcError::SignatureError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponseData {
-                    request_id,
-                    commitment: Some(commitment),
-                    sequence_num: result.sequence_num(),
-                })
+                Ok(PreconfResponse::success(request_id, Some(commitment), result.sequence_num()))
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }

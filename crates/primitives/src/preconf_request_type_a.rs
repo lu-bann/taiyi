@@ -1,7 +1,5 @@
 use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{hex, keccak256, Address, B256, U256};
-use alloy_sol_types::SolValue;
+use alloy_primitives::{keccak256, Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -38,31 +36,16 @@ impl PreconfRequestTypeA {
         self.tip_transaction.value()
     }
 
-    pub fn digest(&self, chain_id: u64) -> B256 {
-        let mut preconf_txs: Vec<String> = Vec::new();
+    pub fn digest(&self) -> B256 {
+        let mut digest = Vec::new();
         for tx in &self.preconf_tx {
-            let mut tx_bytes = Vec::new();
-            tx.encode_2718(&mut tx_bytes);
-            let hex_encoded_tx = format!("0x{}", hex::encode(&tx_bytes));
-            preconf_txs.push(hex_encoded_tx);
+            digest.extend_from_slice(tx.tx_hash().as_slice());
         }
-
-        let mut tip_tx = Vec::new();
-        self.tip_transaction.encode_2718(&mut tip_tx);
-        let tip_tx_raw = format!("0x{}", hex::encode(&tip_tx));
-        let sequence_number = self.sequence_number.expect("Sequence number should be present");
-
-        keccak256(
-            (
-                tip_tx_raw.as_bytes(),
-                preconf_txs.iter().map(|s| s.as_bytes()).collect::<Vec<_>>(),
-                self.target_slot,
-                sequence_number,
-                self.signer,
-                chain_id,
-            )
-                .abi_encode_packed(),
-        )
+        digest.extend_from_slice(self.tip_transaction.tx_hash().as_slice());
+        digest.extend_from_slice(&self.target_slot.to_be_bytes());
+        digest.extend_from_slice(&self.sequence_number.expect("shouldn't be none").to_be_bytes());
+        digest.extend_from_slice(self.signer.as_slice());
+        keccak256(&digest)
     }
 
     /// Returns the total value transfer

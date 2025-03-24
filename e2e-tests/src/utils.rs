@@ -21,7 +21,7 @@ use taiyi_preconfer::{
     SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponseData,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse,
     SignedConstraints, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tokio::time::sleep;
@@ -30,6 +30,7 @@ use uuid::Uuid;
 
 use crate::constant::{
     FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, SLOT_CHECK_INTERVAL_SECONDS,
+    TAIYI_CONTRACT_ADDRESS,
 };
 
 lazy_static::lazy_static! {
@@ -56,7 +57,7 @@ pub struct TestConfig {
 
 impl std::fmt::Debug for TestConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TestConfig {{ working_dir: {:?}, execution_url: {:?}, beacon_url: {:?}, relay_url: {:?}, taiyi_port: {:?}, taiyi_core: {:?} }}", self.working_dir, self.execution_url, self.beacon_url, self.relay_url, self.taiyi_port, self.taiyi_core)
+        write!(f, "TestConfig {{ working_dir: {:?}, execution_url: {:?}, beacon_url: {:?}, relay_url: {:?}, taiyi_port: {:?} }}", self.working_dir, self.execution_url, self.beacon_url, self.relay_url, self.taiyi_port)
     }
 }
 
@@ -70,8 +71,6 @@ impl TestConfig {
             std::env::var("BEACON_URL").expect("BEACON_URL environment variable not set");
         let relay_url = std::env::var("RELAY_URL").expect("RELAY_URL environment variable not set");
 
-        let taiyi_core = std::env::var("TAIYI_CORE_ADDRESS")
-            .expect("TAIYI_CORE_ADDRESS environment variable not set");
         let taiyi_port = std::env::var("TAIYI_PORT")
             .map(|res| res.parse::<u16>().expect("TAIYI_PORT is not a valid port"))
             .unwrap_or_else(|_| get_available_port());
@@ -79,18 +78,8 @@ impl TestConfig {
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
         let context = Context::try_from_file(p).unwrap();
-        let taiyi_core = Address::from_str(&taiyi_core).unwrap();
-        let config = Self {
-            working_dir,
-            execution_url,
-            beacon_url,
-            relay_url,
-            taiyi_port,
-            context,
-            taiyi_core,
-        };
-        info!("test config: {:?}", config);
-        config
+        let taiyi_core = Address::from_str(TAIYI_CONTRACT_ADDRESS).unwrap();
+        Self { working_dir, execution_url, beacon_url, relay_url, taiyi_port, context, taiyi_core }
     }
 
     pub fn taiyi_url(&self) -> String {
@@ -329,24 +318,21 @@ pub async fn generate_reserve_blockspace_request(
     gas_limit: u64,
     blob_count: u64,
     preocnf_fee: PreconfFeeResponse,
-    chain_id: u64,
 ) -> (BlockspaceAllocation, String) {
     let fee = preocnf_fee.gas_fee * (gas_limit as u128)
         + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
-    let recepient = PRECONFER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
     let request = BlockspaceAllocation {
         target_slot,
         sender: signer_private.address(),
-        recipient: recepient.address(),
+        recepient: TAIYI_CONTRACT_ADDRESS.parse().unwrap(),
         deposit: fee,
         tip: fee,
         gas_limit,
         blob_count: blob_count.try_into().unwrap(),
     };
-    info!("block space allocation request: {:?}", request);
     let signature =
-        hex::encode(signer_private.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
+        hex::encode(signer_private.sign_hash(&request.digest()).await.unwrap().as_bytes());
     (request, format!("0x{signature}"))
 }
 

@@ -12,17 +12,14 @@ use axum::{
 use reqwest::header::HeaderMap;
 use serde_json::json;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfResponseData, SlotInfo,
-    SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfResponse, SlotInfo, SubmitTransactionRequest,
+    SubmitTypeATransactionRequest,
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{
-    clients::pricer::PreconfPricer, error::RpcError, metrics::metrics_middleware,
-    preconf_api::PreconfState,
-};
+use crate::{error::RpcError, metrics::metrics_middleware, preconf_api::PreconfState};
 
 pub const AVAILABLE_SLOT_PATH: &str = "/commitments/v0/slots";
 pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
@@ -40,10 +37,9 @@ impl PreconfApiServer {
         Self { addr }
     }
 
-    pub async fn run<P, F>(self, state: PreconfState<P, F>) -> eyre::Result<()>
+    pub async fn run<P>(self, state: PreconfState<P>) -> eyre::Result<()>
     where
         P: Provider + Clone + Send + Sync + 'static,
-        F: PreconfPricer + Clone + Sync + Send + 'static,
     {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
@@ -85,26 +81,25 @@ pub async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "OK"}))
 }
 
-pub async fn handle_reserve_blockspace<P, F>(
+pub async fn handle_reserve_blockspace<P>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P, F>>,
+    State(state): State<PreconfState<P>>,
     Json(request): Json<BlockspaceAllocation>,
 ) -> Result<Json<Uuid>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
     let signer = signature
-        .recover_address_from_prehash(&request.hash(state.network_state.chain_id()))
+        .recover_address_from_prehash(&request.digest())
         .map_err(|e| RpcError::SignatureError(e.to_string()))?;
 
     info!("Received blockspace reservation request, signer: {}", signer);
@@ -115,19 +110,18 @@ where
     }
 }
 
-pub async fn handle_submit_transaction<P, F>(
+pub async fn handle_submit_transaction<P>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P, F>>,
+    State(state): State<PreconfState<P>>,
     Json(request): Json<SubmitTransactionRequest>,
-) -> Result<Json<PreconfResponseData>, RpcError>
+) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
@@ -140,40 +134,37 @@ where
 }
 
 /// Returns the slots for which there is a opted in validator for current epoch and next epoch
-pub async fn get_slots<P, F>(
-    State(state): State<PreconfState<P, F>>,
+pub async fn get_slots<P>(
+    State(state): State<PreconfState<P>>,
 ) -> Result<Json<Vec<SlotInfo>>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
     Ok(Json(state.get_slots().await?))
 }
 
-pub async fn handle_preconf_fee<P, F>(
-    State(state): State<PreconfState<P, F>>,
-    Json(request): Json<u64>,
+pub async fn handle_preconf_fee<P>(
+    State(_): State<PreconfState<P>>,
+    Json(_request): Json<u64>,
 ) -> Result<Json<PreconfFeeResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
-    Ok(Json(state.pricer.pricer.get_preconf_fee(request).await?))
+    Ok(Json(PreconfFeeResponse { gas_fee: 1, blob_gas_fee: 1 }))
 }
 
-pub async fn handle_submit_typea_transaction<P, F>(
+pub async fn handle_submit_typea_transaction<P>(
     headers: HeaderMap,
-    State(state): State<PreconfState<P, F>>,
+    State(state): State<PreconfState<P>>,
     Json(request): Json<SubmitTypeATransactionRequest>,
-) -> Result<Json<PreconfResponseData>, RpcError>
+) -> Result<Json<PreconfResponse>, RpcError>
 where
     P: Provider + Clone + Send + Sync + 'static,
-    F: PreconfPricer + Sync + Send + 'static,
 {
     let signature = {
         let auth = headers
             .get("x-luban-signature")
-            .ok_or(RpcError::NoHeader("x-luban-signature".to_string()))?;
+            .ok_or(RpcError::UnknownError("no signature".to_string()))?;
 
         let sig = auth.to_str().map_err(|_| RpcError::MalformedHeader)?;
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")

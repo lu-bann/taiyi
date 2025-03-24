@@ -14,24 +14,24 @@ use uuid::Uuid;
 pub enum RpcError {
     #[error("preconf tx already set")]
     PreconfTxAlreadySet,
-    #[error("Header not set: {0:?}")]
-    NoHeader(String),
+    #[error("unknown error {0:?}")]
+    UnknownError(String),
     #[error("exceed deadline for slot {0}")]
     ExceedDeadline(u64),
     #[error("Preconf pool error: {0:?}")]
     PoolError(#[from] PoolError),
+    #[error("Preconf request error: {0:?}")]
+    PreconfRequestError(String),
     #[error("Signature error: {0:?}")]
     SignatureError(String),
-    #[error("Internal: {0:?}")]
-    InternalError(String),
     #[error("Params error: {0:?}")]
     ParamsError(String),
     #[error("Malformed header")]
     MalformedHeader,
     #[error("Gateway isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
-    #[error("Pricer error: {0:?}")]
-    PricerError(#[from] PricerError),
+    #[error("max_fee_per_gas: Expected {0}, got {1}")]
+    MaxFeePerGasLessThanThreshold(u128, u128),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,22 +40,10 @@ pub struct ErrorMessage {
     message: String,
 }
 
-impl From<RpcError> for StatusCode {
-    fn from(value: RpcError) -> Self {
-        match value {
-            RpcError::InternalError(_)
-            | RpcError::PoolError(PoolError::Validation(ValidationError::Internal(_))) => {
-                Self::INTERNAL_SERVER_ERROR
-            }
-            _ => Self::BAD_REQUEST,
-        }
-    }
-}
-
 impl IntoResponse for RpcError {
     fn into_response(self) -> Response {
         let message = self.to_string();
-        let code = StatusCode::from(self);
+        let code = StatusCode::BAD_REQUEST;
         (code, Json(ErrorMessage { code: code.as_u16(), message })).into_response()
     }
 }
@@ -94,8 +82,6 @@ pub enum ValidationError {
     InvalidNonceSequence(u64, u64),
     #[error("Invalid signer, expected: {0}, got: {1}")]
     InvalidSigner(Address, Address),
-    #[error("Insufficient tip, expected: {0}, got: {1}")]
-    InsufficientTip(U256, U256),
 }
 
 #[derive(Debug, Error)]
@@ -116,8 +102,6 @@ pub enum PricerError {
     ParseError(String),
     #[error("custom error: {0}")]
     Custom(String),
-    #[error("Insufficient tip, expected: {0}, got: {1}")]
-    InsufficientTip(U256, U256),
 }
 
 #[derive(Debug, Error)]

@@ -31,7 +31,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
 
         let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
         let mut preconf = PreconfRequestTypeB {
             allocation: request,
@@ -96,7 +96,7 @@ mod tests {
 
         info!("Transaction built: {:?}", transaction);
         let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
@@ -162,7 +162,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
 
         let request = BlockspaceAllocation { blob_count: 3, ..Default::default() };
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
@@ -227,7 +227,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
 
         let request = BlockspaceAllocation { blob_count: 1, ..Default::default() };
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
@@ -281,8 +281,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
 
         let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
-
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,
@@ -333,7 +332,7 @@ mod tests {
         info!("Transaction built: {:?}", transaction);
 
         let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
 
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
@@ -408,8 +407,7 @@ mod tests {
 
         info!("Transaction built: {:?}", transaction);
         let request = BlockspaceAllocation::default();
-        let signature = signer.sign_hash(&request.hash(0)).await.unwrap();
-
+        let signature = signer.sign_hash(&request.digest()).await.unwrap();
         let preconf_request = PreconfRequestTypeB {
             allocation: request,
             alloc_sig: signature,

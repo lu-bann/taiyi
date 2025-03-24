@@ -35,7 +35,7 @@ impl PreconfPoolInner {
     }
 
     pub fn has_preconf_requests(&self, account: Address) -> bool {
-        self.ready.has_preconf_requests(account)
+        self.pending.has_preconf_requests(account) || self.ready.has_preconf_requests(account)
     }
 }
 

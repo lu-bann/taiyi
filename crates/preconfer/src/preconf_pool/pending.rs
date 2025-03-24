@@ -4,8 +4,6 @@ use alloy_primitives::{Address, U256};
 use taiyi_primitives::PreconfRequestTypeB;
 use uuid::Uuid;
 
-use crate::error::PoolError;
-
 /// Stores all preconf request without preconf transactions
 #[derive(Debug, Clone)]
 pub struct Pending {
@@ -56,28 +54,15 @@ impl Pending {
         })
     }
 
-    /// Removes the requests for the given slot and return them
+    /// Fetches all preconf requests for a given slot.
     /// This is used to fetch all preconf requests which hasn't received a preconf transaction yet.
-    pub fn fetch_preconf_requests_for_slot(
-        &mut self,
-        slot: u64,
-    ) -> Result<Vec<PreconfRequestTypeB>, PoolError> {
-        if let Some(reqs) = self.reqs_by_slot.remove(&slot) {
-            let mut preconfs = Vec::new();
-            for req_id in reqs {
-                let preconf_request = match self.by_id.remove(&req_id) {
-                    Some(req) => req,
-                    None => return Err(PoolError::PreconfRequestNotFound(req_id)),
-                };
-                preconfs.push(preconf_request);
-            }
-            Ok(preconfs)
-        } else {
-            Err(PoolError::RequestsNotFoundForSlot(slot))
-        }
+    pub fn fetch_preconf_requests_for_slot(&self, slot: u64) -> Option<Vec<PreconfRequestTypeB>> {
+        self.reqs_by_slot
+            .get(&slot)
+            .map(|ids| ids.iter().filter_map(|id| self.by_id.get(id)).cloned().collect())
     }
 
-    pub fn _has_preconf_requests(&self, account: Address) -> bool {
+    pub fn has_preconf_requests(&self, account: Address) -> bool {
         self.by_account.contains_key(&account)
     }
 }

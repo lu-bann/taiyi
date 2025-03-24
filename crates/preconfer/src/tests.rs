@@ -14,18 +14,14 @@ mod tests {
     use ethereum_consensus::deneb::Context;
     use reqwest::Url;
     use taiyi_primitives::{
-        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponseData,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponse,
         SubmitTransactionRequest,
     };
     use tracing::info;
     use uuid::Uuid;
 
     use crate::{
-        clients::{
-            pricer::{ExecutionClientPricer, Pricer},
-            relay_client::RelayClient,
-            signer_client::SignerClient,
-        },
+        clients::{relay_client::RelayClient, signer_client::SignerClient},
         network_state::NetworkState,
         preconf_api::{
             api::{
@@ -71,7 +67,7 @@ mod tests {
             "03643b2c19f03891a7d103f50fab07ad0dbe7cb19477074d42488a28e345b07145".to_string();
         let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
 
-        let anvil = Anvil::new().block_time(12).chain_id(1).spawn();
+        let anvil = Anvil::new().block_time(12).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
 
         let sender = anvil.addresses().first().unwrap();
@@ -85,21 +81,18 @@ mod tests {
             .wallet(wallet.clone())
             .on_builtin(&rpc_url)
             .await?;
-        let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract
         let escrow = TaiyiEscrow::deploy(&provider).await?;
         info!("Deployed contract at address: {}", escrow.address());
 
         // Deposit into the escrow contract
-        let builder = escrow.deposit().value(U256::from(1_000_000_000_000_000_000_u128));
+        let builder = escrow.deposit().value(U256::from(100_000));
         let tx_hash = builder.send().await?.watch().await?;
 
         let builder = escrow.balanceOf(*sender);
         let balance = builder.call().await?._0;
-        assert_eq!(balance, U256::from(1_000_000_000_000_000_000_u128));
-
-        let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+        assert_eq!(balance, U256::from(100_000));
 
         // spawn api server
         let state = PreconfState::new(
@@ -109,7 +102,7 @@ mod tests {
             rpc_url.parse().unwrap(),
             *escrow.address(),
             provider.clone(),
-            pricer,
+            0,
         );
 
         let preconfapiserver =
@@ -128,6 +121,7 @@ mod tests {
         let status = response.status();
         assert_eq!(status, 200);
         let fee: PreconfFeeResponse = response.json().await?;
+        assert_eq!(fee.gas_fee, 1);
 
         // Reserve blockspace
         let request_endpoint =
@@ -136,7 +130,6 @@ mod tests {
             signer.clone(),
             *network_state.available_slots().last().unwrap(),
             fee,
-            chain_id,
         )
         .await;
         let response = reqwest::Client::new()
@@ -163,7 +156,7 @@ mod tests {
             .with_from(sender)
             .with_value(U256::from(1000))
             .with_nonce(nonce)
-            .with_gas_limit(21_000)
+            .with_gas_limit(21_0000)
             .with_to(sender)
             .with_max_fee_per_gas(fees.max_fee_per_gas)
             .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
@@ -187,7 +180,7 @@ mod tests {
         let body = response.text().await?;
         println!("{:?}", body);
         println!("Current block number: {:?}", provider.get_block_number().await?);
-        let response: PreconfResponseData = serde_json::from_str(&body)?;
+        let response: PreconfResponse = serde_json::from_str(&body)?;
         assert_eq!(status, 200);
 
         Ok(())
@@ -197,20 +190,18 @@ mod tests {
         signer: PrivateKeySigner,
         target_slot: u64,
         preconf_fee: PreconfFeeResponse,
-        chain_id: u64,
     ) -> (BlockspaceAllocation, String) {
         let fee = preconf_fee.gas_fee;
         let request = BlockspaceAllocation {
             target_slot,
             sender: signer.address(),
-            recipient: Address::default(),
+            recepient: Address::default(),
             deposit: U256::from(fee * 21_000 / 2),
             tip: U256::from(fee * 21_000 / 2),
-            gas_limit: 21_000,
+            gas_limit: 21_0000,
             blob_count: 0,
         };
-        let signature =
-            hex::encode(signer.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
+        let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
         (request, format!("0x{signature}"))
     }
 
@@ -229,7 +220,6 @@ mod tests {
             .wallet(wallet.clone())
             .on_builtin(&rpc_url)
             .await?;
-        let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract
         let escrow = TaiyiEscrow::deploy(&provider).await?;
@@ -251,7 +241,7 @@ mod tests {
             tip: U256::from(100_000),
             ..Default::default()
         };
-        let signature = signer.sign_hash(&blockspace_request.hash(chain_id)).await.unwrap();
+        let signature = signer.sign_hash(&blockspace_request.digest()).await.unwrap();
         let preconf_request = PreconfRequestTypeB {
             allocation: blockspace_request,
             alloc_sig: signature,

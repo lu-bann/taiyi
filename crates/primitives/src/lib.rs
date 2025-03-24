@@ -13,7 +13,7 @@ pub use preconf_request_type_a::{PreconfRequestTypeA, SubmitTypeATransactionRequ
 pub use preconf_request_type_b::{
     BlockspaceAllocation, PreconfRequestTypeB, SubmitTransactionRequest,
 };
-pub use preconf_response::PreconfResponseData;
+pub use preconf_response::{PreconfResponse, PreconfResponseData};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

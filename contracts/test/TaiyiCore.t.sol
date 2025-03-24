@@ -95,33 +95,6 @@ contract TaiyiCoreTest is Test {
         });
     }
 
-    function fulfillPreconfRequestWithoutTx(
-        BlockspaceAllocation memory blockspaceAllocation
-    )
-        internal
-        returns (PreconfRequestBType memory preconfRequestBType)
-    {
-        bytes32 blockspaceHash = blockspaceAllocation.getBlockspaceAllocationHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivatekey, blockspaceHash);
-        bytes memory blockspaceAllocationSignature = abi.encodePacked(r, s, v);
-
-        (v, r, s) =
-            vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
-
-        bytes memory rawTx = new bytes(0);
-        (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
-        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
-
-        preconfRequestBType = PreconfRequestBType({
-            blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: blockspaceAllocationSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
-            rawTx: rawTx,
-            gatewaySignedRawTx: gatewaySignedRawTx
-        });
-    }
-
     function testNormalWorkflow() public {
         uint256 targetSlot = 10;
         BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
@@ -174,7 +147,7 @@ contract TaiyiCoreTest is Test {
             blobCount: 1
         });
         PreconfRequestBType memory preconfReq =
-            fulfillPreconfRequestWithoutTx(blockspaceAllocation);
+            fulfillPreconfRequest(blockspaceAllocation);
         bytes32 preconfRequestHash = preconfReq.getPreconfRequestBTypeHash();
 
         vm.prank(user);
