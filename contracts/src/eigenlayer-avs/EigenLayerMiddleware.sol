@@ -55,6 +55,7 @@ abstract contract EigenLayerMiddleware is
 
     event AVSDirectorySet(address indexed avsDirectory);
     event RewardsInitiatorUpdated(address indexed previousRewardsInitiator, address indexed newRewardsInitiator);
+
     // ========= ERRORS =========
 
     error ValidatorNotActiveWithinEigenCore();
