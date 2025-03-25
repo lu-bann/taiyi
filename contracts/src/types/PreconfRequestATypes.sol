@@ -16,9 +16,9 @@ pragma solidity ^0.8.25;
 /// sequenceNum=6
 /// @param signer The address that signed the request
 struct PreconfRequestAType {
-    bytes[] txs;
-    bytes tipTx;
-    uint64 slot;
-    uint64 sequenceNum;
+    string[] txs;
+    string tipTx;
+    uint256 slot;
+    uint256 sequenceNum;
     address signer;
 }

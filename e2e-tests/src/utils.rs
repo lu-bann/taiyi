@@ -213,7 +213,7 @@ pub async fn get_constraints_from_relay(
     Ok(constraints)
 }
 
-pub async fn wati_until_deadline_of_slot(
+pub async fn wait_until_deadline_of_slot(
     config: &TestConfig,
     target_slot: u64,
 ) -> eyre::Result<()> {

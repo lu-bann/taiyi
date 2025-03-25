@@ -62,8 +62,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
@@ -92,9 +92,9 @@ contract TaiyiInteractiveChallengerTest is Test {
         // Send transaction as user
         vm.startPrank(user);
 
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         bytes memory signature = new bytes(0);
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
 
         PreconfRequestAType memory preconfRequestAType =
             PreconfRequestAType(txs, tipTx, 0, 0, signer);
@@ -113,8 +113,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
@@ -214,8 +214,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
@@ -246,8 +246,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
@@ -277,8 +277,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
@@ -341,8 +341,8 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
