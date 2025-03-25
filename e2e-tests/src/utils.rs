@@ -2,7 +2,7 @@
 
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
-use alloy_consensus::TxEnvelope;
+use alloy_consensus::{constants::ETH_TO_WEI, TxEnvelope};
 use alloy_eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::{
@@ -630,6 +630,7 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     // using lock to avoid two tests create two account with the same nonce on funding account
     let _lock = FUNDING_SIGNER_LOCK.lock().unwrap();
     let funding: PrivateKeySigner = FUNDING_SIGNER_PRIVATE.parse()?;
+    info!("Funding signer: {:?}", funding.address());
     let wallet = EthereumWallet::new(funding.clone());
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()
@@ -639,7 +640,7 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     let new_signer = PrivateKeySigner::random();
     let mut tx = TransactionRequest::default();
     tx.set_to(new_signer.address());
-    tx.set_value(U256::from(1000000000000000000u128));
+    tx.set_value(U256::from(10 * ETH_TO_WEI));
     let send = provider.send_transaction(tx).await?;
     let _ = send.get_receipt().await?;
     Ok(new_signer)

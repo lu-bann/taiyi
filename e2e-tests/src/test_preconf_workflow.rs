@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use alloy_consensus::Transaction;
+use alloy_consensus::{constants::ETH_TO_WEI, Transaction};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{keccak256, Address, U256};
 use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
@@ -66,10 +66,10 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 1 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(1 * ETH_TO_WEI));
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -235,9 +235,9 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
         .await?;
     let chain_id = provider.get_chain_id().await?;
 
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 1 * ETH_TO_WEI, &config).await?;
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(1 * ETH_TO_WEI));
 
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     if available_slot.is_empty() {
@@ -294,9 +294,9 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 1 * ETH_TO_WEI, &config).await?;
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(1 * ETH_TO_WEI));
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot;
     info!("Target slot: {:?}", target_slot);
@@ -463,10 +463,10 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 1 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(1 * ETH_TO_WEI));
 
     let mut nonce = provider.get_transaction_count(signer.address()).await?;
     let mut submitted_txs = Vec::new();

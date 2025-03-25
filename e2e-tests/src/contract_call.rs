@@ -36,9 +36,16 @@ pub async fn taiyi_deposit(
     amount: u128,
     test_config: &TestConfig,
 ) -> eyre::Result<()> {
+    let fees = provider.estimate_eip1559_fees(None).await?;
+    info!("Fees: {:?}", fees);
     let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
     // Call deposit function
-    let tx = taiyi_escrow.deposit().value(U256::from(amount)).into_transaction_request();
+    let tx = taiyi_escrow
+        .deposit()
+        .value(U256::from(amount))
+        .into_transaction_request()
+        .max_fee_per_gas(fees.max_fee_per_gas)
+        .max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
     let pending_tx = provider.send_transaction(tx).await?;
     info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
     // Wait for transaction to be mined

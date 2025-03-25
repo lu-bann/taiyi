@@ -61,6 +61,9 @@ where
                         .as_secs(),
                 );
 
+            // wait unit the deadline to submit constraints
+            tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
+
             // calculate base fee for next slot based on parent header
             // Its fine to use latest block as we are submitting constraints for next block
             let rlp_encoded_header = state.provider.debug_get_raw_header(BlockId::latest()).await?;
@@ -75,9 +78,6 @@ where
                 };
             let blob_fee = header.next_block_blob_fee().unwrap_or_default();
             let blob_excess_fee = header.next_block_excess_blob_gas().unwrap_or_default();
-
-            // wait unit the deadline to submit constraints
-            tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
             info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 
