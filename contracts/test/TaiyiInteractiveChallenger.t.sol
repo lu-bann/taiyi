@@ -160,14 +160,14 @@ contract TaiyiInteractiveChallengerTest is Test {
     //     PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
     //         blockspaceAllocation: blockspaceAllocation,
     //         blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-    //         gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+    //         underwriterSignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
     //         rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-    //         gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+    //         underwriterSignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
     //     });
 
     //     bytes32 dataHash = keccak256(abi.encode(
     //         blockspaceAllocation,
-    //         preconfRequestBType.gatewaySignedRawTx
+    //         preconfRequestBType.underwriterSignedRawTx
     //     ));
 
     //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, dataHash);
@@ -196,10 +196,12 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+            blockspaceAllocationSignature: bytes("blockspaceAllocationSignature"),
+            underwriterSignedBlockspaceAllocation: bytes(
+                "underwriterSignedBlockspaceAllocation"
+            ),
+            rawTx: bytes("rawTx"),
+            underwriterSignedRawTx: bytes("underwriterSignedRawTx")
         });
 
         vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);

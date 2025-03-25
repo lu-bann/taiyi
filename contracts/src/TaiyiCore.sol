@@ -132,7 +132,7 @@ contract TaiyiCore is
     ///////////////////////////////////////////////////////////////
 
     /// @notice Batch transfer ETH to multiple recipients in a single transaction
-    /// @dev Transfers specified ETH amounts to corresponding recipient addresses. Used by Gateway to sponsor ETH for preconf Txs
+    /// @dev Transfers specified ETH amounts to corresponding recipient addresses. Used by Underwriter to sponsor ETH for preconf Txs
     /// @param recipients Array of addresses to receive ETH
     /// @param amounts Array of ETH amounts to send to each recipient
     function _sponsorEthBatch(
@@ -183,14 +183,14 @@ contract TaiyiCore is
         Helper.verifySignature(
             preconfRequestBType.blockspaceAllocationSignature,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedBlockspaceAllocation,
-            "invalid gateway signature"
+            preconfRequestBType.underwriterSignedBlockspaceAllocation,
+            "invalid underwriter signature"
         );
         Helper.verifySignature(
             preconfRequestBType.rawTx,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedRawTx,
-            "invalid raw tx signature"
+            preconfRequestBType.underwriterSignedRawTx,
+            "invalid underwriter signature"
         );
     }
 
@@ -228,8 +228,8 @@ contract TaiyiCore is
         Helper.verifySignature(
             preconfRequestBType.blockspaceAllocationSignature,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedBlockspaceAllocation,
-            "invalid gateway signature"
+            preconfRequestBType.underwriterSignedBlockspaceAllocation,
+            "invalid underwriter signature"
         );
     }
 

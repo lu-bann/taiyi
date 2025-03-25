@@ -15,7 +15,7 @@ library PreconfRequestLib {
     );
 
     bytes32 constant PRECONF_REQUEST_B_TYPE_HASH = keccak256(
-        "PreconfRequestBType(BlockspaceAllocation blockspaceAllocation,bytes blockspaceAllocationSignature,bytes gatewaySignedBlockspaceAllocation,bytes rawTx,bytes gatewaySignedRawTx)"
+        "PreconfRequestBType(BlockspaceAllocation blockspaceAllocation,bytes blockspaceAllocationSignature,bytes underwriterSignedBlockspaceAllocation,bytes rawTx,bytes underwriterSignedRawTx)"
     );
 
     bytes32 constant EIP712_DOMAIN_TYPEHASH = keccak256(
@@ -83,9 +83,9 @@ library PreconfRequestLib {
                 PRECONF_REQUEST_B_TYPE_HASH,
                 blockspaceAllocationHash,
                 preconfRequestBType.blockspaceAllocationSignature,
-                preconfRequestBType.gatewaySignedBlockspaceAllocation,
+                preconfRequestBType.underwriterSignedBlockspaceAllocation,
                 preconfRequestBType.rawTx,
-                preconfRequestBType.gatewaySignedRawTx
+                preconfRequestBType.underwriterSignedRawTx
             )
         );
     }

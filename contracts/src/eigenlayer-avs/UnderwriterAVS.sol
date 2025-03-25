@@ -13,10 +13,10 @@ import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-/// @title GatewayAVS
-/// @notice Manages gateway-specific AVS functionality and reward distribution.
+/// @title UnderwriterAVS
+/// @notice Manages underwriter-specific AVS functionality and reward distribution.
 /// @dev Inherits from the abstract EigenLayerMiddleware.
-contract GatewayAVS is EigenLayerMiddleware {
+contract UnderwriterAVS is EigenLayerMiddleware {
     error UseRegisterOperatorToAVSWithPubKey();
 
     event ValidatorAmountForwarded(uint256 validatorAmount);
@@ -36,7 +36,7 @@ contract GatewayAVS is EigenLayerMiddleware {
         address _eigenPodManager,
         address _rewardCoordinator,
         address _rewardInitiator,
-        uint256 _gatewayShareBips
+        uint256 _underwriterShareBips
     )
         public
         override
@@ -52,12 +52,12 @@ contract GatewayAVS is EigenLayerMiddleware {
             _eigenPodManager,
             _rewardCoordinator,
             _rewardInitiator,
-            _gatewayShareBips
+            _underwriterShareBips
         );
     }
 
-    /// @notice Special registration function for operators to register with GatewayAVS
-    /// @dev This is the only way for operators to register with GatewayAVS since it requires BLS key
+    /// @notice Special registration function for operators to register with UnderwriterAVS
+    /// @dev This is the only way for operators to register with UnderwriterAVS since it requires BLS key
     /// @dev The original registerOperatorToAVS function in IServiceManager interface cannot accept BLS
     ///      key as part of registration, so we provide this function to allow BLS key registration alongside
     ///      AVS registration
@@ -75,7 +75,7 @@ contract GatewayAVS is EigenLayerMiddleware {
         AVS_DIRECTORY.registerOperatorToAVS(operator, operatorSignature);
         proposerRegistry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             operatorBLSPubKey
         );
     }
@@ -93,12 +93,12 @@ contract GatewayAVS is EigenLayerMiddleware {
         revert UseRegisterOperatorToAVSWithPubKey();
     }
 
-    /// @notice Processes operator rewards for both Gateway and Validator AVS components
-    /// @dev Expects exactly 2 submissions in a specific order - Gateway first, then Validator
-    /// @dev Rewards for Validator AVS will be empty since we handle the distribution in _handleGatewaySubmission in this contract
+    /// @notice Processes operator rewards for both Underwriter and Validator AVS components
+    /// @dev Expects exactly 2 submissions in a specific order - Underwriter first, then Validator
+    /// @dev Rewards for Validator AVS will be empty since we handle the distribution in _handleUnderwriterSubmission in this contract
     /// @dev Each submission contains operator addresses and their corresponding reward amounts
-    /// @param submissions Array containing reward submissions for Gateway and Validator
-    // Todo: for operators who self delegate into GatewayAVS, we need to handle the case where for reward distribution where the fee earned won't be distributred to the validator avs
+    /// @param submissions Array containing reward submissions for Underwriter and Validator
+    // Todo: for operators who self delegate into UnderwriterAVS, we need to handle the case where for reward distribution where the fee earned won't be distributred to the validator avs
     function _createOperatorDirectedAVSRewardsSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
     )
@@ -112,10 +112,11 @@ contract GatewayAVS is EigenLayerMiddleware {
             "EigenLayerMiddleware: Must pass exactly 2 submissions"
         );
 
-        // Validate Gateway submission is first
+        // Validate Underwriter submission is first
         require(
-            keccak256(bytes(submissions[0].description)) == keccak256(bytes("gateway")),
-            "EigenLayerMiddleware: First submission must be the Gateway portion"
+            keccak256(bytes(submissions[0].description))
+                == keccak256(bytes("underwriter")),
+            "EigenLayerMiddleware: First submission must be the Underwriter portion"
         );
         // Validate Validator submission is second
         require(
@@ -124,31 +125,31 @@ contract GatewayAVS is EigenLayerMiddleware {
         );
 
         // Enforce that the second submission's operator rewards are always zero.
-        // The validator portion is determined by _handleGatewaySubmission, which
+        // The validator portion is determined by _handleUnderwriterSubmission, which
         // calculates how many tokens go to the validator side.
         IRewardsCoordinator.OperatorReward[] memory validatorRewards =
             submissions[1].operatorRewards;
         for (uint256 i = 0; i < validatorRewards.length; i++) {
             require(
                 validatorRewards[i].amount == 0,
-                "GatewayAVS: Validator submission reward must be zero"
+                "UnderwriterAVS: Validator submission reward must be zero"
             );
         }
 
-        // 1) Handle Gateway portion
-        uint256 validatorAmount = _handleGatewaySubmission(submissions[0]);
+        // 1) Handle Underwriter portion
+        uint256 validatorAmount = _handleUnderwriterSubmission(submissions[0]);
         emit ValidatorAmountForwarded(validatorAmount);
         // 2) Handle Validator portion
         super.getValidatorAVS().handleValidatorRewards(submissions[1], validatorAmount);
     }
 
-    function _handleGatewaySubmission(
+    function _handleUnderwriterSubmission(
         IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission calldata submission
     )
         private
         returns (uint256 validatorAmount)
     {
-        // Calculate total gateway amount
+        // Calculate total underwriter amount
         uint256 totalAmount;
         for (uint256 i = 0; i < submission.operatorRewards.length; i++) {
             totalAmount += submission.operatorRewards[i].amount;
@@ -157,22 +158,23 @@ contract GatewayAVS is EigenLayerMiddleware {
         // Transfer tokens from reward initiator to this contract
         require(
             submission.token.transferFrom(msg.sender, address(this), totalAmount),
-            "Gateway token transfer failed"
+            "Underwriter token transfer failed"
         );
 
-        uint256 gatewayAmount = Math.mulDiv(totalAmount, GATEWAY_SHARE_BIPS, 10_000);
-        validatorAmount = totalAmount - gatewayAmount;
+        uint256 underwriterAmount =
+            Math.mulDiv(totalAmount, UNDERWRITER_SHARE_BIPS, 10_000);
+        validatorAmount = totalAmount - underwriterAmount;
 
-        // Get all active gateway operators registered for this AVS
+        // Get all active underwriter operators registered for this AVS
         address[] memory operators =
             proposerRegistry.getActiveOperatorsForAVS(address(this));
-        require(operators.length > 0, "GatewayAVS: No operators");
+        require(operators.length > 0, "UnderwriterAVS: No operators");
 
         // Calculate per-operator reward amount - multiply first to avoid precision loss
         uint256 numOperators = operators.length;
-        uint256 baseShare = gatewayAmount / numOperators;
-        uint256 leftover = gatewayAmount % numOperators;
-        require(baseShare > 0, "GatewayAVS: Reward per operator is zero");
+        uint256 baseShare = underwriterAmount / numOperators;
+        uint256 leftover = underwriterAmount % numOperators;
+        require(baseShare > 0, "UnderwriterAVS: Reward per operator is zero");
 
         // Create array of operator rewards with even distribution
         IRewardsCoordinator.OperatorReward[] memory opRewards =
@@ -194,25 +196,29 @@ contract GatewayAVS is EigenLayerMiddleware {
         // Todo: Sweep any leftover dust from uneven division to treasury or redistribute
 
         // Create final submission array with single entry
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory gatewaySubmissions =
-            new IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission[](1);
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory
+            underwriterSubmissions =
+                new IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission[](1);
 
         // Configure submission with operator rewards and metadata
-        gatewaySubmissions[0] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
+        underwriterSubmissions[0] = IRewardsCoordinatorTypes
+            .OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: submission.strategiesAndMultipliers,
             token: submission.token,
             operatorRewards: opRewards,
             startTimestamp: submission.startTimestamp,
             duration: submission.duration,
-            description: string(abi.encodePacked(submission.description, "(Gateway portion)"))
+            description: string(
+                abi.encodePacked(submission.description, "(Underwriter portion)")
+            )
         });
 
-        // Approve RewardsCoordinator to spend the gateway portion
-        submission.token.approve(address(REWARDS_COORDINATOR), gatewayAmount);
+        // Approve RewardsCoordinator to spend the underwriter portion
+        submission.token.approve(address(REWARDS_COORDINATOR), underwriterAmount);
 
         // Submit rewards distribution to coordinator
         REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
-            address(this), gatewaySubmissions
+            address(this), underwriterSubmissions
         );
 
         // Transfer validator portion to ValidatorAVS

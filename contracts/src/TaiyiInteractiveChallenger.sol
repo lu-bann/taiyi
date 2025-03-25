@@ -15,7 +15,7 @@ import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 struct PublicValuesStruct {
     uint64 proofBlockNumber;
     bytes32 proofBlockHash;
-    address gatewayAddress;
+    address underwriterAddress;
     bytes signature;
 }
 
@@ -44,6 +44,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     /// @notice Count of open challenges.
     uint256 public openChallengeCount;
+
+    address underwriterAddress;
 
     constructor(
         address _initialOwner,
@@ -305,7 +307,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         // Verify the proof commitment signer matches the challenge commitment signer
-        if (publicValues.gatewayAddress != challenge.commitmentSigner) {
+        if (publicValues.underwriterAddress != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
         }
 

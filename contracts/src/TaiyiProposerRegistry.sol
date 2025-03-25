@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { GatewayAVS } from "./eigenlayer-avs/GatewayAVS.sol";
+import { UnderwriterAVS } from "./eigenlayer-avs/UnderwriterAVS.sol";
 import { ValidatorAVS } from "./eigenlayer-avs/ValidatorAVS.sol";
-import { IGatewayAVS } from "./interfaces/IGatewayAVS.sol";
+
 import { IProposerRegistry } from "./interfaces/IProposerRegistry.sol";
+import { IUnderwriterAVS } from "./interfaces/IUnderwriterAVS.sol";
 import { IValidatorAVS } from "./interfaces/IValidatorAVS.sol";
 import { BLS12381 } from "./libs/BLS12381.sol";
 import { BLSSignatureChecker } from "./libs/BLSSignatureChecker.sol";
@@ -87,22 +88,22 @@ contract TaiyiProposerRegistry is
     }
 
     /// @notice Sets the AVS contracts in the registry
-    /// @param gatewayAVSAddr Address of the GatewayAVS contract
+    /// @param underwriterAVSAddr Address of the UnderwriterAVS contract
     /// @param validatorAVSAddr Address of the ValidatorAVS contract
     function setAVSContracts(
-        address gatewayAVSAddr,
+        address underwriterAVSAddr,
         address validatorAVSAddr
     )
         external
         onlyOwner
     {
-        if (gatewayAVSAddr == address(0) || validatorAVSAddr == address(0)) {
+        if (underwriterAVSAddr == address(0) || validatorAVSAddr == address(0)) {
             revert InvalidAVSAddress();
         }
-        _gatewayAVSAddress = gatewayAVSAddr;
+        _underwriterAVSAddress = underwriterAVSAddr;
         _validatorAVSAddress = validatorAVSAddr;
 
-        _avsTypes[gatewayAVSAddr] = RestakingServiceType.EIGENLAYER_GATEWAY;
+        _avsTypes[underwriterAVSAddr] = RestakingServiceType.EIGENLAYER_UNDERWRITER;
         _avsTypes[validatorAVSAddr] = RestakingServiceType.EIGENLAYER_VALIDATOR;
     }
 
@@ -113,14 +114,14 @@ contract TaiyiProposerRegistry is
             revert InvalidNetworkAddress();
         }
         _symbioticMiddlewareAddress = symbioticMiddlewareAddr;
-        _gatewaySubnetwork = symbioticMiddlewareAddr.subnetwork(1);
+        _underwriterSubnetwork = symbioticMiddlewareAddr.subnetwork(1);
         _validatorSubnetwork = symbioticMiddlewareAddr.subnetwork(2);
     }
 
     /// @notice Register an operator for a specific service type
     /// @param operatorAddress The operator's address
     /// @param serviceType The type of service
-    /// @param blsKey The BLS public key for gateway operators
+    /// @param blsKey The BLS public key for underwriter operators
     function registerOperator(
         address operatorAddress,
         RestakingServiceType serviceType,
@@ -184,7 +185,7 @@ contract TaiyiProposerRegistry is
         _confirmOptOut(pubKeyHash);
     }
 
-    /// @notice Update an operator's BLS key (only for gateway operators)
+    /// @notice Update an operator's BLS key (only for underwriter operators)
     /// @param operator The operator's address
     /// @param newBlsKey The new BLS public key
     function updateOperatorBLSKey(
@@ -198,23 +199,24 @@ contract TaiyiProposerRegistry is
 
         if (
             !eigenLayerOperatorState.isRegistered(
-                operator, RestakingServiceType.EIGENLAYER_GATEWAY
+                operator, RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
         ) {
-            revert("Only gateway operators can update BLS keys");
+            revert("Only underwriter operators can update BLS keys");
         }
 
-        (Operator memory gatewayOp,) = eigenLayerOperatorState.getOperatorData(operator);
-        bytes memory oldKey = gatewayOp.blsKey;
+        (Operator memory underwriterOp,) =
+            eigenLayerOperatorState.getOperatorData(operator);
+        bytes memory oldKey = underwriterOp.blsKey;
         eigenLayerOperatorState.updateOperatorBLSKey(operator, newBlsKey);
         emit OperatorBLSKeyUpdated(operator, oldKey, newBlsKey);
     }
 
     // ============ View Functions ============
 
-    /// @notice Gets the GatewayAVS contract instance
-    function getGatewayAVS() external view returns (IGatewayAVS) {
-        return IGatewayAVS(_gatewayAVSAddress);
+    /// @notice Gets the UnderwriterAVS contract instance
+    function getUnderwriterAVS() external view returns (IUnderwriterAVS) {
+        return IUnderwriterAVS(_underwriterAVSAddress);
     }
 
     /// @notice Gets the ValidatorAVS contract instance
@@ -248,7 +250,7 @@ contract TaiyiProposerRegistry is
     function getOperatorData(address operatorAddress)
         external
         view
-        returns (Operator memory gatewayOp, Operator memory validatorOp)
+        returns (Operator memory underwriterOp, Operator memory validatorOp)
     {
         return eigenLayerOperatorState.getOperatorData(operatorAddress);
     }
@@ -288,7 +290,7 @@ contract TaiyiProposerRegistry is
     function getRegisteredOperator(address operatorAddr)
         external
         view
-        returns (Operator memory gatewayOp, Operator memory validatorOp)
+        returns (Operator memory underwriterOp, Operator memory validatorOp)
     {
         return eigenLayerOperatorState.getOperatorData(operatorAddr);
     }
@@ -352,9 +354,9 @@ contract TaiyiProposerRegistry is
         return _OPT_OUT_COOLDOWN;
     }
 
-    /// @notice Gets the GatewayAVS contract instance
-    function gatewayAVS() external view override returns (IGatewayAVS) {
-        return IGatewayAVS(_gatewayAVSAddress);
+    /// @notice Gets the UnderwriterAVS contract instance
+    function underwriterAVS() external view override returns (IUnderwriterAVS) {
+        return IUnderwriterAVS(_underwriterAVSAddress);
     }
 
     /// @notice Gets the ValidatorAVS contract instance
@@ -371,12 +373,12 @@ contract TaiyiProposerRegistry is
         view
         returns (bytes memory pubKey, bool isActive)
     {
-        (Operator memory gatewayData, Operator memory validatorData) =
+        (Operator memory underwriterData, Operator memory validatorData) =
             this.getRegisteredOperator(operator);
 
-        if (avsType == RestakingServiceType.EIGENLAYER_GATEWAY) {
-            pubKey = gatewayData.blsKey;
-            isActive = gatewayData.operatorAddress != address(0);
+        if (avsType == RestakingServiceType.EIGENLAYER_UNDERWRITER) {
+            pubKey = underwriterData.blsKey;
+            isActive = underwriterData.operatorAddress != address(0);
         } else {
             pubKey = validatorData.blsKey;
             isActive = validatorData.operatorAddress != address(0);
@@ -396,24 +398,24 @@ contract TaiyiProposerRegistry is
         internal
     {
         require(
-            msg.sender == _symbioticMiddlewareAddress || msg.sender == _gatewayAVSAddress
-                || msg.sender == _validatorAVSAddress,
+            msg.sender == _symbioticMiddlewareAddress
+                || msg.sender == _underwriterAVSAddress || msg.sender == _validatorAVSAddress,
             "Unauthorized middleware"
         );
 
         bool isEigenLayer = (
-            serviceType == RestakingServiceType.EIGENLAYER_GATEWAY
+            serviceType == RestakingServiceType.EIGENLAYER_UNDERWRITER
                 || serviceType == RestakingServiceType.EIGENLAYER_VALIDATOR
         );
 
-        bool isGateway = (
-            serviceType == RestakingServiceType.EIGENLAYER_GATEWAY
-                || serviceType == RestakingServiceType.SYMBIOTIC_GATEWAY
+        bool isUnderwriter = (
+            serviceType == RestakingServiceType.EIGENLAYER_UNDERWRITER
+                || serviceType == RestakingServiceType.SYMBIOTIC_UNDERWRITER
         );
 
         // Validate BLS key requirements for all operators
-        if (isGateway) {
-            require(blsKey.length > 0, "BLS key required for gateway operators");
+        if (isUnderwriter) {
+            require(blsKey.length > 0, "BLS key required for underwriter operators");
         } else {
             require(blsKey.length == 0, "BLS key not allowed for validator operators");
         }
@@ -421,8 +423,8 @@ contract TaiyiProposerRegistry is
         // Register with appropriate operator management system
         if (isEigenLayer) {
             // EigenLayer operator registration
-            if (isGateway) {
-                eigenLayerOperatorState.registerGatewayOperator(
+            if (isUnderwriter) {
+                eigenLayerOperatorState.registerUnderwriterOperator(
                     operatorAddress, blsKey, msg.sender
                 );
             } else {
@@ -432,8 +434,8 @@ contract TaiyiProposerRegistry is
             }
         } else {
             // Symbiotic operator registration
-            if (isGateway) {
-                symbioticOperatorState.registerGatewayOperator(
+            if (isUnderwriter) {
+                symbioticOperatorState.registerUnderwriterOperator(
                     operatorAddress, blsKey, msg.sender
                 );
             } else {
@@ -479,11 +481,11 @@ contract TaiyiProposerRegistry is
 
     /// @dev Internal function to deregister an operator
     /// @dev Flow:
-    /// 1. Validates caller is an authorized AVS contract (Gateway, Validator or Symbiotic)
+    /// 1. Validates caller is an authorized AVS contract (Underwriter, Validator or Symbiotic)
     /// 2. Determines service type based on caller:
-    ///    - EigenLayer Gateway -> EIGENLAYER_GATEWAY
+    ///    - EigenLayer Underwriter -> EIGENLAYER_UNDERWRITER
     ///    - EigenLayer Validator -> EIGENLAYER_VALIDATOR
-    ///    - Symbiotic -> Checks if registered as SYMBIOTIC_GATEWAY or SYMBIOTIC_VALIDATOR
+    ///    - Symbiotic -> Checks if registered as SYMBIOTIC_UNDERWRITER or SYMBIOTIC_VALIDATOR
     /// 3. For validator operators (both EigenLayer and Symbiotic):
     ///    - Checks all validator pubkeys associated with operator
     ///    - Validates validators are not active or in cooldown
@@ -492,27 +494,27 @@ contract TaiyiProposerRegistry is
     /// 4. For Symbiotic operators:
     ///    - Deregisters from Symbiotic operator state
     function _deregisterOperator(address operatorAddress) internal {
-        bool isEigenGateway = msg.sender == _gatewayAVSAddress;
+        bool isEigenUnderwriter = msg.sender == _underwriterAVSAddress;
         bool isEigenValidator = msg.sender == _validatorAVSAddress;
         bool isSymbioticMiddleware = msg.sender == _symbioticMiddlewareAddress;
 
         require(
-            isEigenGateway || isEigenValidator || isSymbioticMiddleware,
+            isEigenUnderwriter || isEigenValidator || isSymbioticMiddleware,
             "Only AVS contracts can deregister operators"
         );
 
         RestakingServiceType serviceType;
-        if (isEigenGateway) {
-            serviceType = RestakingServiceType.EIGENLAYER_GATEWAY;
+        if (isEigenUnderwriter) {
+            serviceType = RestakingServiceType.EIGENLAYER_UNDERWRITER;
         } else if (isEigenValidator) {
             serviceType = RestakingServiceType.EIGENLAYER_VALIDATOR;
         } else if (isSymbioticMiddleware) {
             if (
                 _isOperatorRegisteredInSymbiotic(
-                    operatorAddress, RestakingServiceType.SYMBIOTIC_GATEWAY
+                    operatorAddress, RestakingServiceType.SYMBIOTIC_UNDERWRITER
                 )
             ) {
-                serviceType = RestakingServiceType.SYMBIOTIC_GATEWAY;
+                serviceType = RestakingServiceType.SYMBIOTIC_UNDERWRITER;
             } else if (
                 _isOperatorRegisteredInSymbiotic(
                     operatorAddress, RestakingServiceType.SYMBIOTIC_VALIDATOR

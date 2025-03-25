@@ -36,22 +36,22 @@ struct BlockspaceAllocation {
 /// inclusion
 /// @dev The lifecycle of a preconf request:
 ///      1. User submits request with blockspace allocation and their signature
-///      2. Gateway accepts and signs the request, creating
-/// gatewaySignedBlockspaceAllocation
+///      2. Underwriter accepts and signs the request, creating
+/// underwriterSignedBlockspaceAllocation
 ///      3. At target slot, user submits rawTx
-///      4. Gateway signs rawTx to create gatewaySignedRawTx before calling
+///      4. Underwriter signs rawTx to create underwriterSignedRawTx before calling
 /// `TaiyiCore.getTip`
 /// @param blockspaceAllocation The requested block space allocation details
 /// @param blockspaceAllocationSignature User's signature over the blockspace
 /// allocation
-/// @param gatewaySignedBlockspaceAllocation Gateway's signature over `blockspaceAllocationSignature`
+/// @param underwriterSignedBlockspaceAllocation Underwriter's signature over `blockspaceAllocationSignature`
 /// @param rawTx The raw transaction submitted by user at target slot
-/// @param gatewaySignedRawTx Gateway's signed version of the raw transaction
+/// @param underwriterSignedRawTx Underwriter's signed version of the raw transaction
 /// for inclusion
 struct PreconfRequestBType {
     BlockspaceAllocation blockspaceAllocation;
     bytes blockspaceAllocationSignature;
-    bytes gatewaySignedBlockspaceAllocation;
+    bytes underwriterSignedBlockspaceAllocation;
     bytes rawTx;
-    bytes gatewaySignedRawTx;
+    bytes underwriterSignedRawTx;
 }

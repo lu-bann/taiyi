@@ -20,7 +20,7 @@ sol! {
     }
 
     #[sol(rpc)]
-    interface TaiyiGatewayAVSEigenlayerMiddleware {
+    interface TaiyiUnderwriterAVSEigenlayerMiddleware {
         function registerOperatorToAVSWithPubKey(
             address operator,
             SignatureWithSaltAndExpiry calldata operatorSignature,

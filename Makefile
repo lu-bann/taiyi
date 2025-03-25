@@ -14,7 +14,7 @@ e2e-network:
 e2e-setup:
 	bash scripts/devnet/initialize.sh
 	bash scripts/devnet/delegate.sh
-	bash scripts/devnet/register-gateway-avs.sh
+	bash scripts/devnet/register-underwriter-avs.sh
 	bash scripts/devnet/register-validator-avs.sh
 
 e2e-test:

@@ -6,10 +6,10 @@ import { IRewardsCoordinator } from
 import { ISignatureUtils } from
     "@eigenlayer-contracts/src/contracts/interfaces/ISignatureUtils.sol";
 
-/// @title IGatewayAVS
-/// @notice Interface for the GatewayAVS contract
-interface IGatewayAVS {
-    /// @notice Special registration function for operators to register with GatewayAVS
+/// @title IUnderwriterAVS
+/// @notice Interface for the UnderwriterAVS contract
+interface IUnderwriterAVS {
+    /// @notice Special registration function for operators to register with UnderwriterAVS
     /// @param operator The address of the operator to register
     /// @param operatorSignature The operator's signature for AVS registration
     /// @param operatorBLSPubKey The operator's BLS public key
@@ -20,17 +20,17 @@ interface IGatewayAVS {
     )
         external;
 
-    /// @notice Handles distribution of gateway rewards to operators
+    /// @notice Handles distribution of underwriter rewards to operators
     /// @param submission Base operator-directed reward submission data
-    /// @param gatewayAmount Total amount allocated for gateway rewards
-    function handleGatewayRewards(
+    /// @param underwriterAmount Total amount allocated for underwriter rewards
+    function handleUnderwriterRewards(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission,
-        uint256 gatewayAmount
+        uint256 underwriterAmount
     )
         external;
 
     /// @notice Initialize upgradeable contract
-    function initializeGatewayAVS(
+    function initializeUnderwriterAVS(
         address _owner,
         address _proposerRegistry,
         address _avsDirectory,

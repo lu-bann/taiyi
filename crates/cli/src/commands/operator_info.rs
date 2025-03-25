@@ -10,7 +10,7 @@ use tracing::info;
 #[derive(Debug, Clone, Copy)]
 enum AvsType {
     Validator,
-    Gateway,
+    Underwriter,
 }
 
 impl FromStr for AvsType {
@@ -19,7 +19,7 @@ impl FromStr for AvsType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "validator" => Self::Validator,
-            "gateway" => Self::Gateway,
+            "underwriter" => Self::Underwriter,
             _ => return Err(eyre::eyre!("Invalid AVS type: {}", s)),
         })
     }
@@ -29,7 +29,7 @@ impl From<AvsType> for AVSType {
     fn from(val: AvsType) -> Self {
         match val {
             AvsType::Validator => AVSType::VALIDATOR,
-            AvsType::Gateway => AVSType::GATEWAY,
+            AvsType::Underwriter => AVSType::UNDERWRITER,
         }
     }
 }

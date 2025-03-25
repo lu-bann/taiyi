@@ -6,12 +6,12 @@ use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use hex::FromHex;
 use taiyi_contracts::{
-    AVSDirectory, SignatureWithSaltAndExpiry, TaiyiGatewayAVSEigenlayerMiddleware,
+    AVSDirectory, SignatureWithSaltAndExpiry, TaiyiUnderwriterAVSEigenlayerMiddleware,
 };
 use tracing::info;
 
 #[derive(Debug, Parser)]
-pub struct RegisterGatewayAVSCommand {
+pub struct RegisterUnderwriterAVSCommand {
     /// rpc url
     #[clap(long, env = "EXECUTION_RPC_URL")]
     pub execution_rpc_url: String,
@@ -26,14 +26,14 @@ pub struct RegisterGatewayAVSCommand {
     #[clap(long, env = "AVS_DIRECTORY_ADDRESS")]
     pub avs_directory_address: Address,
 
-    #[clap(long, env = "GATEWAY_AVS_ADDRESS")]
-    pub gateway_avs_address: Address,
+    #[clap(long, env = "UNDERWRITER_AVS_ADDRESS")]
+    pub underwriter_avs_address: Address,
 
     #[clap(long, env = "OPERATOR_BLS_KEY")]
     pub operator_bls_key: String,
 }
 
-impl RegisterGatewayAVSCommand {
+impl RegisterUnderwriterAVSCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         // Create a wallet from the private key
         let signer: PrivateKeySigner = self.private_key.parse()?;
@@ -46,8 +46,10 @@ impl RegisterGatewayAVSCommand {
             .on_builtin(&self.execution_rpc_url)
             .await?;
 
-        let gateway_contract =
-            TaiyiGatewayAVSEigenlayerMiddleware::new(self.gateway_avs_address, provider.clone());
+        let underwriter_contract = TaiyiUnderwriterAVSEigenlayerMiddleware::new(
+            self.underwriter_avs_address,
+            provider.clone(),
+        );
         let avs_directory_contract =
             AVSDirectory::new(self.avs_directory_address, provider.clone());
 
@@ -59,7 +61,7 @@ impl RegisterGatewayAVSCommand {
         let signature_digest_hash = avs_directory_contract
             .calculateOperatorAVSRegistrationDigestHash(
                 operator,
-                self.gateway_avs_address,
+                self.underwriter_avs_address,
                 self.salt,
                 expiry,
             )
@@ -73,16 +75,16 @@ impl RegisterGatewayAVSCommand {
         // Parse BLS public key
         let operator_bls_key = Bytes::from_hex(&self.operator_bls_key)?;
 
-        let tx = gateway_contract
+        let tx = underwriter_contract
             .registerOperatorToAVSWithPubKey(operator, signature_entry, operator_bls_key)
             .send()
             .await?;
 
-        info!("Register operator to gateway Transaction sent: {:?}", tx.tx_hash());
+        info!("Register operator to underwriter Transaction sent: {:?}", tx.tx_hash());
 
         let receipt = tx.get_receipt().await?;
         info!(
-            "Register operator to gateway Transaction mined in block: {:?}",
+            "Register operator to underwriter Transaction mined in block: {:?}",
             receipt.block_number
         );
 

@@ -13,7 +13,7 @@ library SymbioticOperatorManagement {
 
     struct SymbioticOperatorState {
         // Operator data by operator address
-        mapping(address => IProposerRegistry.Operator) gatewayOperators;
+        mapping(address => IProposerRegistry.Operator) underwriterOperators;
         mapping(address => IProposerRegistry.Operator) validatorOperators;
         // Active operators by subnetwork
         mapping(bytes32 => EnumerableSet.AddressSet) subnetworkToOperators;
@@ -22,7 +22,7 @@ library SymbioticOperatorManagement {
     error OperatorNotRegistered(string message);
     error OperatorAlreadyRegistered(string message);
 
-    function registerGatewayOperator(
+    function registerUnderwriterOperator(
         SymbioticOperatorState storage self,
         address operatorAddress,
         bytes calldata blsKey,
@@ -30,23 +30,23 @@ library SymbioticOperatorManagement {
     )
         internal
     {
-        // Gateway subnetwork has identifier 1
+        // Underwriter subnetwork has identifier 1
         bytes32 subnetwork = middlewareAddress.subnetwork(1);
 
         require(
             !isRegistered(
                 self,
                 operatorAddress,
-                IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY
+                IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER
             ),
             "Already registered"
         );
 
         // Store operator data
-        self.gatewayOperators[operatorAddress] = IProposerRegistry.Operator({
+        self.underwriterOperators[operatorAddress] = IProposerRegistry.Operator({
             operatorAddress: operatorAddress,
             restakingMiddlewareContract: middlewareAddress,
-            serviceType: IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY,
+            serviceType: IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER,
             blsKey: blsKey
         });
 
@@ -97,15 +97,15 @@ library SymbioticOperatorManagement {
 
         // Determine subnetwork based on service type
         uint96 subnetworkId = serviceType
-            == IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY ? 1 : 2;
+            == IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER ? 1 : 2;
         bytes32 subnetwork = middlewareAddress.subnetwork(subnetworkId);
 
         // Remove from subnetwork set
         self.subnetworkToOperators[subnetwork].remove(operatorAddress);
 
         // Clear operator data
-        if (serviceType == IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY) {
-            delete self.gatewayOperators[operatorAddress];
+        if (serviceType == IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER) {
+            delete self.underwriterOperators[operatorAddress];
         } else {
             delete self.validatorOperators[operatorAddress];
         }
@@ -120,9 +120,9 @@ library SymbioticOperatorManagement {
         view
         returns (bool)
     {
-        if (serviceType == IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY) {
-            return
-                self.gatewayOperators[operatorAddress].operatorAddress == operatorAddress;
+        if (serviceType == IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER) {
+            return self.underwriterOperators[operatorAddress].operatorAddress
+                == operatorAddress;
         } else {
             return self.validatorOperators[operatorAddress].operatorAddress
                 == operatorAddress;
@@ -136,11 +136,11 @@ library SymbioticOperatorManagement {
         internal
         view
         returns (
-            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory underwriterOp,
             IProposerRegistry.Operator memory validatorOp
         )
     {
-        gatewayOp = self.gatewayOperators[operatorAddress];
+        underwriterOp = self.underwriterOperators[operatorAddress];
         validatorOp = self.validatorOperators[operatorAddress];
     }
 
@@ -167,12 +167,12 @@ library SymbioticOperatorManagement {
             !isRegistered(
                 self,
                 operatorAddress,
-                IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY
+                IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER
             )
         ) {
-            revert OperatorNotRegistered("Not registered as gateway operator");
+            revert OperatorNotRegistered("Not registered as underwriter operator");
         }
 
-        self.gatewayOperators[operatorAddress].blsKey = newBlsKey;
+        self.underwriterOperators[operatorAddress].blsKey = newBlsKey;
     }
 }
