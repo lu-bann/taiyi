@@ -1,8 +1,7 @@
 use std::{fs, str::FromStr, time::Instant};
 
 use alloy_consensus::{Account, Transaction};
-use alloy_eips::eip2718::Encodable2718;
-use alloy_eips::BlockNumberOrTag;
+use alloy_eips::{eip2718::Encodable2718, BlockNumberOrTag};
 use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
