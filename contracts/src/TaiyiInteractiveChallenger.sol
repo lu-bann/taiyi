@@ -27,7 +27,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     ///      SP1VerifierGateway which can be used to verify proofs for any version of SP1.
     ///      For the list of supported verifiers on each chain, see:
     ///      https://github.com/succinctlabs/sp1-contracts/tree/main/contracts/deployments
-    address public verifierUnderwriter;
+    address public verifierGateway;
 
     /// @notice The verification key for the interactive fraud proof program.
     /// @dev When the verification key changes a new version of the contract must be deployed.
@@ -49,21 +49,21 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
     constructor(
         address _initialOwner,
-        address _verifierUnderwriter,
+        address _verifierGateway,
         bytes32 _interactiveFraudProofVKey,
         address _parameterManagerAddress
     )
         Ownable(_initialOwner)
     {
-        verifierUnderwriter = _verifierUnderwriter;
+        verifierGateway = _verifierGateway;
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
         parameterManager = ITaiyiParameterManager(_parameterManagerAddress);
         openChallengeCount = 0;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
-    function setVerifierUnderwriter(address _verifierUnderwriter) external onlyOwner {
-        verifierUnderwriter = _verifierUnderwriter;
+    function setVerifierGateway(address _verifierGateway) external onlyOwner {
+        verifierGateway = _verifierGateway;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -279,7 +279,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         // Verify the proof
-        ISP1Verifier(verifierUnderwriter).verifyProof(
+        ISP1Verifier(verifierGateway).verifyProof(
             interactiveFraudProofVKey, proofValues, proofBytes
         );
 

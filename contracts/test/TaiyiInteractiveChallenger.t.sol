@@ -384,21 +384,21 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
-    //  Test: Owner can set verifier underwriter
+    //  Test: Owner can set verifier gateway
     // =========================================
-    function testOwnerCanSetVerifierUnderwriter() public {
+    function testOwnerCanSetVerifierGateway() public {
         vm.prank(owner);
-        taiyiInteractiveChallenger.setVerifierUnderwriter(address(0x123));
-        assertEq(taiyiInteractiveChallenger.verifierUnderwriter(), address(0x123));
+        taiyiInteractiveChallenger.setVerifierGateway(address(0x123));
+        assertEq(taiyiInteractiveChallenger.verifierGateway(), address(0x123));
     }
 
     // =========================================
-    //  Test: User is not authorized to set verifier underwriter
+    //  Test: User is not authorized to set verifier gateway
     // =========================================
-    function testUserCannotSetVerifierUnderwriter() public {
+    function testUserCannotSetVerifierGateway() public {
         vm.prank(user);
         vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
-        taiyiInteractiveChallenger.setVerifierUnderwriter(address(0x123));
+        taiyiInteractiveChallenger.setVerifierGateway(address(0x123));
     }
 
     // =========================================
