@@ -9,14 +9,14 @@ library EigenLayerOperatorManagement {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     struct EigenLayerOperatorState {
-        mapping(address => IProposerRegistry.Operator) gatewayOperators;
+        mapping(address => IProposerRegistry.Operator) underwriterOperators;
         mapping(address => IProposerRegistry.Operator) validatorOperators;
         mapping(address => EnumerableSet.AddressSet) avsToOperators;
     }
 
     error OperatorNotRegistered(string message);
 
-    function registerGatewayOperator(
+    function registerUnderwriterOperator(
         EigenLayerOperatorState storage self,
         address operatorAddress,
         bytes calldata blsKey,
@@ -28,16 +28,16 @@ library EigenLayerOperatorManagement {
             !isRegistered(
                 self,
                 operatorAddress,
-                IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             ),
             "Already registered"
         );
 
         // Store operator data
-        self.gatewayOperators[operatorAddress] = IProposerRegistry.Operator({
+        self.underwriterOperators[operatorAddress] = IProposerRegistry.Operator({
             operatorAddress: operatorAddress,
             restakingMiddlewareContract: avsAddress,
-            serviceType: IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            serviceType: IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             blsKey: blsKey
         });
 
@@ -87,8 +87,9 @@ library EigenLayerOperatorManagement {
         self.avsToOperators[avsAddress].remove(operatorAddress);
 
         // Clear operator data
-        if (serviceType == IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY) {
-            delete self.gatewayOperators[operatorAddress];
+        if (serviceType == IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
+        {
+            delete self.underwriterOperators[operatorAddress];
         } else {
             delete self.validatorOperators[operatorAddress];
         }
@@ -103,9 +104,10 @@ library EigenLayerOperatorManagement {
         view
         returns (bool)
     {
-        if (serviceType == IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY) {
-            return
-                self.gatewayOperators[operatorAddress].operatorAddress == operatorAddress;
+        if (serviceType == IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
+        {
+            return self.underwriterOperators[operatorAddress].operatorAddress
+                == operatorAddress;
         } else {
             return self.validatorOperators[operatorAddress].operatorAddress
                 == operatorAddress;
@@ -119,11 +121,11 @@ library EigenLayerOperatorManagement {
         internal
         view
         returns (
-            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory underwriterOp,
             IProposerRegistry.Operator memory validatorOp
         )
     {
-        gatewayOp = self.gatewayOperators[operatorAddress];
+        underwriterOp = self.underwriterOperators[operatorAddress];
         validatorOp = self.validatorOperators[operatorAddress];
     }
 
@@ -149,12 +151,14 @@ library EigenLayerOperatorManagement {
             !isRegistered(
                 self,
                 operatorAddress,
-                IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
         ) {
-            revert OperatorNotRegistered("Operator not registered as gateway operator");
+            revert OperatorNotRegistered(
+                "Operator not registered as underwriter operator"
+            );
         }
 
-        self.gatewayOperators[operatorAddress].blsKey = newBlsKey;
+        self.underwriterOperators[operatorAddress].blsKey = newBlsKey;
     }
 }

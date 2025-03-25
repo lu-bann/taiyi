@@ -27,15 +27,15 @@ contract ValidatorAVS is EigenLayerMiddleware {
     event ValidatorOperatorRegistered(
         address indexed operator,
         address indexed avs,
-        bytes delegatedGatewayPubKey,
+        bytes delegatedUnderwriterPubKey,
         bytes validatorPubKey
     );
 
     // ========= ERRORS =========
     error SenderNotPodOwnerOrOperator();
     error OperatorIsNotYetRegisteredInTaiyiProposerRegistry();
-    error OperatorIsNotYetRegisteredInTaiyiGatewayAVS();
-    error UseGatewayAVSForRewards(address gatewayAVS);
+    error OperatorIsNotYetRegisteredInTaiyiUnderwriterAVS();
+    error UseUnderwriterAVSForRewards(address underwriterAVS);
 
     // ========= MODIFIER =========
     /// @notice Modifier that restricts function access to either the pod owner or their delegated operator
@@ -50,12 +50,12 @@ contract ValidatorAVS is EigenLayerMiddleware {
         _;
     }
 
-    /// @notice Modifier that restricts function access to only the gateway AVS contract
-    /// @dev Reverts if msg.sender is not the gateway AVS contract address
-    modifier onlyGatewayAVS() {
+    /// @notice Modifier that restricts function access to only the underwriter AVS contract
+    /// @dev Reverts if msg.sender is not the underwriter AVS contract address
+    modifier onlyUnderwriterAVS() {
         require(
-            msg.sender == getGatewayAVSAddress(),
-            "ValidatorAVS: caller is not gateway AVS"
+            msg.sender == getUnderwriterAVSAddress(),
+            "ValidatorAVS: caller is not underwriter AVS"
         );
         _;
     }
@@ -71,7 +71,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
         address _eigenPodManager,
         address _rewardCoordinator,
         address _rewardInitiator,
-        uint256 _gatewayShareBips
+        uint256 _underwriterShareBips
     )
         public
         override
@@ -87,12 +87,12 @@ contract ValidatorAVS is EigenLayerMiddleware {
             _eigenPodManager,
             _rewardCoordinator,
             _rewardInitiator,
-            _gatewayShareBips
+            _underwriterShareBips
         );
     }
 
-    /// @notice Override of createOperatorDirectedAVSRewardsSubmission that redirects to GatewayAVS
-    /// @dev This function always reverts and directs users to use GatewayAVS for reward distribution
+    /// @notice Override of createOperatorDirectedAVSRewardsSubmission that redirects to UnderwriterAVS
+    /// @dev This function always reverts and directs users to use UnderwriterAVS for reward distribution
     function createOperatorDirectedAVSRewardsSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata
     )
@@ -100,7 +100,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
         view
         override
     {
-        revert UseGatewayAVSForRewards(super.getGatewayAVSAddress());
+        revert UseUnderwriterAVSForRewards(super.getUnderwriterAVSAddress());
     }
 
     /// @dev Internal function that registers an operator.
@@ -122,15 +122,15 @@ contract ValidatorAVS is EigenLayerMiddleware {
 
     /// @notice Internal function to register multiple validators for a pod owner
     /// @dev Enforces several conditions before registering validators:
-    ///      1. Gateway public key must be non-empty (meaning an actual delegate is chosen).
+    ///      1. Underwriter public key must be non-empty (meaning an actual delegate is chosen).
     ///      2. The operator delegated by the EigenPod owner must already be registered:
-    ///         - in the Gateway AVS Directory (primary restaking AVS).
+    ///         - in the Underwriter AVS Directory (primary restaking AVS).
     ///         - in the TaiyiProposerRegistry with the correct AVSType.
     ///      3. The pod owner must have an active EigenPod (already created).
     ///      4. Each validator BLS public key must already be active within EigenLayer.
     ///
     ///      This function also covers the "self-delegation" scenario, where the pod owner
-    ///      acts as its own GatewayAVS operator.
+    ///      acts as its own UnderwriterAVS operator.
     ///
     ///      For each validator registered, the contract emits a ValidatorOperatorRegistered event.
     ///      Off-chain, a service in Commit-boost listens to this event, and uses the information
@@ -154,22 +154,22 @@ contract ValidatorAVS is EigenLayerMiddleware {
     ///
     /// @param valPubKeys Array of validator BLS public keys to register
     /// @param podOwner Address of the EigenPod owner
-    /// @param delegatedGatewayPubKey The delegated gateway public key (cannot be empty)
+    /// @param delegatedUnderwriterPubKey The delegated underwriter public key (cannot be empty)
     function _registerValidators(
         bytes[] calldata valPubKeys,
         address podOwner,
-        bytes calldata delegatedGatewayPubKey
+        bytes calldata delegatedUnderwriterPubKey
     )
         internal
         override
     {
         require(
-            delegatedGatewayPubKey.length > 0,
-            "ValidatorAVS: Must choose a valid Gateway delegate"
+            delegatedUnderwriterPubKey.length > 0,
+            "ValidatorAVS: Must choose a valid Underwriter delegate"
         );
 
-        // Verify the delegated gateway belongs to a registered gateway operator
-        _validateGatewayDelegatee(delegatedGatewayPubKey);
+        // Verify the delegated underwriter belongs to a registered underwriter operator
+        _validateUnderwriterDelegatee(delegatedUnderwriterPubKey);
 
         // Check if caller is a registered operator in ValidatorAVS
         bool isRegisteredOperator = proposerRegistry.isOperatorRegisteredInAVS(
@@ -179,54 +179,54 @@ contract ValidatorAVS is EigenLayerMiddleware {
         if (podOwner != address(0)) {
             // Path 1: EigenPod validator registration
             _registerEigenPodValidators(
-                valPubKeys, podOwner, delegatedGatewayPubKey, isRegisteredOperator
+                valPubKeys, podOwner, delegatedUnderwriterPubKey, isRegisteredOperator
             );
         } else {
             // Path 2: Regular validator registration
             _registerRegularValidators(
-                valPubKeys, delegatedGatewayPubKey, isRegisteredOperator
+                valPubKeys, delegatedUnderwriterPubKey, isRegisteredOperator
             );
         }
     }
 
-    /// @dev Validates that the delegated gateway public key belongs to a registered gateway operator
-    /// @param delegatedGatewayPubKey The gateway public key to validate
-    function _validateGatewayDelegatee(bytes calldata delegatedGatewayPubKey)
+    /// @dev Validates that the delegated underwriter public key belongs to a registered underwriter operator
+    /// @param delegatedUnderwriterPubKey The underwriter public key to validate
+    function _validateUnderwriterDelegatee(bytes calldata delegatedUnderwriterPubKey)
         internal
         view
     {
         // Cache the delegated key hash to avoid computing it multiple times
-        bytes32 delegatedKeyHash = keccak256(delegatedGatewayPubKey);
+        bytes32 delegatedKeyHash = keccak256(delegatedUnderwriterPubKey);
 
-        // Get all gateway operators
-        address[] memory gatewayOperators =
-            proposerRegistry.getActiveOperatorsForAVS(getGatewayAVSAddress());
+        // Get all underwriter operators
+        address[] memory underwriterOperators =
+            proposerRegistry.getActiveOperatorsForAVS(getUnderwriterAVSAddress());
 
-        bool isValidGatewayDelegatee = false;
-        for (uint256 i = 0; i < gatewayOperators.length; i++) {
-            (bytes memory operatorGatewayPubKey, bool isActive) = proposerRegistry
+        bool isValidUnderwriterDelegatee = false;
+        for (uint256 i = 0; i < underwriterOperators.length; i++) {
+            (bytes memory operatorUnderwriterPubKey, bool isActive) = proposerRegistry
                 .operatorInfo(
-                gatewayOperators[i],
-                IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                underwriterOperators[i],
+                IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             );
 
             // Check key hash first as it's cheaper than checking isActive
-            if (keccak256(operatorGatewayPubKey) == delegatedKeyHash && isActive) {
-                isValidGatewayDelegatee = true;
+            if (keccak256(operatorUnderwriterPubKey) == delegatedKeyHash && isActive) {
+                isValidUnderwriterDelegatee = true;
                 break;
             }
         }
 
         require(
-            isValidGatewayDelegatee,
-            "ValidatorAVS: Delegated gateway must be a registered gateway operator"
+            isValidUnderwriterDelegatee,
+            "ValidatorAVS: Delegated underwriter must be a registered underwriter operator"
         );
     }
 
     function _registerEigenPodValidators(
         bytes[] calldata valPubKeys,
         address podOwner,
-        bytes calldata delegatedGatewayPubKey,
+        bytes calldata delegatedUnderwriterPubKey,
         bool isRegisteredOperator
     )
         internal
@@ -254,13 +254,13 @@ contract ValidatorAVS is EigenLayerMiddleware {
             revert OperatorIsNotYetRegisteredInTaiyiProposerRegistry();
         }
 
-        // Check if operator is registered with the gateway AVS
+        // Check if operator is registered with the underwriter AVS
         if (
             !getProposerRegistry().isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
         ) {
-            revert OperatorIsNotYetRegisteredInTaiyiGatewayAVS();
+            revert OperatorIsNotYetRegisteredInTaiyiUnderwriterAVS();
         }
 
         // Verify pod owner has an EigenPod
@@ -278,14 +278,14 @@ contract ValidatorAVS is EigenLayerMiddleware {
                 revert ValidatorNotActiveWithinEigenCore();
             }
 
-            // Register validator in proposer registry with delegatedGatewayPubKey as delegatee
+            // Register validator in proposer registry with delegatedUnderwriterPubKey as delegatee
             proposerRegistry.registerValidator(
-                valPubKeys[i], operator, delegatedGatewayPubKey
+                valPubKeys[i], operator, delegatedUnderwriterPubKey
             );
 
             // Emit event to track validator registration
             emit ValidatorOperatorRegistered(
-                operator, address(this), delegatedGatewayPubKey, valPubKeys[i]
+                operator, address(this), delegatedUnderwriterPubKey, valPubKeys[i]
             );
         }
     }
@@ -293,7 +293,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
     /// @dev Registers regular validators that are not part of EigenLayer
     function _registerRegularValidators(
         bytes[] calldata valPubKeys,
-        bytes calldata delegatedGatewayPubKey,
+        bytes calldata delegatedUnderwriterPubKey,
         bool isRegisteredOperator
     )
         internal
@@ -308,17 +308,17 @@ contract ValidatorAVS is EigenLayerMiddleware {
             proposerRegistry.registerValidator(
                 valPubKeys[i],
                 msg.sender, // operator is the caller
-                delegatedGatewayPubKey
+                delegatedUnderwriterPubKey
             );
 
             emit ValidatorOperatorRegistered(
-                msg.sender, address(this), delegatedGatewayPubKey, valPubKeys[i]
+                msg.sender, address(this), delegatedUnderwriterPubKey, valPubKeys[i]
             );
         }
     }
 
     /// @notice Handles validator-based reward distribution logic.
-    /// @dev Can only be invoked by the gateway AVS during reward distribution.
+    /// @dev Can only be invoked by the underwriter AVS during reward distribution.
     ///      Distributes reward among operators proportional to their validator count in this AVS.
     /// @param submission The operator-directed reward submission info.
     /// @param validatorAmount The total portion allocated to validators.
@@ -327,7 +327,7 @@ contract ValidatorAVS is EigenLayerMiddleware {
         uint256 validatorAmount
     )
         external
-        onlyGatewayAVS
+        onlyUnderwriterAVS
     {
         // Get validator operators and total count for this AVS
         address[] memory operators =

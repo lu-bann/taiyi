@@ -90,7 +90,7 @@ Finally, delegate your validator keys to the Taiyi Gateway. This allows your val
 ```bash
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
+  --underwriter-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
   --network holesky \
   local-keystore \
   --path /path/to/validators \
@@ -103,11 +103,11 @@ For additional key source options and detailed usage of the delegate command, se
 
 
 
-This step follows the `/constraints/v0/builder/delegate` endpoint specification from the [Preconfirmations API](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate) to perform the gateway delegation. The process involves:
+This step follows the `/constraints/v0/builder/delegate` endpoint specification from the [Preconfirmations API](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate) to perform the underwriter delegation. The process involves:
 
-1. Proposer (your validator) electing the Gateway through delegation
-2. Gateway managing preconfirmation constraints
-3. Relay coordinating between proposer, gateway, and builder
+1. Proposer (your validator) electing the Underwriter through delegation
+2. Underwriter managing preconfirmation constraints
+3. Relay coordinating between proposer, underwriter, and builder
 4. Builder receiving constraints and submitting compliant blocks
 
 ## 4. Verification

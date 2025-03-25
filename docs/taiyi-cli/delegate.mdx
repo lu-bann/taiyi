@@ -1,6 +1,6 @@
 ---
 title: 'Delegate command'
-description: 'Taiyi-CLI delegate command to delegate validator preconfirmation rights for taiyi gateway to relay'
+description: 'Taiyi-CLI delegate command to delegate validator preconfirmation rights for taiyi underwriter to relay'
 icon: 'user-plus'
 ---
 
@@ -17,7 +17,7 @@ taiyi-cli delegate [OPTIONS] <KEY_SOURCE> [KEY_SOURCE_OPTIONS]
 | Option | Description | Environment Variable | Default |
 |--------|-------------|---------------------|---------|
 | `--relay-url` | Relay endpoint URL | `RELAY_URL` | - |
-| `--gateway-pubkey` | Gateway BLS public key | `GATEWAY_PUBKEY` | - |
+| `--underwriter-pubkey` | Underwriter BLS public key | `UNDERWRITER_PUBKEY` | - |
 | `--network` | Target network | `NETWORK` | mainnet |
 | `--relay-request-timeout` | Request timeout in seconds | `RELAY_REQUEST_TIMEOUT` | 30 |
 | `--action` | Action to perform (delegate/revoke) | `ACTION` | delegate |
@@ -31,7 +31,7 @@ Use this method if you manage your validator keys locally:
 ```bash
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --underwriter-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
   --network holesky \
   local-keystore \
   --path /path/to/validators \
@@ -50,7 +50,7 @@ For development or testing with raw private keys:
 ```bash
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --underwriter-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
   --network holesky \
   secret-keys \
   --secret-keys 0x123...,0x456...
@@ -66,7 +66,7 @@ For production setups using Dirk key management service:
 ```bash
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
-  --gateway-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
+  --underwriter-pubkey a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb \
   --network holesky \
   dirk \
   --url https://dirk.example.com \
@@ -90,7 +90,7 @@ Options:
 
 For Holesky testnet:
 - Relay URL: `https://relay.holesky.luban.wtf`
-- Gateway Public Key: `a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb`
+- Underwriter Public Key: `a6767d972d21a17843ea94da59461a04d8d0baf92f7c518653170e708f4b21d537db56f9b73810252e0f4e99cc9184cb`
 
 ## Troubleshooting
 

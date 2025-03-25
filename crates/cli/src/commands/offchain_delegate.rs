@@ -28,8 +28,8 @@ pub struct DelegateCommand {
     #[clap(long, env = "RELAY_REQUEST_TIMEOUT", default_value = "30")]
     pub relay_request_timeout: u64,
     /// Preconfer BLS public key
-    #[clap(long, env = "GATEWAY_PUBKEY")]
-    pub gateway_pubkey: String,
+    #[clap(long, env = "UNDERWRITER_PUBKEY")]
+    pub underwriter_pubkey: String,
     /// Chain Network
     #[clap(long, env = "NETWORK", default_value = "mainnet")]
     pub network: Network,
@@ -52,7 +52,7 @@ impl DelegateCommand {
     pub async fn execute(&self) -> Result<()> {
         let signed_messages = match &self.source {
             KeySource::SecretKeys { secret_keys } => {
-                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
                     preconfer_pubkey,
@@ -65,7 +65,7 @@ impl DelegateCommand {
             }
             KeySource::LocalKeystore { opts } => {
                 let keystore_secret = KeystoreSecret::from_keystore_options(opts)?;
-                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_keystore(
                     &opts.path,
                     keystore_secret,
@@ -81,7 +81,7 @@ impl DelegateCommand {
                 let mut dirk =
                     Dirk::connect(opts.url.clone(), opts.tls_credentials.clone()).await?;
 
-                let preconfer_pubkey = parse_bls_public_key(&self.gateway_pubkey)?;
+                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_dirk(
                     &mut dirk,
                     preconfer_pubkey,

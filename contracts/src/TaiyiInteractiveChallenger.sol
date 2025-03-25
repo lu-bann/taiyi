@@ -15,7 +15,7 @@ import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 struct PublicValuesStruct {
     uint64 proofBlockNumber;
     bytes32 proofBlockHash;
-    address gatewayAddress;
+    address underwriterAddress;
     bytes signature;
 }
 
@@ -27,7 +27,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     ///      SP1VerifierGateway which can be used to verify proofs for any version of SP1.
     ///      For the list of supported verifiers on each chain, see:
     ///      https://github.com/succinctlabs/sp1-contracts/tree/main/contracts/deployments
-    address public verifierGateway;
+    address public verifierUnderwriter;
 
     /// @notice The verification key for the interactive fraud proof program.
     /// @dev When the verification key changes a new version of the contract must be deployed.
@@ -45,23 +45,25 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     /// @notice Count of open challenges.
     uint256 public openChallengeCount;
 
+    address underwriterAddress;
+
     constructor(
         address _initialOwner,
-        address _verifierGateway,
+        address _verifierUnderwriter,
         bytes32 _interactiveFraudProofVKey,
         address _parameterManagerAddress
     )
         Ownable(_initialOwner)
     {
-        verifierGateway = _verifierGateway;
+        verifierUnderwriter = _verifierUnderwriter;
         interactiveFraudProofVKey = _interactiveFraudProofVKey;
         parameterManager = ITaiyiParameterManager(_parameterManagerAddress);
         openChallengeCount = 0;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
-    function setVerifierGateway(address _verifierGateway) external onlyOwner {
-        verifierGateway = _verifierGateway;
+    function setVerifierUnderwriter(address _verifierUnderwriter) external onlyOwner {
+        verifierUnderwriter = _verifierUnderwriter;
     }
 
     /// @inheritdoc ITaiyiInteractiveChallenger
@@ -277,7 +279,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         // Verify the proof
-        ISP1Verifier(verifierGateway).verifyProof(
+        ISP1Verifier(verifierUnderwriter).verifyProof(
             interactiveFraudProofVKey, proofValues, proofBytes
         );
 
@@ -305,7 +307,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         // Verify the proof commitment signer matches the challenge commitment signer
-        if (publicValues.gatewayAddress != challenge.commitmentSigner) {
+        if (publicValues.underwriterAddress != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
         }
 

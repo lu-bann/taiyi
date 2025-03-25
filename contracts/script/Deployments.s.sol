@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import { TaiyiCore } from "../src/TaiyiCore.sol";
 
-import { GatewayAVS } from "../src/eigenlayer-avs/GatewayAVS.sol";
+import { UnderwriterAVS } from "../src/eigenlayer-avs/UnderwriterAVS.sol";
 import { ValidatorAVS } from "../src/eigenlayer-avs/ValidatorAVS.sol";
 
 import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
@@ -119,9 +119,9 @@ contract Deploy is Script, Test {
             "taiyiAddresses", "taiyiProposerRegistryProxy", address(registryProxy)
         );
 
-        // Deploy GatewayAVS implementation and proxy
-        GatewayAVS gatewayImpl = new GatewayAVS();
-        bytes memory gatewayInitData = abi.encodeWithSignature(
+        // Deploy UnderwriterAVS implementation and proxy
+        UnderwriterAVS underwriterImpl = new UnderwriterAVS();
+        bytes memory underwriterInitData = abi.encodeWithSignature(
             "initialize(address,address,address,address,address,address,address,address,uint256)",
             msg.sender,
             address(registry),
@@ -133,12 +133,16 @@ contract Deploy is Script, Test {
             rewardInitiator,
             8000
         );
-        ERC1967Proxy gatewayProxy =
-            new ERC1967Proxy(address(gatewayImpl), gatewayInitData);
-        GatewayAVS gateway = GatewayAVS(address(gatewayProxy));
-        emit log_address(address(gateway));
-        vm.serializeAddress("taiyiAddresses", "gatewayAVSImpl", address(gatewayImpl));
-        vm.serializeAddress("taiyiAddresses", "gatewayAVSProxy", address(gatewayProxy));
+        ERC1967Proxy underwriterProxy =
+            new ERC1967Proxy(address(underwriterImpl), underwriterInitData);
+        UnderwriterAVS underwriter = UnderwriterAVS(address(underwriterProxy));
+        emit log_address(address(underwriter));
+        vm.serializeAddress(
+            "taiyiAddresses", "underwriterAVSImpl", address(underwriterImpl)
+        );
+        vm.serializeAddress(
+            "taiyiAddresses", "underwriterAVSProxy", address(underwriterProxy)
+        );
 
         // Deploy ValidatorAVS implementation and proxy
         ValidatorAVS validatorImpl = new ValidatorAVS();
@@ -164,7 +168,7 @@ contract Deploy is Script, Test {
         );
 
         // Set AVS contracts in registry
-        registry.setAVSContracts(address(gateway), address(validator));
+        registry.setAVSContracts(address(underwriter), address(validator));
 
         // Deploy TaiyiCore implementation and proxy
         TaiyiCore coreImpl = new TaiyiCore();

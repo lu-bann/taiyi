@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { IGatewayAVS } from "./IGatewayAVS.sol";
+import { IUnderwriterAVS } from "./IUnderwriterAVS.sol";
 import { IValidatorAVS } from "./IValidatorAVS.sol";
 
 interface IProposerRegistry {
@@ -16,10 +16,10 @@ interface IProposerRegistry {
     /// @dev Different types of restaking services and their roles
     enum RestakingServiceType {
         // EigenLayer services
-        EIGENLAYER_GATEWAY, // Gateway operator in EigenLayer
+        EIGENLAYER_UNDERWRITER, // Underwriter operator in EigenLayer
         EIGENLAYER_VALIDATOR, // Validator operator in EigenLayer
         // Symbiotic services
-        SYMBIOTIC_GATEWAY, // Gateway operator in Symbiotic
+        SYMBIOTIC_UNDERWRITER, // Underwriter operator in Symbiotic
         SYMBIOTIC_VALIDATOR // Validator operator in Symbiotic
 
     }
@@ -69,9 +69,13 @@ interface IProposerRegistry {
     function initialize(address _owner) external;
 
     /// @notice Sets the AVS contracts in the registry
-    /// @param gatewayAVSAddr Address of the GatewayAVS contract
+    /// @param underwriterAVSAddr Address of the UnderwriterAVS contract
     /// @param validatorAVSAddr Address of the ValidatorAVS contract
-    function setAVSContracts(address gatewayAVSAddr, address validatorAVSAddr) external;
+    function setAVSContracts(
+        address underwriterAVSAddr,
+        address validatorAVSAddr
+    )
+        external;
 
     /// @notice Sets the Symbiotic network contracts in the registry
     /// @param symbioticMiddlewareAddr Address of the Symbiotic middleware contract
@@ -80,7 +84,7 @@ interface IProposerRegistry {
     /// @notice Registers a new operator
     /// @param operatorAddress The operator's address
     /// @param serviceType The type of service
-    /// @param blsKey The BLS public key for gateway operators
+    /// @param blsKey The BLS public key for underwriter operators
     function registerOperator(
         address operatorAddress,
         RestakingServiceType serviceType,
@@ -125,9 +129,9 @@ interface IProposerRegistry {
     /// @param pubKeyHash The hash of the validator's BLS public key
     function confirmOptOut(bytes32 pubKeyHash) external;
 
-    /// @notice Gets the GatewayAVS contract instance
-    /// @return The GatewayAVS contract instance
-    function gatewayAVS() external view returns (IGatewayAVS);
+    /// @notice Gets the UnderwriterAVS contract instance
+    /// @return The UnderwriterAVS contract instance
+    function underwriterAVS() external view returns (IUnderwriterAVS);
 
     /// @notice Gets the ValidatorAVS contract instance
     /// @return The ValidatorAVS contract instance
@@ -177,12 +181,12 @@ interface IProposerRegistry {
 
     /// @notice Gets registered operator data
     /// @param operatorAddr The operator's address
-    /// @return gatewayOp The operator's gateway data
+    /// @return underwriterOp The operator's underwriter data
     /// @return validatorOp The operator's validator data
     function getRegisteredOperator(address operatorAddr)
         external
         view
-        returns (Operator memory gatewayOp, Operator memory validatorOp);
+        returns (Operator memory underwriterOp, Operator memory validatorOp);
 
     /// @notice Returns active operators for a specific AVS
     /// @param avsAddress The address of the AVS
@@ -231,14 +235,14 @@ interface IProposerRegistry {
     /// @notice The cooldown period required before completing opt-out
     function OPT_OUT_COOLDOWN() external view returns (uint256);
 
-    /// @notice Update an operator's BLS key (only for gateway operators)
+    /// @notice Update an operator's BLS key (only for underwriter operators)
     /// @param operator The operator's address
     /// @param newBlsKey The new BLS public key
     function updateOperatorBLSKey(address operator, bytes calldata newBlsKey) external;
 
-    /// @notice Gets the GatewayAVS contract instance
-    /// @return The GatewayAVS contract instance
-    function getGatewayAVS() external view returns (IGatewayAVS);
+    /// @notice Gets the UnderwriterAVS contract instance
+    /// @return The UnderwriterAVS contract instance
+    function getUnderwriterAVS() external view returns (IUnderwriterAVS);
 
     /// @notice Gets the ValidatorAVS contract instance
     /// @return The ValidatorAVS contract instance
@@ -248,7 +252,7 @@ interface IProposerRegistry {
     /// @param operator The operator's address
     /// @param avsType The type of AVS to get info for
     /// @return pubKey The operator's public key for the AVS type
-    /// @return isActive Whether the operator is active
+    /// @return isActive Whether the operator is active for this AVS type
     function operatorInfo(
         address operator,
         RestakingServiceType avsType

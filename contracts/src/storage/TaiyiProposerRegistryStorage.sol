@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { GatewayAVS } from "../eigenlayer-avs/GatewayAVS.sol";
+import { UnderwriterAVS } from "../eigenlayer-avs/UnderwriterAVS.sol";
 import { ValidatorAVS } from "../eigenlayer-avs/ValidatorAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { EigenLayerOperatorManagement } from "../libs/EigenLayerOperatorManagement.sol";
@@ -16,11 +16,11 @@ import { EnumerableSet } from
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | _avsTypes                   | mapping(address => enum IProposerRegistry.RestakingServiceType) | 1    | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
-// | _gatewayAVS                 | contract GatewayAVS                                             | 2    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// | _underwriterAVS             | contract UnderwriterAVS                                         | 2    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | _validatorAVS               | contract ValidatorAVS                                           | 3    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
-// | _gatewayAVSAddress          | address                                                         | 4    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// | _underwriterAVSAddress      | address                                                         | 4    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | _validatorAVSAddress        | address                                                         | 5    | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
@@ -32,7 +32,7 @@ import { EnumerableSet } from
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | _symbioticMiddlewareAddress | address                                                         | 14   | 0      | 20    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
-// | _gatewaySubnetwork          | bytes32                                                         | 15   | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
+// | _underwriterSubnetwork      | bytes32                                                         | 15   | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
 // | _validatorSubnetwork        | bytes32                                                         | 16   | 0      | 32    | src/storage/TaiyiProposerRegistryStorage.sol:TaiyiProposerRegistryStorage |
 // |-----------------------------+-----------------------------------------------------------------+------+--------+-------+---------------------------------------------------------------------------|
@@ -50,14 +50,14 @@ contract TaiyiProposerRegistryStorage {
     /// @notice Mapping from AVS contract to AVS type
     mapping(address => IProposerRegistry.RestakingServiceType) internal _avsTypes;
 
-    /// @notice GatewayAVS contract instance
-    GatewayAVS internal _gatewayAVS;
+    /// @notice UnderwriterAVS contract instance
+    UnderwriterAVS internal _underwriterAVS;
 
     /// @notice ValidatorAVS contract instance
     ValidatorAVS internal _validatorAVS;
 
-    /// @notice GatewayAVS address
-    address internal _gatewayAVSAddress;
+    /// @notice UnderwriterAVS address
+    address internal _underwriterAVSAddress;
 
     /// @notice ValidatorAVS address
     address internal _validatorAVSAddress;
@@ -77,8 +77,8 @@ contract TaiyiProposerRegistryStorage {
     /// @notice Address of the symbiotic middleware contract
     address internal _symbioticMiddlewareAddress;
 
-    /// @notice Symbiotic network subnetwork for the gateway
-    bytes32 internal _gatewaySubnetwork;
+    /// @notice Symbiotic network subnetwork for the underwriter
+    bytes32 internal _underwriterSubnetwork;
 
     /// @notice Symbiotic network subnetwork for the validator
     bytes32 internal _validatorSubnetwork;

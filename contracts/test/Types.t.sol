@@ -37,16 +37,18 @@ contract PreconTxTest is Test {
         });
         PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+            blockspaceAllocationSignature: bytes("blockspaceAllocationSignature"),
+            underwriterSignedBlockspaceAllocation: bytes(
+                "underwriterSignedBlockspaceAllocation"
+            ),
+            rawTx: bytes("rawTx"),
+            underwriterSignedRawTx: bytes("underwriterSignedRawTx")
         });
         vm.chainId(1337);
         bytes32 preconfRequestBTypeHash = preconfRequestBType.getPreconfRequestBTypeHash();
         assertEq(
             preconfRequestBTypeHash,
-            bytes32(0xf54edbcf22dd1a0ac4a7d2c87e9552d283df6141ccff486754dffa1820021ac1)
+            bytes32(0xf6aa7a95c590ae41f6b0e513a6c827bc6a7e23df2f5cd54a7bb84419cfaddfad)
         );
     }
 }
