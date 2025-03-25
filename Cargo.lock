@@ -7720,9 +7720,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e2e8eaf2d29f8e7170c1d901e7c0133399c7fe557aedea659f171a86f34a9f9"
+checksum = "82249c52570bdb8c499e352a5309ca8051f80068df42d4b4500987592f9eb57c"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -8085,9 +8085,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b47b98599a826c8d24976791495bc59c7d8be3af97a515cf5f7a7c3b02daa835"
+checksum = "5a6d0773e4cc5f8c2dfea65cbf003d6d6c8fb8f2671d3edb48b5873627f27d20"
 dependencies = [
  "alloy-primitives 0.8.15",
  "alloy-signer 0.8.1",
@@ -8168,9 +8168,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-verifier"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "613b9d79e1dd8d1b584654710a462340ff6b4b1ad8762830c4c9f772892467f8"
+checksum = "626324b2772bbc318d1673b31faa3880891536677d531911f497867e3c94753d"
 dependencies = [
  "hex",
  "lazy_static",
@@ -8181,9 +8181,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78c9380c49efdf34e6454a735922f794bb1d4b11114c302675087f110c207b56"
+checksum = "f971db10d58b13c9a5d8cee4f7d1195d6f8a2debb9c33bd67f4eea5817432d42"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.15",

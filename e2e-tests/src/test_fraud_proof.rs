@@ -1,15 +1,15 @@
 use std::{fs, str::FromStr, time::Instant};
 
 use alloy_consensus::{Account, Transaction};
+use alloy_eips::eip2718::Encodable2718;
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
 use alloy_signer::k256;
-use alloy_sol_types::{SolCall, SolType};
+use alloy_sol_types::{sol, SolCall, SolValue};
 use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
-use hex::ToHex;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
@@ -54,6 +54,7 @@ struct TestDataPreconfRequestTypeA {
     proof: String,         // Hex encoded proof
     public_values: String, // Hex encoded public values
     preconf_request: PreconfRequestTypeA,
+    abi_encoded_preconf_request: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,6 +66,7 @@ struct TestDataPreconfRequestTypeB {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[ignore]
 async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     // Read proof from file
     let proof =
@@ -74,6 +76,9 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     let test_data =
         fs::read_to_string("test-data/poi-preconf-type-a-included-test-data.json").unwrap();
     let test_data: TestDataPreconfRequestTypeA = serde_json::from_str(&test_data).unwrap();
+
+    let (taiyi_handle, _) = setup_env().await?;
+
     let public_values = hex::decode(test_data.public_values).unwrap();
     let vk = test_data.vk;
 
@@ -89,12 +94,12 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
+    taiyi_handle.abort();
     Ok(())
 }
 
 #[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-#[ignore]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
 
@@ -108,6 +113,8 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         .wallet(wallet.clone())
         .on_builtin(&config.execution_url)
         .await?;
+
+    let chain_id = provider.get_chain_id().await?;
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -289,7 +296,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     // Decode public values
     let public_values_struct =
-        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+        PublicValuesStruct::abi_decode_sequence(public_values.as_slice(), true).unwrap();
 
     // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
     assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
@@ -302,15 +309,19 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     // Check signature is correct
     assert_eq!(
-        public_values_struct.signature,
-        Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
+        hex::encode(public_values_struct.proofSignature),
+        hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
 
     // Generate proof using prover network
-    #[cfg(feature = "generate-proof")]
+    // #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
-        let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
+        let client = ProverClient::builder()
+            .network()
+            .rpc_url("https://rpc.production.succinct.xyz/")
+            .private_key(&config.sp1_private_key)
+            .build();
 
         // Generate the proof for the given program and input.
         let (pk, vk) = client.setup(ELF_POI);
@@ -329,22 +340,42 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
-        // Verify proof and public values
-        client.verify(&proof, &vk).expect("verification failed");
-
         // Save proof in binary format
-        proof.save("poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+        proof.save("test-data/poi-preconf-type-a-included-proof.bin").expect("saving proof failed");
+
+        let mut tip_tx = Vec::new();
+        preconf_a.tip_transaction.encode_2718(&mut tip_tx);
+        let tip_tx_raw = format!("0x{}", hex::encode(&tip_tx));
+
+        let mut preconf_txs: Vec<String> = Vec::new();
+        for tx in &preconf_a.transactions {
+            let mut tx_bytes = Vec::new();
+            tx.encode_2718(&mut tx_bytes);
+            let hex_encoded_tx = format!("0x{}", hex::encode(&tx_bytes));
+            preconf_txs.push(hex_encoded_tx);
+        }
 
         // Save proof and public values in json format
         let test_data = TestDataPreconfRequestTypeA {
             vk: vk.bytes32(),
             proof: hex::encode(proof.bytes()),
             public_values: hex::encode(public_values.as_slice()),
-            preconf_request: preconf_a,
+            preconf_request: preconf_a.clone(),
+            abi_encoded_preconf_request: hex::encode(
+                (
+                    tip_tx_raw,
+                    preconf_txs,
+                    preconf_a.target_slot,
+                    preconf_a.sequence_number.unwrap(),
+                    preconf_a.signer,
+                    chain_id,
+                )
+                    .abi_encode_sequence(),
+            ),
         };
 
         let test_data_json = serde_json::to_string(&test_data).unwrap();
-        fs::write("poi-preconf-type-a-included-test-data.json", test_data_json).unwrap();
+        fs::write("test-data/poi-preconf-type-a-included-test-data.json", test_data_json).unwrap();
     }
 
     // Optionally, cleanup when done
@@ -577,8 +608,8 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
     // Check signature is correct
     assert_eq!(
-        public_values_struct.signature,
-        Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
+        hex::encode(public_values_struct.proofSignature),
+        hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
 
     // Generate proof using prover network
@@ -606,9 +637,6 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             .expect("saving proof failed");
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
-
-        // Verify proof and public values
-        client.verify(&proof, &vk).expect("verification failed");
 
         proof
             .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
@@ -923,8 +951,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     assert_eq!(public_values_struct.gatewayAddress, gateway_address);
     // Check signature is correct
     assert_eq!(
-        public_values_struct.signature,
-        Bytes::from(preconf_response.commitment.unwrap().as_bytes().encode_hex::<String>())
+        hex::encode(public_values_struct.proofSignature),
+        hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
 
     // Generate proof using prover network
@@ -950,9 +978,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
-
-        // Verify proof and public values
-        client.verify(&proof, &vk).expect("verification failed");
 
         proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
 

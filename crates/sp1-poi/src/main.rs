@@ -6,11 +6,10 @@ use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use alloy_consensus::{Header, Transaction, TxEnvelope};
 use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB};
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
-use alloy_sol_types::{SolCall, SolType};
+use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_sol_types::{SolCall, SolValue};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use eth_trie::{EthTrie, MemoryDB, Trie};
-use hex::ToHex;
 use taiyi_zkvm_types::{types::*, utils::*};
 
 sp1_zkvm::entrypoint!(main);
@@ -39,7 +38,7 @@ pub fn main() {
     assert_eq!(previous_block_header.hash_slow(), previous_block_hash);
     assert_eq!(inclusion_block_header.parent_hash, previous_block_hash);
 
-    let preconf_sig: String;
+    let preconf_sig: Vec<u8>;
     if is_type_a {
         let preconf_req_a = serde_json::from_str::<PreconfTypeA>(&preconf).unwrap();
         let txs = preconf_req_a.preconf.clone().transactions;
@@ -55,15 +54,16 @@ pub fn main() {
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
-        preconf_sig = preconf_req_a.preconf.preconf_sig.as_bytes().encode_hex::<String>();
+        preconf_sig = preconf_req_a.preconf.preconf_sig.as_bytes().to_vec();
 
         // Encode the public values of the program.
-        let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
-            proofBlockTimestamp: inclusion_block_header.timestamp,
-            proofBlockHash: inclusion_block_hash,
-            gatewayAddress: gateway_address,
-            signature: Bytes::from(preconf_sig.clone()),
-        });
+        let bytes = (
+            inclusion_block_header.timestamp,
+            inclusion_block_hash,
+            gateway_address,
+            preconf_sig.clone(),
+        )
+            .abi_encode_sequence();
 
         // Target slot verification
         assert_eq!(
@@ -190,15 +190,16 @@ pub fn main() {
                     .unwrap()
         ); // check that the gateway address matches the preconf req type a signer
 
-        preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().encode_hex::<String>();
+        preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().to_vec();
 
         // Encode the public values of the program.
-        let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
-            proofBlockTimestamp: inclusion_block_header.timestamp,
-            proofBlockHash: inclusion_block_hash,
-            gatewayAddress: gateway_address,
-            signature: Bytes::from(preconf_sig.clone()),
-        });
+        let bytes = (
+            inclusion_block_header.timestamp,
+            inclusion_block_hash,
+            gateway_address,
+            preconf_sig.clone(),
+        )
+            .abi_encode_sequence();
 
         // Target slot verification
         assert_eq!(
@@ -310,12 +311,9 @@ pub fn main() {
     }
 
     // Encode the public values of the program.
-    let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct {
-        proofBlockTimestamp: inclusion_block_header.timestamp,
-        proofBlockHash: inclusion_block_hash,
-        gatewayAddress: gateway_address,
-        signature: Bytes::from(preconf_sig),
-    });
+    let bytes =
+        (inclusion_block_header.timestamp, inclusion_block_hash, gateway_address, preconf_sig)
+            .abi_encode_sequence();
 
     // Commit the public values of the program.
     sp1_zkvm::io::commit_slice(&bytes);

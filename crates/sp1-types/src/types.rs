@@ -31,14 +31,14 @@ impl PreconfRequestTypeA {
 
         keccak256(
             (
-                tip_tx_raw.as_bytes(),
-                preconf_txs.iter().map(|s| s.as_bytes()).collect::<Vec<_>>(),
-                self.target_slot,
-                sequence_number,
+                tip_tx_raw,
+                preconf_txs,
+                U256::from(self.target_slot),
+                U256::from(sequence_number),
                 self.signer,
-                chain_id,
+                U256::from(chain_id),
             )
-                .abi_encode_packed(),
+                .abi_encode_sequence(),
         )
     }
 }

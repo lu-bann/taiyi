@@ -107,10 +107,10 @@ eth_trie = "0.5.0"
 eth-trie-proofs = "0.1.2"
 
 # sp1
-sp1-build = "=4.0.0"
-sp1-sdk = "=4.0.0"
-sp1-zkvm = "=4.0.0"
-sp1-verifier = "=4.0.0"
+sp1-build = "=4.0.1"
+sp1-sdk = "=4.0.1"
+sp1-zkvm = "=4.0.1"
+sp1-verifier = "=4.0.1"
 
 clap = { version = "4.5.23", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }

@@ -22,11 +22,12 @@ contract TaiyiInteractiveChallengerTest is Test {
     address verifierAddress;
     address user;
     address owner;
-    address signer;
+    address preconfer = 0xD8F3183DEF51A987222D845be228e0Bbb932C222;
 
-    uint256 internal userPrivatekey;
-    uint256 internal ownerPrivatekey;
-    uint256 internal signerPrivatekey;
+    uint256 internal userPrivateKey;
+    uint256 internal ownerPrivateKey;
+    uint256 internal preconferPrivateKey =
+        0xc5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2;
 
     uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1_655_733_600;
 
@@ -37,20 +38,23 @@ contract TaiyiInteractiveChallengerTest is Test {
         verifierAddress = address(new SP1Verifier());
 
         // Create test accounts
-        (user, userPrivatekey) = makeAddrAndKey("user");
-        (owner, ownerPrivatekey) = makeAddrAndKey("owner");
-        (signer, signerPrivatekey) = makeAddrAndKey("signer");
+        (user, userPrivateKey) = makeAddrAndKey("user");
+        (owner, ownerPrivateKey) = makeAddrAndKey("owner");
 
         // Fund test accounts
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
-        vm.deal(signer, 100 ether);
+        vm.deal(preconfer, 100 ether);
 
         parameterManager = new TaiyiParameterManager();
         parameterManager.initialize(owner, 1, 64, 256, SEPOLIA_GENESIS_TIMESTAMP, 12);
 
         taiyiInteractiveChallenger = new TaiyiInteractiveChallenger(
-            owner, verifierAddress, bytes32(0), address(parameterManager)
+            owner,
+            verifierAddress,
+            // TODO[Martin]: Improve handling of VerifierVKey in tests
+            bytes32(0x00c802bff4be073d5bac430e0b12a217c85fa93d19b97685c501152055ec489a),
+            address(parameterManager)
         );
     }
 
@@ -62,21 +66,21 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Expect event
         vm.expectEmit(true, true, true, false);
-        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, signer);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -93,11 +97,11 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         bytes memory signature = new bytes(0);
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
 
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
 
         vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
         taiyiInteractiveChallenger.createChallengeAType(preconfRequestAType, signature);
@@ -113,16 +117,16 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Create challenge
@@ -170,7 +174,7 @@ contract TaiyiInteractiveChallengerTest is Test {
     //         preconfRequestBType.gatewaySignedRawTx
     //     ));
 
-    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, dataHash);
+    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
     //     bytes memory signature = abi.encodePacked(r, s, v);
 
     //     taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
@@ -214,16 +218,16 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
@@ -246,16 +250,16 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
@@ -277,16 +281,16 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
@@ -306,12 +310,77 @@ contract TaiyiInteractiveChallengerTest is Test {
     //  Test: Prove
     // =========================================
     function testProveSuccess() public {
-        bytes32 challengeId = keccak256(abi.encodePacked("challengeId"));
-        bytes memory proofValues = new bytes(0);
-        bytes memory proofBytes = new bytes(0);
+        // Send transaction as user
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        vm.expectRevert();
-        taiyiInteractiveChallenger.prove(challengeId, proofValues, proofBytes);
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+            )
+        );
+
+        // Decode proof values
+        (
+            uint64 proofBlockTimestamp,
+            bytes32 proofBlockHash,
+            address proofGatewayAddress,
+            bytes memory proofSignature
+        ) = abi.decode(
+            vm.parseBytes(vm.parseJsonString(json, ".public_values")),
+            (uint64, bytes32, address, bytes)
+        );
+
+        bytes memory abiEncodedPreconfRequestAType =
+            vm.parseBytes(vm.parseJsonString(json, ".abi_encoded_preconf_request"));
+
+        (
+            string memory tipTx,
+            string[] memory txs,
+            uint64 slot,
+            uint64 sequenceNum,
+            address signer,
+            uint64 chainId
+        ) = abi.decode(
+            abiEncodedPreconfRequestAType,
+            (string, string[], uint64, uint64, address, uint64)
+        );
+
+        bytes32 dataHash = keccak256(
+            abi.encode(
+                tipTx, txs, uint256(slot), uint256(sequenceNum), signer, uint256(chainId)
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        // Expect event
+        vm.expectEmit(true, true, true, false);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+
+        uint256 bond = parameterManager.challengeBond();
+
+        PreconfRequestAType memory preconfRequestAType =
+            PreconfRequestAType(txs, tipTx, slot, sequenceNum, signer);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        string memory proofValues = vm.parseJsonString(json, ".public_values");
+        string memory proofBytes = vm.parseJsonString(json, ".proof");
+
+        bytes memory proofValuesBytes = vm.parseBytes(proofValues);
+        bytes memory proofBytesBytes = vm.parseBytes(proofBytes);
+
+        taiyiInteractiveChallenger.prove(challengeId, proofValuesBytes, proofBytesBytes);
+
+        vm.stopPrank();
     }
 
     // =========================================
@@ -341,16 +410,16 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.startPrank(user);
 
         // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        string[] memory txs = new string[](1);
+        string memory tipTx = "0x01";
         uint256 bond = parameterManager.challengeBond();
 
         // Create and sign preconf request
         PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+            PreconfRequestAType(txs, tipTx, 0, 0, user);
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
         bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, challengeId);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
@@ -363,7 +432,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         assertEq(challenge.id, challengeId);
         // TODO[Martin]: Check challenge.createdAt
         assertEq(challenge.challenger, user);
-        assertEq(challenge.commitmentSigner, signer);
+        assertEq(challenge.commitmentSigner, preconfer);
         assertTrue(challenge.status == ITaiyiInteractiveChallenger.ChallengeStatus.Open);
         assertEq(challenge.preconfType, 0);
         assertEq(challenge.commitmentData, encodedPreconfRequestAType);

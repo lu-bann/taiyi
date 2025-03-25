@@ -6,7 +6,7 @@ sol! {
         uint64 proofBlockTimestamp;
         bytes32 proofBlockHash;
         address gatewayAddress;
-        bytes signature;
+        bytes proofSignature;
     }
     function sponsorEthBatch(address[] calldata recipients, uint256[] calldata amounts);
 }
