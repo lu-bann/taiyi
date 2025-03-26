@@ -96,7 +96,8 @@ pub struct PreconfRequestTypeB {
     pub allocation: BlockspaceAllocation,
     pub alloc_sig: PrimitiveSignature,
     pub transaction: Option<TxEnvelope>,
-    pub preconf_sig: PrimitiveSignature,
+    pub signer: Address,
+    pub preconf_sig: PrimitiveSignature, /* TODO: Should be removed and moved as a separate field to the zkvm program */
 }
 
 impl PreconfRequestTypeB {

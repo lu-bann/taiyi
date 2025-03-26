@@ -54,6 +54,7 @@ struct TestDataPreconfRequestTypeA {
     public_values: String, // Hex encoded public values
     preconf_request: PreconfRequestTypeA,
     abi_encoded_preconf_request: String,
+    genesis_time: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,6 +63,8 @@ struct TestDataPreconfRequestTypeB {
     proof: String,         // Hex encoded proof
     public_values: String, // Hex encoded public values
     preconf_request: PreconfRequestTypeB,
+    abi_encoded_preconf_request: String,
+    genesis_time: u64,
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -97,11 +100,46 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     Ok(())
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[ignore]
+async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
+    // Read proof from file
+    let proof =
+        SP1ProofWithPublicValues::load("test-data/poi-preconf-type-b-included-proof.bin").unwrap();
+
+    // Read json data
+    let test_data =
+        fs::read_to_string("test-data/poi-preconf-type-b-included-test-data.json").unwrap();
+    let test_data: TestDataPreconfRequestTypeB = serde_json::from_str(&test_data).unwrap();
+
+    println!("preconf b digest: {:?}", test_data.preconf_request.digest(3_151_908));
+
+    let (taiyi_handle, _) = setup_env().await?;
+
+    let public_values = hex::decode(test_data.public_values).unwrap();
+    let vk = test_data.vk;
+
+    // Write the proof, public values, and vkey hash to the input stream.
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(proof.bytes());
+    stdin.write_vec(public_values);
+    stdin.write(&vk);
+
+    // Verify proof
+    let client = ProverClient::builder().cpu().build();
+    let (_, report) = client.execute(ELF_VERIFIER, &stdin).run().unwrap();
+    println!("executed plonk program with {} cycles", report.total_instruction_count());
+    println!("{}", report);
+
+    taiyi_handle.abort();
+    Ok(())
+}
+
 #[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+// #[ignore]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
-
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
 
@@ -128,10 +166,10 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     info!("Submitting request for target slot: {:?}", target_slot);
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
 
     let body = res.bytes().await?;
     info!("submit Type A request response: {:?}", body);
+    assert_eq!(status, 200);
 
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
@@ -371,6 +409,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
                 )
                     .abi_encode_sequence(),
             ),
+            genesis_time,
         };
 
         let test_data_json = serde_json::to_string(&test_data).unwrap();
@@ -418,10 +457,11 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     info!("Submitting request for target slot: {:?}", target_slot);
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
 
     let body = res.bytes().await?;
     info!("submit Type A request response: {:?}", body);
+
+    assert_eq!(status, 200);
 
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
@@ -594,7 +634,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
     // Decode public values
     let public_values_struct =
-        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+        PublicValuesStruct::abi_decode_sequence(public_values.as_slice(), true).unwrap();
 
     // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
     assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
@@ -612,7 +652,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     );
 
     // Generate proof using prover network
-    // #[cfg(feature = "generate-proof")]
+    #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
         let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
@@ -632,13 +672,13 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             .run()
             .unwrap();
         proof
-            .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
+            .save("test-data/poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
         proof
-            .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
+            .save("test-data/poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
 
         let mut tip_tx = Vec::new();
@@ -671,6 +711,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
                 )
                     .abi_encode_sequence(),
             ),
+            genesis_time,
         };
 
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
@@ -724,10 +765,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Reserve blockspace
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
 
     let body = res.bytes().await?;
     info!("reserve_blockspace response: {:?}", body);
+    assert_eq!(status, 200);
 
     let request_id = serde_json::from_slice::<Uuid>(&body)?;
 
@@ -740,9 +781,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let res =
         send_submit_transaction_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
-    assert_eq!(status, 200);
     let body = res.bytes().await?;
     info!("submit transaction response: {:?}", body);
+    assert_eq!(status, 200);
+
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.request_id, request_id);
 
@@ -915,6 +957,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         )
         .unwrap(),
         transaction: Some(user_transaction.into()),
+        signer: signer.address(),
         preconf_sig: preconf_response.commitment.unwrap(),
     };
 
@@ -954,6 +997,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         Ok(genesis_time) => genesis_time,
         Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
     };
+
     stdin.write(&genesis_time);
 
     println!("Using the local/cpu SP1 prover.");
@@ -965,7 +1009,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // Decode public values
     let public_values_struct =
-        PublicValuesStruct::abi_decode(public_values.as_slice(), true).unwrap();
+        PublicValuesStruct::abi_decode_sequence(public_values.as_slice(), true).unwrap();
 
     // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
     assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
@@ -999,17 +1043,43 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             .skip_simulation(true)
             .run()
             .unwrap();
-        proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+        proof.save("test-data/poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
-        proof.save("poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+        proof.save("test-data/poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+
+        let blockspace_allocation_encoded = (
+            preconf_b.allocation.gas_limit,
+            preconf_b.allocation.sender,
+            preconf_b.allocation.recipient,
+            preconf_b.allocation.deposit,
+            preconf_b.allocation.tip,
+            preconf_b.allocation.target_slot,
+            preconf_b.allocation.blob_count as u64,
+        )
+            .abi_encode_sequence();
+
+        let mut tx_bytes = Vec::new();
+        preconf_b.clone().transaction.unwrap().encode_2718(&mut tx_bytes);
+        let tx_encoded = format!("0x{}", hex::encode(&tx_bytes));
+
+        let preconf_b_encoded = (
+            hex::encode(blockspace_allocation_encoded),
+            hex::encode(preconf_b.alloc_sig.as_bytes()),
+            tx_encoded,
+            preconf_b.signer,
+            chain_id,
+        )
+            .abi_encode_sequence();
 
         let test_data = TestDataPreconfRequestTypeB {
             vk: vk.bytes32(),
             proof: hex::encode(proof.bytes()),
             public_values: hex::encode(public_values.as_slice()),
             preconf_request: preconf_b,
+            abi_encoded_preconf_request: hex::encode(preconf_b_encoded),
+            genesis_time,
         };
 
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();

@@ -12,6 +12,8 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { ISP1Verifier } from "@sp1-contracts/ISP1Verifier.sol";
 
+import { PreconfRequestLib } from "./libs/PreconfRequestLib.sol";
+
 contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
@@ -121,16 +123,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         // We abi encode the preconfRequestAType to store it in the challenge struct
         bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
 
-        bytes32 dataHash = keccak256(
-            abi.encode(
-                preconfRequestAType.tipTx,
-                preconfRequestAType.txs,
-                uint256(preconfRequestAType.slot),
-                uint256(preconfRequestAType.sequenceNum),
-                preconfRequestAType.signer,
-                uint256(block.chainid)
-            )
-        );
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
         // Recover the signer from the challenge ID and signature
         address signer = ECDSA.recover(dataHash, signature);
@@ -188,13 +182,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
 
         bytes memory encodedPreconfRequestBType = abi.encode(preconfRequestBType);
 
-        // TODO: This probably needs the hash of the rawTx
-        // TODO: Probably also need to call MessageHashUtils-toEthSignedMessageHash
-        bytes32 dataHash = keccak256(
-            abi.encode(
-                preconfRequestBType.blockspaceAllocation, preconfRequestBType.rawTx
-            )
-        );
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
 
         // Recover the signer of the preconf request (revert if the signature is invalid)
         address signer = ECDSA.recover(dataHash, signature);
@@ -296,6 +285,11 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             // Decode preconf request from challenge data
             PreconfRequestAType memory preconfRequestAType =
                 abi.decode(challenge.commitmentData, (PreconfRequestAType));
+
+            // Verify the inclusion block slot matches the target slot
+            if (_getSlotFromTimestamp(proofBlockTimestamp) != preconfRequestAType.slot) {
+                revert TargetSlotDoesNotMatch();
+            }
         } else {
             // Decode preconf request from challenge data
             PreconfRequestBType memory preconfRequestBType =
@@ -322,6 +316,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             revert CommitmentSignerDoesNotMatch();
         }
 
+        challenges[id].status = ChallengeStatus.Failed;
         openChallengeCount--;
         emit ChallengeFailed(id);
     }
