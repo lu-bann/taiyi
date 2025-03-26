@@ -113,8 +113,6 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         .on_builtin(&config.execution_url)
         .await?;
 
-    let chain_id = provider.get_chain_id().await?;
-
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     let target_slot = available_slot.first().unwrap().slot;
@@ -313,7 +311,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     );
 
     // Generate proof using prover network
-    // #[cfg(feature = "generate-proof")]
+    #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
         let client = ProverClient::builder()
@@ -353,6 +351,8 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
             let hex_encoded_tx = format!("0x{}", hex::encode(&tx_bytes));
             preconf_txs.push(hex_encoded_tx);
         }
+
+        let chain_id = provider.get_chain_id().await?;
 
         // Save proof and public values in json format
         let test_data = TestDataPreconfRequestTypeA {
@@ -612,7 +612,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     );
 
     // Generate proof using prover network
-    #[cfg(feature = "generate-proof")]
+    // #[cfg(feature = "generate-proof")]
     {
         println!("Using the prover network.");
         let client = ProverClient::builder().network().private_key(&config.sp1_private_key).build();
@@ -641,11 +641,36 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             .save("poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
 
+        let mut tip_tx = Vec::new();
+        preconf_a.tip_transaction.encode_2718(&mut tip_tx);
+        let tip_tx_raw = format!("0x{}", hex::encode(&tip_tx));
+
+        let mut preconf_txs: Vec<String> = Vec::new();
+        for tx in &preconf_a.transactions {
+            let mut tx_bytes = Vec::new();
+            tx.encode_2718(&mut tx_bytes);
+            let hex_encoded_tx = format!("0x{}", hex::encode(&tx_bytes));
+            preconf_txs.push(hex_encoded_tx);
+        }
+
+        let chain_id = provider.get_chain_id().await?;
+
         let test_data = TestDataPreconfRequestTypeA {
             vk: vk.bytes32(),
             proof: hex::encode(proof.bytes()),
             public_values: hex::encode(public_values.as_slice()),
-            preconf_request: preconf_a,
+            preconf_request: preconf_a.clone(),
+            abi_encoded_preconf_request: hex::encode(
+                (
+                    tip_tx_raw,
+                    preconf_txs,
+                    preconf_a.target_slot,
+                    preconf_a.sequence_number.unwrap(),
+                    preconf_a.signer,
+                    chain_id,
+                )
+                    .abi_encode_sequence(),
+            ),
         };
 
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
