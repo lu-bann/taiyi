@@ -55,6 +55,7 @@ struct TestDataPreconfRequestTypeA {
     preconf_request: PreconfRequestTypeA,
     abi_encoded_preconf_request: String,
     genesis_time: u64,
+    taiyi_core: Address,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,6 +66,7 @@ struct TestDataPreconfRequestTypeB {
     preconf_request: PreconfRequestTypeB,
     abi_encoded_preconf_request: String,
     genesis_time: u64,
+    taiyi_core: Address,
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -342,11 +344,18 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
             PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
         )?)?,
     );
+
+    // gateway address
     let gateway_address = private_key_signer.address();
     stdin.write(&gateway_address);
 
+    // genesis time
     let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
+
+    // taiyi core address
+    let taiyi_core = config.taiyi_core;
+    stdin.write(&taiyi_core);
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -436,6 +445,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
                     .abi_encode_sequence(),
             ),
             genesis_time,
+            taiyi_core,
         };
 
         // Save test data in json format
@@ -635,11 +645,18 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
         )?)?,
     );
+
+    // gateway address
     let gateway_address = private_key_signer.address();
     stdin.write(&gateway_address);
 
+    // genesis time
     let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
+
+    // taiyi core address
+    let taiyi_core = config.taiyi_core;
+    stdin.write(&taiyi_core);
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -727,6 +744,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
                     .abi_encode_sequence(),
             ),
             genesis_time,
+            taiyi_core,
         };
 
         // Save test data in json format
@@ -1004,8 +1022,13 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let gateway_address = Address::from_str(PRECONFER_ADDRESS).unwrap();
     stdin.write(&gateway_address);
 
+    // genesis time
     let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
+
+    // taiyi core address
+    let taiyi_core = config.taiyi_core;
+    stdin.write(&taiyi_core);
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -1088,6 +1111,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             preconf_request: preconf_b,
             abi_encoded_preconf_request: hex::encode(preconf_b_encoded),
             genesis_time,
+            taiyi_core,
         };
 
         // Save test data in json format

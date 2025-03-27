@@ -18,9 +18,8 @@ interface ITaiyiInteractiveChallenger {
         address commitmentSigner;
         ChallengeStatus status;
         uint8 preconfType; // 0 - TypeA | 1 - TypeB
-        // TODO: Maybe store the commitment data instead of the whole preconf request
         bytes commitmentData; // abi encoded commitment data (PreconfRequestAType | PreconfRequestBType)
-        bytes signature; // signature over the commitment data
+        bytes signature; // signed digest of the commitment data
     }
 
     error TargetSlotNotInChallengeCreationWindow();

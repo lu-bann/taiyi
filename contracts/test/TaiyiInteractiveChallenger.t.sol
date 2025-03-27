@@ -46,7 +46,9 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.deal(preconfer, 100 ether);
 
         parameterManager = new TaiyiParameterManager();
-        parameterManager.initialize(owner, 1, 64, 256, 0, 12);
+        parameterManager.initialize(
+            owner, 1, 64, 256, 0, 12, 0x0000000000000000000000000000000000000000
+        );
 
         taiyiInteractiveChallenger = new TaiyiInteractiveChallenger(
             owner, verifierAddress, bytes32(0x0), address(parameterManager)
@@ -715,9 +717,11 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
         uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
         vm.startPrank(owner);
         taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
         parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -785,9 +789,11 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
         uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
         vm.startPrank(owner);
         taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
         parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -855,9 +861,11 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
         uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
         vm.startPrank(owner);
         taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
         parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -885,7 +893,6 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        // EXPECTED HASH: 0x2ce44e62c1e10a4bb8dfbe6aad3cad0238e5798ddb0b1f7c2daf29e176ce9930
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
 

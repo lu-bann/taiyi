@@ -36,4 +36,8 @@ interface ITaiyiParameterManager {
     /// @notice Set the slot time.
     /// @param _slotTime The slot time.
     function setSlotTime(uint256 _slotTime) external;
+
+    /// @notice Set the address of the TaiyiCore contract.
+    /// @param _taiyiCore The address of the TaiyiCore contract.
+    function setTaiyiCore(address _taiyiCore) external;
 }

@@ -29,6 +29,7 @@ pub fn main() {
     let previous_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the previous block
     let gateway_address = sp1_zkvm::io::read::<Address>(); // address of the gateway
     let genesis_timestamp = sp1_zkvm::io::read::<u64>(); // genesis timestamp
+    let taiyi_core = sp1_zkvm::io::read::<Address>(); // taiyi core address
 
     let inclusion_block_header = serde_json::from_str::<Header>(&inclusion_block_header).unwrap();
     let previous_block_header = serde_json::from_str::<Header>(&previous_block_header).unwrap();
@@ -81,13 +82,15 @@ pub fn main() {
                 storage_root: account_merkle_proof.storage_hash,
                 code_hash: account_merkle_proof.code_hash,
             };
+
+            // Verify the account state
             verify_proof(
                 previous_block_header.state_root,
                 Nibbles::unpack(keccak256(account_key)),
                 Some(alloy_rlp::encode(account)),
                 &account_merkle_proof.account_proof,
             )
-            .unwrap(); // verify the account state
+            .unwrap();
 
             if account.nonce > tx.nonce() {
                 // Commit the public values of the program.
@@ -152,13 +155,9 @@ pub fn main() {
 
         // Anchor/sponsorship tx verification (correct smart contract call and data passed)
         let anchor_tx = preconf_req_a.anchor_tx;
-        // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
 
         // Check that the anchor tx to field matches the taiyi core address
-        assert!(
-            anchor_tx.to().unwrap()
-                == Address::from_str("0x1127a1e8248ae0ee1d5f1c7094ffd7dc37cbe714").unwrap()
-        );
+        assert!(anchor_tx.to().unwrap() == taiyi_core);
 
         let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input(), true).unwrap();
         let mut senders_found: HashSet<Address> = HashSet::new();
@@ -218,13 +217,15 @@ pub fn main() {
             storage_root: account_merkle_proof.storage_hash,
             code_hash: account_merkle_proof.code_hash,
         };
+
+        // Verify the account state
         verify_proof(
             previous_block_header.state_root,
             Nibbles::unpack(keccak256(account_key)),
             Some(alloy_rlp::encode(account)),
             &account_merkle_proof.account_proof,
         )
-        .unwrap(); // verify the account state
+        .unwrap();
 
         if account.nonce > tx.nonce() {
             // Commit the public values of the program.
@@ -234,7 +235,7 @@ pub fn main() {
 
         if tx.is_eip4844() {
             let tx_eip4844 = tx.as_eip4844().unwrap();
-            // check balance
+            // Check balance
             if account.balance
                 < U256::from(
                     inclusion_block_header.blob_fee().unwrap()
@@ -247,7 +248,7 @@ pub fn main() {
                 return;
             }
         } else {
-            // check balance
+            // Check balance
             if account.balance
                 < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
             {
@@ -258,8 +259,7 @@ pub fn main() {
         }
 
         // User transaction and sponsorship tx inclusion
-
-        // only verify the user tx and the sponsorship tx
+        // Only verify the user tx and the sponsorship tx
         assert!(preconf_req_b.tx_merkle_proof.len() == 2);
 
         let memdb = Arc::new(MemoryDB::new(true));
@@ -289,12 +289,8 @@ pub fn main() {
         // Sponsorship tx verification (correct smart contract call and data passed)
         let sponsorship_tx = preconf_req_b.sponsorship_tx;
 
-        // TODO: Check if correct
-        // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
-        assert!(
-            sponsorship_tx.to().unwrap()
-                == Address::from_str("0x1127a1e8248ae0ee1d5f1c7094ffd7dc37cbe714").unwrap()
-        ); // taiyi core address
+        // TODO: Check if this is correct (aka. should the sponsorship tx be to the taiyi core address?)
+        assert!(sponsorship_tx.to().unwrap() == taiyi_core); // taiyi core address
         let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
         let mut sender_found = false;
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())

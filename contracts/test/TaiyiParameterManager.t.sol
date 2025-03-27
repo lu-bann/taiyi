@@ -19,6 +19,7 @@ contract TaiyiParameterManagerTest is Test {
     uint256 internal ownerPrivatekey;
     uint256 internal proxyAdminPrivatekey;
     uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1_655_733_600;
+    address internal TAIYI_CORE_ADDRESS = 0x1127A1E8248ae0Ee1D5F1C7094fFD7DC37Cbe714;
 
     TaiyiParameterManager taiyiParameterManager;
 
@@ -41,7 +42,8 @@ contract TaiyiParameterManagerTest is Test {
                 64,
                 256,
                 SEPOLIA_GENESIS_TIMESTAMP,
-                12
+                12,
+                TAIYI_CORE_ADDRESS
             )
         );
         taiyiParameterManager = TaiyiParameterManager(address(taiyiParameterManagerProxy));
@@ -59,6 +61,7 @@ contract TaiyiParameterManagerTest is Test {
         assertEq(taiyiParameterManager.challengeCreationWindow(), 256);
         assertEq(taiyiParameterManager.genesisTimestamp(), SEPOLIA_GENESIS_TIMESTAMP);
         assertEq(taiyiParameterManager.slotTime(), 12);
+        assertEq(taiyiParameterManager.taiyiCore(), TAIYI_CORE_ADDRESS);
     }
 
     // =========================================
@@ -131,5 +134,43 @@ contract TaiyiParameterManagerTest is Test {
         vm.prank(user);
         vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
         taiyiParameterManager.setGenesisTimestamp(1_616_508_000);
+    }
+
+    // =========================================
+    //  Test: Owner can set slot time
+    // =========================================
+    function testOwnerCanSetSlotTime() public {
+        vm.prank(owner);
+        taiyiParameterManager.setSlotTime(42);
+        assertEq(taiyiParameterManager.slotTime(), 42);
+    }
+
+    // =========================================
+    //  Test: User is not authorized to set slot time
+    // =========================================
+    function testUserCannotSetSlotTime() public {
+        vm.prank(user);
+        vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
+        taiyiParameterManager.setSlotTime(42);
+    }
+
+    // =========================================
+    //  Test: Owner can set taiyi core address
+    // =========================================
+    function testOwnerCanSetTaiyiCoreAddress() public {
+        vm.prank(owner);
+        taiyiParameterManager.setTaiyiCore(0x7293b38a3162e425136d96225ee8984468372D6A);
+        assertEq(
+            taiyiParameterManager.taiyiCore(), 0x7293b38a3162e425136d96225ee8984468372D6A
+        );
+    }
+
+    // =========================================
+    //  Test: User is not authorized to set taiyi core address
+    // =========================================
+    function testUserCannotSetTaiyiCoreAddress() public {
+        vm.prank(user);
+        vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
+        taiyiParameterManager.setTaiyiCore(0x7293b38a3162e425136d96225ee8984468372D6A);
     }
 }

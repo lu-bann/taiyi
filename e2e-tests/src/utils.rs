@@ -100,6 +100,7 @@ impl TestConfig {
             .map(|res| res.parse::<u16>().expect("TAIYI_PORT is not a valid port"))
             .unwrap_or_else(|_| get_available_port());
 
+        // FIXME: This does not work correctly -> it does not read the variable from the `.env.ci` file
         let sp1_private_key = std::env::var("SP1_PRIVATE_KEY").unwrap_or_else(|_| "".to_string()); // Only required for the `generate-proof` feature
 
         let config_path = format!("{}/{}/config.yaml", working_dir, "el_cl_genesis_data");
