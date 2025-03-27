@@ -43,6 +43,7 @@ pub fn main() {
 
         let chain_id = txs.first().unwrap().chain_id().unwrap();
 
+        // Check that the gateway address matches the preconf req type a signer
         assert!(
             gateway_address
                 == preconf_req_a
@@ -50,7 +51,7 @@ pub fn main() {
                     .preconf_sig
                     .recover_address_from_prehash(&preconf_req_a.preconf.digest(chain_id))
                     .unwrap()
-        ); // check that the gateway address matches the preconf req type a signer
+        );
 
         preconf_sig = preconf_req_a.preconf.preconf_sig.as_bytes().to_vec();
 
@@ -73,7 +74,9 @@ pub fn main() {
         for (index, tx) in txs.iter().enumerate() {
             let account_merkle_proof = preconf_req_a.account_merkle_proof[index].clone();
             let account_key = account_merkle_proof.address;
-            assert_eq!(account_key, tx.recover_signer().unwrap()); // check that the account in proof matches the signer of the transaction
+
+            // Check that the account in proof matches the signer of the transaction
+            assert_eq!(account_key, tx.recover_signer().unwrap());
 
             let account = TrieAccount {
                 nonce: account_merkle_proof.nonce,
@@ -97,7 +100,7 @@ pub fn main() {
 
             if tx.is_eip4844() {
                 let tx_eip4844 = tx.as_eip4844().unwrap();
-                // check balance
+                // Check balance
                 if account.balance
                     < U256::from(
                         inclusion_block_header.blob_fee().unwrap()
@@ -111,7 +114,7 @@ pub fn main() {
                     return;
                 }
             } else {
-                // check balance
+                // Check balance
                 if account.balance
                     < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
                 {
@@ -153,10 +156,13 @@ pub fn main() {
         // Anchor/sponsorship tx verification (correct smart contract call and data passed)
         let anchor_tx = preconf_req_a.anchor_tx;
         // TODO: How to handle different contract addresses for different environments/chains (e2e-tests, testnet, mainnet)?
+
+        // Check that the anchor tx to field matches the taiyi core address
         assert!(
             anchor_tx.to().unwrap()
                 == Address::from_str("0x1127a1e8248ae0ee1d5f1c7094ffd7dc37cbe714").unwrap()
-        ); // taiyi core address
+        );
+
         let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input(), true).unwrap();
         let mut senders_found: HashSet<Address> = HashSet::new();
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
@@ -179,6 +185,7 @@ pub fn main() {
         let tx = preconf_req_b.preconf.clone().transaction.unwrap();
         let chain_id = tx.chain_id().unwrap();
 
+        // Check that the gateway address matches the preconf req type b signer
         assert!(
             gateway_address
                 == preconf_req_b
@@ -186,7 +193,7 @@ pub fn main() {
                     .preconf_sig
                     .recover_address_from_prehash(&preconf_req_b.preconf.digest(chain_id))
                     .unwrap()
-        ); // check that the gateway address matches the preconf req type a signer
+        );
 
         preconf_sig = preconf_req_b.preconf.preconf_sig.as_bytes().to_vec();
 
@@ -208,7 +215,9 @@ pub fn main() {
         // Account verification
         let account_merkle_proof = preconf_req_b.account_merkle_proof.clone();
         let account_key = account_merkle_proof.address;
-        assert_eq!(account_key, tx.recover_signer().unwrap()); // check that the account in proof matches the signer of the transaction
+
+        // Check that the account in proof matches the signer of the transaction
+        assert_eq!(account_key, tx.recover_signer().unwrap());
 
         let account = TrieAccount {
             nonce: account_merkle_proof.nonce,
