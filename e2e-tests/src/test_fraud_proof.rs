@@ -102,6 +102,42 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 #[ignore]
+async fn verify_poi_preconf_type_a_multiple_txs_included_proof() -> eyre::Result<()> {
+    // Read proof from file
+    let proof = SP1ProofWithPublicValues::load(
+        "test-data/poi-preconf-type-a-multiple-txs-included-proof.bin",
+    )
+    .unwrap();
+
+    // Read json data
+    let test_data =
+        fs::read_to_string("test-data/poi-preconf-type-a-multiple-txs-included-test-data.json")
+            .unwrap();
+    let test_data: TestDataPreconfRequestTypeA = serde_json::from_str(&test_data).unwrap();
+
+    let (taiyi_handle, _) = setup_env().await?;
+
+    let public_values = hex::decode(test_data.public_values).unwrap();
+    let vk = test_data.vk;
+
+    // Write the proof, public values, and vkey hash to the input stream.
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(proof.bytes());
+    stdin.write_vec(public_values);
+    stdin.write(&vk);
+
+    // Verify proof
+    let client = ProverClient::builder().cpu().build();
+    let (_, report) = client.execute(ELF_VERIFIER, &stdin).run().unwrap();
+    println!("executed plonk program with {} cycles", report.total_instruction_count());
+    println!("{}", report);
+
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[ignore]
 async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     // Read proof from file
     let proof =
@@ -137,7 +173,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
 
 #[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-// #[ignore]
+#[ignore]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -266,7 +302,6 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         target_slot,
         sequence_number: Some(1),
         signer: signer.address(),
-        preconf_sig: preconf_response.commitment.unwrap(),
     };
 
     let preconf_type_a = PreconfTypeA {
@@ -276,8 +311,13 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         account_merkle_proof: vec![account_merkle_proof],
     };
 
+    // serde serialized preconf request type a
     let preconf_a_serialized = serde_json::to_string(&preconf_type_a).unwrap();
     stdin.write(&preconf_a_serialized);
+
+    // hex-encoded preconfirmation signature
+    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    stdin.write(&preconf_signature);
 
     // is type a
     stdin.write(&true);
@@ -555,7 +595,6 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         target_slot,
         sequence_number: Some(1),
         signer: signer.address(),
-        preconf_sig: preconf_response.commitment.unwrap(),
     };
 
     let preconf_type_a = PreconfTypeA {
@@ -565,8 +604,13 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         account_merkle_proof: account_proofs,
     };
 
+    // serde serialized preconf request type a
     let preconf_a_serialized = serde_json::to_string(&preconf_type_a).unwrap();
     stdin.write(&preconf_a_serialized);
+
+    // hex-encoded preconfirmation signature
+    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    stdin.write(&preconf_signature);
 
     // is type a
     stdin.write(&true);
@@ -687,8 +731,11 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
         // Save test data in json format
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
-        fs::write("poi-preconf-type-a-multiple-txs-included-test-data.json", test_data_serialized)
-            .expect("saving test data failed");
+        fs::write(
+            "test-data/poi-preconf-type-a-multiple-txs-included-test-data.json",
+            test_data_serialized,
+        )
+        .expect("saving test data failed");
     }
 
     // Optionally, cleanup when done
@@ -919,7 +966,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         .unwrap(),
         transaction: Some(user_transaction.into()),
         signer: signer.address(),
-        preconf_sig: preconf_response.commitment.unwrap(),
     };
 
     let preconf_type_b = PreconfTypeB {
@@ -929,9 +975,13 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         account_merkle_proof,
     };
 
-    // Serialize the preconf_type_b
+    // serde serialized preconf request type b
     let preconf_type_b_serialized = serde_json::to_string(&preconf_type_b).unwrap();
     stdin.write(&preconf_type_b_serialized);
+
+    // hex-encoded preconfirmation signature
+    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    stdin.write(&preconf_signature);
 
     // is type a
     stdin.write(&false);
@@ -1042,7 +1092,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
         // Save test data in json format
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
-        fs::write("poi-preconf-type-b-included-test-data.json", test_data_serialized)
+        fs::write("test-data/poi-preconf-type-b-included-test-data.json", test_data_serialized)
             .expect("saving test data failed");
     }
 

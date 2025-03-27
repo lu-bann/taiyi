@@ -11,7 +11,6 @@ pub struct PreconfRequestTypeA {
     pub target_slot: u64,
     pub sequence_number: Option<u64>,
     pub signer: Address,
-    pub preconf_sig: PrimitiveSignature,
 }
 
 impl PreconfRequestTypeA {
@@ -97,7 +96,6 @@ pub struct PreconfRequestTypeB {
     pub alloc_sig: PrimitiveSignature,
     pub transaction: Option<TxEnvelope>,
     pub signer: Address,
-    pub preconf_sig: PrimitiveSignature, /* TODO: Should be removed and moved as a separate field to the zkvm program */
 }
 
 impl PreconfRequestTypeB {

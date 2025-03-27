@@ -492,7 +492,7 @@ pub async fn generate_type_a_request_with_multiple_txs(
     let nonce = provider.get_transaction_count(sender).await?;
     let tip_transaction = TransactionRequest::default()
         .with_from(sender)
-        .with_value(U256::from(fee.gas_fee * 21_000 * 2))
+        .with_value(U256::from(fee.gas_fee * 21_000 * (count + 1) as u128))
         .with_nonce(nonce)
         .with_gas_limit(21_000)
         .with_to(sender)
