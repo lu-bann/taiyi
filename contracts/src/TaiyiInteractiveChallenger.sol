@@ -40,6 +40,8 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
     /// @notice Count of open challenges.
     uint256 public openChallengeCount;
 
+    address underwriterAddress;
+
     constructor(
         address _initialOwner,
         address _verifierGateway,

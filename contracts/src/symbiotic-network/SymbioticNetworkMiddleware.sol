@@ -42,8 +42,8 @@ import { IVetoSlasher } from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import { IVault } from "@symbiotic/interfaces/vault/IVault.sol";
 
 /// @title SymbioticNetworkMiddleware
-/// @notice A unified middleware contract that manages both gateway and validator networks in the Symbiotic ecosystem
-/// @dev Implements subnetwork functionality to handle both gateway and validator operators
+/// @notice A unified middleware contract that manages both underwriter and validator networks in the Symbiotic ecosystem
+/// @dev Implements subnetwork functionality to handle both underwriter and validator operators
 contract SymbioticNetworkMiddleware is
     KeyManagerAddress,
     EpochCapture,
@@ -64,7 +64,7 @@ contract SymbioticNetworkMiddleware is
     IProposerRegistry public proposerRegistry;
 
     uint96 public constant VALIDATOR_SUBNETWORK = 1;
-    uint96 public constant GATEWAY_SUBNETWORK = 2;
+    uint96 public constant UNDERWRITER_SUBNETWORK = 2;
 
     struct SlashParams {
         uint48 timestamp;
@@ -120,14 +120,14 @@ contract SymbioticNetworkMiddleware is
 
     function setupSubnetworks() external {
         super.registerSubnetwork(VALIDATOR_SUBNETWORK);
-        super.registerSubnetwork(GATEWAY_SUBNETWORK);
+        super.registerSubnetwork(UNDERWRITER_SUBNETWORK);
     }
 
     /// @notice Register a new operator with the specified key, vault, and subnetwork
     /// @param key The address key of the operator
     /// @param vault The vault address associated with the operator
     /// @param signature The signature proving ownership of the key
-    /// @param subnetwork The subnetwork identifier (VALIDATOR_SUBNETWORK or GATEWAY_SUBNETWORK)
+    /// @param subnetwork The subnetwork identifier (VALIDATOR_SUBNETWORK or UNDERWRITER_SUBNETWORK)
     /// @dev Calls BaseOperators._registerOperatorImpl
     function registerOperator(
         bytes memory key,
@@ -138,7 +138,7 @@ contract SymbioticNetworkMiddleware is
         external
     {
         require(
-            subnetwork == VALIDATOR_SUBNETWORK || subnetwork == GATEWAY_SUBNETWORK,
+            subnetwork == VALIDATOR_SUBNETWORK || subnetwork == UNDERWRITER_SUBNETWORK,
             "Invalid subnetwork"
         );
 
@@ -148,7 +148,7 @@ contract SymbioticNetworkMiddleware is
         IProposerRegistry.RestakingServiceType serviceType = subnetwork
             == VALIDATOR_SUBNETWORK
             ? IProposerRegistry.RestakingServiceType.SYMBIOTIC_VALIDATOR
-            : IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY;
+            : IProposerRegistry.RestakingServiceType.SYMBIOTIC_UNDERWRITER;
 
         proposerRegistry.registerOperator(msg.sender, serviceType, bytes(""));
     }
@@ -275,9 +275,9 @@ contract SymbioticNetworkMiddleware is
 
             uint256 validatorPower =
                 super._getOperatorPower(operator, vault, VALIDATOR_SUBNETWORK);
-            uint256 gatewayPower =
-                super._getOperatorPower(operator, vault, GATEWAY_SUBNETWORK);
-            stakedAmounts[i] = validatorPower + gatewayPower;
+            uint256 underwriterPower =
+                super._getOperatorPower(operator, vault, UNDERWRITER_SUBNETWORK);
+            stakedAmounts[i] = validatorPower + underwriterPower;
         }
 
         return (vaults, collateralTokens, stakedAmounts);

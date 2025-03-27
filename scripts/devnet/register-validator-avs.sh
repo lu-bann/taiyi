@@ -48,7 +48,7 @@ cargo run --bin taiyi-cli register-validators \
     --taiyi-validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS \
     --validator-pubkeys $PRE_REGISTERED_VALIDATOR_KEYS \
     --pod-owners $POD_OWNERS \
-    --delegated-gateways "$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY"
+    --delegated-gateways "$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY"
 
 
 # check whether the validators are registered in taiyi validator avs
@@ -63,4 +63,3 @@ cargo run --bin taiyi-cli get-strategies-stakes \
     --execution-rpc-url $EXECUTION_URL \
     --operator-address $VALIDATOR_OPERATOR_ADDRESS \
     --validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS
-

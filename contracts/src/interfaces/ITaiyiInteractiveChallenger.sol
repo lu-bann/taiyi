@@ -79,7 +79,7 @@ interface ITaiyiInteractiveChallenger {
     /// @param id The id of the expired challenge.
     function resolveExpiredChallenge(bytes32 id) external;
 
-    /// @notice Set the address of the SP1 gateway contract.
+    /// @notice Set the address of the SP1 underwriter contract.
     /// @param _verifierGateway The address of the SP1 gateway contract.
     function setVerifierGateway(address _verifierGateway) external;
 

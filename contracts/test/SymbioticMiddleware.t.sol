@@ -11,7 +11,7 @@ import { POCBaseTest } from "@symbiotic-test/POCBase.t.sol";
 contract SymbioticMiddlewareTest is POCBaseTest {
     SymbioticNetworkMiddleware middleware;
     uint96 constant VALIDATOR_SUBNETWORK = 1;
-    uint96 constant GATEWAY_SUBNETWORK = 2;
+    uint96 constant UNDERWRITER_SUBNETWORK = 2;
     TaiyiProposerRegistry registry;
 
     function setUp() public virtual override {

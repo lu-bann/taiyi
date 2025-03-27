@@ -4,7 +4,7 @@ source "$(dirname "$0")/config.sh"
 
 cargo run --bin taiyi-cli delegate \
     --relay-url $RELAY_URL \
-    --gateway-pubkey $GATEWAY_BLS_PUBLIC_KEY \
+    --underwriter-pubkey $UNDERWRITER_BLS_PUBLIC_KEY \
     --network $WORKING_DIR/el_cl_genesis_data \
     --action delegate \
     local-keystore \

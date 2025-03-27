@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use taiyi_cmd::{
     initialize_tracing_log, DelegateCommand, DepositCommand, DeregisterValidatorAVSCommand,
     GetStrategiesStakesCommand, GetValidatorsForOperatorsCommand, OperatorInfoCommand,
-    RegisterGatewayAVSCommand, RegisterValidatorAVSCommand, RegisterValidatorsCommand,
+    RegisterUnderwriterAVSCommand, RegisterValidatorAVSCommand, RegisterValidatorsCommand,
 };
 
 #[derive(Debug, Parser)]
@@ -40,8 +40,8 @@ pub enum Commands {
     #[command(name = "get-validators-for-operators")]
     GetValidatorsForOperators(GetValidatorsForOperatorsCommand),
 
-    #[command(name = "register-gateway-avs")]
-    RegisterGatewayAvs(RegisterGatewayAVSCommand),
+    #[command(name = "register-underwriter-avs")]
+    RegisterUnderwriterAvs(RegisterUnderwriterAVSCommand),
 }
 
 fn main() -> eyre::Result<()> {
@@ -59,7 +59,7 @@ fn main() -> eyre::Result<()> {
         Commands::RegisterValidators(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::OperatorInfo(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::GetStrategiesStakes(cmd) => runtime.block_on(async { cmd.execute().await }),
-        Commands::RegisterGatewayAvs(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::GetValidatorsForOperators(cmd) => runtime.block_on(async { cmd.execute().await }),
+        Commands::RegisterUnderwriterAvs(cmd) => runtime.block_on(async { cmd.execute().await }),
     }
 }

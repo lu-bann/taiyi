@@ -81,17 +81,17 @@ contract TaiyiCoreTest is Test {
 
         (v, r, s) =
             vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
-        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedRawTx = abi.encodePacked(r, s, v);
 
         preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
             blockspaceAllocationSignature: blockspaceAllocationSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            underwriterSignedBlockspaceAllocation: underwriterSignedBlockspaceAllocation,
             rawTx: rawTx,
-            gatewaySignedRawTx: gatewaySignedRawTx
+            underwriterSignedRawTx: underwriterSignedRawTx
         });
     }
 
@@ -107,18 +107,18 @@ contract TaiyiCoreTest is Test {
 
         (v, r, s) =
             vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         bytes memory rawTx = new bytes(0);
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
-        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedRawTx = abi.encodePacked(r, s, v);
 
         preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
             blockspaceAllocationSignature: blockspaceAllocationSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            underwriterSignedBlockspaceAllocation: underwriterSignedBlockspaceAllocation,
             rawTx: rawTx,
-            gatewaySignedRawTx: gatewaySignedRawTx
+            underwriterSignedRawTx: underwriterSignedRawTx
         });
     }
 
