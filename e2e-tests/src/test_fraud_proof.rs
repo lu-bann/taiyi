@@ -256,7 +256,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         root: inclusion_block.header.transactions_root,
     });
 
-    // sp1 part
+    // SP1 part
     let mut stdin = SP1Stdin::new();
 
     // preconf type a
@@ -398,6 +398,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
             genesis_time,
         };
 
+        // Save test data in json format
         let test_data_json = serde_json::to_string(&test_data).unwrap();
         fs::write("test-data/poi-preconf-type-a-included-test-data.json", test_data_json).unwrap();
     }
@@ -544,7 +545,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         });
     }
 
-    // sp1 part
+    // SP1 part
     let mut stdin = SP1Stdin::new();
 
     // preconf type a
@@ -642,12 +643,11 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             .skip_simulation(true)
             .run()
             .unwrap();
-        proof
-            .save("test-data/poi-preconf-type-a-multiple-txs-included-proof.bin")
-            .expect("saving proof failed");
+
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
+        // Save proof in binary format
         proof
             .save("test-data/poi-preconf-type-a-multiple-txs-included-proof.bin")
             .expect("saving proof failed");
@@ -685,6 +685,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
             genesis_time,
         };
 
+        // Save test data in json format
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
         fs::write("poi-preconf-type-a-multiple-txs-included-test-data.json", test_data_serialized)
             .expect("saving test data failed");
@@ -878,7 +879,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         root: inclusion_block.header.transactions_root,
     });
 
-    // sp1 part
+    // SP1 part
     let mut stdin = SP1Stdin::new();
 
     // preconf type b
@@ -999,10 +1000,11 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             .skip_simulation(true)
             .run()
             .unwrap();
-        proof.save("test-data/poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
+
         let duration = start.elapsed();
         println!("Proof generation time: {:?}", duration);
 
+        // Save proof in binary format
         proof.save("test-data/poi-preconf-type-b-included-proof.bin").expect("saving proof failed");
 
         let blockspace_allocation_encoded = (
@@ -1038,6 +1040,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
             genesis_time,
         };
 
+        // Save test data in json format
         let test_data_serialized = serde_json::to_string(&test_data).unwrap();
         fs::write("poi-preconf-type-b-included-test-data.json", test_data_serialized)
             .expect("saving test data failed");
