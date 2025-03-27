@@ -8749,7 +8749,6 @@ dependencies = [
  "alloy-sol-types",
  "alloy-trie",
  "eth_trie 0.5.0",
- "hex",
  "serde_json",
  "sp1-zkvm",
  "taiyi-zkvm-types",
