@@ -190,26 +190,15 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     let anchor_tx = txs.get(0).unwrap();
     let tip_tx = txs.get(1).unwrap();
-    let user_tx = txs.get(2).unwrap(); // TODO: Change to array
+    let user_tx = txs.get(2).unwrap();
 
     wait_until_deadline_of_slot(&config, target_slot + 2).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
-    let anchor_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&anchor_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
-
-    let user_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&user_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
-
-    let tip_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&tip_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
+    let anchor_transaction = provider.get_transaction_by_hash(*anchor_tx.tx_hash()).await?.unwrap();
+    let user_transaction = provider.get_transaction_by_hash(*user_tx.tx_hash()).await?.unwrap();
+    let tip_transaction = provider.get_transaction_by_hash(*tip_tx.tx_hash()).await?.unwrap();
 
     let inclusion_block = provider
         .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
@@ -491,25 +480,13 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
-    let anchor_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&anchor_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
-
+    let anchor_transaction = provider.get_transaction_by_hash(*anchor_tx.tx_hash()).await?.unwrap();
     let mut user_transactions = Vec::new();
-
     for tx in user_txs {
-        let user_transaction = provider
-            .get_transaction_by_hash(B256::from_str(&tx.tx_hash().to_string()).unwrap())
-            .await?
-            .unwrap();
+        let user_transaction = provider.get_transaction_by_hash(*tx.tx_hash()).await?.unwrap();
         user_transactions.push(user_transaction);
     }
-
-    let tip_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&tip_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
+    let tip_transaction = provider.get_transaction_by_hash(*tip_tx.tx_hash()).await?.unwrap();
 
     let inclusion_block = provider
         .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
@@ -844,20 +821,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
-    let user_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&user_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
-
-    let get_tip_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&tip_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
-
-    let sponsorship_transaction = provider
-        .get_transaction_by_hash(B256::from_str(&sponsorship_tx.tx_hash().to_string()).unwrap())
-        .await?
-        .unwrap();
+    let user_transaction = provider.get_transaction_by_hash(*user_tx.tx_hash()).await?.unwrap();
+    let get_tip_transaction = provider.get_transaction_by_hash(*tip_tx.tx_hash()).await?.unwrap();
+    let sponsorship_transaction =
+        provider.get_transaction_by_hash(*sponsorship_tx.tx_hash()).await?.unwrap();
 
     let inclusion_block = provider
         .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
