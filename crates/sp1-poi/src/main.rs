@@ -5,7 +5,7 @@ use core::panic;
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use alloy_consensus::{Header, Transaction, TxEnvelope};
-use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB};
+use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB, merge::SLOT_DURATION_SECS};
 use alloy_primitives::{keccak256, Address, B256, U256};
 use alloy_sol_types::{SolCall, SolValue};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
@@ -14,10 +14,8 @@ use taiyi_zkvm_types::{types::*, utils::*};
 
 sp1_zkvm::entrypoint!(main);
 
-const SLOT_TIME: u64 = 12;
-
 pub fn get_slot_from_timestamp(timestamp: u64, genesis_timestamp: u64) -> u64 {
-    (timestamp - genesis_timestamp) / SLOT_TIME
+    (timestamp - genesis_timestamp) / SLOT_DURATION_SECS
 }
 
 pub fn main() {
