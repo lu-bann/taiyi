@@ -55,8 +55,8 @@ taiyi-common = { path = "crates/common" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
-beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "8fbd8a53dca0170bedeca40a92ee70fd48c4615b" }
+ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
+beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
 commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
