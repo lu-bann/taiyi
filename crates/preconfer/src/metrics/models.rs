@@ -8,35 +8,35 @@ use prometheus::{
 use super::provider::MetricsProvider;
 
 lazy_static! {
-    pub static ref TAIYI_GATEWAY_METRICS: Registry =
-        Registry::new_custom(Some("taiyi_gateway".to_string()), None)
+    pub static ref TAIYI_UNDERWRITER_METRICS: Registry =
+        Registry::new_custom(Some("taiyi_underwriter".to_string()), None)
             .expect("fail to create registry");
     static ref REQUEST_COUNTS: IntCounterVec = register_int_counter_vec_with_registry!(
         "request_count_total",
         "Count of requests",
         &["endpoint"],
-        &TAIYI_GATEWAY_METRICS
+        &TAIYI_UNDERWRITER_METRICS
     )
     .unwrap();
     static ref REQUEST_STATUS: IntCounterVec = register_int_counter_vec_with_registry!(
         "request_status_total",
         "Count of status codes",
         &["endpoint", "http_status_code"],
-        &TAIYI_GATEWAY_METRICS
+        &TAIYI_UNDERWRITER_METRICS
     )
     .unwrap();
     static ref REQUEST_LATENCY: HistogramVec = register_histogram_vec_with_registry!(
         "request_latency_sec",
         "Latency of requests",
         &["endpoint"],
-        &TAIYI_GATEWAY_METRICS
+        &TAIYI_UNDERWRITER_METRICS
     )
     .unwrap();
     static ref REQUEST_SIZE: IntCounterVec = register_int_counter_vec_with_registry!(
         "request_size_bytes",
         "Size of requests",
         &["endpoint"],
-        &TAIYI_GATEWAY_METRICS
+        &TAIYI_UNDERWRITER_METRICS
     )
     .unwrap();
 }
@@ -65,10 +65,10 @@ pub struct PreconferMetricsService;
 
 impl PreconferMetricsService {
     pub fn register_metric(c: Box<dyn Collector>) {
-        TAIYI_GATEWAY_METRICS.register(c).expect("failed to register metric");
+        TAIYI_UNDERWRITER_METRICS.register(c).expect("failed to register metric");
     }
 
     pub fn init_metrics(server_port: u16) -> Result<()> {
-        MetricsProvider::load_and_run(server_port, TAIYI_GATEWAY_METRICS.clone())
+        MetricsProvider::load_and_run(server_port, TAIYI_UNDERWRITER_METRICS.clone())
     }
 }

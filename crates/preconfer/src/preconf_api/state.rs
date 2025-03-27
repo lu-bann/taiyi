@@ -64,7 +64,7 @@ where
         alloc_sig: PrimitiveSignature,
         signer: Address,
     ) -> Result<Uuid, RpcError> {
-        // Check if the gateway is delegated for the target slot
+        // Check if the underwriter is delegated for the target slot
         if !self.network_state.contains_slot(request.target_slot) {
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }

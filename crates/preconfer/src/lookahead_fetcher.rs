@@ -18,7 +18,7 @@ use crate::{
 pub struct LookaheadFetcher {
     beacon_client: Client,
     network_state: NetworkState,
-    gateway_pubkey: BlsPublicKey,
+    underwriter_pubkey: BlsPublicKey,
     relay_client: RelayClient,
 }
 
@@ -26,15 +26,15 @@ impl LookaheadFetcher {
     pub fn new(
         beacon_rpc_url: String,
         network_state: NetworkState,
-        gateway_pubkey: PublicKey,
+        underwriter_pubkey: PublicKey,
         relay_urls: Vec<Url>,
     ) -> Self {
-        let gateway_pubkey =
-            BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
+        let underwriter_pubkey =
+            BlsPublicKey::try_from(underwriter_pubkey.to_bytes().as_ref()).expect("Invalid public key");
         Self {
             beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
             network_state,
-            gateway_pubkey,
+            underwriter_pubkey,
             relay_client: RelayClient::new(relay_urls),
         }
     }
@@ -44,9 +44,9 @@ impl LookaheadFetcher {
         let slot = head.message().slot();
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
-        // Fetch gateway delegations for the current epoch
+        // Fetch underwriter delegations for the current epoch
         self.get_delegation_for_current_epoch(epoch, slot).await?;
-        // Fetch gateway delegations for the next epoch
+        // Fetch underwriter delegations for the next epoch
         self.get_delegation_for(epoch + 1).await?;
         self.network_state.update_slot(slot);
 
@@ -71,9 +71,9 @@ impl LookaheadFetcher {
                     'delegation_loop: for signed_delegation in signed_delegations {
                         let delegation_message = signed_delegation.message;
                         if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
                         {
-                            info!("Delegation to gateway found for slot: {}", slot);
+                            info!("Delegation to underwriter found for slot: {}", slot);
                             self.network_state.add_slot(slot);
                             break 'delegation_loop;
                         }
@@ -101,9 +101,9 @@ impl LookaheadFetcher {
                     'delegation_loop: for signed_delegation in signed_delegations {
                         let delegation_message = signed_delegation.message;
                         if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
                         {
-                            info!("Delegation to gateway found for slot: {}", slot);
+                            info!("Delegation to underwriter found for slot: {}", slot);
                             self.network_state.add_slot(slot);
                             break 'delegation_loop;
                         }
