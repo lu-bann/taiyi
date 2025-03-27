@@ -1,8 +1,4 @@
-use std::{
-    fmt::{self, Debug},
-    ops::Deref,
-    path::Path,
-};
+use std::{fmt::Debug, ops::Deref};
 
 use alloy_consensus::{BlockHeader, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
 use alloy_eips::{
@@ -11,12 +7,9 @@ use alloy_eips::{
 };
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_rpc_types_engine::{
-    ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3, JwtError, JwtSecret,
-};
+use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use axum::http::HeaderMap;
-use blst::min_pk::SecretKey as BlsSecretKey;
 use cb_common::pbs::{
     Blob, BlobsBundle, DenebSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
     KzgProof, SignedExecutionPayloadHeader, Transaction as cbTransaction, Transactions,
@@ -37,6 +30,7 @@ use reth_primitives::{SealedBlock, Transaction, TransactionSigned};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
+use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 use tree_hash::TreeHash;
 
 /// A hash tree root.
@@ -52,79 +46,6 @@ pub struct ExtraConfig {
     pub engine_jwt: JwtSecretWrapper,
     pub network: Network,
     pub auth_token: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct JwtSecretWrapper(pub JwtSecret);
-
-impl<'de> Deserialize<'de> for JwtSecretWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<JwtSecretWrapper, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        JwtSecretWrapper::try_from(s.as_str()).map_err(serde::de::Error::custom)
-    }
-}
-
-impl TryFrom<&str> for JwtSecretWrapper {
-    type Error = JwtError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let jwt = if Path::new(&s).exists() {
-            JwtSecret::from_file(Path::new(&s))
-        } else {
-            JwtSecret::from_hex(s)
-        }?;
-        Ok(JwtSecretWrapper(jwt))
-    }
-}
-
-impl Deref for JwtSecretWrapper {
-    type Target = JwtSecret;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for JwtSecretWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BlsSecretKeyWrapper(pub BlsSecretKey);
-
-impl<'de> Deserialize<'de> for BlsSecretKeyWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<BlsSecretKeyWrapper, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let sk = String::deserialize(deserializer)?;
-        Ok(BlsSecretKeyWrapper::from(sk.as_str()))
-    }
-}
-
-impl From<&str> for BlsSecretKeyWrapper {
-    fn from(sk: &str) -> Self {
-        let hex_sk = sk.strip_prefix("0x").unwrap_or(sk);
-        let sk =
-            BlsSecretKey::from_bytes(&hex::decode(hex_sk).expect("valid hex")).expect("valid sk");
-        BlsSecretKeyWrapper(sk)
-    }
-}
-
-impl Deref for BlsSecretKeyWrapper {
-    type Target = BlsSecretKey;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for BlsSecretKeyWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", const_hex::encode_prefixed(self.0.to_bytes()))
-    }
 }
 
 /// Minimal account state needed for commitment validation.

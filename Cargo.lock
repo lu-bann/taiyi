@@ -1577,7 +1577,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 [[package]]
 name = "beacon-api-client"
 version = "0.1.0"
-source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=8fbd8a53dca0170bedeca40a92ee70fd48c4615b#8fbd8a53dca0170bedeca40a92ee70fd48c4615b"
+source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=92f3ec39d8c595790ed4717b8996a314165f013f#92f3ec39d8c595790ed4717b8996a314165f013f"
 dependencies = [
  "clap",
  "ethereum-consensus",
@@ -3305,7 +3305,7 @@ dependencies = [
 [[package]]
 name = "ethereum-consensus"
 version = "0.1.1"
-source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=8fbd8a53dca0170bedeca40a92ee70fd48c4615b#8fbd8a53dca0170bedeca40a92ee70fd48c4615b"
+source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=92f3ec39d8c595790ed4717b8996a314165f013f#92f3ec39d8c595790ed4717b8996a314165f013f"
 dependencies = [
  "blst",
  "bs58 0.4.0",
@@ -8497,6 +8497,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-beacon-client"
+version = "0.1.4"
+dependencies = [
+ "alloy-primitives 0.8.22",
+ "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth 0.8.3",
+ "beacon-api-client",
+ "blst",
+ "const-hex",
+ "eyre",
+ "hex",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
 name = "taiyi-boost"
 version = "0.1.0"
 dependencies = [
@@ -8517,12 +8536,9 @@ dependencies = [
  "alloy-transport-http",
  "async-trait",
  "axum 0.7.9",
- "beacon-api-client",
- "blst",
  "cb-common",
  "cb-pbs",
  "commit-boost",
- "const-hex",
  "ethereum-consensus",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
@@ -8541,6 +8557,7 @@ dependencies = [
  "serde_json",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "ssz_types",
+ "taiyi-beacon-client",
  "taiyi-cmd",
  "thiserror 2.0.12",
  "tokio",

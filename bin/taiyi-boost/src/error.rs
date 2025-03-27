@@ -1,6 +1,7 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/mod.rs#L46
 use alloy_rpc_types_engine::{ClientCode, PayloadStatusEnum};
 use ethereum_consensus::ssz::prelude::MerkleizationError;
+use taiyi_beacon_client::BeaconClientError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
@@ -19,7 +20,7 @@ pub enum BuilderError {
     #[error("Failed in SSZ merkleization: {0}")]
     Merkleization(#[from] MerkleizationError),
     #[error("Beacon API error: {0}")]
-    BeaconApi(#[from] crate::beacon::BeaconClientError),
+    BeaconApi(#[from] BeaconClientError),
     #[error("Failed to build payload due to invalid transactions: {0}")]
     InvalidTransactions(String),
     #[error("Got an unexpected response from engine_newPayload query: {0}")]

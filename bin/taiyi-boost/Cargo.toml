@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+taiyi-beacon-client = { workspace = true }
 taiyi-cmd = { workspace = true }
 
 alloy-consensus = { workspace = true }
@@ -22,12 +23,9 @@ alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true, features = ["jwt-auth"] }
 async-trait = { workspace = true }
 axum = { workspace = true }
-beacon-api-client = { workspace = true }
-blst = { workspace = true }
 cb-common = { workspace = true }
 cb-pbs = { workspace = true }
 commit-boost = { workspace = true }
-const-hex = "1.13.2"
 ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }

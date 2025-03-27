@@ -14,11 +14,11 @@ use cb_common::{
 use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
 use reqwest::Url;
 use reth_primitives::{proofs, SealedBlock, TransactionSigned};
+use taiyi_beacon_client::BeaconClient;
 use tracing::debug;
 use tree_hash::TreeHash;
 
 use crate::{
-    beacon::BeaconClient,
     engine_hinter::{EngineHinter, EngineHinterContext},
     error::BuilderError,
     execution::ExecutionClient,
