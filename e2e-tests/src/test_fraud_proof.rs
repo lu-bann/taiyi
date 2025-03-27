@@ -15,7 +15,7 @@ use sp1_sdk::{
     include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Proof,
     SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
-use taiyi_preconfer::TaiyiCore;
+use taiyi_preconfer::{context_ext::ContextExt, TaiyiCore};
 use taiyi_primitives::PreconfResponseData;
 use taiyi_zkvm_types::{
     types::{
@@ -305,10 +305,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let gateway_address = private_key_signer.address();
     stdin.write(&gateway_address);
 
-    let genesis_time = match config.context.genesis_time() {
-        Ok(genesis_time) => genesis_time,
-        Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
-    };
+    let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
 
     println!("Using the local/cpu SP1 prover.");
@@ -596,10 +593,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     let gateway_address = private_key_signer.address();
     stdin.write(&gateway_address);
 
-    let genesis_time = match config.context.genesis_time() {
-        Ok(genesis_time) => genesis_time,
-        Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
-    };
+    let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
 
     println!("Using the local/cpu SP1 prover.");
@@ -959,11 +953,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let gateway_address = Address::from_str(PRECONFER_ADDRESS).unwrap();
     stdin.write(&gateway_address);
 
-    let genesis_time = match config.context.genesis_time() {
-        Ok(genesis_time) => genesis_time,
-        Err(_) => config.context.min_genesis_time + config.context.genesis_delay,
-    };
-
+    let genesis_time = config.context.actual_genesis_time();
     stdin.write(&genesis_time);
 
     println!("Using the local/cpu SP1 prover.");
