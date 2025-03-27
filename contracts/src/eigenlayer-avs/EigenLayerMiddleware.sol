@@ -54,7 +54,9 @@ abstract contract EigenLayerMiddleware is
     // ========= EVENTS =========
 
     event AVSDirectorySet(address indexed avsDirectory);
-    event RewardsInitiatorUpdated(address indexed previousRewardsInitiator, address indexed newRewardsInitiator);
+    event RewardsInitiatorUpdated(
+        address indexed previousRewardsInitiator, address indexed newRewardsInitiator
+    );
 
     // ========= ERRORS =========
 
