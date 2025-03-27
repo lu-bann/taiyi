@@ -52,6 +52,7 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
+taiyi-beacon-client = { path = "crates/beacon-client" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
