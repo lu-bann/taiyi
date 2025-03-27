@@ -773,6 +773,76 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
+    //  Test: Prove (PreconfRequestAType multiple txs)
+    // =========================================
+    function testProveSuccessPreconfRequestATypeMultipleTxs() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-a-multiple-txs-included-test-data.json"
+            )
+        );
+
+        bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.startPrank(owner);
+        taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        // Decode proof values
+        (
+            uint64 proofBlockTimestamp,
+            bytes32 proofBlockHash,
+            address proofGatewayAddress,
+            bytes memory proofSignature
+        ) = abi.decode(
+            vm.parseBytes(vm.parseJsonString(json, ".public_values")),
+            (uint64, bytes32, address, bytes)
+        );
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-multiple-txs-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        ITaiyiInteractiveChallenger.Challenge[] memory openChallenges =
+            taiyiInteractiveChallenger.getOpenChallenges();
+
+        assertEq(openChallenges.length, 1);
+        assertEq(openChallenges[0].id, challengeId);
+
+        string memory proofValues = vm.parseJsonString(json, ".public_values");
+        string memory proofBytes = vm.parseJsonString(json, ".proof");
+
+        bytes memory proofValuesBytes = vm.parseBytes(proofValues);
+        bytes memory proofBytesBytes = vm.parseBytes(proofBytes);
+
+        taiyiInteractiveChallenger.prove(challengeId, proofValuesBytes, proofBytesBytes);
+
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 0);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
     //  Test: Prove (PreconfRequestBType)
     // =========================================
     function testProveSuccessPreconfRequestBType() public {
