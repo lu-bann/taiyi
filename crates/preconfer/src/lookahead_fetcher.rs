@@ -2,12 +2,12 @@ use std::future::Future;
 
 use alloy_eips::merge::EPOCH_SLOTS;
 use alloy_rpc_types_beacon::events::HeadEvent;
-use beacon_api_client::{mainnet::Client, BlockId};
 use blst::min_pk::PublicKey;
 use ethereum_consensus::primitives::BlsPublicKey;
 use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
+use taiyi_beacon_client::BeaconClient;
 use tracing::{debug, info};
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub struct LookaheadFetcher {
-    beacon_client: Client,
+    beacon_client: BeaconClient,
     network_state: NetworkState,
     gateway_pubkey: BlsPublicKey,
     relay_client: RelayClient,
@@ -32,7 +32,10 @@ impl LookaheadFetcher {
         let gateway_pubkey =
             BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
         Self {
-            beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
+            beacon_client: BeaconClient::new(
+                Url::parse(&beacon_rpc_url).expect("Invalid URL"),
+                None,
+            ),
             network_state,
             gateway_pubkey,
             relay_client: RelayClient::new(relay_urls),
@@ -40,8 +43,7 @@ impl LookaheadFetcher {
     }
 
     pub async fn initialze(&mut self) -> eyre::Result<()> {
-        let head = self.beacon_client.get_beacon_block(BlockId::Head).await?;
-        let slot = head.message().slot();
+        let slot = self.beacon_client.get_head_slot().await?;
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
         // Fetch gateway delegations for the current epoch
@@ -124,7 +126,7 @@ impl LookaheadFetcher {
         self.initialze().await?;
         let client = EventClient::new(reqwest::Client::new());
         let beacon_url_head_event =
-            format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint.as_str());
+            format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint().as_str());
 
         info!("Starts to subscribe to {}", beacon_url_head_event);
         let mut stream: mev_share_sse::client::EventStream<HeadEvent> =

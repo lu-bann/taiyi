@@ -6,7 +6,7 @@ edition = { workspace = true }
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
-alloy-rpc-types-engine = { workspace = true }
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 blst = { workspace = true }
 const-hex = "1.13.2"
 eyre = { workspace = true }
