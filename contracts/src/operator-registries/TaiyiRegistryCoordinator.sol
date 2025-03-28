@@ -147,9 +147,7 @@ contract TaiyiRegistryCoordinator is
     {
         OperatorInfo storage operatorInfo = _operatorInfo[operator];
         require(
-            operatorInfo.status == OperatorStatus.DEREGISTERED
-                || operatorInfo.status == OperatorStatus.UNREGISTERED,
-            OperatorNotDeregistered()
+            operatorInfo.status != OperatorStatus.REGISTERED, OperatorAlreadyRegistered()
         );
 
         (string memory socket, IPubkeyRegistry.PubkeyRegistrationParams memory params) =
@@ -164,6 +162,7 @@ contract TaiyiRegistryCoordinator is
         _setOperatorSocket(operatorId, socket);
 
         _operatorInfo[operator].status = OperatorStatus.REGISTERED;
+        _operatorSets[operatorSetCounter].add(operator);
     }
 
     function _deregisterOperator(
@@ -178,6 +177,7 @@ contract TaiyiRegistryCoordinator is
 
         _deregisterOperatorFromOperatorSets(operator, operatorSetIds);
         operatorInfo.status = OperatorStatus.DEREGISTERED;
+        _operatorSets[operatorSetCounter].remove(operator);
     }
 
     function createOperatorSet(IStrategy[] memory strategies)
@@ -197,6 +197,14 @@ contract TaiyiRegistryCoordinator is
             params: createSetParams
         });
         operatorSetCounter++;
+    }
+
+    function getOperatorSetOperators(uint32 operatorSetId)
+        external
+        view
+        returns (address[] memory)
+    {
+        return _operatorSets[operatorSetId].values();
     }
 
     function getOperatorSetCount() external view returns (uint32) {

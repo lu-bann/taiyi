@@ -13,7 +13,6 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { Time } from "@openzeppelin-contracts/contracts/utils/types/Time.sol";
 
-import { IGatewayAVS } from "../interfaces/IGatewayAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 
 import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
@@ -43,7 +42,8 @@ import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrat
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
-/// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
+/// @title EigenLayer Middleware contract
+/// @notice This contract is used to manage the registration of operators in EigenLayer core
 contract EigenLayerMiddleware is
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -148,7 +148,7 @@ contract EigenLayerMiddleware is
         address _rewardCoordinator,
         address _rewardInitiator,
         address _registryCoordinator,
-        uint256 _gatewayShareBips
+        uint256 _underwriterShareBips
     )
         public
         virtual
@@ -164,7 +164,7 @@ contract EigenLayerMiddleware is
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
-        GATEWAY_SHARE_BIPS = _gatewayShareBips;
+        UNDERWRITER_SHARE_BIPS = _underwriterShareBips;
         REGISTRY_COORDINATOR = ITaiyiRegistryCoordinator(_registryCoordinator);
     }
 
@@ -222,7 +222,6 @@ contract EigenLayerMiddleware is
         _updateAVSMetadataURI(metadataURI);
     }
 
-    // Todo: support reward distribution
     /// @notice Creates operator-directed rewards to split between operators and their delegated stakers
     /// @param operatorDirectedRewardsSubmissions The rewards submissions to process
     function createOperatorDirectedAVSRewardsSubmission(
@@ -307,7 +306,7 @@ contract EigenLayerMiddleware is
     }
 
     /// @notice Helper function to build an OperatorDirectedRewardsSubmission for a single operator
-    /// @dev Reused in both gateway distribution and validator distribution to reduce code duplication
+    /// @dev Reused in both underwriter distribution and validator distribution to reduce code duplication
     function _buildOperatorSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata baseSubmission,
         IERC20 token,
@@ -353,8 +352,188 @@ contract EigenLayerMiddleware is
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
     )
         internal
-        virtual
-    { }
+    {
+        require(
+            keccak256(bytes(submissions[0].description))
+                == keccak256(bytes("underwriter")),
+            "EigenLayerMiddleware: First submission must be the Underwriter portion"
+        );
+
+        require(
+            keccak256(bytes(submissions[1].description)) == keccak256(bytes("validator")),
+            "EigenLayerMiddleware: Second submission must be the Validator portion"
+        );
+
+        require(
+            submissions[0].startTimestamp == block.timestamp
+                && submissions[1].startTimestamp == block.timestamp,
+            "EigenLayerMiddleware: Underwriter and Validator submissions must have start timestamp of current block"
+        );
+
+        require(
+            submissions[0].duration == REWARD_DURATION
+                && submissions[1].duration == REWARD_DURATION,
+            "EigenLayerMiddleware: Underwriter and Validator submissions must have the same duration"
+        );
+
+        // Enforce that the second submission's operator rewards are always zero.
+        // The validator portion is determined by _handleUnderwriterSubmission, which
+        // calculates how many tokens go to the validator side.
+        IRewardsCoordinator.OperatorReward[] memory validatorRewards =
+            submissions[1].operatorRewards;
+        for (uint256 i = 0; i < validatorRewards.length; i++) {
+            require(
+                validatorRewards[i].amount == 0,
+                "EigenLayerMiddleware: Validator submission reward must be zero"
+            );
+        }
+
+        // 1) Handle Underwriter portion
+        uint256 validatorAmount = _handleUnderwriterSubmission(submissions[0]);
+
+        // 2) Handle Validator portion
+        _handleValidatorRewards(submissions[1], validatorAmount);
+    }
+
+    function _handleUnderwriterSubmission(
+        IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission calldata submission
+    )
+        internal
+        returns (uint256 validatorAmount)
+    {
+        // Calculate total underwriter amount
+        uint256 totalAmount;
+        for (uint256 i = 0; i < submission.operatorRewards.length; i++) {
+            totalAmount += submission.operatorRewards[i].amount;
+        }
+
+        // Transfer tokens from reward initiator to this contract
+        require(
+            submission.token.transferFrom(msg.sender, address(this), totalAmount),
+            "Underwriter token transfer failed"
+        );
+
+        uint256 underwriterAmount =
+            Math.mulDiv(totalAmount, UNDERWRITER_SHARE_BIPS, 10_000);
+        validatorAmount = totalAmount - underwriterAmount;
+
+        // Get all active underwriter operators registered for Underwriter Operator Set(0)
+        address[] memory operators =
+            REGISTRY_COORDINATOR.getOperatorSetOperators(uint32(0));
+        require(operators.length > 0, "UnderwriterAVS: No operators");
+
+        // Calculate per-operator reward amount - multiply first to avoid precision loss
+        uint256 numOperators = operators.length;
+        uint256 baseShare = underwriterAmount / numOperators;
+        uint256 leftover = underwriterAmount % numOperators;
+        require(baseShare > 0, "UnderwriterAVS: Reward per operator is zero");
+
+        // Create array of operator rewards with even distribution
+        IRewardsCoordinator.OperatorReward[] memory opRewards =
+            new IRewardsCoordinator.OperatorReward[](numOperators);
+
+        // Assign each operator a baseShare, plus one extra token until leftover is exhausted
+        for (uint256 i = 0; i < numOperators; i++) {
+            uint256 share = baseShare;
+            if (i < leftover) {
+                // Give one extra token to the first 'leftover' operators
+                share += 1;
+            }
+            opRewards[i] = IRewardsCoordinatorTypes.OperatorReward({
+                operator: operators[i],
+                amount: share
+            });
+        }
+
+        // Todo: Sweep any leftover dust from uneven division to treasury or redistribute
+
+        // Create final submission array with single entry
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory
+            underwriterSubmissions =
+                new IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission[](1);
+
+        // Configure submission with operator rewards and metadata
+        underwriterSubmissions[0] = IRewardsCoordinatorTypes
+            .OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: submission.strategiesAndMultipliers,
+            token: submission.token,
+            operatorRewards: opRewards,
+            startTimestamp: submission.startTimestamp,
+            duration: submission.duration,
+            description: string(
+                abi.encodePacked(submission.description, "(Underwriter portion)")
+            )
+        });
+
+        // Approve RewardsCoordinator to spend the underwriter portion
+        submission.token.approve(address(REWARDS_COORDINATOR), underwriterAmount);
+
+        // Submit rewards distribution to coordinator
+        REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
+            address(this), underwriterSubmissions
+        );
+    }
+
+    function _handleValidatorRewards(
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission,
+        uint256 validatorAmount
+    )
+        internal
+    {
+        // Get validator operators and total count for this AVS
+        address[] memory operators =
+            REGISTRY_COORDINATOR.getOperatorSetOperators(uint32(1));
+        require(operators.length > 0, "ValidatorAVS: No operators");
+
+        // Todo: add method to query number of validators registered for Validator Operator Set(1)
+        uint256 totalValidatorCount =
+            proposerRegistry.getTotalValidatorCountForAVS(address(this));
+        require(totalValidatorCount > 0, "ValidatorAVS: No validators registered");
+
+        // Build array of OperatorRewards proportionally
+        IRewardsCoordinator.OperatorReward[] memory opRewards =
+            new IRewardsCoordinator.OperatorReward[](operators.length);
+
+        for (uint256 i = 0; i < operators.length; i++) {
+            // Todo: add method to query number of validators registered for an operator
+            uint256 opValidatorCount =
+                proposerRegistry.getValidatorCountForOperatorInAVS(operators[i]);
+            require(opValidatorCount > 0, "ValidatorAVS: Operator has no validators");
+
+            // Share of the total validatorAmount = amount * (opCount/totalCount)
+            uint256 share = (validatorAmount * opValidatorCount) / totalValidatorCount;
+            require(share > 0, "ValidatorAVS: Operator share is zero");
+
+            opRewards[i] = IRewardsCoordinatorTypes.OperatorReward({
+                operator: operators[i],
+                amount: share
+            });
+        }
+
+        // Combine into a single submission
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory
+            validatorSubmissions =
+                new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+
+        validatorSubmissions[0] = IRewardsCoordinatorTypes
+            .OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: submission.strategiesAndMultipliers,
+            token: submission.token,
+            operatorRewards: opRewards,
+            startTimestamp: submission.startTimestamp,
+            duration: submission.duration,
+            description: string(
+                abi.encodePacked(submission.description, " (Validator portion)")
+            )
+        });
+
+        // Approve RewardsCoordinator to spend the validator portion
+        submission.token.approve(address(REWARDS_COORDINATOR), validatorAmount);
+
+        REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
+            address(this), validatorSubmissions
+        );
+    }
 
     function _setClaimerFor(address claimer) internal {
         REWARDS_COORDINATOR.setClaimerFor(claimer);
@@ -455,9 +634,9 @@ contract EigenLayerMiddleware is
         return REWARD_INITIATOR;
     }
 
-    /// @notice Get the gateway share in BIPS
-    function getGatewayShareBips() public view returns (uint256) {
-        return GATEWAY_SHARE_BIPS;
+    /// @notice Get the underwriter share in BIPS
+    function getUnderwriterShareBips() public view returns (uint256) {
+        return UNDERWRITER_SHARE_BIPS;
     }
 
     /// @notice Query the stake amount for an operator across all strategies
@@ -560,22 +739,10 @@ contract EigenLayerMiddleware is
         return REGISTRY_COORDINATOR.getOperatorSetStrategies(operatorSetId);
     }
 
-    /// @notice Gets the GatewayAVS address from the registry
-    /// @return The address of the GatewayAVS contract
-    function getGatewayAVSAddress() public view returns (address) {
-        return address(proposerRegistry.gatewayAVS());
-    }
-
     /// @notice Gets the ValidatorAVS address from the registry by AVS type
     /// @return The address of the ValidatorAVS contract
     function getValidatorAVSAddress() public view returns (address) {
         return address(proposerRegistry.validatorAVS());
-    }
-
-    /// @notice Gets the GatewayAVS contract instance from the registry
-    /// @return The GatewayAVS contract instance
-    function getGatewayAVS() public view returns (IGatewayAVS) {
-        return IGatewayAVS(proposerRegistry.gatewayAVS());
     }
 
     /// @notice Gets the ValidatorAVS contract instance from the registry

@@ -41,7 +41,7 @@ import { EnumerableMap } from
 // |---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------|
 // | REWARD_INITIATOR    | address                           | 8    | 0      | 20    | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
 // |---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------|
-// | GATEWAY_SHARE_BIPS  | uint256                           | 9    | 0      | 32    | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
+// | UNDERWRITER_SHARE_BIPS  | uint256                           | 9    | 0      | 32    | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
 // |---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------|
 // | gatewayAVSAddress   | address                           | 10   | 0      | 20    | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
 // |---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------|
@@ -80,17 +80,12 @@ abstract contract EigenLayerMiddlewareStorage {
     /// @notice The address of the entity that can initiate rewards
     address internal REWARD_INITIATOR;
 
+    /// @notice The duration of the reward period
+    uint32 internal REWARD_DURATION;
+
     /// @notice The portion of the reward that belongs to Gateway vs. Validator
     /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
-    uint256 internal GATEWAY_SHARE_BIPS; // e.g., 8000 => 80%
-
-    /// @notice The address of the gateway AVS contract
-    /// @dev Used to verify operator registration in gateway AVS
-    address internal gatewayAVSAddress;
-
-    /// @notice The address of the validator AVS contract
-    /// @dev Used to verify operator registration in validator AVS
-    address internal validatorAVSAddress;
+    uint256 internal UNDERWRITER_SHARE_BIPS; // e.g., 8000 => 80%
 
     uint256[50] private __gap;
 }

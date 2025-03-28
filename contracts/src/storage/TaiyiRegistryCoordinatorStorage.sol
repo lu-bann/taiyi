@@ -36,6 +36,9 @@ abstract contract TaiyiRegistryCoordinatorStorage is ITaiyiRegistryCoordinator {
     /// @notice the current number of operator sets supported by the registry coordinator
     uint32 public operatorSetCounter;
 
+    /// @notice maps operator set id => operator addresses
+    mapping(uint32 => EnumerableSet.AddressSet) internal _operatorSets;
+
     /// @notice maps operator address => operator id and status
     mapping(address => OperatorInfo) internal _operatorInfo;
 
