@@ -7,6 +7,8 @@ sol! {
         bytes32 proofBlockHash;
         address gatewayAddress;
         bytes proofSignature;
+        uint64 genesisTimestamp;
+        address taiyiCore;
     }
     function sponsorEthBatch(address[] calldata recipients, uint256[] calldata amounts);
 }

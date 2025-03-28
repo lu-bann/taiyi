@@ -173,9 +173,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-#[ignore]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -383,6 +381,12 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
         hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
 
+    // Check genesis timestamp is correct
+    assert_eq!(public_values_struct.genesisTimestamp, genesis_time);
+
+    // Check taiyi core address is correct
+    assert_eq!(public_values_struct.taiyiCore, taiyi_core);
+
     // Generate proof using prover network
     #[cfg(feature = "generate-proof")]
     {
@@ -458,9 +462,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-#[ignore]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -684,6 +686,12 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
 
+    // Check genesis timestamp is correct
+    assert_eq!(public_values_struct.genesisTimestamp, genesis_time);
+
+    // Check taiyi core address is correct
+    assert_eq!(public_values_struct.taiyiCore, taiyi_core);
+
     // Generate proof using prover network
     #[cfg(feature = "generate-proof")]
     {
@@ -761,9 +769,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "ci"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-#[ignore]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (_taiyi_handle, config) = setup_env().await?;
@@ -1043,15 +1049,24 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // Check block timestamp is correct (on-chain we will calculate the slot from the timestamp and compare it with the target slot in the challenge)
     assert_eq!(public_values_struct.proofBlockTimestamp, inclusion_block.header.timestamp);
+
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+
     // Check gateway address is correct
     assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+
     // Check signature is correct
     assert_eq!(
         hex::encode(public_values_struct.proofSignature),
         hex::encode(preconf_response.commitment.unwrap().as_bytes())
     );
+
+    // Check genesis timestamp is correct
+    assert_eq!(public_values_struct.genesisTimestamp, genesis_time);
+
+    // Check taiyi core address is correct
+    assert_eq!(public_values_struct.taiyiCore, taiyi_core);
 
     // Generate proof using prover network
     #[cfg(feature = "generate-proof")]
