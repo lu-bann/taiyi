@@ -17,6 +17,9 @@ interface ITaiyiParameterManager {
     /// @notice Get the slot time of the chain.
     function slotTime() external view returns (uint256);
 
+    /// @notice Get the address of the TaiyiCore contract.
+    function taiyiCore() external view returns (address);
+
     /// @notice Set the challenge bond.
     /// @param _challengeBond The bond required to open a challenge.
     function setChallengeBond(uint256 _challengeBond) external;
