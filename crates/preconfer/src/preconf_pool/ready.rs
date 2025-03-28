@@ -14,7 +14,7 @@ pub struct Ready {
     by_id: HashMap<Uuid, PreconfRequest>,
     by_account: HashMap<Address, Vec<Uuid>>,
     reqs_by_slot: HashMap<u64, Vec<Uuid>>,
-    /// Assigned by the gateway to each preconf transaction in the order
+    /// Assigned by the underwriter to each preconf transaction in the order
     /// they should appear relative to the anchor.
     sequence_number: HashMap<u64, u64>,
 }

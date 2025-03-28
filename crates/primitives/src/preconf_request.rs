@@ -31,7 +31,7 @@ impl PreconfRequest {
         }
     }
 
-    /// Amount to be paid to the gateway
+    /// Amount to be paid to the underwriter
     pub fn preconf_tip(&self) -> U256 {
         match self {
             PreconfRequest::TypeA(req) => req.preconf_tip(),

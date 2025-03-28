@@ -3,16 +3,16 @@ set -xe
 source "$(dirname "$0")/config.sh"
 
 # register as eigenlayer operator
-OPERATOR_PRIVATE_KEY=$GATEWAY_ECDSA_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
+OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
 
-export OPERATOR_ADDRESS=`cast wallet address --private-key $GATEWAY_ECDSA_PRIVATE_KEY`
+export OPERATOR_ADDRESS=`cast wallet address --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY`
 
 # register underwriter avs
 cargo run --bin taiyi-cli register-underwriter-avs \
     --execution-rpc-url $EXECUTION_URL \
     --underwriter-avs-address $TAIYI_UNDERWRITER_AVS_ADDRESS \
-    --operator-bls-key $GATEWAY_BLS_PUBLIC_KEY \
-    --private-key $GATEWAY_ECDSA_PRIVATE_KEY \
+    --operator-bls-key $UNDERWRITER_BLS_PUBLIC_KEY \
+    --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY \
     --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
     --avs-directory-address $AVS_DIRECTORY_ADDRESS
 

@@ -37,7 +37,7 @@ OPERATOR_STATUS=$(cargo run --bin taiyi-cli operator-info \
     --avs-type validator)
 
 if ! echo "$OPERATOR_STATUS" | grep -q "Is Active: true"; then
-    echo "Operator is not active in gateway AVS"
+    echo "Operator is not active in Underwriter AVS"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ cargo run --bin taiyi-cli register-validators \
     --taiyi-validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS \
     --validator-pubkeys $PRE_REGISTERED_VALIDATOR_KEYS \
     --pod-owners $POD_OWNERS \
-    --delegated-gateways "$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY"
+    --delegated-underwriters "$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY"
 
 
 # check whether the validators are registered in taiyi validator avs
