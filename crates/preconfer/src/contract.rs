@@ -27,7 +27,7 @@ pub mod core {
                     bytes underwriterSignedBlockspaceAllocation;
                     bytes rawTx;
                     bytes underwriterSignedRawTx;
-                }                
+                }
 
                 #[derive(Debug)]
                 function getTip(PreconfRequestBType calldata preconfRequestBType) public payable nonReentrant;
@@ -68,7 +68,9 @@ pub fn to_solidity_type(
             blobCount: U256::from(request.allocation.blob_count),
         },
         blockspaceAllocationSignature: blockspace_allocation_sig_user.as_bytes().into(),
-        underwriterSignedBlockspaceAllocation: blockspace_allocation_sig_underwriter.as_bytes().into(),
+        underwriterSignedBlockspaceAllocation: blockspace_allocation_sig_underwriter
+            .as_bytes()
+            .into(),
         rawTx: raw_tx,
         underwriterSignedRawTx: underwriter_signed_raw_tx.as_bytes().into(),
     }

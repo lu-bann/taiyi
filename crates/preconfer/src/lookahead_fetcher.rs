@@ -29,8 +29,8 @@ impl LookaheadFetcher {
         underwriter_pubkey: PublicKey,
         relay_urls: Vec<Url>,
     ) -> Self {
-        let underwriter_pubkey =
-            BlsPublicKey::try_from(underwriter_pubkey.to_bytes().as_ref()).expect("Invalid public key");
+        let underwriter_pubkey = BlsPublicKey::try_from(underwriter_pubkey.to_bytes().as_ref())
+            .expect("Invalid public key");
         Self {
             beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
             network_state,
