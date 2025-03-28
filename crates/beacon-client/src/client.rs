@@ -51,11 +51,41 @@ impl Deref for BeaconClient {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct BeaconBlock {
+    version: String,
+    data: BeaconBlockData,
+}
+
+#[derive(Serialize, Deserialize)]
+struct BeaconBlockData {
+    message: BeaconBlockMessage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct BeaconBlockMessage {
+    slot: String,
+}
+
 impl BeaconClient {
     /// Create a new [BeaconClient] instance with the given beacon RPC URL.
     pub fn new(beacon_rpc_url: Url, auth_token: Option<String>) -> Self {
         let inner = beacon_api_client::mainnet::Client::new(beacon_rpc_url.clone());
         Self { auth_token, inner }
+    }
+
+    pub fn endpoint(&self) -> &Url {
+        &self.inner.endpoint
+    }
+
+    /// This is a temporary solution because ethereum-consensus doesn't
+    /// support the eth/v2/beacon/blocks/head endpoint yet for electra fork now.
+    /// reference: https://github.com/ralexstokes/ethereum-consensus/pull/406
+    pub async fn get_head_slot(&self) -> BeaconClientResult<u64> {
+        let response = self.inner.http_get("eth/v2/beacon/blocks/head").await?;
+        let result = response.bytes().await?;
+        let result: BeaconBlock = serde_json::from_slice(&result)?;
+        Ok(result.data.message.slot.parse::<u64>()?)
     }
 
     /// Fetch the previous RANDAO value from the beacon node.
