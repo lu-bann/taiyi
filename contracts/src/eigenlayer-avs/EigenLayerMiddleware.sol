@@ -11,7 +11,6 @@ import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
-import { Time } from "@openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 
@@ -41,6 +40,9 @@ import { ISignatureUtils } from
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
+
+import { IRegistry } from "@urc/IRegistry.sol";
+import { BLS } from "@urc/lib/BLS.sol";
 
 /// @title EigenLayer Middleware contract
 /// @notice This contract is used to manage the registration of operators in EigenLayer core
@@ -72,6 +74,8 @@ contract EigenLayerMiddleware is
     error UseCreateOperatorDirectedAVSRewardsSubmission();
     error UseAllocationManagerForOperatorRegistration();
     error OperatorNotRegisteredInAVS();
+    error OperatorIsNotYetRegisteredInValidatorOperatorSet();
+    error OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
 
     // ========= MODIFIERS =========
 
@@ -148,7 +152,8 @@ contract EigenLayerMiddleware is
         address _rewardCoordinator,
         address _rewardInitiator,
         address _registryCoordinator,
-        uint256 _underwriterShareBips
+        uint256 _underwriterShareBips,
+        address _registry
     )
         public
         virtual
@@ -166,30 +171,79 @@ contract EigenLayerMiddleware is
         _setRewardsInitiator(_rewardInitiator);
         UNDERWRITER_SHARE_BIPS = _underwriterShareBips;
         REGISTRY_COORDINATOR = ITaiyiRegistryCoordinator(_registryCoordinator);
+        REGISTRY = IRegistry(_registry);
     }
 
-    // Todo: add URC
-    // Todo: add Delegation
     /// @notice Register multiple validators for multiple pod owners in a single
     /// transaction
-    /// @param valPubKeys Array of arrays containing validator BLS public keys,
+    /// @param registrations Array of arrays containing validator BLS public keys,
     /// where each inner array corresponds to a
     /// pod owner
-    /// @param podOwners Array of pod owner addresses, each owning the
-    /// validators specified in the corresponding
-    /// valPubKeys array
     /// @dev Length of valPubKeys array must match length of podOwners array
     function registerValidators(
-        bytes[][] calldata valPubKeys,
-        address[] calldata podOwners,
-        bytes[] calldata delegatedGateways
+        IRegistry.Registration[] calldata registrations,
+        BLS.G2Point[] calldata delegationSignatures,
+        BLS.G1Point calldata delegateePubKey,
+        address delegateeAddress
     )
         external
     {
-        uint256 len = podOwners.length;
-        for (uint256 i = 0; i < len; ++i) {
-            _registerValidators(valPubKeys[i], podOwners[i], delegatedGateways[i]);
+        _registerValidators(
+            registrations, delegationSignatures, delegateePubKey, delegateeAddress
+        );
+    }
+
+    function _registerValidators(
+        IRegistry.Registration[] calldata registrations,
+        BLS.G2Point[] calldata delegationSignatures,
+        BLS.G1Point calldata delegateePubKey,
+        address delegateeAddress
+    )
+        internal
+    {
+        require(
+            delegateePubKey.length > 0,
+            "ValidatorAVS: Must choose a valid Gateway delegate"
+        );
+
+        // Check if operator is registered in Validator Operator Set(1)
+        if (!REGISTRY_COORDINATOR.getOperatorSet(1).contains(msg.sender)) {
+            revert OperatorIsNotYetRegisteredInValidatorOperatorSet();
         }
+
+        if (!REGISTRY_COORDINATOR.getOperatorSet(0).contains(delegateeAddress)) {
+            revert OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
+        }
+
+        require(
+            registrations.length == delegationSignatures.length,
+            "Invalid number of delegation signatures"
+        );
+
+        // send 0.11 eth to meet the Registry.MIN_COLLATERAL() requirement
+        bytes32 registrationRoot =
+            REGISTRY.register{ value: 0.11 ether }(registrations, msg.sender);
+
+        for (uint256 i = 0; i < registrations.length; ++i) {
+            operatorToDelegation[msg.sender][registrationRoot][registrations[i].pubkey] =
+            ISlasher.SignedDelegation({
+                delegation: IRegistry.Delegation({
+                    proposer: registrations[i].pubkey,
+                    delegate: delegateePubKey,
+                    committer: delegateeAddress,
+                    slot: type(uint64).max,
+                    metadata: bytes("")
+                }),
+                signature: delegationSignatures[i]
+            });
+        }
+    }
+
+    // Todo: use better data strucutre for the nested map
+    // Todo: extend the operator set to be more forward compatible
+    function unregisterValidators(bytes32 registrationRoot) external {
+        delete operatorToDelegation[msg.sender][registrationRoot];
+        REGISTRY.unregister(registrationRoot);
     }
 
     function createOperatorSet(IStrategy[] memory strategies) external onlyOwner {
@@ -303,41 +357,6 @@ contract EigenLayerMiddleware is
         internal
     {
         REGISTRY_COORDINATOR.removeStrategiesFromOperatorSet(operatorSetId, strategies);
-    }
-
-    /// @notice Helper function to build an OperatorDirectedRewardsSubmission for a single operator
-    /// @dev Reused in both underwriter distribution and validator distribution to reduce code duplication
-    function _buildOperatorSubmission(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata baseSubmission,
-        IERC20 token,
-        address operator,
-        uint256 amount,
-        string memory suffixDescription
-    )
-        internal
-        pure
-        returns (IRewardsCoordinator.OperatorDirectedRewardsSubmission memory)
-    {
-        // Build an array with a single reward
-        IRewardsCoordinator.OperatorReward[] memory singleReward =
-            new IRewardsCoordinator.OperatorReward[](1);
-
-        singleReward[0] = IRewardsCoordinatorTypes.OperatorReward({
-            operator: operator,
-            amount: amount
-        });
-
-        // Return final
-        return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
-            strategiesAndMultipliers: baseSubmission.strategiesAndMultipliers,
-            token: token,
-            operatorRewards: singleReward,
-            startTimestamp: baseSubmission.startTimestamp,
-            duration: baseSubmission.duration,
-            description: string(
-                abi.encodePacked(baseSubmission.description, suffixDescription)
-            )
-        });
     }
 
     function _createAVSRewardsSubmission(

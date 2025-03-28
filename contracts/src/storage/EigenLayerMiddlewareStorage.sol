@@ -18,6 +18,8 @@ import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 
+import { IRegistry } from "@urc/IRegistry.sol";
+
 import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 
@@ -56,6 +58,12 @@ abstract contract EigenLayerMiddlewareStorage {
     /// @notice Mapping of operator set IDs to strategies
     mapping(uint32 => IStrategy[]) internal operatorSetToStrategies;
 
+    /// @notice Mapping of operator to their signed delegations
+    /// @dev operator address -> registration root -> validator pubkey -> signed delegation
+    mapping(
+        address => mapping(bytes32 => mapping(BLS.G1Point => IRegistry.SignedDelegation))
+    ) internal operatorToDelegation;
+
     /// @notice ProposerRegistry contract instance
     IProposerRegistry internal proposerRegistry;
 
@@ -76,6 +84,9 @@ abstract contract EigenLayerMiddlewareStorage {
 
     /// @notice Taiyi Registry Coordinator contract for managing operator registrations
     ITaiyiRegistryCoordinator internal REGISTRY_COORDINATOR;
+
+    /// @notice The address of the URC Registry contract
+    IRegistry internal REGISTRY;
 
     /// @notice The address of the entity that can initiate rewards
     address internal REWARD_INITIATOR;

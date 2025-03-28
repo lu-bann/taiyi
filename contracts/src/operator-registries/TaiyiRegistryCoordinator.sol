@@ -23,7 +23,6 @@ import { IPubkeyRegistry } from "../interfaces/IPubkeyRegistry.sol";
 import { ISocketRegistry } from "../interfaces/ISocketRegistry.sol";
 
 import { BN254 } from "../libs/BN254.sol";
-import { BitmapUtils } from "../libs/BitmapUtils.sol";
 
 import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
@@ -36,6 +35,8 @@ import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinat
 import { TaiyiRegistryCoordinatorStorage } from
     "../storage/TaiyiRegistryCoordinatorStorage.sol";
 import { Pausable } from "@eigenlayer-contracts/src/contracts/permissions/Pausable.sol";
+import { EnumerableSet } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title A `TaiyiRegistryCoordinator` that has two registries:
 ///      1) a `PubkeyRegistry` that keeps track of operators' public keys
@@ -48,8 +49,8 @@ contract TaiyiRegistryCoordinator is
     EIP712Upgradeable,
     IAVSRegistrar
 {
-    using BitmapUtils for *;
     using BN254 for BN254.G1Point;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     modifier onlyAllocationManager() {
         _checkAllocationManager();
@@ -205,6 +206,14 @@ contract TaiyiRegistryCoordinator is
         returns (address[] memory)
     {
         return _operatorSets[operatorSetId].values();
+    }
+
+    function getOperatorSet(uint32 operatorSetId)
+        external
+        view
+        returns (address[] memory)
+    {
+        return _operatorSets[operatorSetId];
     }
 
     function getOperatorSetCount() external view returns (uint32) {

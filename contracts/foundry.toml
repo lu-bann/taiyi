@@ -4,7 +4,7 @@
   auto_detect_solc = false
   block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
   bytecode_hash = "none"
-  evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+  evm_version = "prague"           # to add BLS precompile
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
   optimizer = false
@@ -26,6 +26,7 @@ remappings = [
   "@symbiotic/=lib/middleware-sdk/lib/core/src",
   "@symbiotic-test/=lib/middleware-sdk/lib/core/test/",
   "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
+  "@urc/=lib/urc/src",
 
   "@symbiotic-middleware-sdk/=lib/middleware-sdk/src/",
 
