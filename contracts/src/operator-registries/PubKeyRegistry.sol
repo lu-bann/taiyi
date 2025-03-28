@@ -124,12 +124,6 @@ contract PubkeyRegistry is PubkeyRegistryStorage, IPubkeyRegistry {
         emit NewG2PubkeyRegistration(operator, pubkeyG2);
     }
 
-    /**
-     *
-     *                         VIEW FUNCTIONS
-     *
-     */
-
     /// @inheritdoc IPubkeyRegistry
     function getRegisteredPubkey(address operator)
         public

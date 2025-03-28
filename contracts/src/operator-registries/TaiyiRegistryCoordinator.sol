@@ -3,6 +3,11 @@ pragma solidity ^0.8.27;
 
 import { AllocationManager } from
     "@eigenlayer-contracts/src/contracts/core/AllocationManager.sol";
+import {
+    Allocation,
+    OperatorSet
+} from "@eigenlayer-contracts/src/contracts/interfaces/IAllocationManager.sol";
+
 import { IAVSRegistrar } from
     "@eigenlayer-contracts/src/contracts/interfaces/IAVSRegistrar.sol";
 import {
@@ -35,8 +40,6 @@ import { Pausable } from "@eigenlayer-contracts/src/contracts/permissions/Pausab
 /// @title A `TaiyiRegistryCoordinator` that has two registries:
 ///      1) a `PubkeyRegistry` that keeps track of operators' public keys
 ///      2) a `SocketRegistry` that keeps track of operators' sockets (arbitrary strings)
-///
-/// @author Layr Labs, Inc.
 contract TaiyiRegistryCoordinator is
     TaiyiRegistryCoordinatorStorage,
     Initializable,
@@ -50,6 +53,11 @@ contract TaiyiRegistryCoordinator is
 
     modifier onlyAllocationManager() {
         _checkAllocationManager();
+        _;
+    }
+
+    modifier onlyEigenlayerMiddleware() {
+        require(eigenlayerMiddleware == msg.sender, OnlyEigenlayerMiddleware());
         _;
     }
 
@@ -70,7 +78,7 @@ contract TaiyiRegistryCoordinator is
     function initialize(
         address initialOwner,
         uint256 initialPausedStatus,
-        address restakingMiddleware
+        address _eigenlayerMiddleware
     )
         external
         initializer
@@ -78,7 +86,6 @@ contract TaiyiRegistryCoordinator is
         __EIP712_init("AVSRegistryCoordinator", "v0.0.1");
         _transferOwnership(initialOwner);
         _setPausedStatus(initialPausedStatus);
-        _setRestakingMiddleware(restakingMiddleware);
     }
 
     /// @inheritdoc IAVSRegistrar
@@ -92,6 +99,59 @@ contract TaiyiRegistryCoordinator is
         onlyAllocationManager
         onlyWhenNotPaused(PAUSED_REGISTER_OPERATOR)
     {
+        _registerOperator(operator, operatorSetIds, data);
+    }
+
+    /// @inheritdoc IAVSRegistrar
+    function deregisterOperator(
+        address operator,
+        uint32[] memory operatorSetIds
+    )
+        external
+        override
+        onlyAllocationManager
+        onlyWhenNotPaused(PAUSED_DEREGISTER_OPERATOR)
+    {
+        _deregisterOperator(operator, operatorSetIds);
+    }
+
+    /// @inheritdoc ITaiyiRegistryCoordinator
+    function updateSocket(string memory socket) external {
+        require(
+            _operatorInfo[msg.sender].status == OperatorStatus.REGISTERED, NotRegistered()
+        );
+        _setOperatorSocket(_operatorInfo[msg.sender].operatorId, socket);
+    }
+
+    /// @inheritdoc ITaiyiRegistryCoordinator
+    function setEigenlayerMiddleware(address _eigenlayerMiddleware) external onlyOwner {
+        eigenlayerMiddleware = _eigenlayerMiddleware;
+        _setRestakingServiceType(_eigenlayerMiddleware, RestakingServiceType.EIGENLAYER);
+    }
+
+    function _setRestakingServiceType(
+        address _restakingMiddleware,
+        RestakingServiceType _restakingServiceType
+    )
+        internal
+    {
+        restakingServiceType[_restakingMiddleware] = _restakingServiceType;
+    }
+
+    function _registerOperator(
+        address operator,
+        uint32[] memory operatorSetIds,
+        bytes calldata data
+    )
+        internal
+    {
+        OperatorInfo storage operatorInfo = _operatorInfo[operator];
+        require(
+            operatorInfo.status == OperatorStatus.DEREGISTERED
+                || operatorInfo.status == OperatorStatus.UNREGISTERED,
+            OperatorNotDeregistered()
+        );
+
         (string memory socket, IPubkeyRegistry.PubkeyRegistrationParams memory params) =
             abi.decode(data, (string, IPubkeyRegistry.PubkeyRegistrationParams));
 
@@ -106,36 +166,7 @@ contract TaiyiRegistryCoordinator is
         _operatorInfo[operator].status = OperatorStatus.REGISTERED;
     }
 
-    /// @inheritdoc IAVSRegistrar
-    function deregisterOperator(
-        address operator,
-        uint32[] memory operatorSetIds
-    )
-        external
-        override
-        onlyAllocationManager
-        onlyWhenNotPaused(PAUSED_DEREGISTER_OPERATOR)
-    {
-        _kickOperator(operator, operatorSetIds);
-    }
-
-    /// @inheritdoc ITaiyiRegistryCoordinator
-    function updateSocket(string memory socket) external {
-        require(
-            _operatorInfo[msg.sender].status == OperatorStatus.REGISTERED, NotRegistered()
-        );
-        _setOperatorSocket(_operatorInfo[msg.sender].operatorId, socket);
-    }
-
-    /// @inheritdoc ITaiyiRegistryCoordinator
-    function setRestakingMiddleware(address _restakingMiddleware) external onlyOwner {
-        _setRestakingMiddleware(_restakingMiddleware);
-    }
-
-    /// @notice Internal function to handle operator ejection logic
-    /// @param operator The operator to force deregister from the avs
-    /// @param operatorSetIds The operator sets to eject the operator from
-    function _kickOperator(
+    function _deregisterOperator(
         address operator,
         uint32[] memory operatorSetIds
     )
@@ -145,24 +176,41 @@ contract TaiyiRegistryCoordinator is
         OperatorInfo storage operatorInfo = _operatorInfo[operator];
         require(operatorInfo.status == OperatorStatus.REGISTERED, OperatorNotRegistered());
 
-        bytes32 operatorId = operatorInfo.operatorId;
-        _forceDeregisterOperatorFromAllOperatorSets(operator, operatorSetIds);
+        _deregisterOperatorFromOperatorSets(operator, operatorSetIds);
         operatorInfo.status = OperatorStatus.DEREGISTERED;
     }
 
-    function createOperatorSet(IStrategy[] memory strategies) external onlyOwner {
-        operatorSetCount++;
-
-        // Create array of CreateSetParams for the new quorum
+    function createOperatorSet(IStrategy[] memory strategies)
+        external
+        onlyEigenlayerMiddleware
+        returns (uint32)
+    {
         IAllocationManagerTypes.CreateSetParams[] memory createSetParams =
             new IAllocationManagerTypes.CreateSetParams[](1);
 
-        // Initialize CreateSetParams with quorumNumber as operatorSetId
         createSetParams[0] = IAllocationManagerTypes.CreateSetParams({
-            operatorSetId: operatorSetCount,
+            operatorSetId: operatorSetCounter,
             strategies: strategies
         });
-        allocationManager.createOperatorSets({ avs: avs, params: createSetParams });
+        allocationManager.createOperatorSets({
+            avs: eigenlayerMiddleware,
+            params: createSetParams
+        });
+        operatorSetCounter++;
+    }
+
+    function getOperatorSetCount() external view returns (uint32) {
+        return allocationManager.getOperatorSetCount(eigenlayerMiddleware);
+    }
+
+    function getOperatorSetStrategies(uint32 operatorSetId)
+        external
+        view
+        returns (IStrategy[] memory)
+    {
+        OperatorSet memory operatorSet =
+            allocationManager.getOperatorSet(eigenlayerMiddleware, operatorSetId);
+        return allocationManager.getStrategiesInOperatorSet(operatorSet);
     }
 
     function addStrategiesToOperatorSet(
@@ -170,11 +218,13 @@ contract TaiyiRegistryCoordinator is
         IStrategy[] memory strategies
     )
         external
-        onlyOwner
+        onlyEigenlayerMiddleware
     {
+        uint32 operatorSetCount =
+            allocationManager.getOperatorSetCount(eigenlayerMiddleware);
         require(operatorSetId <= operatorSetCount, InvalidOperatorSetId());
         allocationManager.addStrategiesToOperatorSet({
-            avs: avs,
+            avs: eigenlayerMiddleware,
             operatorSetId: operatorSetId,
             strategies: strategies
         });
@@ -185,24 +235,19 @@ contract TaiyiRegistryCoordinator is
         IStrategy[] memory strategies
     )
         external
-        onlyOwner
+        onlyEigenlayerMiddleware
     {
+        uint32 operatorSetCount =
+            allocationManager.getOperatorSetCount(eigenlayerMiddleware);
         require(operatorSetId <= operatorSetCount, InvalidOperatorSetId());
         allocationManager.removeStrategiesFromOperatorSet({
-            avs: avs,
+            avs: eigenlayerMiddleware,
             operatorSetId: operatorSetId,
             strategies: strategies
         });
     }
 
-    /// @notice Helper function to handle operator set deregistration for OperatorSets quorums. This is used
-    /// when an operator is force-deregistered from
-    /// Due to deregistration being possible in the AllocationManager but not in the AVS as a result of the
-    /// try/catch in `AllocationManager.deregisterFromOperatorSets`, we need to first check that the operator
-    /// is not already deregistered from the OperatorSet in the AllocationManager.
-    /// @param operator The operator to deregister
-    /// @param operatorSetIds The operator sets to deregister the operator from
-    function _forceDeregisterOperatorFromAllOperatorSets(
+    function _deregisterOperatorFromOperatorSets(
         address operator,
         uint32[] memory operatorSetIds
     )
@@ -212,7 +257,7 @@ contract TaiyiRegistryCoordinator is
         allocationManager.deregisterFromOperatorSets(
             IAllocationManagerTypes.DeregisterParams({
                 operator: operator,
-                avs: avs,
+                avs: eigenlayerMiddleware,
                 operatorSetIds: operatorSetIds
             })
         );
@@ -249,13 +294,76 @@ contract TaiyiRegistryCoordinator is
         emit OperatorSocketUpdate(operatorId, socket);
     }
 
-    function _setRestakingMiddleware(address _restakingMiddleware) internal {
-        address prevRestakingMiddleware = restakingMiddleware;
-        emit RestakingMiddlewareUpdated(prevRestakingMiddleware, _restakingMiddleware);
-        restakingMiddleware = _restakingMiddleware;
+    /// ========================================================================================
+    /// ============== EIGENLAYER IN-PROTOCOL OPERATOR VIEW FUNCTIONS ==========================
+    /// ========================================================================================
+
+    /// @notice Returns all operator sets that an operator has allocated magnitude to
+    /// @param operator The operator whose allocated sets to fetch
+    /// @return Array of operator sets that the operator has allocated magnitude to
+    function getOperatorAllocatedOperatorSets(address operator)
+        external
+        view
+        returns (OperatorSet[] memory)
+    {
+        return allocationManager.getAllocatedSets(operator);
     }
 
-    /// @notice Returns the operator struct for the given `operator`
+    /// @notice Returns all strategies that an operator has allocated magnitude to in a specific operator set
+    /// @param operator The operator whose allocated strategies to fetch
+    /// @param operatorSetId The ID of the operator set to query
+    /// @return Array of strategies that the operator has allocated magnitude to in the operator set
+    function getOperatorAllocatedStrategies(
+        address operator,
+        uint32 operatorSetId
+    )
+        external
+        view
+        returns (IStrategy[] memory)
+    {
+        OperatorSet memory operatorSet =
+            OperatorSet({ avs: eigenlayerMiddleware, operatorSetId: operatorSetId });
+        return allocationManager.getAllocatedStrategies(operator, operatorSet);
+    }
+
+    /// @notice Returns an operator's allocation info for a specific strategy in an operator set
+    /// @param operator The operator whose allocation to fetch
+    /// @param operatorSetId The ID of the operator set to query
+    /// @param strategy The strategy to query
+    /// @return The operator's allocation info for the strategy in the operator set
+    function getOperatorAllocatedStrategiesAmount(
+        address operator,
+        uint32 operatorSetId,
+        IStrategy strategy
+    )
+        external
+        view
+        returns (Allocation memory)
+    {
+        OperatorSet memory operatorSet =
+            OperatorSet({ avs: eigenlayerMiddleware, operatorSetId: operatorSetId });
+        return allocationManager.getAllocation(operator, operatorSet, strategy);
+    }
+
+    /// @notice Returns all operator sets and allocations for a specific strategy that an operator has allocated magnitude to
+    /// @param operator The operator whose allocations to fetch
+    /// @param strategy The strategy to query
+    /// @return Array of operator sets and corresponding allocations for the strategy
+    function getOperatorStrategyAllocations(
+        address operator,
+        IStrategy strategy
+    )
+        external
+        view
+        returns (OperatorSet[] memory, Allocation[] memory)
+    {
+        return allocationManager.getStrategyAllocations(operator, strategy);
+    }
+
+    /// ========================================================================================
+    /// ============== EIGENLAYER OUT-PROTOCOL OPERATOR VIEW FUNCTIONS =========================
+    /// ========================================================================================
+
     function getOperator(address operator) external view returns (OperatorInfo memory) {
         return _operatorInfo[operator];
     }
@@ -299,14 +407,5 @@ contract TaiyiRegistryCoordinator is
         return _hashTypedDataV4(
             keccak256(abi.encode(PUBKEY_REGISTRATION_TYPEHASH, operator))
         );
-    }
-
-    function supportsRestakingMiddleware(address _restakingMiddleware)
-        public
-        view
-        virtual
-        returns (bool)
-    {
-        return _restakingMiddleware == address(restakingMiddleware);
     }
 }

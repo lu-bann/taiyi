@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
 
@@ -15,11 +16,10 @@ import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 
 import { EnumerableMap } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
-import { EnumerableSet } from
-    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 // Storage layout for EigenLayerMiddleware
 // ╭---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╮
@@ -50,9 +50,11 @@ import { EnumerableSet } from
 // | __gap               | uint256[50]                       | 12   | 0      | 1600  | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
 // ╰---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╯
 
-contract EigenLayerMiddlewareStorage {
-    using EnumerableSet for EnumerableSet.AddressSet;
+abstract contract EigenLayerMiddlewareStorage {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
+
+    /// @notice Mapping of operator set IDs to strategies
+    mapping(uint32 => IStrategy[]) internal operatorSetToStrategies;
 
     /// @notice ProposerRegistry contract instance
     IProposerRegistry internal proposerRegistry;
@@ -72,8 +74,8 @@ contract EigenLayerMiddlewareStorage {
     /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
     IRewardsCoordinator internal REWARDS_COORDINATOR;
 
-    /// @notice Set of allowed EigenLayer strategies
-    EnumerableSet.AddressSet internal strategies;
+    /// @notice Taiyi Registry Coordinator contract for managing operator registrations
+    ITaiyiRegistryCoordinator internal REGISTRY_COORDINATOR;
 
     /// @notice The address of the entity that can initiate rewards
     address internal REWARD_INITIATOR;

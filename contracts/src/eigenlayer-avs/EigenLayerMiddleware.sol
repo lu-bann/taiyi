@@ -15,8 +15,9 @@ import { Time } from "@openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 import { IGatewayAVS } from "../interfaces/IGatewayAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
-import { IValidatorAVS } from "../interfaces/IValidatorAVS.sol";
 
+import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
+import { IValidatorAVS } from "../interfaces/IValidatorAVS.sol";
 import { AVSDirectoryStorage } from
     "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";
 import { DelegationManagerStorage } from
@@ -43,8 +44,7 @@ import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
 /// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
-/// @dev Both GatewayAVS and ValidatorAVS should inherit from this contract.
-abstract contract EigenLayerMiddleware is
+contract EigenLayerMiddleware is
     OwnableUpgradeable,
     UUPSUpgradeable,
     EigenLayerMiddlewareStorage
@@ -64,9 +64,14 @@ abstract contract EigenLayerMiddleware is
     error StrategyAlreadyRegistered();
     error StrategyNotRegistered();
     error OperatorNotRegistered();
+    error OperatorNotRegisteredInEigenLayer();
     error CallerNotOperator();
+    error OnlyRegistryCoordinator();
     error InvalidQueryParameters();
     error UnsupportedStrategy();
+    error UseCreateOperatorDirectedAVSRewardsSubmission();
+    error UseAllocationManagerForOperatorRegistration();
+    error OperatorNotRegisteredInAVS();
 
     // ========= MODIFIERS =========
 
@@ -78,6 +83,12 @@ abstract contract EigenLayerMiddleware is
         if (!DELEGATION_MANAGER.isOperator(msg.sender)) {
             revert CallerNotOperator();
         }
+        _;
+    }
+
+    /// @notice when applied to a function, only allows the RegistryCoordinator to call it
+    modifier onlyRegistryCoordinator() {
+        require(msg.sender == address(REGISTRY_COORDINATOR), OnlyRegistryCoordinator());
         _;
     }
 
@@ -136,6 +147,7 @@ abstract contract EigenLayerMiddleware is
         address _eigenPodManager,
         address _rewardCoordinator,
         address _rewardInitiator,
+        address _registryCoordinator,
         uint256 _gatewayShareBips
     )
         public
@@ -146,7 +158,6 @@ abstract contract EigenLayerMiddleware is
         __UUPSUpgradeable_init();
 
         proposerRegistry = IProposerRegistry(_proposerRegistry);
-
         AVS_DIRECTORY = IAVSDirectory(_avsDirectory);
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
         STRATEGY_MANAGER = StrategyManagerStorage(_strategyManager);
@@ -154,8 +165,11 @@ abstract contract EigenLayerMiddleware is
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
         GATEWAY_SHARE_BIPS = _gatewayShareBips;
+        REGISTRY_COORDINATOR = ITaiyiRegistryCoordinator(_registryCoordinator);
     }
 
+    // Todo: add URC
+    // Todo: add Delegation
     /// @notice Register multiple validators for multiple pod owners in a single
     /// transaction
     /// @param valPubKeys Array of arrays containing validator BLS public keys,
@@ -178,41 +192,28 @@ abstract contract EigenLayerMiddleware is
         }
     }
 
-    /// @dev Sets the AVS directory, restricted to contract owner.
-    function setAVSDirectory(IAVSDirectory avsDirectory_) external onlyOwner {
-        _setAVSDirectory(avsDirectory_);
+    function createOperatorSet(IStrategy[] memory strategies) external onlyOwner {
+        _createOperatorSet(strategies);
     }
 
-    /// @notice Register a strategy to work in the protocol
-    /// @param strategy The EigenLayer strategy address
-    function registerStrategy(address strategy) public onlyOwner {
-        _registerStrategy(strategy);
-    }
-
-    /// @notice Deregister a strategy from working in the protocol
-    /// @param strategy The EigenLayer strategy address
-    function deregisterStrategy(address strategy) public onlyOwner {
-        _deregisterStrategy(strategy);
-    }
-
-    /// @notice Allow an operator to signal opt-in to the protocol
-    /// @param operatorSignature The operator's signature
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    function addStrategiesToOperatorSet(
+        uint32 operatorSetId,
+        IStrategy[] memory strategies
     )
         external
-        virtual
+        onlyOwner
     {
-        _registerOperatorToAvs(operator, operatorSignature);
+        _addStrategiesToOperatorSet(operatorSetId, strategies);
     }
 
-    /// @notice Deregister an operator from the protocol
-    function deregisterOperatorFromAVS(address operator)
-        public
-        onlyRegisteredOperatorOrOwner
+    function removeStrategiesFromOperatorSet(
+        uint32 operatorSetId,
+        IStrategy[] memory strategies
+    )
+        external
+        onlyOwner
     {
-        _deregisterOperatorFromAVS(operator);
+        _removeStrategiesFromOperatorSet(operatorSetId, strategies);
     }
 
     /// @notice Updates the metadata URI for the AVS
@@ -221,6 +222,7 @@ abstract contract EigenLayerMiddleware is
         _updateAVSMetadataURI(metadataURI);
     }
 
+    // Todo: support reward distribution
     /// @notice Creates operator-directed rewards to split between operators and their delegated stakers
     /// @param operatorDirectedRewardsSubmissions The rewards submissions to process
     function createOperatorDirectedAVSRewardsSubmission(
@@ -241,6 +243,14 @@ abstract contract EigenLayerMiddleware is
         _setClaimerFor(claimer);
     }
 
+    function createOperatorSet(IStrategy[] memory strategies)
+        external
+        onlyOwner
+        returns (uint32)
+    {
+        return REGISTRY_COORDINATOR.createOperatorSet(strategies);
+    }
+
     function createAVSRewardsSubmission(
         IRewardsCoordinator.RewardsSubmission[] calldata submissions
     )
@@ -258,7 +268,43 @@ abstract contract EigenLayerMiddleware is
         _processClaim(claim, recipient);
     }
 
+    function getOperatorSetCount() public view returns (uint32) {
+        return REGISTRY_COORDINATOR.getOperatorSetCount();
+    }
+
+    /// @dev Internal function that registers an operator.
+    function registerOperatorToAvs(
+        address operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    )
+        internal
+    {
+        revert UseAllocationManagerForOperatorRegistration();
+    }
+
     // ========= INTERNAL FUNCTIONS =========
+
+    function _createOperatorSet(IStrategy[] memory strategies) internal {
+        REGISTRY_COORDINATOR.createOperatorSet(strategies);
+    }
+
+    function _addStrategiesToOperatorSet(
+        uint32 operatorSetId,
+        IStrategy[] memory strategies
+    )
+        internal
+    {
+        REGISTRY_COORDINATOR.addStrategiesToOperatorSet(operatorSetId, strategies);
+    }
+
+    function _removeStrategiesFromOperatorSet(
+        uint32 operatorSetId,
+        IStrategy[] memory strategies
+    )
+        internal
+    {
+        REGISTRY_COORDINATOR.removeStrategiesFromOperatorSet(operatorSetId, strategies);
+    }
 
     /// @notice Helper function to build an OperatorDirectedRewardsSubmission for a single operator
     /// @dev Reused in both gateway distribution and validator distribution to reduce code duplication
@@ -299,8 +345,9 @@ abstract contract EigenLayerMiddleware is
         IRewardsCoordinator.RewardsSubmission[] calldata submissions
     )
         internal
-        virtual
-    { }
+    {
+        revert UseCreateOperatorDirectedAVSRewardsSubmission();
+    }
 
     function _createOperatorDirectedAVSRewardsSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
@@ -329,12 +376,6 @@ abstract contract EigenLayerMiddleware is
         emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
     }
 
-    /// @dev Internal function to set the AVS directory.
-    function _setAVSDirectory(IAVSDirectory avsDirectory_) internal {
-        AVS_DIRECTORY = avsDirectory_;
-        emit AVSDirectorySet(address(AVS_DIRECTORY));
-    }
-
     /// @notice Internal function to register multiple validators for a pod
     /// owner
     /// @dev Only the pod owner or their delegated operator can register
@@ -345,34 +386,6 @@ abstract contract EigenLayerMiddleware is
         bytes[] calldata valPubKeys,
         address podOwner,
         bytes calldata delegatedGatewayPubKey
-    )
-        internal
-        virtual
-    { }
-
-    /// @dev Internal function that registers a strategy.
-    function _registerStrategy(address strategy) internal {
-        if (strategies.contains(strategy)) {
-            revert StrategyAlreadyRegistered();
-        }
-        if (!STRATEGY_MANAGER.strategyIsWhitelistedForDeposit(IStrategy(strategy))) {
-            revert UnsupportedStrategy();
-        }
-        strategies.add(strategy);
-    }
-
-    /// @dev Internal function that deregisters a strategy.
-    function _deregisterStrategy(address strategy) internal {
-        if (!strategies.contains(strategy)) {
-            revert StrategyNotRegistered();
-        }
-        strategies.remove(strategy);
-    }
-
-    /// @dev Internal function that registers an operator.
-    function _registerOperatorToAvs(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     )
         internal
         virtual
@@ -454,50 +467,39 @@ abstract contract EigenLayerMiddleware is
     function getStrategiesAndStakes(address operator)
         external
         view
-        returns (address[] memory strategyAddresses, uint256[] memory stakeAmounts)
+        returns (IStrategy[] memory strategies, uint256[] memory stakeAmounts)
     {
-        address[] memory strategies = getOperatorRestakedStrategies(operator);
-        strategyAddresses = strategies;
+        strategies = getOperatorRestakedStrategies(operator);
         stakeAmounts = new uint256[](strategies.length);
-
         for (uint256 i = 0; i < strategies.length; i++) {
-            address strategy = strategies[i];
-            uint256 strategyShare =
-                DELEGATION_MANAGER.operatorShares(operator, IStrategy(strategy));
-            stakeAmounts[i] = IStrategy(strategy).sharesToUnderlyingView(strategyShare);
+            stakeAmounts[i] = strategies[i].sharesToUnderlyingView(
+                DELEGATION_MANAGER.getOperatorShares(operator, strategies[i])
+            );
         }
-        return (strategyAddresses, stakeAmounts);
     }
 
     /// @notice Query the registration status of an operator
     /// @param operator The address of the operator to query
     /// @return isRegistered True if the operator is registered in EigenLayer
     function verifyRegistration(address operator)
-        external
+        public
         view
-        returns (bool isRegistered, IProposerRegistry.RestakingServiceType avsType)
+        returns (OperatorSet[] memory)
     {
         // First check if operator is registered in delegation manager
         bool isDelegated = DELEGATION_MANAGER.isOperator(operator);
-
-        // Check registration in both AVS types
-        bool isGateway = proposerRegistry.isOperatorRegisteredInAVS(
-            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
-        );
-        bool isValidator = proposerRegistry.isOperatorRegisteredInAVS(
-            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
-        );
-
-        if (isDelegated && (isGateway || isValidator)) {
-            isRegistered = true;
-        }
-        if (isGateway && !isValidator) {
-            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY;
-        } else if (!isGateway && isValidator) {
-            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR;
+        if (!isDelegated) {
+            revert OperatorNotRegisteredInEigenLayer();
         }
 
-        return (isRegistered, avsType);
+        // Check operator's registration status in this AVS
+        OperatorSet[] memory operatorSets =
+            REGISTRY_COORDINATOR.getOperatorAllocatedOperatorSets(operator);
+        if (operatorSets.length == 0) {
+            revert OperatorNotRegisteredInAVS();
+        }
+
+        return operatorSets;
     }
 
     /// @notice Get the strategies an operator has restaked in
@@ -506,30 +508,56 @@ abstract contract EigenLayerMiddleware is
     function getOperatorRestakedStrategies(address operator)
         public
         view
-        returns (address[] memory)
+        returns (IStrategy[] memory strategies)
     {
-        address[] memory restakedStrategies = new address[](strategies.length());
-        uint256 count = 0;
+        OperatorSet[] memory operatorSets = verifyRegistration(operator);
 
-        for (uint256 i = 0; i < strategies.length(); i++) {
-            address strategy = strategies.at(i);
-            if (DELEGATION_MANAGER.operatorShares(operator, IStrategy(strategy)) > 0) {
-                restakedStrategies[count] = strategy;
-                count++;
+        EnumerableSet.AddressSet memory restakedStrategies =
+            new EnumerableSet.AddressSet();
+        for (uint256 i = 0; i < operatorSets.length; i++) {
+            IStrategy[] memory setStrategies = REGISTRY_COORDINATOR
+                .getOperatorAllocatedStrategies(operator, operatorSets[i].operatorSetId);
+            for (uint256 j = 0; j < setStrategies.length; j++) {
+                if (!restakedStrategies.contains(address(setStrategies[j]))) {
+                    restakedStrategies.add(address(setStrategies[j]));
+                    strategies.push(setStrategies[j]);
+                }
             }
         }
-
-        // Resize array to actual count
-        assembly {
-            mstore(restakedStrategies, count)
-        }
-        return restakedStrategies;
     }
 
-    /// @notice Get all strategies that can be restaked
+    /// @notice Get all strategies that can be restaked across all operator sets
     /// @return Array of all registered strategy addresses
-    function getRestakeableStrategies() external view returns (address[] memory) {
-        return strategies.values();
+    function getAllRestakeableStrategies()
+        external
+        view
+        returns (EnumerableSet.AddressSet memory)
+    {
+        uint32 operatorSetCount = REGISTRY_COORDINATOR.getOperatorSetCount();
+        EnumerableSet.AddressSet memory strategies = new EnumerableSet.AddressSet();
+        for (uint32 i = 0; i < operatorSetCount; i++) {
+            IStrategy[] memory operatorSet =
+                REGISTRY_COORDINATOR.getOperatorSetStrategies(i);
+            for (uint256 j = 0; j < operatorSet.length; j++) {
+                strategies.add(address(operatorSet[j]));
+            }
+        }
+        return strategies;
+    }
+
+    /// @notice Get all strategies for a given operator set
+    /// @param operatorSetId The ID of the operator set
+    /// @return Array of all strategies in the operator set
+    function getRestakeableOperatorSetStrategies(uint32 operatorSetId)
+        external
+        view
+        returns (IStrategy[] memory)
+    {
+        require(
+            operatorSetId <= REGISTRY_COORDINATOR.getOperatorSetCount(),
+            "Operator set not found"
+        );
+        return REGISTRY_COORDINATOR.getOperatorSetStrategies(operatorSetId);
     }
 
     /// @notice Gets the GatewayAVS address from the registry

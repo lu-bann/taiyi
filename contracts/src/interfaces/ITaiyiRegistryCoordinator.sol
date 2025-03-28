@@ -24,6 +24,15 @@ interface ITaiyiRegistryCoordinator {
         OperatorStatus status;
     }
 
+    /// @notice Defines the type of restaking service used by the protocol
+    /// @dev Used to specify which restaking mechanism an operator is using
+    /// @custom:enum EIGENLAYER The operator is using EigenLayer for restaking
+    /// @custom:enum SYMBIOTIC The operator is using Symbiotic for restaking
+    enum RestakingServiceType {
+        EIGENLAYER,
+        SYMBIOTIC
+    }
+
     /// @notice Error thrown when an operator is not registered
     error NotRegistered();
 
@@ -38,6 +47,15 @@ interface ITaiyiRegistryCoordinator {
 
     /// @notice Error thrown when a caller is not the allocation manager
     error OnlyAllocationManager();
+
+    /// @notice Error thrown when a caller is not the restaking middleware
+    error OnlyRestakingMiddleware();
+
+    /// @notice Error thrown when a caller is not the EigenLayer middleware
+    error OnlyEigenlayerMiddleware();
+
+    /// @notice Error thrown when an operator is not registered
+    error OperatorNotDeregistered();
 
     /// @notice Emitted when an operator's socket is updated
     /// @param operatorId The operator's unique identifier
