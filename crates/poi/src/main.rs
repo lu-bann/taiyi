@@ -108,6 +108,8 @@ pub fn main() {
                         inclusion_block_header.blob_fee().unwrap()
                             * DATA_GAS_PER_BLOB as u128
                             * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len()
+                                as u128
+                            + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
                                 as u128,
                     )
                 {
@@ -118,7 +120,10 @@ pub fn main() {
             } else {
                 // Check balance
                 if account.balance
-                    < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
+                    < U256::from(
+                        (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit()) as u128
+                            + tx.max_priority_fee_per_gas().unwrap() * tx.gas_limit() as u128,
+                    )
                 {
                     // Commit the public values of the program.
                     sp1_zkvm::io::commit_slice(&bytes);
@@ -244,7 +249,9 @@ pub fn main() {
                 < U256::from(
                     inclusion_block_header.blob_fee().unwrap()
                         * DATA_GAS_PER_BLOB as u128
-                        * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128,
+                        * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128
+                        + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
+                            as u128,
                 )
             {
                 // Commit the public values of the program.
@@ -254,7 +261,10 @@ pub fn main() {
         } else {
             // Check balance
             if account.balance
-                < U256::from(inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
+                < U256::from(
+                    (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit()) as u128
+                        + tx.max_priority_fee_per_gas().unwrap() * tx.gas_limit() as u128,
+                )
             {
                 // Commit the public values of the program.
                 sp1_zkvm::io::commit_slice(&bytes);
