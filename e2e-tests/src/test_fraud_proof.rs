@@ -42,7 +42,7 @@ use crate::{
 
 const ELF_POI: &[u8] = include_elf!("taiyi-poi");
 const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
-const ELF_VERIFIER: &[u8] = include_elf!("taiyi-sp1-verifier");
+const ELF_VERIFIER: &[u8] = include_elf!("taiyi-zkvm-verifier");
 
 // TODO: type A not included test,
 // TODO: type B not included test,

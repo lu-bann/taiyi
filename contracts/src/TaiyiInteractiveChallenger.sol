@@ -280,8 +280,10 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
             address gatewayAddress,
-            bytes memory signature
-        ) = abi.decode(proofValues, (uint64, bytes32, address, bytes));
+            bytes memory signature,
+            uint64 genesisTimestamp,
+            address taiyiCore
+        ) = abi.decode(proofValues, (uint64, bytes32, address, bytes, uint64, address));
 
         if (challenge.preconfType == 0) {
             // Decode preconf request from challenge data
@@ -316,6 +318,16 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         // Verify the proof commitment signer matches the challenge commitment signer
         if (gatewayAddress != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
+        }
+
+        // Verify the genesis timestamp
+        if (genesisTimestamp != parameterManager.genesisTimestamp()) {
+            revert GenesisTimestampDoesNotMatch();
+        }
+
+        // Verify the taiyi core address
+        if (taiyiCore != parameterManager.taiyiCore()) {
+            revert TaiyiCoreAddressDoesNotMatch();
         }
 
         challenges[id].status = ChallengeStatus.Failed;

@@ -59,6 +59,8 @@ pub fn main() {
             inclusion_block_hash,
             gateway_address,
             preconf_signature.as_bytes().to_vec(),
+            genesis_timestamp,
+            taiyi_core,
         )
             .abi_encode_sequence();
 
@@ -195,6 +197,8 @@ pub fn main() {
             inclusion_block_hash,
             gateway_address,
             preconf_signature.as_bytes().to_vec(),
+            genesis_timestamp,
+            taiyi_core,
         )
             .abi_encode_sequence();
 
@@ -312,6 +316,8 @@ pub fn main() {
         inclusion_block_hash,
         gateway_address,
         preconf_signature.as_bytes().to_vec(),
+        genesis_timestamp,
+        taiyi_core,
     )
         .abi_encode_sequence();
 

@@ -1,5 +1,5 @@
 [package]
-name = "taiyi-sp1-verifier"
+name = "taiyi-zkvm-verifier"
 version = "1.1.0"
 edition = "2021"
 

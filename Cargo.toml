@@ -11,11 +11,11 @@ members = [
     "bin/taiyi-fraud-proof-cli",
     "crates/cli",
     "crates/contracts",
+    "crates/poi",
+    "crates/poni",
     "crates/preconfer",
     "crates/primitives",
-    "crates/sp1-poi",
-    "crates/sp1-poni",
-    "crates/sp1-verifier",
+    "crates/zkvm-verifier",
     "e2e-tests",
     "examples",
     "spammer",
@@ -53,9 +53,9 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
-taiyi-zkvm-types = { path = "crates/sp1-types" }
-taiyi-poi = { path = "crates/sp1-poi" }
-taiyi-poni = { path = "crates/sp1-poni" }
+taiyi-zkvm-types = { path = "crates/zkvm-types" }
+taiyi-poi = { path = "crates/poi" }
+taiyi-poni = { path = "crates/poni" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
