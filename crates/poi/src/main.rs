@@ -110,7 +110,8 @@ pub fn main() {
                             * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len()
                                 as u128
                             + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
-                                as u128,
+                                as u128
+                            + tx.max_priority_fee_per_gas().unwrap() * tx.gas_limit() as u128,
                     )
                 {
                     // Commit the public values of the program.
@@ -251,7 +252,8 @@ pub fn main() {
                         * DATA_GAS_PER_BLOB as u128
                         * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128
                         + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
-                            as u128,
+                            as u128
+                        + tx.max_priority_fee_per_gas().unwrap() * tx.gas_limit() as u128,
                 )
             {
                 // Commit the public values of the program.
