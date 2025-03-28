@@ -33,8 +33,8 @@ struct Opts {
     beacon_client_url: String,
 
     /// Preconfer URL
-    #[clap(long = "gateway_url", default_value = "http://localhost:18550")]
-    gateway_url: String,
+    #[clap(long = "underwriter_url", default_value = "http://localhost:18550")]
+    underwriter_url: String,
 
     /// Private key to sign the transaction
     #[clap(long = "private_key")]
@@ -87,7 +87,7 @@ async fn main() -> eyre::Result<()> {
     // let receipt = pending_tx.get_receipt().await?;
     // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
-    let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone(), chain_id);
+    let http_client = HttpClient::new(opts.underwriter_url.parse()?, signer.clone(), chain_id);
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
     let client = EventClient::new(reqwest::Client::new());
 
@@ -145,7 +145,7 @@ async fn main() -> eyre::Result<()> {
         }
 
         if event.epoch_transition {
-            info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
+            info!("Epoch changed to: {:?}, querying underwriter for available slots..", epoch);
             let mut slots = http_client.slots().await?;
             let head_slot = beacon_client.get_sync_status().await?.head_slot;
             info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());

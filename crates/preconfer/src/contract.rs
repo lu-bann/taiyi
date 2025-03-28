@@ -24,9 +24,9 @@ pub mod core {
                 struct PreconfRequestBType {
                     BlockspaceAllocation blockspaceAllocation;
                     bytes blockspaceAllocationSignature;
-                    bytes gatewaySignedBlockspaceAllocation;
+                    bytes underwriterSignedBlockspaceAllocation;
                     bytes rawTx;
-                    bytes gatewaySignedRawTx;
+                    bytes underwriterSignedRawTx;
                 }
 
                 #[derive(Debug)]
@@ -53,9 +53,9 @@ use taiyi_primitives::PreconfRequestTypeB;
 pub fn to_solidity_type(
     request: PreconfRequestTypeB,
     blockspace_allocation_sig_user: PrimitiveSignature,
-    blockspace_allocation_sig_gateway: PrimitiveSignature,
+    blockspace_allocation_sig_underwriter: PrimitiveSignature,
     raw_tx: Bytes,
-    gateway_signed_raw_tx: PrimitiveSignature,
+    underwriter_signed_raw_tx: PrimitiveSignature,
 ) -> core::TaiyiCore::PreconfRequestBType {
     core::TaiyiCore::PreconfRequestBType {
         blockspaceAllocation: core::TaiyiCore::BlockspaceAllocation {
@@ -68,8 +68,10 @@ pub fn to_solidity_type(
             blobCount: U256::from(request.allocation.blob_count),
         },
         blockspaceAllocationSignature: blockspace_allocation_sig_user.as_bytes().into(),
-        gatewaySignedBlockspaceAllocation: blockspace_allocation_sig_gateway.as_bytes().into(),
+        underwriterSignedBlockspaceAllocation: blockspace_allocation_sig_underwriter
+            .as_bytes()
+            .into(),
         rawTx: raw_tx,
-        gatewaySignedRawTx: gateway_signed_raw_tx.as_bytes().into(),
+        underwriterSignedRawTx: underwriter_signed_raw_tx.as_bytes().into(),
     }
 }

@@ -2,12 +2,12 @@ use std::future::Future;
 
 use alloy_eips::merge::EPOCH_SLOTS;
 use alloy_rpc_types_beacon::events::HeadEvent;
-use beacon_api_client::{mainnet::Client, BlockId};
 use blst::min_pk::PublicKey;
 use ethereum_consensus::primitives::BlsPublicKey;
 use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
+use taiyi_beacon_client::BeaconClient;
 use tracing::{debug, info};
 
 use crate::{
@@ -16,9 +16,9 @@ use crate::{
 };
 
 pub struct LookaheadFetcher {
-    beacon_client: Client,
+    beacon_client: BeaconClient,
     network_state: NetworkState,
-    gateway_pubkey: BlsPublicKey,
+    underwriter_pubkey: BlsPublicKey,
     relay_client: RelayClient,
 }
 
@@ -26,27 +26,29 @@ impl LookaheadFetcher {
     pub fn new(
         beacon_rpc_url: String,
         network_state: NetworkState,
-        gateway_pubkey: PublicKey,
+        underwriter_pubkey: PublicKey,
         relay_urls: Vec<Url>,
     ) -> Self {
-        let gateway_pubkey =
-            BlsPublicKey::try_from(gateway_pubkey.to_bytes().as_ref()).expect("Invalid public key");
+        let underwriter_pubkey = BlsPublicKey::try_from(underwriter_pubkey.to_bytes().as_ref())
+            .expect("Invalid public key");
         Self {
-            beacon_client: Client::new(Url::parse(&beacon_rpc_url).expect("Invalid URL")),
+            beacon_client: BeaconClient::new(
+                Url::parse(&beacon_rpc_url).expect("Invalid URL"),
+                None,
+            ),
             network_state,
-            gateway_pubkey,
+            underwriter_pubkey,
             relay_client: RelayClient::new(relay_urls),
         }
     }
 
     pub async fn initialze(&mut self) -> eyre::Result<()> {
-        let head = self.beacon_client.get_beacon_block(BlockId::Head).await?;
-        let slot = head.message().slot();
+        let slot = self.beacon_client.get_head_slot().await?;
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
-        // Fetch gateway delegations for the current epoch
+        // Fetch underwriter delegations for the current epoch
         self.get_delegation_for_current_epoch(epoch, slot).await?;
-        // Fetch gateway delegations for the next epoch
+        // Fetch underwriter delegations for the next epoch
         self.get_delegation_for(epoch + 1).await?;
         self.network_state.update_slot(slot);
 
@@ -71,9 +73,9 @@ impl LookaheadFetcher {
                     'delegation_loop: for signed_delegation in signed_delegations {
                         let delegation_message = signed_delegation.message;
                         if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
                         {
-                            info!("Delegation to gateway found for slot: {}", slot);
+                            info!("Delegation to underwriter found for slot: {}", slot);
                             self.network_state.add_slot(slot);
                             break 'delegation_loop;
                         }
@@ -101,9 +103,9 @@ impl LookaheadFetcher {
                     'delegation_loop: for signed_delegation in signed_delegations {
                         let delegation_message = signed_delegation.message;
                         if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.gateway_pubkey
+                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
                         {
-                            info!("Delegation to gateway found for slot: {}", slot);
+                            info!("Delegation to underwriter found for slot: {}", slot);
                             self.network_state.add_slot(slot);
                             break 'delegation_loop;
                         }
@@ -124,7 +126,7 @@ impl LookaheadFetcher {
         self.initialze().await?;
         let client = EventClient::new(reqwest::Client::new());
         let beacon_url_head_event =
-            format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint.as_str());
+            format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint().as_str());
 
         info!("Starts to subscribe to {}", beacon_url_head_event);
         let mut stream: mev_share_sse::client::EventStream<HeadEvent> =

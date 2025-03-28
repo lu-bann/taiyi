@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeA {
-    /// ETH transfer to the gateway
+    /// ETH transfer to the underwriter
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
     pub preconf_tx: Vec<TxEnvelope>,
@@ -77,7 +77,7 @@ impl PreconfRequestTypeA {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SubmitTypeATransactionRequest {
-    /// ETH transfer to the gateway
+    /// ETH transfer to the underwriter
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
     pub preconf_transaction: Vec<TxEnvelope>,

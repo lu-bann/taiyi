@@ -149,7 +149,7 @@ where
 
                                     // Append with a transaction that calls get_tip() on TaiyiCore contract
                                     let blockspace_allocation_sig_user = preconf_req.alloc_sig;
-                                    let blockspace_allocation_sig_gateway = state
+                                    let blockspace_allocation_sig_underwriter = state
                                         .signer_client
                                         .sign_with_ecdsa(keccak256(
                                             blockspace_allocation_sig_user.as_bytes(),
@@ -157,7 +157,7 @@ where
                                         .await
                                         .map_err(|e| RpcError::SignatureError(format!("{e:?}")))?;
                                     let raw_tx = format!("0x{}", hex::encode(&tx_encoded));
-                                    let gateway_signed_raw_tx = state
+                                    let underwriter_signed_raw_tx = state
                                         .signer_client
                                         .sign_with_ecdsa(keccak256(raw_tx))
                                         .await
@@ -169,9 +169,9 @@ where
                                     let preconf_request_type_b = to_solidity_type(
                                         preconf_req,
                                         blockspace_allocation_sig_user,
-                                        blockspace_allocation_sig_gateway,
+                                        blockspace_allocation_sig_underwriter,
                                         tx_encoded.into(),
-                                        gateway_signed_raw_tx,
+                                        underwriter_signed_raw_tx,
                                     );
 
                                     // Call getTip() on TaiyiCore contract
@@ -228,7 +228,7 @@ where
                 }
             }
 
-            // Fetch all preconf requests for which the gateway must call exhaust() on TaiyiCore contract
+            // Fetch all preconf requests for which the underwriter must call exhaust() on TaiyiCore contract
             match state.preconf_pool.fetch_pending(next_slot) {
                 Ok(requests) => {
                     info!(
@@ -239,7 +239,7 @@ where
 
                     for preconf_req in requests {
                         let blockspace_allocation_sig_user = preconf_req.alloc_sig;
-                        let blockspace_allocation_sig_gateway = state
+                        let blockspace_allocation_sig_underwriter = state
                             .signer_client
                             .sign_with_ecdsa(keccak256(blockspace_allocation_sig_user.as_bytes()))
                             .await
@@ -247,7 +247,7 @@ where
                         let preconf_request_type_b = to_solidity_type(
                             preconf_req,
                             blockspace_allocation_sig_user,
-                            blockspace_allocation_sig_gateway,
+                            blockspace_allocation_sig_underwriter,
                             Bytes::default(),
                             state
                                 .signer_client

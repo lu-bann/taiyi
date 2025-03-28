@@ -1,4 +1,3 @@
-// the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/client/beacon.rs
 use std::{fmt::Debug, ops::Deref};
 
 use alloy_primitives::{Address, B256};
@@ -36,8 +35,6 @@ pub type BeaconClientResult<T> = Result<T, BeaconClientError>;
 /// with added custom error handling and methods.
 #[derive(Clone)]
 pub struct BeaconClient {
-    client: reqwest::Client,
-    beacon_rpc_url: Url,
     auth_token: Option<String>,
 
     // Inner client re-exported from the beacon_api_client crate.
@@ -54,11 +51,41 @@ impl Deref for BeaconClient {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct BeaconBlock {
+    version: String,
+    data: BeaconBlockData,
+}
+
+#[derive(Serialize, Deserialize)]
+struct BeaconBlockData {
+    message: BeaconBlockMessage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct BeaconBlockMessage {
+    slot: String,
+}
+
 impl BeaconClient {
     /// Create a new [BeaconClient] instance with the given beacon RPC URL.
     pub fn new(beacon_rpc_url: Url, auth_token: Option<String>) -> Self {
         let inner = beacon_api_client::mainnet::Client::new(beacon_rpc_url.clone());
-        Self { client: reqwest::Client::new(), beacon_rpc_url, auth_token, inner }
+        Self { auth_token, inner }
+    }
+
+    pub fn endpoint(&self) -> &Url {
+        &self.inner.endpoint
+    }
+
+    /// This is a temporary solution because ethereum-consensus doesn't
+    /// support the eth/v2/beacon/blocks/head endpoint yet for electra fork now.
+    /// reference: https://github.com/ralexstokes/ethereum-consensus/pull/406
+    pub async fn get_head_slot(&self) -> BeaconClientResult<u64> {
+        let response = self.inner.http_get("eth/v2/beacon/blocks/head").await?;
+        let result = response.bytes().await?;
+        let result: BeaconBlock = serde_json::from_slice(&result)?;
+        Ok(result.data.message.slot.parse::<u64>()?)
     }
 
     /// Fetch the previous RANDAO value from the beacon node.
@@ -67,7 +94,8 @@ impl BeaconClient {
         // so we implement it manually here.
 
         let url = self
-            .beacon_rpc_url
+            .inner
+            .endpoint
             .join("/eth/v1/beacon/states/head/randao")
             .map_err(|_| BeaconClientError::Url)?;
 
@@ -77,7 +105,7 @@ impl BeaconClient {
         }
 
         // Create request builder
-        let mut req = self.client.get(url);
+        let mut req = self.inner.http.get(url);
 
         // Add auth header if token is present
         if let Some(token) = &self.auth_token {
@@ -94,10 +122,10 @@ impl BeaconClient {
     pub async fn get_expected_withdrawals_at_head(&self) -> BeaconClientResult<Vec<Withdrawal>> {
         let id = StateId::Head;
         let path = format!("eth/v1/builder/states/{id}/expected_withdrawals");
-        let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
+        let url = self.inner.endpoint.join(&path).map_err(|_| BeaconClientError::Url)?;
 
         // Create the request builder
-        let mut request_builder = self.client.get(url.clone());
+        let mut request_builder = self.inner.http.get(url.clone());
 
         // Add authorization header if auth_token exists
         if let Some(token) = &self.auth_token {
@@ -130,10 +158,10 @@ impl BeaconClient {
     pub async fn get_parent_beacon_block_root(&self) -> BeaconClientResult<B256> {
         let id = BlockId::Head;
         let path = format!("eth/v1/beacon/blocks/{id}/root");
-        let url = self.beacon_rpc_url.join(&path).map_err(|_| BeaconClientError::Url)?;
+        let url = self.inner.endpoint.join(&path).map_err(|_| BeaconClientError::Url)?;
 
         // Create the request builder
-        let mut request_builder = self.client.get(url.clone());
+        let mut request_builder = self.inner.http.get(url.clone());
 
         // Add authorization header if auth_token exists
         if let Some(token) = &self.auth_token {
@@ -160,14 +188,33 @@ struct ResponseData<T> {
 
 impl Debug for BeaconClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BeaconClient").field("beacon_rpc_url", &self.beacon_rpc_url).finish()
+        f.debug_struct("BeaconClient").field("beacon_rpc_url", &self.inner.endpoint).finish()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
+    use reqwest::Url;
+    use serde::Deserialize;
+
     use super::*;
-    use crate::utils::tests::get_test_config;
+
+    #[derive(Debug, Clone, Deserialize)]
+    pub struct ExtraConfig {
+        pub beacon_api: Url,
+    }
+
+    pub fn get_test_config() -> eyre::Result<Option<ExtraConfig>> {
+        if env::var("BEACON_API").is_err() {
+            return Ok(None);
+        }
+
+        let beacon_api = env::var("BEACON_API").unwrap();
+
+        Ok(Some(ExtraConfig { beacon_api: Url::parse(&beacon_api)? }))
+    }
 
     #[tokio::test]
     async fn test_get_prev_randao() -> eyre::Result<()> {

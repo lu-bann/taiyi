@@ -1647,7 +1647,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 [[package]]
 name = "beacon-api-client"
 version = "0.1.0"
-source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=8fbd8a53dca0170bedeca40a92ee70fd48c4615b#8fbd8a53dca0170bedeca40a92ee70fd48c4615b"
+source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=92f3ec39d8c595790ed4717b8996a314165f013f#92f3ec39d8c595790ed4717b8996a314165f013f"
 dependencies = [
  "clap",
  "ethereum-consensus",
@@ -1906,9 +1906,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.9.2"
+version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ff22c2722516255d1823ce3cc4bc0b154dbc9364be5c905d6baa6eccbbc8774"
+checksum = "7ecc273b49b3205b83d648f0690daa588925572cc5063745bfe547fe7ec8e1a1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3394,7 +3394,7 @@ dependencies = [
 [[package]]
 name = "ethereum-consensus"
 version = "0.1.1"
-source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=8fbd8a53dca0170bedeca40a92ee70fd48c4615b#8fbd8a53dca0170bedeca40a92ee70fd48c4615b"
+source = "git+https://github.com/ralexstokes/ethereum-consensus?rev=92f3ec39d8c595790ed4717b8996a314165f013f#92f3ec39d8c595790ed4717b8996a314165f013f"
 dependencies = [
  "blst",
  "bs58 0.4.0",
@@ -8563,6 +8563,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-beacon-client"
+version = "0.1.4"
+dependencies = [
+ "alloy-primitives 0.8.15",
+ "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth 0.8.1",
+ "beacon-api-client",
+ "blst",
+ "const-hex",
+ "eyre",
+ "hex",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
 name = "taiyi-boost"
 version = "0.1.0"
 dependencies = [
@@ -8583,12 +8602,9 @@ dependencies = [
  "alloy-transport-http 0.8.1",
  "async-trait",
  "axum 0.7.9",
- "beacon-api-client",
- "blst",
  "cb-common",
  "cb-pbs",
  "commit-boost",
- "const-hex",
  "ethereum-consensus",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
@@ -8607,6 +8623,7 @@ dependencies = [
  "serde_json",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "ssz_types",
+ "taiyi-beacon-client",
  "taiyi-cmd",
  "thiserror 2.0.7",
  "tokio",
@@ -8782,7 +8799,6 @@ dependencies = [
  "alloy-transport 0.8.1",
  "alloy-transport-http 0.8.1",
  "axum 0.7.9",
- "beacon-api-client",
  "blst",
  "ethereum-consensus",
  "eyre",
@@ -8798,6 +8814,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
+ "taiyi-beacon-client",
  "taiyi-primitives",
  "thiserror 2.0.7",
  "time",

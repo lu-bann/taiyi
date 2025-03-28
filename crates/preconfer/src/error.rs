@@ -28,7 +28,7 @@ pub enum RpcError {
     ParamsError(String),
     #[error("Malformed header")]
     MalformedHeader,
-    #[error("Gateway isn't delegated for the slot: {0}")]
+    #[error("Underwriter isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
     #[error("Pricer error: {0:?}")]
     PricerError(#[from] PricerError),

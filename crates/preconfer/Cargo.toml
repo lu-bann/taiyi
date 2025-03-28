@@ -21,7 +21,6 @@ alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true }
 
 axum = { workspace = true }
-beacon-api-client = { workspace = true }
 blst = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
@@ -37,6 +36,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = "3.12.0"
 ssz_rs = { workspace = true }
+taiyi-beacon-client = { workspace = true }
 taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }

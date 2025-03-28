@@ -30,9 +30,9 @@ pub struct RegisterValidatorsCommand {
     #[clap(long, env = "POD_OWNERS", value_delimiter = ',')]
     pod_owners: Vec<String>,
 
-    /// Comma-separated list of delegated gateways in hex format
-    #[clap(long, env = "DELEGATED_GATEWAYS", value_delimiter = ',')]
-    delegated_gateways: Vec<String>,
+    /// Comma-separated list of delegated underwriters in hex format
+    #[clap(long, env = "DELEGATED_UNDERWRITERS", value_delimiter = ',')]
+    delegated_underwriters: Vec<String>,
 }
 
 impl RegisterValidatorsCommand {
@@ -66,13 +66,13 @@ impl RegisterValidatorsCommand {
             })
             .collect();
 
-        // Parse delegated gateways into Vec<Bytes>
-        let delegated_gateways: Vec<Bytes> = self
-            .delegated_gateways
+        // Parse delegated underwriters into Vec<Bytes>
+        let delegated_underwriters: Vec<Bytes> = self
+            .delegated_underwriters
             .iter()
-            .map(|gateway| {
-                Bytes::from_hex(gateway.trim()).unwrap_or_else(|_| {
-                    panic!("Invalid hex string {gateway:} for delegated gateway")
+            .map(|underwriter| {
+                Bytes::from_hex(underwriter.trim()).unwrap_or_else(|_| {
+                    panic!("Invalid hex string {underwriter:} for delegated underwriter")
                 })
             })
             .collect();
@@ -85,7 +85,7 @@ impl RegisterValidatorsCommand {
 
         // Register validators
         let tx = middleware
-            .registerValidators(val_pub_keys, pod_owners, delegated_gateways)
+            .registerValidators(val_pub_keys, pod_owners, delegated_underwriters)
             .send()
             .await?;
 
