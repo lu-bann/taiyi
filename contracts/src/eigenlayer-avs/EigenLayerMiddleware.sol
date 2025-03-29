@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.27;
 
 import { IERC20 } from
     "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
@@ -12,10 +12,9 @@ import { EnumerableMap } from
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
-import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { EnumerableMapLib } from "@solady/utils/EnumerableMapLib.sol";
 
 import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
-import { IValidatorAVS } from "../interfaces/IValidatorAVS.sol";
 import { AVSDirectoryStorage } from
     "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";
 import { DelegationManagerStorage } from
@@ -69,6 +68,7 @@ contract EigenLayerMiddleware is
     error OperatorNotRegisteredInEigenLayer();
     error CallerNotOperator();
     error OnlyRegistryCoordinator();
+    error OnlyRewardsInitiator();
     error InvalidQueryParameters();
     error UnsupportedStrategy();
     error UseCreateOperatorDirectedAVSRewardsSubmission();
@@ -76,6 +76,17 @@ contract EigenLayerMiddleware is
     error OperatorNotRegisteredInAVS();
     error OperatorIsNotYetRegisteredInValidatorOperatorSet();
     error OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
+    error OperatorNotOwnerOfRegistrationRoot();
+    error RegistrationRootNotFound();
+    error PubKeyNotFound();
+
+    // Using Solady's EnumerableMapLib for efficient delegation storage
+    struct DelegationStore {
+        // index -> hashed pubkey
+        EnumerableMapLib.Uint256ToBytes32Map delegationMap;
+        // hashed pubkey -> signed delegation
+        mapping(bytes32 => IRegistry.SignedDelegation) delegations;
+    }
 
     // ========= MODIFIERS =========
 
@@ -83,37 +94,25 @@ contract EigenLayerMiddleware is
     /// in EigenLayer core
     /// @dev Reverts with CallerNotOperator if msg.sender is not an EigenLayer
     /// operator
-    modifier onlyEigenCoreOperator() {
-        if (!DELEGATION_MANAGER.isOperator(msg.sender)) {
-            revert CallerNotOperator();
+    modifier onlyValidatorOperatorSet() {
+        if (!REGISTRY_COORDINATOR.getOperatorSet(1).contains(msg.sender)) {
+            revert OperatorIsNotYetRegisteredInValidatorOperatorSet();
         }
         _;
     }
 
     /// @notice when applied to a function, only allows the RegistryCoordinator to call it
     modifier onlyRegistryCoordinator() {
-        require(msg.sender == address(REGISTRY_COORDINATOR), OnlyRegistryCoordinator());
+        if (msg.sender != address(REGISTRY_COORDINATOR)) {
+            revert OnlyRegistryCoordinator();
+        }
         _;
     }
 
     /// @notice only rewardsInitiator can call createAVSRewardsSubmission
     modifier onlyRewardsInitiator() {
-        _checkRewardsInitiator();
-        _;
-    }
-
-    /// @notice Modifier that restricts function access to operators registered in the proposer registry or the contract owner
-    /// @dev Reverts with OperatorNotRegistered if msg.sender is not registered in proposer registry and is not the owner
-    modifier onlyRegisteredOperatorOrOwner() {
-        if (
-            !proposerRegistry.isOperatorRegisteredInAVS(
-                msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
-            )
-                && !proposerRegistry.isOperatorRegisteredInAVS(
-                    msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
-                ) && msg.sender != owner()
-        ) {
-            revert OperatorNotRegistered();
+        if (msg.sender != REWARD_INITIATOR) {
+            revert OnlyRewardsInitiator();
         }
         _;
     }
@@ -135,7 +134,6 @@ contract EigenLayerMiddleware is
 
     /// @notice Initialize the contract
     /// @param _owner Address of contract owner
-    /// @param _proposerRegistry Address of proposer registry contract
     /// @param _avsDirectory Address of AVS directory contract
     /// @param _delegationManager Address of delegation manager contract
     /// @param _strategyManager Address of strategy manager contract
@@ -144,7 +142,6 @@ contract EigenLayerMiddleware is
     /// @param _rewardInitiator Address of reward initiator
     function initialize(
         address _owner,
-        address _proposerRegistry,
         address _avsDirectory,
         address _delegationManager,
         address _strategyManager,
@@ -162,7 +159,6 @@ contract EigenLayerMiddleware is
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
 
-        proposerRegistry = IProposerRegistry(_proposerRegistry);
         AVS_DIRECTORY = IAVSDirectory(_avsDirectory);
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
         STRATEGY_MANAGER = StrategyManagerStorage(_strategyManager);
@@ -174,6 +170,8 @@ contract EigenLayerMiddleware is
         REGISTRY = IRegistry(_registry);
     }
 
+    // Todo: add a slashing function in ISlasher to slash the operator when Registry.slashRegistration is successfully
+    //       should also use FRAUD_PROOF_PERIOD() to maintain the slashable period
     /// @notice Register multiple validators for multiple pod owners in a single
     /// transaction
     /// @param registrations Array of arrays containing validator BLS public keys,
@@ -184,65 +182,57 @@ contract EigenLayerMiddleware is
         IRegistry.Registration[] calldata registrations,
         BLS.G2Point[] calldata delegationSignatures,
         BLS.G1Point calldata delegateePubKey,
-        address delegateeAddress
+        address delegateeAddress,
+        bytes[] calldata data
     )
         external
     {
         _registerValidators(
-            registrations, delegationSignatures, delegateePubKey, delegateeAddress
+            registrations, delegationSignatures, delegateePubKey, delegateeAddress, data
         );
     }
 
-    function _registerValidators(
-        IRegistry.Registration[] calldata registrations,
-        BLS.G2Point[] calldata delegationSignatures,
-        BLS.G1Point calldata delegateePubKey,
-        address delegateeAddress
+    /// @notice Batch set delegations for a registration root
+    /// @param registrationRoot The registration root
+    /// @param pubkeys Array of validator pubkeys
+    /// @param delegations Array of signed delegations
+    function batchSetDelegations(
+        bytes32 registrationRoot,
+        BLS.G1Point[] calldata pubkeys,
+        IRegistry.SignedDelegation[] calldata delegations
     )
-        internal
+        external
     {
-        require(
-            delegateePubKey.length > 0,
-            "ValidatorAVS: Must choose a valid Gateway delegate"
-        );
-
-        // Check if operator is registered in Validator Operator Set(1)
-        if (!REGISTRY_COORDINATOR.getOperatorSet(1).contains(msg.sender)) {
-            revert OperatorIsNotYetRegisteredInValidatorOperatorSet();
-        }
-
-        if (!REGISTRY_COORDINATOR.getOperatorSet(0).contains(delegateeAddress)) {
-            revert OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
-        }
-
-        require(
-            registrations.length == delegationSignatures.length,
-            "Invalid number of delegation signatures"
-        );
-
-        // send 0.11 eth to meet the Registry.MIN_COLLATERAL() requirement
-        bytes32 registrationRoot =
-            REGISTRY.register{ value: 0.11 ether }(registrations, msg.sender);
-
-        for (uint256 i = 0; i < registrations.length; ++i) {
-            operatorToDelegation[msg.sender][registrationRoot][registrations[i].pubkey] =
-            ISlasher.SignedDelegation({
-                delegation: IRegistry.Delegation({
-                    proposer: registrations[i].pubkey,
-                    delegate: delegateePubKey,
-                    committer: delegateeAddress,
-                    slot: type(uint64).max,
-                    metadata: bytes("")
-                }),
-                signature: delegationSignatures[i]
-            });
-        }
+        _batchSetDelegations(registrationRoot, pubkeys, delegations);
     }
 
-    // Todo: use better data strucutre for the nested map
     // Todo: extend the operator set to be more forward compatible
     function unregisterValidators(bytes32 registrationRoot) external {
-        delete operatorToDelegation[msg.sender][registrationRoot];
+        // Ensure the registration root is valid for this operator
+        if (
+            registrationRoot == bytes32(0)
+                || operatorDelegations[msg.sender][registrationRoot].delegationMap.length()
+                    == 0
+        ) {
+            revert OperatorNotRegistered();
+        }
+
+        // Get reference to the delegation store
+        DelegationStore storage delegationStore =
+            operatorDelegations[msg.sender][registrationRoot];
+
+        // Clear all delegations
+        for (uint256 i = 0; i < delegationStore.delegationMap.length(); i++) {
+            bytes32 pubkeyHash = delegationStore.delegationMap.get(i);
+            delete delegationStore.delegations[pubkeyHash];
+            delegationStore.delegationMap.remove(pubkeyHash);
+        }
+
+        // Delete the pubkey hashes array
+        delete operatorDelegations[msg.sender][registrationRoot];
+        operatorRegistrationRoots[msg.sender].remove(registrationRoot);
+
+        // Unregister from the registry
         REGISTRY.unregister(registrationRoot);
     }
 
@@ -321,10 +311,6 @@ contract EigenLayerMiddleware is
         _processClaim(claim, recipient);
     }
 
-    function getOperatorSetCount() public view returns (uint32) {
-        return REGISTRY_COORDINATOR.getOperatorSetCount();
-    }
-
     /// @dev Internal function that registers an operator.
     function registerOperatorToAvs(
         address operator,
@@ -336,6 +322,106 @@ contract EigenLayerMiddleware is
     }
 
     // ========= INTERNAL FUNCTIONS =========
+
+    function _batchSetDelegations(
+        bytes32 registrationRoot,
+        BLS.G1Point[] calldata pubkeys,
+        IRegistry.SignedDelegation[] calldata delegations
+    )
+        internal
+        onlyValidatorOperatorSet
+    {
+        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+            revert RegistrationRootNotFound();
+        }
+
+        if (REGISTRY.registrations(registrationRoot).owner != msg.sender) {
+            revert OperatorNotOwnerOfRegistrationRoot();
+        }
+
+        if (REGISTRY.registrations(registrationRoot).slashedAt != 0) {
+            revert OperatorSlashed();
+        }
+
+        if (REGISTRY.registrations(registrationRoot).unregisteredAt < block.number) {
+            revert OperatorUnregistered();
+        }
+
+        if (
+            REGISTRY.registrations(registrationRoot).registeredAt
+                + REGISTRY.FRAUD_PROOF_PERIOD() > block.number
+        ) {
+            revert OperatorFraudProofPeriodNotOver();
+        }
+
+        DelegationStore storage delegationStore =
+            operatorDelegations[msg.sender][registrationRoot];
+        require(pubkeys.length == delegations.length, "Array length mismatch");
+        require(
+            delegationStore.delegationMap.length() == pubkeys.length,
+            "Array length mismatch"
+        );
+
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            bytes32 pubkeyHash = keccak256(abi.encode(pubkeys[i]));
+
+            if (delegationStore.delegationMap.contains(pubkeyHash)) {
+                delegationStore.delegations[pubkeyHash] = delegations[i];
+            }
+        }
+    }
+
+    function _registerValidators(
+        IRegistry.Registration[] calldata registrations,
+        BLS.G2Point[] calldata delegationSignatures,
+        BLS.G1Point calldata delegateePubKey,
+        address delegateeAddress,
+        bytes[] calldata data
+    )
+        internal
+        onlyValidatorOperatorSet
+    {
+        require(
+            delegateePubKey.length > 0,
+            "ValidatorAVS: Must choose a valid Gateway delegate"
+        );
+
+        if (!REGISTRY_COORDINATOR.getOperatorSet(0).contains(delegateeAddress)) {
+            revert OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
+        }
+
+        require(
+            registrations.length == delegationSignatures.length,
+            "Invalid number of delegation signatures"
+        );
+
+        // send 0.11 eth to meet the Registry.MIN_COLLATERAL() requirement
+        bytes32 registrationRoot =
+            REGISTRY.register{ value: 0.11 ether }(registrations, msg.sender);
+
+        DelegationStore storage delegationStore =
+            operatorDelegations[msg.sender][registrationRoot];
+
+        operatorRegistrationRoots[msg.sender].add(registrationRoot);
+
+        for (uint256 i = 0; i < registrations.length; ++i) {
+            IRegistry.SignedDelegation memory signedDelegation = ISlasher.SignedDelegation({
+                delegation: IRegistry.Delegation({
+                    proposer: registrations[i].pubkey,
+                    delegate: delegateePubKey,
+                    committer: delegateeAddress,
+                    slot: type(uint64).max,
+                    metadata: data[i]
+                }),
+                signature: delegationSignatures[i]
+            });
+
+            bytes32 pubkeyHash = keccak256(abi.encode(registrations[i].pubkey));
+
+            delegationStore.delegations[pubkeyHash] = signedDelegation;
+            delegationStore.delegationMap.set(i, pubkeyHash); // Use index as value for enumeration
+        }
+    }
 
     function _createOperatorSet(IStrategy[] memory strategies) internal {
         REGISTRY_COORDINATOR.createOperatorSet(strategies);
@@ -371,6 +457,7 @@ contract EigenLayerMiddleware is
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
     )
         internal
+        onlyRewardsInitiator
     {
         require(
             keccak256(bytes(submissions[0].description))
@@ -504,9 +591,18 @@ contract EigenLayerMiddleware is
             REGISTRY_COORDINATOR.getOperatorSetOperators(uint32(1));
         require(operators.length > 0, "ValidatorAVS: No operators");
 
-        // Todo: add method to query number of validators registered for Validator Operator Set(1)
-        uint256 totalValidatorCount =
-            proposerRegistry.getTotalValidatorCountForAVS(address(this));
+        uint256 totalValidatorCount = 0;
+        for (uint256 i = 0; i < operators.length; i++) {
+            uint256 opRegistrationRootCount =
+                operatorRegistrationRoots[operators[i]].length();
+            for (uint256 j = 0; j < opRegistrationRootCount; j++) {
+                bytes32 registrationRoot = operatorRegistrationRoots[operators[i]].at(j);
+                totalValidatorCount += operatorDelegations[operators[i]][registrationRoot]
+                    .delegationMap
+                    .length();
+            }
+        }
+
         require(totalValidatorCount > 0, "ValidatorAVS: No validators registered");
 
         // Build array of OperatorRewards proportionally
@@ -514,9 +610,15 @@ contract EigenLayerMiddleware is
             new IRewardsCoordinator.OperatorReward[](operators.length);
 
         for (uint256 i = 0; i < operators.length; i++) {
-            // Todo: add method to query number of validators registered for an operator
-            uint256 opValidatorCount =
-                proposerRegistry.getValidatorCountForOperatorInAVS(operators[i]);
+            uint256 opValidatorCount = 0;
+            uint256 opRegistrationRootCount =
+                operatorRegistrationRoots[operators[i]].length();
+            for (uint256 j = 0; j < opRegistrationRootCount; j++) {
+                bytes32 registrationRoot = operatorRegistrationRoots[operators[i]].at(j);
+                opValidatorCount += operatorDelegations[operators[i]][registrationRoot]
+                    .delegationMap
+                    .length();
+            }
             require(opValidatorCount > 0, "ValidatorAVS: Operator has no validators");
 
             // Share of the total validatorAmount = amount * (opCount/totalCount)
@@ -558,13 +660,6 @@ contract EigenLayerMiddleware is
         REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
-    function _checkRewardsInitiator() internal view {
-        require(
-            msg.sender == REWARD_INITIATOR,
-            "EigenLayerMiddleware.onlyRewardsInitiator: caller is not the rewards initiator"
-        );
-    }
-
     /// @notice Authorizes contract upgrades
     /// @param newImplementation Address of new implementation contract
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
@@ -572,27 +667,6 @@ contract EigenLayerMiddleware is
     function _setRewardsInitiator(address newRewardsInitiator) internal {
         REWARD_INITIATOR = newRewardsInitiator;
         emit RewardsInitiatorUpdated(REWARD_INITIATOR, newRewardsInitiator);
-    }
-
-    /// @notice Internal function to register multiple validators for a pod
-    /// owner
-    /// @dev Only the pod owner or their delegated operator can register
-    /// validators
-    /// @param valPubKeys Array of validator BLS public keys to register
-    /// @param podOwner Address of the EigenPod owner
-    function _registerValidators(
-        bytes[] calldata valPubKeys,
-        address podOwner,
-        bytes calldata delegatedGatewayPubKey
-    )
-        internal
-        virtual
-    { }
-
-    /// @dev Internal function that deregisters an operator.
-    function _deregisterOperatorFromAVS(address operator) internal {
-        AVS_DIRECTORY.deregisterOperatorFromAVS(operator);
-        proposerRegistry.deregisterOperator(operator);
     }
 
     /// @dev Internal function that processes a claim.
@@ -611,52 +685,6 @@ contract EigenLayerMiddleware is
     }
 
     // ========= VIEW FUNCTIONS =========
-
-    /// @notice Get the AVS Directory contract address
-    /// @return Address of the AVS Directory contract
-    function avsDirectory() external view returns (address) {
-        return address(AVS_DIRECTORY);
-    }
-
-    /// @notice Get the AVS Directory contract instance
-    function getAVSDirectory() public view returns (IAVSDirectory) {
-        return AVS_DIRECTORY;
-    }
-
-    /// @notice Get the ProposerRegistry contract instance
-    function getProposerRegistry() public view returns (IProposerRegistry) {
-        return proposerRegistry;
-    }
-
-    /// @notice Get the EigenPodManager contract instance
-    function getEigenPodManager() public view returns (IEigenPodManager) {
-        return EIGEN_POD_MANAGER;
-    }
-
-    /// @notice Get the DelegationManager contract instance
-    function getDelegationManager() public view returns (DelegationManagerStorage) {
-        return DELEGATION_MANAGER;
-    }
-
-    /// @notice Get the StrategyManager contract instance
-    function getStrategyManager() public view returns (StrategyManagerStorage) {
-        return STRATEGY_MANAGER;
-    }
-
-    /// @notice Get the RewardsCoordinator contract instance
-    function getRewardsCoordinator() public view returns (IRewardsCoordinator) {
-        return REWARDS_COORDINATOR;
-    }
-
-    /// @notice Get the rewards initiator address
-    function getRewardsInitiator() public view returns (address) {
-        return REWARD_INITIATOR;
-    }
-
-    /// @notice Get the underwriter share in BIPS
-    function getUnderwriterShareBips() public view returns (uint256) {
-        return UNDERWRITER_SHARE_BIPS;
-    }
 
     /// @notice Query the stake amount for an operator across all strategies
     /// @param operator The address of the operator to query
@@ -758,15 +786,80 @@ contract EigenLayerMiddleware is
         return REGISTRY_COORDINATOR.getOperatorSetStrategies(operatorSetId);
     }
 
-    /// @notice Gets the ValidatorAVS address from the registry by AVS type
-    /// @return The address of the ValidatorAVS contract
-    function getValidatorAVSAddress() public view returns (address) {
-        return address(proposerRegistry.validatorAVS());
+    /// @notice Gets a delegation for an operator by validator pubkey
+    /// @param operator The operator address
+    /// @param registrationRoot The registration root
+    /// @param pubkey The validator pubkey
+    /// @return The signed delegation
+    function getDelegation(
+        address operator,
+        bytes32 registrationRoot,
+        BLS.G1Point calldata pubkey
+    )
+        public
+        view
+        returns (IRegistry.SignedDelegation memory)
+    {
+        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+            revert RegistrationRootNotFound();
+        }
+
+        if (REGISTRY.registrations(registrationRoot).owner != operator) {
+            revert OperatorNotOwnerOfRegistrationRoot();
+        }
+
+        bytes32 pubkeyHash = keccak256(abi.encode(pubkey));
+        DelegationStore storage delegationStore =
+            operatorDelegations[operator][registrationRoot];
+
+        if (delegationStore.delegationMap.contains(pubkeyHash)) {
+            return delegationStore.delegations[pubkeyHash];
+        } else {
+            revert PubKeyNotFound();
+        }
     }
 
-    /// @notice Gets the ValidatorAVS contract instance from the registry
-    /// @return The ValidatorAVS contract instance
-    function getValidatorAVS() public view returns (IValidatorAVS) {
-        return IValidatorAVS(proposerRegistry.validatorAVS());
+    /// @notice Gets all delegations for an operator
+    /// @param operator The operator address
+    /// @param registrationRoot The registration root (optional, if not specified uses active root)
+    /// @return pubkeys Array of validator pubkeys
+    /// @return delegations Array of signed delegations
+    function getAllDelegations(
+        address operator,
+        bytes32 registrationRoot
+    )
+        public
+        view
+        returns (
+            BLS.G1Point[] memory pubkeys,
+            IRegistry.SignedDelegation[] memory delegations
+        )
+    {
+        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+            revert RegistrationRootNotFound();
+        }
+
+        if (REGISTRY.registrations(registrationRoot).owner != operator) {
+            revert OperatorNotOwnerOfRegistrationRoot();
+        }
+
+        DelegationStore storage delegationStore =
+            operatorDelegations[operator][registrationRoot];
+        uint256 count = delegationStore.delegationMap.length();
+
+        pubkeys = new BLS.G1Point[](count);
+        delegations = new IRegistry.SignedDelegation[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            bytes32 pubkeyHash = delegationStore.delegationMap.get(i);
+            IRegistry.SignedDelegation memory delegation =
+                delegationStore.delegations[pubkeyHash];
+            pubkeys[i] = delegation.delegation.proposer;
+            delegations[i] = delegation;
+        }
+    }
+
+    function getOperatorSetCount() public view returns (uint32) {
+        return REGISTRY_COORDINATOR.getOperatorSetCount();
     }
 }

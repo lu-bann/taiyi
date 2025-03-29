@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import { DelegationStore } from "../eigenlayer-avs/EigenLayerMiddleware.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
 import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
-import { IERC20 } from
-    "@eigenlayer-contracts/lib/openzeppelin-contracts-v4.9.0/contracts/token/ERC20/IERC20.sol";
-
 import { DelegationManagerStorage } from
     "@eigenlayer-contracts/src/contracts/core/DelegationManagerStorage.sol";
 import { StrategyManagerStorage } from
@@ -16,12 +14,7 @@ import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
-
 import { IRegistry } from "@urc/IRegistry.sol";
-
-import { EnumerableMap } from
-    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 
 // Storage layout for EigenLayerMiddleware
 // ╭---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╮
@@ -53,50 +46,55 @@ import { EnumerableMap } from
 // ╰---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╯
 
 abstract contract EigenLayerMiddlewareStorage {
-    using EnumerableMap for EnumerableMap.AddressToUintMap;
+    // ========= CONSTANTS =========
 
-    /// @notice Mapping of operator set IDs to strategies
-    mapping(uint32 => IStrategy[]) internal operatorSetToStrategies;
+    /// @notice Proposed reward duration is 1 day (in seconds)
+    uint256 public constant REWARD_DURATION = 1 days;
 
-    /// @notice Mapping of operator to their signed delegations
-    /// @dev operator address -> registration root -> validator pubkey -> signed delegation
-    mapping(
-        address => mapping(bytes32 => mapping(BLS.G1Point => IRegistry.SignedDelegation))
-    ) internal operatorToDelegation;
+    // ========= STATE VARIABLES =========
 
-    /// @notice ProposerRegistry contract instance
-    IProposerRegistry internal proposerRegistry;
+    struct DelegationInfo {
+        bytes32 registrationRoot;
+        IRegistry.SignedDelegation delegation;
+    }
 
-    /// @notice EigenLayer AVS Directory contract
-    IAVSDirectory internal AVS_DIRECTORY;
+    /// @notice EigenLayer's AVS Directory contract
+    IAVSDirectory public immutable AVS_DIRECTORY;
 
-    /// @notice EigenLayer EigenPodManager contract
-    IEigenPodManager internal EIGEN_POD_MANAGER;
+    /// @notice EigenLayer's Delegation Manager contract
+    DelegationManagerStorage public immutable DELEGATION_MANAGER;
 
-    /// @notice EigenLayer Delegation Manager contract
-    DelegationManagerStorage internal DELEGATION_MANAGER;
+    /// @notice EigenLayer's Strategy Manager contract
+    StrategyManagerStorage public immutable STRATEGY_MANAGER;
 
-    /// @notice EigenLayer Strategy Manager contract
-    StrategyManagerStorage internal STRATEGY_MANAGER;
+    /// @notice EigenLayer's EigenPod Manager contract
+    IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
-    /// @notice EigenLayer Reward Coordinator contract for managing operator rewards
-    IRewardsCoordinator internal REWARDS_COORDINATOR;
+    /// @notice EigenLayer's Reward Coordinator contract
+    IRewardsCoordinator public immutable REWARDS_COORDINATOR;
 
-    /// @notice Taiyi Registry Coordinator contract for managing operator registrations
-    ITaiyiRegistryCoordinator internal REGISTRY_COORDINATOR;
+    /// @notice Underwriter share in basis points
+    uint256 public UNDERWRITER_SHARE_BIPS;
 
-    /// @notice The address of the URC Registry contract
-    IRegistry internal REGISTRY;
+    /// @notice Registry contract
+    IRegistry public immutable REGISTRY;
 
-    /// @notice The address of the entity that can initiate rewards
-    address internal REWARD_INITIATOR;
+    /// @notice Reward Initiator address
+    address public immutable REWARD_INITIATOR;
 
-    /// @notice The duration of the reward period
-    uint32 internal REWARD_DURATION;
+    /// @notice Registry Coordinator contract
+    ITaiyiRegistryCoordinator public immutable REGISTRY_COORDINATOR;
 
-    /// @notice The portion of the reward that belongs to Gateway vs. Validator
-    /// ratio expressed as a fraction of 10,000 => e.g., 2,000 means 20%.
-    uint256 internal UNDERWRITER_SHARE_BIPS; // e.g., 8000 => 80%
+    /// @notice Proposer Registry contract
+    IProposerRegistry public immutable proposerRegistry;
+
+    /// @notice Optimized storage for operator delegations
+    /// @dev operator address -> registration root -> delegation store mapping
+    mapping(address => mapping(bytes32 => DelegationStore)) internal operatorDelegations;
+
+    /// @notice Optimized storage for operator registration roots
+    /// @dev operator address -> registration root mapping
+    mapping(address => EnumerableSet.Bytes32Set) internal operatorRegistrationRoots;
 
     uint256[50] private __gap;
 }

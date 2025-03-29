@@ -27,6 +27,7 @@ remappings = [
   "@symbiotic-test/=lib/middleware-sdk/lib/core/test/",
   "@sp1-contracts/=lib/sp1-contracts/contracts/src/",
   "@urc/=lib/urc/src",
+  "@solady/=lib/solady/src",
 
   "@symbiotic-middleware-sdk/=lib/middleware-sdk/src/",
 
