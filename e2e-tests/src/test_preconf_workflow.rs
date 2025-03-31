@@ -22,7 +22,7 @@ use crate::{
         get_available_slot, get_block_from_slot, get_constraints_from_relay, get_preconf_fee,
         health_check, new_account, send_reserve_blockspace_request,
         send_submit_transaction_request, send_type_a_request, setup_env, verify_tx_in_block,
-        verify_txs_inclusion, wati_until_deadline_of_slot, ErrorResponse,
+        verify_txs_inclusion, wait_until_deadline_of_slot, ErrorResponse,
     },
 };
 
@@ -121,7 +121,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let signer = commitment.recover_address_from_prehash(&data).unwrap();
     assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
 
-    wati_until_deadline_of_slot(&config, target_slot).await?;
+    wait_until_deadline_of_slot(&config, target_slot).await?;
 
     let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
     let mut txs = Vec::new();
@@ -166,7 +166,9 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     assert_eq!(message.slot, target_slot);
 
     info!("Waiting for slot {} to be available", target_slot);
-    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -312,7 +314,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     let status = res.status();
     assert_eq!(status, 200);
 
-    wati_until_deadline_of_slot(&config, target_slot).await?;
+    wait_until_deadline_of_slot(&config, target_slot).await?;
 
     let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
     let mut txs = Vec::new();
@@ -336,7 +338,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     }
     assert!(exhaust_tx.is_some());
 
-    wati_until_deadline_of_slot(&config, target_slot + 1).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -403,7 +405,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let signer = commitment.recover_address_from_prehash(&data).unwrap();
     assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
 
-    wati_until_deadline_of_slot(&config, target_slot).await?;
+    wait_until_deadline_of_slot(&config, target_slot).await?;
 
     let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
     let mut txs = Vec::new();
@@ -417,7 +419,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
     assert!(txs.contains(&request.tip_transaction));
 
-    wati_until_deadline_of_slot(&config, target_slot + 2).await?;
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
     info!("Block number: {}", block_number);
 
@@ -537,7 +539,7 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         nonce += 1;
     }
 
-    wati_until_deadline_of_slot(&config, available_slot.get(requests_lim - 1).unwrap().slot + 1)
+    wait_until_deadline_of_slot(&config, available_slot.get(requests_lim - 1).unwrap().slot + 1)
         .await?;
     assert!(verify_txs_inclusion(&config.execution_url, submitted_txs).await.is_ok());
 

@@ -12,17 +12,20 @@ use alloy_provider::{
 use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::sol;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
+use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
 use taiyi_preconfer::{
     context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
     SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponseData,
-    SignedConstraints, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest,
+    PreconfResponseData, SignedConstraints, SlotInfo, SubmitTransactionRequest,
+    SubmitTypeATransactionRequest,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -35,6 +38,26 @@ use crate::constant::{
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
     static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
+}
+
+sol! {
+    struct BlockspaceAllocation {
+        uint256 gasLimit;
+        address sender;
+        address recipient;
+        uint256 deposit;
+        uint256 tip;
+        uint256 targetSlot;
+        uint256 blobCount;
+    }
+    struct PreconfRequestBType {
+        BlockspaceAllocation blockspaceAllocation;
+        bytes blockspaceAllocationSignature;
+        bytes gatewaySignedBlockspaceAllocation;
+        bytes rawTx;
+        bytes gatewaySignedRawTx;
+    }
+    function getTip(PreconfRequestBType calldata preconfRequestBType);
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
@@ -52,6 +75,7 @@ pub struct TestConfig {
     pub taiyi_port: u16,
     pub context: Context,
     pub taiyi_core: Address,
+    pub sp1_private_key: String,
 }
 
 impl std::fmt::Debug for TestConfig {
@@ -75,6 +99,10 @@ impl TestConfig {
         let taiyi_port = std::env::var("TAIYI_PORT")
             .map(|res| res.parse::<u16>().expect("TAIYI_PORT is not a valid port"))
             .unwrap_or_else(|_| get_available_port());
+
+        // FIXME: This does not work correctly -> it does not read the variable from the `.env.ci` file
+        let sp1_private_key = std::env::var("SP1_PRIVATE_KEY").unwrap_or_else(|_| "".to_string()); // Only required for the `generate-proof` feature
+
         let config_path = format!("{}/{}/config.yaml", working_dir, "el_cl_genesis_data");
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
@@ -88,6 +116,7 @@ impl TestConfig {
             taiyi_port,
             context,
             taiyi_core,
+            sp1_private_key,
         };
         info!("test config: {:?}", config);
         config
@@ -95,6 +124,45 @@ impl TestConfig {
 
     pub fn taiyi_url(&self) -> String {
         format!("http://localhost:{}", self.taiyi_port)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreconfTypeAJson {
+    pub gateway_address: String,
+    pub preconf_gateway_signature: String,
+    pub slot: String,
+    pub tip_transaction_hash: String,
+    pub user_transaction_hashes: Vec<String>,
+    pub sequence_number: String,
+    pub anchor_transaction_hash: String,
+}
+
+impl PreconfTypeAJson {
+    pub fn from_file(path: &str) -> eyre::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let preconf = serde_json::from_reader(reader)?;
+        Ok(preconf)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreconfTypeBJson {
+    pub gateway_address: String,
+    pub preconf_gateway_signature: String,
+    pub slot: String,
+    pub user_transaction_hash: String,
+    pub gateway_get_tip_transaction_hash: String,
+    pub gateway_sponsorship_transaction_hash: String,
+}
+
+impl PreconfTypeBJson {
+    pub fn from_file(path: &str) -> eyre::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let preconf = serde_json::from_reader(reader)?;
+        Ok(preconf)
     }
 }
 
@@ -213,7 +281,7 @@ pub async fn get_constraints_from_relay(
     Ok(constraints)
 }
 
-pub async fn wati_until_deadline_of_slot(
+pub async fn wait_until_deadline_of_slot(
     config: &TestConfig,
     target_slot: u64,
 ) -> eyre::Result<()> {
@@ -330,12 +398,12 @@ pub async fn generate_reserve_blockspace_request(
     blob_count: u64,
     preocnf_fee: PreconfFeeResponse,
     chain_id: u64,
-) -> (BlockspaceAllocation, String) {
+) -> (BlockspaceAlloc, String) {
     let fee = preocnf_fee.gas_fee * (gas_limit as u128)
         + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
     let recepient = PRECONFER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
-    let request = BlockspaceAllocation {
+    let request = BlockspaceAlloc {
         target_slot,
         sender: signer_private.address(),
         recipient: recepient.address(),
@@ -408,6 +476,59 @@ pub async fn generate_type_a_request(
     Ok((request, format!("0x{signature}")))
 }
 
+pub async fn generate_type_a_request_with_multiple_txs(
+    signer: PrivateKeySigner,
+    target_slot: u64,
+    execution_url: &str,
+    fee: PreconfFeeResponse,
+    count: u64,
+) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
+    let provider =
+        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let chain_id = provider.get_chain_id().await?;
+
+    let sender = signer.address();
+    let fees = provider.estimate_eip1559_fees(None).await?;
+    let wallet = EthereumWallet::from(signer.clone());
+    let nonce = provider.get_transaction_count(sender).await?;
+    let tip_transaction = TransactionRequest::default()
+        .with_from(sender)
+        .with_value(U256::from(fee.gas_fee * 21_000 * (count + 1) as u128))
+        .with_nonce(nonce)
+        .with_gas_limit(21_000)
+        .with_to(sender)
+        .with_max_fee_per_gas(fees.max_fee_per_gas)
+        .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+        .with_chain_id(chain_id)
+        .build(&wallet)
+        .await?;
+
+    let mut preconf_transactions = Vec::new();
+    for i in 0..count {
+        let preconf_transaction = TransactionRequest::default()
+            .with_from(sender)
+            .with_value(U256::from(1000))
+            .with_nonce(nonce + i + 1)
+            .with_gas_limit(21_000)
+            .with_to(sender)
+            .with_max_fee_per_gas(fees.max_fee_per_gas)
+            .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas)
+            .with_chain_id(chain_id)
+            .build(&wallet)
+            .await?;
+
+        preconf_transactions.push(TxEnvelope::from(preconf_transaction));
+    }
+
+    let request = SubmitTypeATransactionRequest::new(
+        preconf_transactions,
+        TxEnvelope::from(tip_transaction),
+        target_slot,
+    );
+    let signature = hex::encode(signer.sign_hash(&request.digest()).await.unwrap().as_bytes());
+    Ok((request, format!("0x{signature}")))
+}
+
 pub async fn generate_type_a_request_with_nonce(
     signer: PrivateKeySigner,
     target_slot: u64,
@@ -456,7 +577,7 @@ pub async fn generate_type_a_request_with_nonce(
 }
 
 pub async fn send_reserve_blockspace_request(
-    request: BlockspaceAllocation,
+    request: BlockspaceAlloc,
     signature: String,
     taiyi_url: &str,
 ) -> eyre::Result<Response> {

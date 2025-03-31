@@ -5,11 +5,6 @@ import { PreconfRequestAType } from "../types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "../types/PreconfRequestBTypes.sol";
 
 interface ITaiyiNonInteractiveChallenger {
-    struct Proof {
-        // TODO[Martin]: Define other necessary proof fields
-        uint256 inclusionBlockNumber;
-    }
-
     struct Challenge {
         bytes32 id;
         uint256 createdAt;

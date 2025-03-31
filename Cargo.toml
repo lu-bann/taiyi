@@ -11,13 +11,14 @@ members = [
     "bin/taiyi-fraud-proof-cli",
     "crates/cli",
     "crates/contracts",
+    "crates/poi",
+    "crates/poni",
     "crates/preconfer",
     "crates/primitives",
-    "crates/sp1-poi",
-    "crates/sp1-poni",
+    "crates/zkvm-verifier",
     "e2e-tests",
     "examples",
-    "spammer"
+    "spammer",
 ]
 default-members = [
     "bin/taiyi",
@@ -42,7 +43,7 @@ ignored = [
     "alloy-rpc-client",
     "ethereum_ssz",
     "ethereum_ssz_derive",
-    "log"
+    "log",
 ]
 
 [workspace.dependencies]
@@ -52,6 +53,9 @@ taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-common = { path = "crates/common" }
+taiyi-zkvm-types = { path = "crates/zkvm-types" }
+taiyi-poi = { path = "crates/poi" }
+taiyi-poni = { path = "crates/poni" }
 taiyi-beacon-client = { path = "crates/beacon-client" }
 
 axum = { version = "0.7.9", features = ["macros"] }
@@ -63,7 +67,9 @@ cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag =
 cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.6.0" }
 
 # alloy
-alloy-primitives = { version = "0.8.15", default-features = false }
+alloy-primitives = { version = "0.8.15", features = [
+    "serde",
+], default-features = false }
 alloy-rpc-types-beacon = { version = "0.8.0", default-features = false }
 alloy-rpc-types-engine = { version = "0.8.1", default-features = false }
 alloy-rpc-types = { version = "0.8.1", features = [
@@ -78,7 +84,7 @@ alloy-signer-local = { version = "0.8.1", features = ["mnemonic"] }
 alloy-transport = { version = "0.8.1" }
 alloy-contract = { version = "0.8.1" }
 alloy-eips = { version = "0.8.1", default-features = false }
-alloy-consensus = { version = "0.8.1", features = ["k256"] }
+alloy-consensus = { version = "0.8.1", features = ["k256", "serde"] }
 alloy-rlp = "0.3.10"
 alloy-sol-types = "0.8.15"
 alloy-node-bindings = { version = "0.8.1", default-features = false }
@@ -86,6 +92,7 @@ alloy-rpc-client = { version = "0.8.1", default-features = false }
 alloy-transport-http = { version = "0.8.1", default-features = false }
 alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
 alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
+alloy-trie = "0.7.9"
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
@@ -96,10 +103,15 @@ reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f
 reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
 reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
 
+# eth
+eth_trie = "0.5.0"
+eth-trie-proofs = "0.1.2"
+
 # sp1
-sp1-build = "4.0.1"
-sp1-sdk = "4.0.1"
-sp1-zkvm = "4.0.1"
+sp1-build = "=4.0.1"
+sp1-sdk = "=4.0.1"
+sp1-zkvm = "=4.0.1"
+sp1-verifier = "=4.0.1"
 
 clap = { version = "4.5.23", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }
@@ -146,3 +158,17 @@ lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthous
 http-body-util = "0.1.2"
 tower = "0.5.2"
 sha2 = "0.10.8"
+
+[patch.crates-io]
+# SHA2
+sha2-v0-9-9 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.9.9-sp1-4.0.0" }
+sha2-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.8-sp1-4.0.0" }
+# SHA3
+sha3-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
+# BigInt
+crypto-bigint = { git = "https://github.com/sp1-patches/RustCrypto-bigint", tag = "patch-0.5.5-sp1-4.0.0" }
+# Keccak
+tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", tag = "patch-2.0.2-sp1-4.0.0" }
+# ECDSA
+ecdsa-core = { git = "https://github.com/sp1-patches/signatures", package = "ecdsa", tag = "patch-0.16.9-sp1-4.0.0" }
+secp256k1 = { git = "https://github.com/sp1-patches/rust-secp256k1", tag = "patch-0.29.1-sp1-4.0.0" }

@@ -1,7 +1,8 @@
 [package]
-name = "sp1-poi"
+name = "taiyi-zkvm-verifier"
 version = "1.1.0"
 edition = "2021"
 
 [dependencies]
+sp1-verifier = { workspace = true }
 sp1-zkvm = { workspace = true }

@@ -10,6 +10,7 @@ import { TaiyiParameterManager } from "../src/TaiyiParameterManager.sol";
 import { ITaiyiInteractiveChallenger } from
     "../src/interfaces/ITaiyiInteractiveChallenger.sol";
 
+import { PreconfRequestLib } from "../src/libs/PreconfRequestLib.sol";
 import { PreconfRequestAType } from "../src/types/PreconfRequestATypes.sol";
 import {
     BlockspaceAllocation,
@@ -22,13 +23,12 @@ contract TaiyiInteractiveChallengerTest is Test {
     address verifierAddress;
     address user;
     address owner;
-    address signer;
+    address preconfer = 0xD8F3183DEF51A987222D845be228e0Bbb932C222;
 
-    uint256 internal userPrivatekey;
-    uint256 internal ownerPrivatekey;
-    uint256 internal signerPrivatekey;
-
-    uint256 internal SEPOLIA_GENESIS_TIMESTAMP = 1_655_733_600;
+    uint256 internal userPrivateKey;
+    uint256 internal ownerPrivateKey;
+    uint256 internal preconferPrivateKey =
+        0xc5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2;
 
     TaiyiInteractiveChallenger taiyiInteractiveChallenger;
     TaiyiParameterManager parameterManager;
@@ -37,49 +37,248 @@ contract TaiyiInteractiveChallengerTest is Test {
         verifierAddress = address(new SP1Verifier());
 
         // Create test accounts
-        (user, userPrivatekey) = makeAddrAndKey("user");
-        (owner, ownerPrivatekey) = makeAddrAndKey("owner");
-        (signer, signerPrivatekey) = makeAddrAndKey("signer");
+        (user, userPrivateKey) = makeAddrAndKey("user");
+        (owner, ownerPrivateKey) = makeAddrAndKey("owner");
 
         // Fund test accounts
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
-        vm.deal(signer, 100 ether);
+        vm.deal(preconfer, 100 ether);
 
         parameterManager = new TaiyiParameterManager();
-        parameterManager.initialize(owner, 1, 64, 256, SEPOLIA_GENESIS_TIMESTAMP, 12);
+        parameterManager.initialize(
+            owner, 1, 64, 256, 0, 12, 0x0000000000000000000000000000000000000000
+        );
 
         taiyiInteractiveChallenger = new TaiyiInteractiveChallenger(
-            owner, verifierAddress, bytes32(0), address(parameterManager)
+            owner, verifierAddress, bytes32(0x0), address(parameterManager)
         );
+    }
+
+    function _readPreconfRequestAType(string memory jsonPath)
+        internal
+        returns (PreconfRequestAType memory preconfRequestAType)
+    {
+        string memory json = vm.readFile(string.concat(vm.projectRoot(), jsonPath));
+
+        bytes memory abiEncodedPreconfRequestAType =
+            vm.parseBytes(vm.parseJsonString(json, ".abi_encoded_preconf_request"));
+
+        (
+            string memory tipTx,
+            string[] memory txs,
+            uint64 slot,
+            uint64 sequenceNum,
+            address signer,
+            uint64 chainId
+        ) = abi.decode(
+            abiEncodedPreconfRequestAType,
+            (string, string[], uint64, uint64, address, uint64)
+        );
+
+        return PreconfRequestAType(txs, tipTx, slot, sequenceNum, signer);
+    }
+
+    function _readPreconfRequestBType(string memory jsonPath)
+        internal
+        returns (PreconfRequestBType memory preconfRequestBType)
+    {
+        string memory json = vm.readFile(string.concat(vm.projectRoot(), jsonPath));
+
+        bytes memory abiEncodedPreconfRequestBType =
+            vm.parseBytes(vm.parseJsonString(json, ".abi_encoded_preconf_request"));
+
+        (
+            string memory blockspaceAllocationEncoded,
+            string memory blockspaceAllocationSignature,
+            string memory transaction,
+            address signer,
+            uint64 chainId
+        ) = abi.decode(
+            abiEncodedPreconfRequestBType, (string, string, string, address, uint64)
+        );
+
+        (
+            uint64 gasLimit,
+            address sender,
+            address recipient,
+            uint256 deposit,
+            uint256 tip,
+            uint64 targetSlot,
+            uint64 blobCount
+        ) = abi.decode(
+            vm.parseBytes(blockspaceAllocationEncoded),
+            (uint64, address, address, uint256, uint256, uint64, uint64)
+        );
+
+        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
+            gasLimit: gasLimit,
+            sender: sender,
+            recipient: recipient,
+            deposit: deposit,
+            tip: tip,
+            targetSlot: targetSlot,
+            blobCount: blobCount
+        });
+
+        return PreconfRequestBType({
+            blockspaceAllocation: blockspaceAllocation,
+            blockspaceAllocationSignature: bytes(blockspaceAllocationSignature),
+            underwriterSignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
+            rawTx: bytes(transaction),
+            underwriterSignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+        });
+    }
+
+    function _createChallengePreconfRequestAType() public {
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        // Expect event
+        vm.expectEmit(true, true, true, false);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        vm.stopPrank();
+    }
+
+    function _createChallengePreconfRequestBType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
+
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        vm.stopPrank();
     }
 
     // =========================================
     //  Test: Create challenge AType
     // =========================================
     function testCreateChallengeAType() public {
-        // Send transaction as user
         vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         // Expect event
         vm.expectEmit(true, true, true, false);
-        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, signer);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
+        );
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Create challenge BType
+    // =========================================
+    function testCreateChallengeBType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
+
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        // Expect event
+        vm.expectEmit(true, true, true, false);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
         );
 
         vm.stopPrank();
@@ -89,18 +288,72 @@ contract TaiyiInteractiveChallengerTest is Test {
     //  Test: Fails to create challenge AType with invalid bond
     // =========================================
     function testCreateChallengeATypeFailsWithInvalidBond() public {
-        // Send transaction as user
         vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        bytes memory signature = new bytes(0);
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
 
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
-        taiyiInteractiveChallenger.createChallengeAType(preconfRequestAType, signature);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: 0 }(
+            preconfRequestAType, signature
+        );
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Fails to create challenge BType with invalid bond
+    // =========================================
+    function testCreateChallengeBTypeFailsWithInvalidBond() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
+
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: 0 }(
+            preconfRequestBType, signature
+        );
 
         vm.stopPrank();
     }
@@ -109,30 +362,31 @@ contract TaiyiInteractiveChallengerTest is Test {
     //  Test: Fails to create challenge AType with challenge already exists
     // =========================================
     function testCreateChallengeATypeFailsChallengeAlreadyExists() public {
-        // Send transaction as user
         vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        // Create challenge
+        bytes32 challengeId = keccak256(signature);
+
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
         );
 
-        vm.expectRevert(ITaiyiInteractiveChallenger.ChallengeAlreadyExists.selector);
+        vm.expectPartialRevert(
+            ITaiyiInteractiveChallenger.ChallengeAlreadyExists.selector
+        );
 
-        // Try to create the same challenge again
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
         );
@@ -140,93 +394,80 @@ contract TaiyiInteractiveChallengerTest is Test {
         vm.stopPrank();
     }
 
-    // TODO: Implement with concreate (real) data
     // =========================================
-    //  Test: Create challenge BType
+    // Test: Fails to create challenge BType with challenge already exists
     // =========================================
-    // function testCreateChallengeBType() public {
-    //     uint256 bond = parameterManager.challengeBond();
+    function testCreateChallengeBTypeFailsAlreadyExists() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
 
-    //     BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
-    //         gasLimit: 100_000,
-    //         sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
-    //         recipient: 0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766,
-    //         deposit: 1 ether,
-    //         tip: 1 ether,
-    //         targetSlot: vm.getBlockNumber(),
-    //         blobCount: 1
-    //     });
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
 
-    //     PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
-    //         blockspaceAllocation: blockspaceAllocation,
-    //         blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-    //         underwriterSignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-    //         rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-    //         underwriterSignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
-    //     });
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-    //     bytes32 dataHash = keccak256(abi.encode(
-    //         blockspaceAllocation,
-    //         preconfRequestBType.underwriterSignedRawTx
-    //     ));
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
 
-    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, dataHash);
-    //     bytes memory signature = abi.encodePacked(r, s, v);
+        uint256 bond = parameterManager.challengeBond();
 
-    //     taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
-    //         preconfRequestBType, signature
-    //     );
-    // }
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
 
-    // =========================================
-    //  Test: Fails to create challenge BType with invalid bond
-    // =========================================
-    function testCreateChallengeBTypeFailsWithInvalidBond() public {
-        bytes memory signature = new bytes(0);
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
 
-        BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
-            gasLimit: 100_000,
-            sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
-            recipient: 0x6d2e03b7EfFEae98BD302A9F836D0d6Ab0002766,
-            deposit: 1 ether,
-            tip: 1 ether,
-            targetSlot: 1,
-            blobCount: 1
-        });
+        vm.warp(blockTimestamp);
 
-        PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
-            blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: bytes("blockspaceAllocationSignature"),
-            underwriterSignedBlockspaceAllocation: bytes(
-                "underwriterSignedBlockspaceAllocation"
-            ),
-            rawTx: bytes("rawTx"),
-            underwriterSignedRawTx: bytes("underwriterSignedRawTx")
-        });
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeBondInvalid.selector);
-        taiyiInteractiveChallenger.createChallengeBType(preconfRequestBType, signature);
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        vm.expectPartialRevert(
+            ITaiyiInteractiveChallenger.ChallengeAlreadyExists.selector
+        );
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        vm.stopPrank();
     }
 
     // =========================================
-    // Test: Resolve expired challenge
+    // Test: Resolve expired challenge (PreconfRequestAType)
     // =========================================
-    function testResolveExpiredChallenge() public {
-        // Send transaction as user
+    function testResolveExpiredChallengePreconfRequestAType() public {
         vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -241,24 +482,76 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
-    // Test: Resolve expired challenge fails with challenge not expired
+    // Test: Resolve expired challenge (PreconfRequestBType)
     // =========================================
-    function testResolveExpiredChallengeFailsWithNotExpired() public {
-        // Send transaction as user
-        vm.startPrank(user);
+    function testResolveExpiredChallengePreconfRequestBType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        // Skip duration so the challenge is expired
+        skip(parameterManager.challengeMaxDuration() + 1);
+
+        taiyiInteractiveChallenger.resolveExpiredChallenge(challengeId);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    // Test: Resolve expired challenge fails with challenge not expired (PreconfRequestAType)
+    // =========================================
+    function testResolveExpiredChallengeFailsWithNotExpiredPreconfRequestAType() public {
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -272,24 +565,77 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
-    // Test: Resolve expired challenge fails with challenge does not exist
+    // Test: Resolve expired challenge fails with challenge not expired (PreconfRequestBType)
     // =========================================
-    function testResolveExpiredChallengeFailsWithDoesNotExist() public {
-        // Send transaction as user
-        vm.startPrank(user);
+    function testResolveExpiredChallengeFailsWithNotExpiredPreconfRequestBType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeNotExpired.selector);
+
+        taiyiInteractiveChallenger.resolveExpiredChallenge(challengeId);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    // Test: Resolve expired challenge fails with challenge does not exist (PreconfRequestAType)
+    // =========================================
+    function testResolveExpiredChallengeFailsWithDoesNotExistPreconfRequestAType()
+        public
+    {
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -305,55 +651,349 @@ contract TaiyiInteractiveChallengerTest is Test {
     }
 
     // =========================================
-    //  Test: Prove
+    // Test: Resolve expired challenge fails with challenge does not exist (PreconfRequestBType)
     // =========================================
-    function testProveSuccess() public {
-        bytes32 challengeId = keccak256(abi.encodePacked("challengeId"));
-        bytes memory proofValues = new bytes(0);
-        bytes memory proofBytes = new bytes(0);
+    function testResolveExpiredChallengeFailsWithDoesNotExistPreconfRequestBType()
+        public
+    {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
 
-        vm.expectRevert();
-        taiyiInteractiveChallenger.prove(challengeId, proofValues, proofBytes);
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        vm.prank(owner);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        vm.expectPartialRevert(ITaiyiInteractiveChallenger.ChallengeDoesNotExist.selector);
+
+        taiyiInteractiveChallenger.resolveExpiredChallenge(
+            keccak256("randomInvalidChallengeId")
+        );
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Prove (PreconfRequestAType)
+    // =========================================
+    function testProveSuccessPreconfRequestAType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+            )
+        );
+
+        bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
+        vm.startPrank(owner);
+        taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        // Decode proof values
+        (
+            uint64 proofBlockTimestamp,
+            bytes32 proofBlockHash,
+            address proofGatewayAddress,
+            bytes memory proofSignature
+        ) = abi.decode(
+            vm.parseBytes(vm.parseJsonString(json, ".public_values")),
+            (uint64, bytes32, address, bytes)
+        );
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        ITaiyiInteractiveChallenger.Challenge[] memory openChallenges =
+            taiyiInteractiveChallenger.getOpenChallenges();
+
+        assertEq(openChallenges.length, 1);
+        assertEq(openChallenges[0].id, challengeId);
+
+        string memory proofValues = vm.parseJsonString(json, ".public_values");
+        string memory proofBytes = vm.parseJsonString(json, ".proof");
+
+        bytes memory proofValuesBytes = vm.parseBytes(proofValues);
+        bytes memory proofBytesBytes = vm.parseBytes(proofBytes);
+
+        taiyiInteractiveChallenger.prove(challengeId, proofValuesBytes, proofBytesBytes);
+
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 0);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Prove (PreconfRequestAType multiple txs)
+    // =========================================
+    function testProveSuccessPreconfRequestATypeMultipleTxs() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-a-multiple-txs-included-test-data.json"
+            )
+        );
+
+        bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
+        vm.startPrank(owner);
+        taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        // Decode proof values
+        (
+            uint64 proofBlockTimestamp,
+            bytes32 proofBlockHash,
+            address proofGatewayAddress,
+            bytes memory proofSignature
+        ) = abi.decode(
+            vm.parseBytes(vm.parseJsonString(json, ".public_values")),
+            (uint64, bytes32, address, bytes)
+        );
+
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-multiple-txs-included-test-data.json"
+        );
+
+        uint256 bond = parameterManager.challengeBond();
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
+
+        taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
+            preconfRequestAType, signature
+        );
+
+        ITaiyiInteractiveChallenger.Challenge[] memory openChallenges =
+            taiyiInteractiveChallenger.getOpenChallenges();
+
+        assertEq(openChallenges.length, 1);
+        assertEq(openChallenges[0].id, challengeId);
+
+        string memory proofValues = vm.parseJsonString(json, ".public_values");
+        string memory proofBytes = vm.parseJsonString(json, ".proof");
+
+        bytes memory proofValuesBytes = vm.parseBytes(proofValues);
+        bytes memory proofBytesBytes = vm.parseBytes(proofBytes);
+
+        taiyiInteractiveChallenger.prove(challengeId, proofValuesBytes, proofBytesBytes);
+
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 0);
+
+        vm.stopPrank();
+    }
+
+    // =========================================
+    //  Test: Prove (PreconfRequestBType)
+    // =========================================
+    function testProveSuccessPreconfRequestBType() public {
+        string memory json = vm.readFile(
+            string.concat(
+                vm.projectRoot(),
+                "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+            )
+        );
+
+        bytes32 vk = bytes32(vm.parseBytes(vm.parseJsonString(json, ".vk")));
+        uint256 genesisTimestamp = uint256(vm.parseJsonUint(json, ".genesis_time"));
+        address taiyiCore = vm.parseJsonAddress(json, ".taiyi_core");
+        vm.startPrank(owner);
+        taiyiInteractiveChallenger.setInteractiveFraudProofVKey(vk);
+        parameterManager.setGenesisTimestamp(genesisTimestamp);
+        parameterManager.setTaiyiCore(taiyiCore);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vm.chainId(3_151_908);
+
+        // Decode proof values
+        (
+            uint64 proofBlockTimestamp,
+            bytes32 proofBlockHash,
+            address proofGatewayAddress,
+            bytes memory proofSignature
+        ) = abi.decode(
+            vm.parseBytes(vm.parseJsonString(json, ".public_values")),
+            (uint64, bytes32, address, bytes)
+        );
+
+        PreconfRequestBType memory preconfRequestBType = _readPreconfRequestBType(
+            "/test/test-data/zkvm/poi-preconf-type-b-included-test-data.json"
+        );
+
+        uint256 blockTimestamp = (
+            preconfRequestBType.blockspaceAllocation.targetSlot
+                + parameterManager.challengeCreationWindow()
+        ) * parameterManager.slotTime() + parameterManager.genesisTimestamp();
+
+        vm.warp(blockTimestamp);
+
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes32 challengeId = keccak256(signature);
+
+        uint256 bond = parameterManager.challengeBond();
+
+        taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
+            preconfRequestBType, signature
+        );
+
+        ITaiyiInteractiveChallenger.Challenge[] memory openChallenges =
+            taiyiInteractiveChallenger.getOpenChallenges();
+
+        assertEq(openChallenges.length, 1);
+        assertEq(openChallenges[0].id, challengeId);
+
+        string memory proofValues = vm.parseJsonString(json, ".public_values");
+        string memory proofBytes = vm.parseJsonString(json, ".proof");
+
+        bytes memory proofValuesBytes = vm.parseBytes(proofValues);
+        bytes memory proofBytesBytes = vm.parseBytes(proofBytes);
+
+        taiyiInteractiveChallenger.prove(challengeId, proofValuesBytes, proofBytesBytes);
+
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 0);
+
+        vm.stopPrank();
     }
 
     // =========================================
     //  Test: Get all challenges
     // =========================================
     function testGetChallenges() public {
-        // TODO[Martin]: Add challenges to the contract
         ITaiyiInteractiveChallenger.Challenge[] memory challenges =
             taiyiInteractiveChallenger.getChallenges();
         assertEq(challenges.length, 0);
+
+        _createChallengePreconfRequestAType();
+        challenges = taiyiInteractiveChallenger.getChallenges();
+        assertEq(challenges.length, 1);
+
+        _createChallengePreconfRequestBType();
+        challenges = taiyiInteractiveChallenger.getChallenges();
+        assertEq(challenges.length, 2);
+
+        // Skip duration so the challenge is expired
+        skip(parameterManager.challengeMaxDuration() + 1);
+        taiyiInteractiveChallenger.resolveExpiredChallenge(challenges[0].id);
+
+        challenges = taiyiInteractiveChallenger.getChallenges();
+        assertEq(challenges.length, 2);
     }
 
     // =========================================
     //  Test: Get open challenges
     // =========================================
     function testGetOpenChallenges() public {
-        // TODO[Martin]: Add challenges to the contract
-        ITaiyiInteractiveChallenger.Challenge[] memory challenges =
+        ITaiyiInteractiveChallenger.Challenge[] memory openChallenges =
             taiyiInteractiveChallenger.getOpenChallenges();
-        assertEq(challenges.length, 0);
+        assertEq(openChallenges.length, 0);
+
+        _createChallengePreconfRequestAType();
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 1);
+
+        _createChallengePreconfRequestBType();
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 2);
+
+        // Skip duration so the challenge is expired
+        skip(parameterManager.challengeMaxDuration() + 1);
+        taiyiInteractiveChallenger.resolveExpiredChallenge(openChallenges[0].id);
+
+        openChallenges = taiyiInteractiveChallenger.getOpenChallenges();
+        assertEq(openChallenges.length, 1);
     }
 
     // =========================================
-    //  Test: Get challenge by id
+    //  Test: Get challenge by id (PreconfRequestAType)
     // =========================================
-    function testGetChallengeById() public {
+    function testGetChallengeByIdPreconfRequestAType() public {
         vm.startPrank(user);
+        vm.chainId(3_151_908);
 
-        // TODO[Martin]: Use real tx data
-        bytes[] memory txs = new bytes[](1);
-        bytes memory tipTx = hex"01";
+        PreconfRequestAType memory preconfRequestAType = _readPreconfRequestAType(
+            "/test/test-data/zkvm/poi-preconf-type-a-included-test-data.json"
+        );
+
         uint256 bond = parameterManager.challengeBond();
 
-        // Create and sign preconf request
-        PreconfRequestAType memory preconfRequestAType =
-            PreconfRequestAType(txs, tipTx, 0, 0, signer);
-        bytes memory encodedPreconfRequestAType = abi.encode(preconfRequestAType);
-        bytes32 challengeId = keccak256(encodedPreconfRequestAType);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivatekey, challengeId);
+        bytes32 dataHash =
+            PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
+
+        bytes32 challengeId = keccak256(signature);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -365,10 +1005,10 @@ contract TaiyiInteractiveChallengerTest is Test {
         assertEq(challenge.id, challengeId);
         // TODO[Martin]: Check challenge.createdAt
         assertEq(challenge.challenger, user);
-        assertEq(challenge.commitmentSigner, signer);
+        assertEq(challenge.commitmentSigner, preconfer);
         assertTrue(challenge.status == ITaiyiInteractiveChallenger.ChallengeStatus.Open);
         assertEq(challenge.preconfType, 0);
-        assertEq(challenge.commitmentData, encodedPreconfRequestAType);
+        assertEq(challenge.commitmentData, abi.encode(preconfRequestAType));
         assertEq(challenge.signature, signature);
 
         vm.stopPrank();

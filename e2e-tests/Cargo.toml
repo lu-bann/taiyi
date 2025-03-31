@@ -9,12 +9,14 @@ alloy-contract = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-rlp = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 clap = { workspace = true }
+eth-trie-proofs = { workspace = true }
 ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }
@@ -22,13 +24,21 @@ lazy_static = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sp1-sdk = { workspace = true }
 taiyi-cmd = { workspace = true }
 taiyi-preconfer = { workspace = true }
 taiyi-primitives = { workspace = true }
+taiyi-zkvm-types = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-core = { workspace = true }
 tree_hash = { workspace = true }
 uuid = { workspace = true }
 
+[build-dependencies]
+sp1-build = { workspace = true }
+
 [lib]
+
+[features]
+generate-proof = []

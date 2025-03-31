@@ -19,20 +19,23 @@ interface ITaiyiInteractiveChallenger {
         ChallengeStatus status;
         uint8 preconfType; // 0 - TypeA | 1 - TypeB
         bytes commitmentData; // abi encoded commitment data (PreconfRequestAType | PreconfRequestBType)
-        bytes signature; // signature over the commitment data
+        bytes signature; // signed digest of the commitment data
     }
 
     error TargetSlotNotInChallengeCreationWindow();
     error SignerDoesNotMatchPreconfRequest();
     error ChallengeBondInvalid();
-    error TargetSlotDoesNotMatch();
-    error ChallengeIdDoesNotMatch();
-    error CommitmentSignerDoesNotMatch();
     error ChallengeAlreadyResolved();
     error ChallengeAlreadyExists();
     error ChallengeDoesNotExist();
     error ChallengeExpired();
     error ChallengeNotExpired();
+    // Proof verification errors
+    error TargetSlotDoesNotMatch();
+    error GenesisTimestampDoesNotMatch();
+    error TaiyiCoreAddressDoesNotMatch();
+    error ChallengeIdDoesNotMatch();
+    error CommitmentSignerDoesNotMatch();
 
     event ChallengeOpened(
         bytes32 indexed id, address indexed challenger, address indexed commitmentSigner
