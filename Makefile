@@ -20,6 +20,9 @@ e2e-setup:
 e2e-test:
 	bash scripts/devnet/start-e2e-tests.sh $(ARGS)
 
+e2e-fraud-test:
+	bash scripts/devnet/start-e2e-fraud-tests.sh $(ARGS)
+
 e2e-clean:
 	bash scripts/devnet/clean.sh
 

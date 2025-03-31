@@ -1,6 +1,6 @@
 use std::{fs, str::FromStr, time::Instant};
 
-use alloy_consensus::{Account, Transaction};
+use alloy_consensus::{constants::ETH_TO_WEI, Account, Transaction};
 use alloy_eips::{eip2718::Encodable2718, BlockNumberOrTag};
 use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
@@ -173,7 +173,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -462,7 +462,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -769,7 +769,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (_taiyi_handle, config) = setup_env().await?;
@@ -785,10 +785,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(5 * ETH_TO_WEI));
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
