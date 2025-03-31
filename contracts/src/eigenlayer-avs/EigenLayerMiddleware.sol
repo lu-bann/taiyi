@@ -13,8 +13,6 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { EnumerableMapLib } from "@solady/utils/EnumerableMapLib.sol";
 
-import { EnumerableMapLib } from "@solady/utils/EnumerableMapLib.sol";
-
 import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
 import { AVSDirectoryStorage } from
     "@eigenlayer-contracts/src/contracts/core/AVSDirectoryStorage.sol";

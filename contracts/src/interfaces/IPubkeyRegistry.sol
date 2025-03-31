@@ -98,6 +98,9 @@ interface IPubkeyRegistry {
     /// @notice Error when caller is not registry coordinator owner
     error OnlyRegistryCoordinatorOwner();
 
+    /// @notice Error when caller is not the registry coordinator
+    error OnlyRegistryCoordinator();
+
     /// @notice Emitted when a new public key is registered
     event NewPubkeyRegistration(
         address indexed operator, BN254.G1Point pubkeyG1, BN254.G2Point pubkeyG2
