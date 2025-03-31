@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
+use taiyi_cmd::{initialize_tracing_log, UnderwriterCommand};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about = "taiyi", long_about = None)]
@@ -12,8 +12,8 @@ pub struct Cli {
 /// Commands to be executed
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(name = "preconfer")]
-    Preconfer(PreconferCommand),
+    #[command(name = "underwriter")]
+    Underwriter(UnderwriterCommand),
 }
 
 pub fn run() -> eyre::Result<()> {
@@ -23,9 +23,9 @@ pub fn run() -> eyre::Result<()> {
         .build()
         .expect("tokio runtime build failed");
     match cli.command {
-        Commands::Preconfer(preconfer) => {
+        Commands::Underwriter(underwriter) => {
             runtime.block_on(async {
-                preconfer.execute().await.expect("preconfer run");
+                underwriter.execute().await.expect("underwriter run");
             });
             Ok(())
         }

@@ -32,7 +32,7 @@ struct Opts {
     #[clap(long = "beacon_client_url", default_value = "http://localhost:5062")]
     beacon_client_url: String,
 
-    /// Preconfer URL
+    /// underwriter URL
     #[clap(long = "underwriter_url", default_value = "http://localhost:18550")]
     underwriter_url: String,
 

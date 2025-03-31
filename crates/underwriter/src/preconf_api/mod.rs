@@ -27,8 +27,8 @@ pub async fn spawn_service(
     execution_rpc_url: String,
     beacon_rpc_url: String,
     context: Context,
-    preconfer_ip: IpAddr,
-    preconfer_port: u16,
+    underwriter_ip: IpAddr,
+    underwriter_port: u16,
     bls_sk: String,
     ecdsa_sk: String,
     relay_url: Vec<Url>,
@@ -46,7 +46,7 @@ pub async fn spawn_service(
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
-    info!("preconfer is on chain_id: {:?}", chain_id);
+    info!("underwriter is on chain_id: {:?}", chain_id);
 
     match taiyi_service_url {
         Some(url) => {
@@ -65,7 +65,7 @@ pub async fn spawn_service(
 
             // spawn preconfapi server
             let preconfapiserver =
-                PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
+                PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
             let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {
@@ -99,7 +99,7 @@ pub async fn spawn_service(
 
             // spawn preconfapi server
             let preconfapiserver =
-                PreconfApiServer::new(SocketAddr::new(preconfer_ip, preconfer_port));
+                PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
             let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {

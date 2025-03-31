@@ -1,5 +1,5 @@
 [package]
-name = "taiyi-preconfer"
+name = "taiyi-underwriter"
 version = { workspace = true }
 edition = { workspace = true }
 

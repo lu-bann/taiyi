@@ -55,7 +55,7 @@ pub enum KeySource {
 /// - Return the signed messages
 pub fn generate_from_local_keys(
     secret_keys: &[String],
-    preconfer_pubkey: BlsPublicKey,
+    underwriter_pubkey: BlsPublicKey,
     network: Network,
     action: Action,
 ) -> Result<Vec<SignedMessage>> {
@@ -66,7 +66,7 @@ pub fn generate_from_local_keys(
 
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(sk.public_key(), preconfer_pubkey.clone());
+                let message = DelegationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
                 let signature = sk.sign(signing_root.0.as_ref());
@@ -74,7 +74,7 @@ pub fn generate_from_local_keys(
                 signed_messages.push(SignedMessage::Delegation(signed))
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(sk.public_key(), preconfer_pubkey.clone());
+                let message = RevocationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
                 let signature = sk.sign(signing_root.0.as_ref());
@@ -97,7 +97,7 @@ pub fn generate_from_local_keys(
 pub fn generate_from_keystore(
     keys_path: &str,
     keystore_secret: KeystoreSecret,
-    preconfer_pubkey: BlsPublicKey,
+    underwriter_pubkey: BlsPublicKey,
     network: Network,
     action: Action,
 ) -> Result<Vec<SignedMessage>> {
@@ -114,7 +114,7 @@ pub fn generate_from_keystore(
 
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(validator_pubkey, preconfer_pubkey.clone());
+                let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
                 let signature = validator_private_key.sign(signing_root.0.into());
@@ -123,7 +123,7 @@ pub fn generate_from_keystore(
                 signed_messages.push(SignedMessage::Delegation(signed));
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(validator_pubkey, preconfer_pubkey.clone());
+                let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
                 let signature = validator_private_key.sign(signing_root.0.into());
@@ -140,7 +140,7 @@ pub fn generate_from_keystore(
 /// Generate signed delegations/revocations using a remote Dirk signer
 pub async fn generate_from_dirk(
     dirk: &mut Dirk,
-    preconfer_pubkey: BlsPublicKey,
+    underwriter_pubkey: BlsPublicKey,
     account_path: String,
     passphrases: Option<Vec<String>>,
     network: Network,
@@ -178,14 +178,14 @@ pub async fn generate_from_dirk(
 
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(pubkey.clone(), preconfer_pubkey.clone());
+                let message = DelegationMessage::new(pubkey.clone(), underwriter_pubkey.clone());
                 let signing_root = message.digest().into(); // Dirk does the hash tree root internally
                 let signature = dirk.request_signature(&account, signing_root, domain).await?;
                 let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed));
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(pubkey.clone(), preconfer_pubkey.clone());
+                let message = RevocationMessage::new(pubkey.clone(), underwriter_pubkey.clone());
                 let signing_root = message.digest().into(); // Dirk does the hash tree root internally
                 let signature = dirk.request_signature(&account, signing_root, domain).await?;
                 let signed = SignedRevocation { message, signature };

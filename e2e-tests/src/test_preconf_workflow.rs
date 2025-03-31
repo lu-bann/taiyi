@@ -8,13 +8,13 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use serde::de;
-use taiyi_preconfer::TaiyiCore;
 use taiyi_primitives::{PreconfRequestTypeA, PreconfResponseData, SubmitTransactionRequest};
+use taiyi_underwriter::TaiyiCore;
 use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_ADDRESS, PRECONFER_BLS_PK, PRECONFER_ECDSA_SK},
+    constant::{UNDERWRITER_ADDRESS, UNDERWRITER_BLS_PK, UNDERWRITER_ECDSA_SK},
     contract_call::{revert_call, taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -122,7 +122,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let data =
         keccak256((blockspace_request.hash(chain_id), raw_tx.as_bytes()).abi_encode_packed());
     let signer = commitment.recover_address_from_prehash(&data).unwrap();
-    assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
+    assert!(signer == Address::from_str(UNDERWRITER_ADDRESS).unwrap());
 
     wait_until_deadline_of_slot(&config, target_slot).await?;
 
@@ -164,7 +164,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 
     assert_eq!(
         message.pubkey,
-        BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
+        BlsPublicKey::try_from(hex::decode(UNDERWRITER_BLS_PK).unwrap().as_slice()).unwrap()
     );
     assert_eq!(message.slot, target_slot);
 
@@ -410,7 +410,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     };
     let data = type_a.digest(chain_id);
     let signer = commitment.recover_address_from_prehash(&data).unwrap();
-    assert!(signer == Address::from_str(PRECONFER_ADDRESS).unwrap());
+    assert!(signer == Address::from_str(UNDERWRITER_ADDRESS).unwrap());
 
     wait_until_deadline_of_slot(&config, target_slot).await?;
 

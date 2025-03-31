@@ -9,7 +9,7 @@ import { PreconfRequestStatus } from "../types/CommonTypes.sol";
 // +==================================================================================================================================================+
 // | collectedTip         | uint256                                       | 0    | 0      | 32    | src/storage/TaiyiCoreStorage.sol:TaiyiCoreStorage |
 // |----------------------+-----------------------------------------------+------+--------+-------+---------------------------------------------------|
-// | preconferTips        | mapping(bytes32 => uint256)                   | 1    | 0      | 32    | src/storage/TaiyiCoreStorage.sol:TaiyiCoreStorage |
+// | underwriterTips        | mapping(bytes32 => uint256)                   | 1    | 0      | 32    | src/storage/TaiyiCoreStorage.sol:TaiyiCoreStorage |
 // |----------------------+-----------------------------------------------+------+--------+-------+---------------------------------------------------|
 // | preconfRequestStatus | mapping(bytes32 => enum PreconfRequestStatus) | 2    | 0      | 32    | src/storage/TaiyiCoreStorage.sol:TaiyiCoreStorage |
 // |----------------------+-----------------------------------------------+------+--------+-------+---------------------------------------------------|
@@ -24,8 +24,8 @@ contract TaiyiCoreStorage {
     /// @notice Total amount of tips collected
     uint256 internal collectedTip;
 
-    /// @notice Mapping from preconf request hash to tip amount for each preconfer
-    mapping(bytes32 => uint256) internal preconferTips;
+    /// @notice Mapping from preconf request hash to tip amount for each underwriter
+    mapping(bytes32 => uint256) internal underwriterTips;
 
     /// @notice Mapping from preconf request hash to its current status
     mapping(bytes32 => PreconfRequestStatus) internal preconfRequestStatus;

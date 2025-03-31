@@ -58,12 +58,12 @@ impl APIMetrics {
     }
 }
 pub fn init_metrics(server_port: u16) -> Result<()> {
-    PreconferMetricsService::init_metrics(server_port)
+    UnderwriterMetricsService::init_metrics(server_port)
 }
 
-pub struct PreconferMetricsService;
+pub struct UnderwriterMetricsService;
 
-impl PreconferMetricsService {
+impl UnderwriterMetricsService {
     pub fn register_metric(c: Box<dyn Collector>) {
         TAIYI_UNDERWRITER_METRICS.register(c).expect("failed to register metric");
     }

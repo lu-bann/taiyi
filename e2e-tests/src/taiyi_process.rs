@@ -6,11 +6,11 @@ use std::{
 };
 
 use clap::Parser;
-use taiyi_cmd::PreconferCommand;
+use taiyi_cmd::UnderwriterCommand;
 use tracing::{error, info};
 
 use crate::{
-    constant::{PRECONFER_BLS_SK, PRECONFER_ECDSA_SK},
+    constant::{UNDERWRITER_BLS_SK, UNDERWRITER_ECDSA_SK},
     utils::TestConfig,
 };
 
@@ -27,11 +27,11 @@ impl TaiyiProcess {
         let binary = manifest_path.parent().expect("parent").join("target/debug/taiyi");
         let process = Command::new(binary)
             .args([
-                "preconfer",
+                "underwriter",
                 "--bls-sk",
-                PRECONFER_BLS_SK,
+                UNDERWRITER_BLS_SK,
                 "--ecdsa-sk",
-                PRECONFER_ECDSA_SK,
+                UNDERWRITER_ECDSA_SK,
                 "--network",
                 &network_dir,
                 "--execution-rpc-url",

@@ -26,8 +26,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sp1-sdk = { workspace = true }
 taiyi-cmd = { workspace = true }
-taiyi-preconfer = { workspace = true }
 taiyi-primitives = { workspace = true }
+taiyi-underwriter = { workspace = true }
 taiyi-zkvm-types = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

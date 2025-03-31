@@ -17,15 +17,15 @@ use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
-use taiyi_cmd::{initialize_tracing_log, PreconferCommand};
-use taiyi_preconfer::{
-    context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
-    SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
-};
+use taiyi_cmd::{initialize_tracing_log, UnderwriterCommand};
 use taiyi_primitives::{
     BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest,
     PreconfResponseData, SignedConstraints, SlotInfo, SubmitTransactionRequest,
     SubmitTypeATransactionRequest,
+};
+use taiyi_underwriter::{
+    context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
+    SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -33,7 +33,8 @@ use uuid::Uuid;
 
 use crate::{
     constant::{
-        FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, SLOT_CHECK_INTERVAL_SECONDS,
+        FUNDING_SIGNER_PRIVATE, SLOT_CHECK_INTERVAL_SECONDS, UNDERWRITER_BLS_SK,
+        UNDERWRITER_ECDSA_SK,
     },
     taiyi_process::{ResourceHandle, ResourceManager},
 };
@@ -369,7 +370,7 @@ pub async fn generate_reserve_blockspace_request(
     let fee = preocnf_fee.gas_fee * (gas_limit as u128)
         + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
-    let recepient = PRECONFER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
+    let recepient = UNDERWRITER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
     let request = BlockspaceAlloc {
         target_slot,
         sender: signer_private.address(),
@@ -658,7 +659,7 @@ fn init_log() {
 fn init_taiyi_process(config: &TestConfig) -> ResourceHandle {
     let taiyi_process = &mut TAIYI_PROCESS.lock().unwrap();
     if taiyi_process.is_none() {
-        info!("Starting preconfer");
+        info!("Starting Underwriter");
         let resource_manager = ResourceManager::new(config);
         let handle = resource_manager.acquire();
         **taiyi_process = Some(resource_manager);

@@ -8214,8 +8214,8 @@ dependencies = [
  "mev-share-sse 0.4.0",
  "reqwest 0.12.9",
  "serde_json",
- "taiyi-preconfer",
  "taiyi-primitives",
+ "taiyi-underwriter",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -8665,7 +8665,7 @@ dependencies = [
  "reqwest 0.12.9",
  "serde",
  "taiyi-contracts",
- "taiyi-preconfer",
+ "taiyi-underwriter",
  "thiserror 2.0.7",
  "tiny-bip39",
  "tonic",
@@ -8711,8 +8711,8 @@ dependencies = [
  "sp1-build",
  "sp1-sdk",
  "taiyi-cmd",
- "taiyi-preconfer",
  "taiyi-primitives",
+ "taiyi-underwriter",
  "taiyi-zkvm-types",
  "tokio",
  "tracing",
@@ -8777,7 +8777,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "taiyi-preconfer"
+name = "taiyi-primitives"
+version = "0.1.4"
+dependencies = [
+ "alloy-consensus 0.8.1",
+ "alloy-eips 0.8.1",
+ "alloy-primitives 0.8.15",
+ "alloy-sol-types",
+ "derive_more 1.0.0",
+ "ethereum-consensus",
+ "serde",
+ "sha2 0.10.8",
+ "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
+ "uuid 1.11.0",
+]
+
+[[package]]
+name = "taiyi-underwriter"
 version = "0.1.4"
 dependencies = [
  "alloy-consensus 0.8.1",
@@ -8821,22 +8837,6 @@ dependencies = [
  "tracing-subscriber",
  "tree_hash 0.6.0",
  "tree_hash_derive 0.6.0",
- "uuid 1.11.0",
-]
-
-[[package]]
-name = "taiyi-primitives"
-version = "0.1.4"
-dependencies = [
- "alloy-consensus 0.8.1",
- "alloy-eips 0.8.1",
- "alloy-primitives 0.8.15",
- "alloy-sol-types",
- "derive_more 1.0.0",
- "ethereum-consensus",
- "serde",
- "sha2 0.10.8",
- "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "uuid 1.11.0",
 ]
 

@@ -13,8 +13,8 @@ members = [
     "crates/contracts",
     "crates/poi",
     "crates/poni",
-    "crates/preconfer",
     "crates/primitives",
+    "crates/underwriter",
     "crates/zkvm-verifier",
     "e2e-tests",
     "examples",
@@ -26,7 +26,7 @@ default-members = [
     "bin/taiyi-cli",
     "bin/taiyi-fraud-proof-cli",
     "crates/cli",
-    "crates/preconfer",
+    "crates/underwriter",
     "crates/primitives",
     "crates/contracts",
     "examples",
@@ -47,7 +47,7 @@ ignored = [
 ]
 
 [workspace.dependencies]
-taiyi-preconfer = { path = "crates/preconfer" }
+taiyi-underwriter = { path = "crates/underwriter" }
 taiyi-cmd = { path = "crates/cli" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-integration-tests = { path = "tests" }

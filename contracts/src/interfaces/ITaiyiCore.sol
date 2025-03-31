@@ -7,9 +7,9 @@ import { PreconfRequestBType } from "../types/PreconfRequestBTypes.sol";
 interface ITaiyiCore {
     function checkInclusion(bytes32 preconfRequestHash) external view returns (bool);
     function exhaust(PreconfRequestBType calldata preconfReq) external;
-    function getPreconfRequestStatus(bytes32 preconferSignature)
+    function getPreconfRequestStatus(bytes32 underwriterSignature)
         external
         view
         returns (PreconfRequestStatus);
-    function collectTip(bytes32 preconferSignature) external;
+    function collectTip(bytes32 underwriterSignature) external;
 }
