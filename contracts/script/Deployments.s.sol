@@ -3,18 +3,22 @@ pragma solidity ^0.8.25;
 
 import { TaiyiCore } from "../src/TaiyiCore.sol";
 
-import { GatewayAVS } from "../src/eigenlayer-avs/GatewayAVS.sol";
-import { ValidatorAVS } from "../src/eigenlayer-avs/ValidatorAVS.sol";
-
-import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
+import { EigenLayerMiddleware } from "../src/eigenlayer-avs/EigenLayerMiddleware.sol";
+import { TaiyiRegistryCoordinator } from
+    "../src/operator-registries/TaiyiRegistryCoordinator.sol";
 import { Reverter } from "./Reverter.sol";
 import { WETH9 } from "./WETH.sol";
 
 import { DeployFromScratch } from
     "../lib/eigenlayer-contracts/script/deploy/local/Deploy_From_Scratch.s.sol";
+
+import { IAllocationManager } from
+    "../lib/eigenlayer-contracts/src/contracts/interfaces/IAllocationManager.sol";
+import { IPauserRegistry } from
+    "../lib/eigenlayer-contracts/src/contracts/interfaces/IPauserRegistry.sol";
 import { IStrategy } from
     "../lib/eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
 import { IStrategyManager } from
@@ -28,6 +32,8 @@ contract Deploy is Script, Test {
     address public eigenPodManager;
     address public rewardInitiator;
     address public rewardCoordinator;
+    address public allocationManager;
+    address public eigenPauserReg;
     address public deployer;
 
     function run(string memory configFileName) public {
@@ -91,80 +97,73 @@ contract Deploy is Script, Test {
                 stdJson.readAddress(output_data, ".addresses.eigenPodManager");
             rewardCoordinator =
                 stdJson.readAddress(output_data, ".addresses.rewardsCoordinator");
+            allocationManager =
+                stdJson.readAddress(output_data, ".addresses.allocationManager");
+            eigenPauserReg =
+                stdJson.readAddress(output_data, ".addresses.eigenLayerPauserReg");
         } else if (
             keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("holesky"))
         ) {
-            // holesky address reference: https://github.com/Layr-Labs/eigenlayer-contracts/blob/dev/script/configs/holesky.json
+            // holesky address reference: https://github.com/Layr-Labs/eigenlayer-contracts/tree/testnet-holesky
             avsDirectory = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
             delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
             strategyManagerAddr = 0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6;
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
             rewardCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+            allocationManager = 0x78469728304326CBc65f8f95FA756B0B73164462;
         }
         rewardInitiator = address(0xd8F3183DEf51a987222d845Be228E0bBB932c292); // Arbitrary address
         vm.startBroadcast();
 
-        // Deploy TaiyiProposerRegistry implementation and proxy
-        TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
+        // Deploy TaiyiRegistryCoordinator implementation and proxy
+        TaiyiRegistryCoordinator registryImpl = new TaiyiRegistryCoordinator(
+            IAllocationManager(allocationManager),
+            IPauserRegistry(eigenPauserReg),
+            "TaiyiRegistryCoordinator"
+        );
         bytes memory registryInitData =
             abi.encodeWithSignature("initialize(address)", msg.sender);
         ERC1967Proxy registryProxy =
             new ERC1967Proxy(address(registryImpl), registryInitData);
-        TaiyiProposerRegistry registry = TaiyiProposerRegistry(address(registryProxy));
+        TaiyiRegistryCoordinator registry =
+            TaiyiRegistryCoordinator(address(registryProxy));
         emit log_address(address(registry));
         vm.serializeAddress(
-            "taiyiAddresses", "taiyiProposerRegistryImpl", address(registryImpl)
+            "taiyiAddresses", "taiyiRegistryCoordinatorImpl", address(registryImpl)
         );
         vm.serializeAddress(
-            "taiyiAddresses", "taiyiProposerRegistryProxy", address(registryProxy)
+            "taiyiAddresses", "taiyiRegistryCoordinatorProxy", address(registryProxy)
         );
 
-        // Deploy GatewayAVS implementation and proxy
-        GatewayAVS gatewayImpl = new GatewayAVS();
-        bytes memory gatewayInitData = abi.encodeWithSignature(
+        EigenLayerMiddleware eigenLayerMiddlewareImpl = new EigenLayerMiddleware();
+        bytes memory eigenLayerMiddlewareInitData = abi.encodeWithSignature(
             "initialize(address,address,address,address,address,address,address,address,uint256)",
             msg.sender,
-            address(registry),
             avsDirectory,
             delegationManager,
             strategyManagerAddr,
             eigenPodManager,
             rewardCoordinator,
             rewardInitiator,
-            8000
+            8000,
+            address(registry)
         );
-        ERC1967Proxy gatewayProxy =
-            new ERC1967Proxy(address(gatewayImpl), gatewayInitData);
-        GatewayAVS gateway = GatewayAVS(address(gatewayProxy));
-        emit log_address(address(gateway));
-        vm.serializeAddress("taiyiAddresses", "gatewayAVSImpl", address(gatewayImpl));
-        vm.serializeAddress("taiyiAddresses", "gatewayAVSProxy", address(gatewayProxy));
-
-        // Deploy ValidatorAVS implementation and proxy
-        ValidatorAVS validatorImpl = new ValidatorAVS();
-        bytes memory validatorInitData = abi.encodeWithSignature(
-            "initialize(address,address,address,address,address,address,address,address,uint256)",
-            msg.sender,
-            address(registry),
-            avsDirectory,
-            delegationManager,
-            strategyManagerAddr,
-            eigenPodManager,
-            rewardCoordinator,
-            rewardInitiator,
-            8000
+        ERC1967Proxy eigenLayerMiddlewareProxy = new ERC1967Proxy(
+            address(eigenLayerMiddlewareImpl), eigenLayerMiddlewareInitData
         );
-        ERC1967Proxy validatorProxy =
-            new ERC1967Proxy(address(validatorImpl), validatorInitData);
-        ValidatorAVS validator = ValidatorAVS(address(validatorProxy));
-        emit log_address(address(validator));
-        vm.serializeAddress("taiyiAddresses", "validatorAVSImpl", address(validatorImpl));
+        EigenLayerMiddleware eigenLayerMiddleware =
+            EigenLayerMiddleware(address(eigenLayerMiddlewareProxy));
+        emit log_address(address(eigenLayerMiddleware));
         vm.serializeAddress(
-            "taiyiAddresses", "validatorAVSProxy", address(validatorProxy)
+            "taiyiAddresses",
+            "eigenLayerMiddlewareImpl",
+            address(eigenLayerMiddlewareImpl)
         );
-
-        // Set AVS contracts in registry
-        registry.setAVSContracts(address(gateway), address(validator));
+        vm.serializeAddress(
+            "taiyiAddresses",
+            "eigenLayerMiddlewareProxy",
+            address(eigenLayerMiddlewareProxy)
+        );
 
         // Deploy TaiyiCore implementation and proxy
         TaiyiCore coreImpl = new TaiyiCore();
@@ -177,7 +176,7 @@ contract Deploy is Script, Test {
         vm.serializeAddress("taiyiAddresses", "taiyiCoreProxy", address(coreProxy));
 
         string memory addresses = vm.serializeAddress(
-            "taiyiAddresses", "eigenLayerMiddleware", address(validator)
+            "taiyiAddresses", "eigenLayerMiddleware", address(eigenLayerMiddleware)
         );
 
         string memory output = "output";

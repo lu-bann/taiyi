@@ -15,7 +15,7 @@ import { Math } from "@openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
-import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
 import { IBaseDelegator } from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 
 import { Subnetworks } from "@symbiotic-middleware-sdk/extensions/Subnetworks.sol";
@@ -37,6 +37,8 @@ import { Subnetwork } from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import { INetworkRegistry } from "@symbiotic/interfaces/INetworkRegistry.sol";
 import { IVault } from "@symbiotic/interfaces/vault/IVault.sol";
 
+import { ServiceTypeLib } from "../libs/ServiceTypeLib.sol";
+
 /// @title SymbioticNetworkMiddleware
 /// @notice A unified middleware contract that manages both gateway and validator networks in the Symbiotic ecosystem
 /// @dev Implements subnetwork functionality to handle both gateway and validator operators
@@ -50,6 +52,7 @@ contract SymbioticNetworkMiddleware is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Subnetwork for address;
+    using ServiceTypeLib for ITaiyiRegistryCoordinator.RestakingServiceTypes;
 
     error InvalidSignature();
     error NoVaultsToSlash();
@@ -57,10 +60,10 @@ contract SymbioticNetworkMiddleware is
     error InactiveKeySlash();
     error InactiveOperatorSlash();
 
-    IProposerRegistry public proposerRegistry;
+    ITaiyiRegistryCoordinator public registryCoordinator;
 
     uint96 public constant VALIDATOR_SUBNETWORK = 1;
-    uint96 public constant GATEWAY_SUBNETWORK = 2;
+    uint96 public constant UNDERWRITER_SUBNETWORK = 2;
 
     struct SlashParams {
         uint48 timestamp;
@@ -84,7 +87,8 @@ contract SymbioticNetworkMiddleware is
     /// @param operatorNetOptIn The address of the operator network opt-in service
     /// @param reader The address of the reader contract used for delegatecall
     /// @param owner The address of the contract owner
-    /// @param _proposerRegistry The address of the proposer registry contract
+    /// @param _registryCoordinator The address of the registry coordinator
+    /// @param _epochDuration The duration of the epoch
     /// @dev Calls BaseMiddleware.init and Subnetworks.registerSubnetwork
     function initialize(
         address network,
@@ -94,8 +98,8 @@ contract SymbioticNetworkMiddleware is
         address operatorNetOptIn,
         address reader,
         address owner,
-        address _proposerRegistry,
-        uint48 epochDuration
+        address _registryCoordinator,
+        uint48 _epochDuration
     )
         external
         initializer
@@ -109,21 +113,21 @@ contract SymbioticNetworkMiddleware is
             reader
         );
         __OzAccessManaged_init(owner);
-        __EpochCapture_init(epochDuration);
+        __EpochCapture_init(_epochDuration);
 
-        proposerRegistry = IProposerRegistry(_proposerRegistry);
+        registryCoordinator = ITaiyiRegistryCoordinator(_registryCoordinator);
     }
 
     function setupSubnetworks() external {
         super.registerSubnetwork(VALIDATOR_SUBNETWORK);
-        super.registerSubnetwork(GATEWAY_SUBNETWORK);
+        super.registerSubnetwork(UNDERWRITER_SUBNETWORK);
     }
 
     /// @notice Register a new operator with the specified key, vault, and subnetwork
     /// @param key The address key of the operator
     /// @param vault The vault address associated with the operator
     /// @param signature The signature proving ownership of the key
-    /// @param subnetwork The subnetwork identifier (VALIDATOR_SUBNETWORK or GATEWAY_SUBNETWORK)
+    /// @param subnetwork The subnetwork identifier (VALIDATOR_SUBNETWORK or UNDERWRITER_SUBNETWORK)
     /// @dev Calls BaseOperators._registerOperatorImpl
     function registerOperator(
         bytes memory key,
@@ -134,26 +138,29 @@ contract SymbioticNetworkMiddleware is
         external
     {
         require(
-            subnetwork == VALIDATOR_SUBNETWORK || subnetwork == GATEWAY_SUBNETWORK,
+            subnetwork == VALIDATOR_SUBNETWORK || subnetwork == UNDERWRITER_SUBNETWORK,
             "Invalid subnetwork"
         );
 
         _verifyKey(msg.sender, key, signature);
         super._registerOperatorImpl(msg.sender, key, vault);
 
-        IProposerRegistry.RestakingServiceType serviceType = subnetwork
+        ITaiyiRegistryCoordinator.RestakingServiceTypes serviceType = subnetwork
             == VALIDATOR_SUBNETWORK
-            ? IProposerRegistry.RestakingServiceType.SYMBIOTIC_VALIDATOR
-            : IProposerRegistry.RestakingServiceType.SYMBIOTIC_GATEWAY;
+            ? ITaiyiRegistryCoordinator.RestakingServiceTypes.SYMBIOTIC_VALIDATOR
+            : ITaiyiRegistryCoordinator.RestakingServiceTypes.SYMBIOTIC_UNDERWRITER;
+        uint32 serviceTypeId = serviceType.toId();
 
-        proposerRegistry.registerOperator(msg.sender, serviceType, bytes(""));
+        registryCoordinator.registerOperatorWithServiceType(
+            msg.sender, serviceTypeId, bytes("")
+        );
     }
 
     /// @notice Unregister the calling operator from the system
     /// @dev Calls BaseOperators._unregisterOperatorImpl
     function unregisterOperator() external {
         super._unregisterOperatorImpl(msg.sender);
-        proposerRegistry.deregisterOperator(msg.sender);
+        //registryCoordinator.deregisterOperator(msg.sender);
     }
 
     /// @notice Pause the calling operator's operations
@@ -384,9 +391,9 @@ contract SymbioticNetworkMiddleware is
 
             uint256 validatorPower =
                 super._getOperatorPower(operator, vault, VALIDATOR_SUBNETWORK);
-            uint256 gatewayPower =
-                super._getOperatorPower(operator, vault, GATEWAY_SUBNETWORK);
-            stakedAmounts[i] = validatorPower + gatewayPower;
+            uint256 underwriterPower =
+                super._getOperatorPower(operator, vault, UNDERWRITER_SUBNETWORK);
+            stakedAmounts[i] = validatorPower + underwriterPower;
         }
 
         return (vaults, collateralTokens, stakedAmounts);
@@ -493,15 +500,6 @@ contract SymbioticNetworkMiddleware is
             // For now, we'll just check if the key address matches the operator
             revert InvalidSignature();
         }
-    }
-
-    /// @notice Internal function to update operator's address key
-    /// @param key The new address key
-    /// @param signature The signature proving ownership of the new key
-    function _updateOperatorKey(bytes memory key, bytes memory signature) internal {
-        _verifyKey(msg.sender, key, signature);
-        super._updateOperatorKeyImpl(msg.sender, key);
-        proposerRegistry.updateOperatorBLSKey(msg.sender, key);
     }
 
     /// @notice Gets the operator address for a given key and verifies they can be slashed

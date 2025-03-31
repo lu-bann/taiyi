@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "../src/TaiyiProposerRegistry.sol";
-
 import "../src/libs/PreconfRequestLib.sol";
-import "../src/types/PreconfRequestBTypes.sol";
 import "../src/utils/Helper.sol";
 import "forge-std/Test.sol";
 

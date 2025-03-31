@@ -3,10 +3,6 @@ pragma solidity ^0.8.27;
 
 import { AllocationManager } from
     "@eigenlayer-contracts/src/contracts/core/AllocationManager.sol";
-import {
-    Allocation,
-    OperatorSet
-} from "@eigenlayer-contracts/src/contracts/interfaces/IAllocationManager.sol";
 
 import { IAVSRegistrar } from
     "@eigenlayer-contracts/src/contracts/interfaces/IAVSRegistrar.sol";
@@ -14,6 +10,8 @@ import {
     IAllocationManager,
     IAllocationManagerTypes
 } from "@eigenlayer-contracts/src/contracts/interfaces/IAllocationManager.sol";
+import { OperatorSet } from
+    "@eigenlayer-contracts/src/contracts/libraries/OperatorSetLib.sol";
 import { IPauserRegistry } from
     "eigenlayer-contracts/src/contracts/interfaces/IPauserRegistry.sol";
 
@@ -37,6 +35,8 @@ import { TaiyiRegistryCoordinatorStorage } from
 import { Pausable } from "@eigenlayer-contracts/src/contracts/permissions/Pausable.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+
+import { ServiceTypeLib } from "../libs/ServiceTypeLib.sol";
 
 /// @title A `TaiyiRegistryCoordinator` that has two registries:
 ///      1) a `PubkeyRegistry` that keeps track of operators' public keys
@@ -63,13 +63,11 @@ contract TaiyiRegistryCoordinator is
     }
 
     constructor(
-        IPubkeyRegistry _pubkeyRegistry,
-        ISocketRegistry _socketRegistry,
         IAllocationManager _allocationManager,
         IPauserRegistry _pauserRegistry,
-        string memory _version
+        string memory /* _version */
     )
-        TaiyiRegistryCoordinatorStorage(_pubkeyRegistry, _socketRegistry, _allocationManager)
+        TaiyiRegistryCoordinatorStorage(_allocationManager)
         Pausable(_pauserRegistry)
     {
         _disableInitializers();
@@ -79,14 +77,19 @@ contract TaiyiRegistryCoordinator is
     function initialize(
         address initialOwner,
         uint256 initialPausedStatus,
-        address _eigenlayerMiddleware
+        address _pubkeyRegistry,
+        address _socketRegistry,
+        address, /* _allocationManager */
+        address /* _pauserRegistry */
     )
         external
         initializer
     {
-        __EIP712_init("AVSRegistryCoordinator", "v0.0.1");
+        __EIP712_init("TaiyiRegistryCoordinator", "v0.0.1");
         _transferOwnership(initialOwner);
         _setPausedStatus(initialPausedStatus);
+        pubkeyRegistry = IPubkeyRegistry(_pubkeyRegistry);
+        socketRegistry = ISocketRegistry(_socketRegistry);
     }
 
     /// @inheritdoc IAVSRegistrar
@@ -96,10 +99,35 @@ contract TaiyiRegistryCoordinator is
         bytes calldata data
     )
         external
-        override
+        override(IAVSRegistrar, ITaiyiRegistryCoordinator)
         onlyAllocationManager
         onlyWhenNotPaused(PAUSED_REGISTER_OPERATOR)
     {
+        _registerOperator(operator, operatorSetIds, data);
+    }
+
+    /**
+     * @notice Registers an operator with the AVS using a service type ID
+     * @param operator The address of the operator to register
+     * @param serviceTypeId The service type ID that defines what kind of operator this is
+     * @param data Additional data passed to the operator registrar
+     */
+    function registerOperatorWithServiceType(
+        address operator,
+        uint32 serviceTypeId,
+        bytes calldata data
+    )
+        external
+        onlyAllocationManager
+        onlyWhenNotPaused(PAUSED_REGISTER_OPERATOR)
+    {
+        // Convert serviceTypeId back to enum for internal processing
+        ITaiyiRegistryCoordinator.RestakingServiceTypes serviceType =
+            ServiceTypeLib.fromId(serviceTypeId);
+
+        // Get appropriate operator set IDs based on service type
+        uint32[] memory operatorSetIds = ServiceTypeLib.getOperatorSetIds(serviceType);
+
         _registerOperator(operator, operatorSetIds, data);
     }
 
@@ -109,7 +137,7 @@ contract TaiyiRegistryCoordinator is
         uint32[] memory operatorSetIds
     )
         external
-        override
+        override(IAVSRegistrar, ITaiyiRegistryCoordinator)
         onlyAllocationManager
         onlyWhenNotPaused(PAUSED_DEREGISTER_OPERATOR)
     {
@@ -127,21 +155,39 @@ contract TaiyiRegistryCoordinator is
     /// @inheritdoc ITaiyiRegistryCoordinator
     function setEigenlayerMiddleware(address _eigenlayerMiddleware) external onlyOwner {
         eigenlayerMiddleware = _eigenlayerMiddleware;
-        _setRestakingServiceType(_eigenlayerMiddleware, RestakingServiceType.EIGENLAYER);
+        _setRestakingProtocol(_eigenlayerMiddleware, RestakingProtocol.EIGENLAYER);
     }
 
-    function _setRestakingServiceType(
+    /// @inheritdoc ITaiyiRegistryCoordinator
+    function setRestakingMiddleware(address _restakingMiddleware) external onlyOwner {
+        require(
+            _restakingMiddleware != address(0),
+            "RestakingMiddleware cannot be zero address"
+        );
+        address previousMiddleware = address(0);
+        if (restakingMiddleware.length() > 0) {
+            previousMiddleware = restakingMiddleware.at(0);
+        }
+
+        if (!restakingMiddleware.contains(_restakingMiddleware)) {
+            restakingMiddleware.add(_restakingMiddleware);
+        }
+
+        emit RestakingMiddlewareUpdated(previousMiddleware, _restakingMiddleware);
+    }
+
+    function _setRestakingProtocol(
         address _restakingMiddleware,
-        RestakingServiceType _restakingServiceType
+        RestakingProtocol _restakingProtocol
     )
         internal
     {
-        restakingServiceType[_restakingMiddleware] = _restakingServiceType;
+        restakingProtocol[_restakingMiddleware] = _restakingProtocol;
     }
 
     function _registerOperator(
         address operator,
-        uint32[] memory operatorSetIds,
+        uint32[] memory, /* operatorSetIds */
         bytes calldata data
     )
         internal
@@ -208,16 +254,51 @@ contract TaiyiRegistryCoordinator is
         return _operatorSets[operatorSetId].values();
     }
 
+    /**
+     * @notice Gets an operator from an operator set by address
+     * @param operatorSetId The operator set ID
+     * @param operator The operator address
+     * @return The operator address if found, address(0) otherwise
+     */
+    function getOperatorFromOperatorSet(
+        uint32 operatorSetId,
+        address operator
+    )
+        external
+        view
+        returns (address)
+    {
+        // Check if the operator is in the set
+        if (_operatorSets[operatorSetId].contains(operator)) {
+            return operator;
+        }
+        return address(0);
+    }
+
+    /**
+     * @notice Gets the number of operator sets
+     * @return The number of operator sets
+     */
+    function getOperatorSetCount() external view returns (uint32) {
+        // Convert uint256 to uint32 for the return value
+        return uint32(allocationManager.getOperatorSetCount(eigenlayerMiddleware));
+    }
+
+    /**
+     * @notice Gets the operator set
+     * @param operatorSetId The operator set ID
+     * @return The operator set
+     */
     function getOperatorSet(uint32 operatorSetId)
         external
         view
         returns (address[] memory)
     {
-        return _operatorSets[operatorSetId];
-    }
-
-    function getOperatorSetCount() external view returns (uint32) {
-        return allocationManager.getOperatorSetCount(eigenlayerMiddleware);
+        if (operatorSetId >= operatorSetCounter) {
+            revert OperatorSetNotFound(operatorSetId);
+        }
+        // Use our stored operator set instead of calling allocationManager
+        return _operatorSets[operatorSetId].values();
     }
 
     function getOperatorSetStrategies(uint32 operatorSetId)
@@ -226,7 +307,7 @@ contract TaiyiRegistryCoordinator is
         returns (IStrategy[] memory)
     {
         OperatorSet memory operatorSet =
-            allocationManager.getOperatorSet(eigenlayerMiddleware, operatorSetId);
+            OperatorSet({ avs: eigenlayerMiddleware, id: operatorSetId });
         return allocationManager.getStrategiesInOperatorSet(operatorSet);
     }
 
@@ -237,7 +318,7 @@ contract TaiyiRegistryCoordinator is
         external
         onlyEigenlayerMiddleware
     {
-        uint32 operatorSetCount =
+        uint256 operatorSetCount =
             allocationManager.getOperatorSetCount(eigenlayerMiddleware);
         require(operatorSetId <= operatorSetCount, InvalidOperatorSetId());
         allocationManager.addStrategiesToOperatorSet({
@@ -254,7 +335,7 @@ contract TaiyiRegistryCoordinator is
         external
         onlyEigenlayerMiddleware
     {
-        uint32 operatorSetCount =
+        uint256 operatorSetCount =
             allocationManager.getOperatorSetCount(eigenlayerMiddleware);
         require(operatorSetId <= operatorSetCount, InvalidOperatorSetId());
         allocationManager.removeStrategiesFromOperatorSet({
@@ -339,7 +420,7 @@ contract TaiyiRegistryCoordinator is
         returns (IStrategy[] memory)
     {
         OperatorSet memory operatorSet =
-            OperatorSet({ avs: eigenlayerMiddleware, operatorSetId: operatorSetId });
+            OperatorSet({ avs: eigenlayerMiddleware, id: operatorSetId });
         return allocationManager.getAllocatedStrategies(operator, operatorSet);
     }
 
@@ -355,10 +436,10 @@ contract TaiyiRegistryCoordinator is
     )
         external
         view
-        returns (Allocation memory)
+        returns (IAllocationManagerTypes.Allocation memory)
     {
         OperatorSet memory operatorSet =
-            OperatorSet({ avs: eigenlayerMiddleware, operatorSetId: operatorSetId });
+            OperatorSet({ avs: eigenlayerMiddleware, id: operatorSetId });
         return allocationManager.getAllocation(operator, operatorSet, strategy);
     }
 
@@ -372,7 +453,7 @@ contract TaiyiRegistryCoordinator is
     )
         external
         view
-        returns (OperatorSet[] memory, Allocation[] memory)
+        returns (OperatorSet[] memory, IAllocationManagerTypes.Allocation[] memory)
     {
         return allocationManager.getStrategyAllocations(operator, strategy);
     }

@@ -19,19 +19,22 @@ abstract contract TaiyiRegistryCoordinatorStorage is ITaiyiRegistryCoordinator {
     /// @notice The EIP-712 typehash used for registering BLS public keys
     bytes32 public constant PUBKEY_REGISTRATION_TYPEHASH =
         keccak256("BN254PubkeyRegistration(address operator)");
+
     /// @notice Index for flag that pauses operator registration
     uint8 internal constant PAUSED_REGISTER_OPERATOR = 0;
+
     /// @notice Index for flag that pauses operator deregistration
     uint8 internal constant PAUSED_DEREGISTER_OPERATOR = 1;
 
     /// @notice the Socket Registry contract that will keep track of operators' sockets (arbitrary strings)
-    ISocketRegistry public immutable socketRegistry;
+    ISocketRegistry public socketRegistry;
+
     /// @notice the Pubkey Registry contract that will keep track of operators' public keys
-    IPubkeyRegistry public immutable pubkeyRegistry;
+    IPubkeyRegistry public pubkeyRegistry;
 
     /// EigenLayer contracts
     /// @notice the AllocationManager that tracks OperatorSets and Slashing in EigenLayer
-    IAllocationManager public immutable allocationManager;
+    IAllocationManager public allocationManager;
 
     /// @notice the current number of operator sets supported by the registry coordinator
     uint32 public operatorSetCounter;
@@ -48,16 +51,10 @@ abstract contract TaiyiRegistryCoordinatorStorage is ITaiyiRegistryCoordinator {
     /// @notice The restaking middleware addresses
     EnumerableSet.AddressSet internal restakingMiddleware;
 
-    /// @notice The restaking service type for each restaking middleware
-    mapping(address => RestakingServiceType) internal restakingServiceType;
+    /// @notice The restaking protocol for each restaking middleware
+    mapping(address => RestakingProtocol) internal restakingProtocol;
 
-    constructor(
-        IPubkeyRegistry _pubkeyRegistry,
-        ISocketRegistry _socketRegistry,
-        IAllocationManager _allocationManager
-    ) {
-        pubkeyRegistry = _pubkeyRegistry;
-        socketRegistry = _socketRegistry;
+    constructor(IAllocationManager _allocationManager) {
         allocationManager = _allocationManager;
     }
 

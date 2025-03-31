@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { DelegationStore } from "../eigenlayer-avs/EigenLayerMiddleware.sol";
-import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { IEigenLayerMiddleware } from "../interfaces/IEigenLayerMiddleware.sol";
 import { ITaiyiRegistryCoordinator } from "../interfaces/ITaiyiRegistryCoordinator.sol";
 import { DelegationManagerStorage } from
     "@eigenlayer-contracts/src/contracts/core/DelegationManagerStorage.sol";
@@ -14,7 +13,9 @@ import { IEigenPodManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IEigenPodManager.sol";
 import { IRewardsCoordinator } from
     "@eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import { IRegistry } from "@urc/IRegistry.sol";
+import { EnumerableSet } from
+    "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { Registry } from "@urc/Registry.sol";
 
 // Storage layout for EigenLayerMiddleware
 // ╭---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╮
@@ -45,7 +46,9 @@ import { IRegistry } from "@urc/IRegistry.sol";
 // | __gap               | uint256[50]                       | 12   | 0      | 1600  | src/storage/EigenLayerMiddlewareStorage.sol:EigenLayerMiddlewareStorage |
 // ╰---------------------+-----------------------------------+------+--------+-------+-------------------------------------------------------------------------╯
 
-abstract contract EigenLayerMiddlewareStorage {
+abstract contract EigenLayerMiddlewareStorage is IEigenLayerMiddleware {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+
     // ========= CONSTANTS =========
 
     /// @notice Proposed reward duration is 1 day (in seconds)
@@ -53,40 +56,32 @@ abstract contract EigenLayerMiddlewareStorage {
 
     // ========= STATE VARIABLES =========
 
-    struct DelegationInfo {
-        bytes32 registrationRoot;
-        IRegistry.SignedDelegation delegation;
-    }
-
     /// @notice EigenLayer's AVS Directory contract
-    IAVSDirectory public immutable AVS_DIRECTORY;
+    IAVSDirectory public AVS_DIRECTORY;
 
     /// @notice EigenLayer's Delegation Manager contract
-    DelegationManagerStorage public immutable DELEGATION_MANAGER;
+    DelegationManagerStorage public DELEGATION_MANAGER;
 
     /// @notice EigenLayer's Strategy Manager contract
-    StrategyManagerStorage public immutable STRATEGY_MANAGER;
+    StrategyManagerStorage public STRATEGY_MANAGER;
 
     /// @notice EigenLayer's EigenPod Manager contract
-    IEigenPodManager public immutable EIGEN_POD_MANAGER;
+    IEigenPodManager public EIGEN_POD_MANAGER;
 
     /// @notice EigenLayer's Reward Coordinator contract
-    IRewardsCoordinator public immutable REWARDS_COORDINATOR;
+    IRewardsCoordinator public REWARDS_COORDINATOR;
 
     /// @notice Underwriter share in basis points
     uint256 public UNDERWRITER_SHARE_BIPS;
 
     /// @notice Registry contract
-    IRegistry public immutable REGISTRY;
+    Registry public REGISTRY;
 
     /// @notice Reward Initiator address
-    address public immutable REWARD_INITIATOR;
+    address public REWARD_INITIATOR;
 
     /// @notice Registry Coordinator contract
-    ITaiyiRegistryCoordinator public immutable REGISTRY_COORDINATOR;
-
-    /// @notice Proposer Registry contract
-    IProposerRegistry public immutable proposerRegistry;
+    ITaiyiRegistryCoordinator public REGISTRY_COORDINATOR;
 
     /// @notice Optimized storage for operator delegations
     /// @dev operator address -> registration root -> delegation store mapping

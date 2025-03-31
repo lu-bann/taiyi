@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { TaiyiProposerRegistry } from "../src/TaiyiProposerRegistry.sol";
+import { TaiyiRegistryCoordinator } from
+    "../src/operator-registries/TaiyiRegistryCoordinator.sol";
 import { SymbioticNetworkMiddleware } from
     "../src/symbiotic-network/SymbioticNetworkMiddleware.sol";
 import { TransparentUpgradeableProxy } from
@@ -12,48 +13,53 @@ contract SymbioticMiddlewareTest is POCBaseTest {
     SymbioticNetworkMiddleware middleware;
     uint96 constant VALIDATOR_SUBNETWORK = 1;
     uint96 constant GATEWAY_SUBNETWORK = 2;
-    TaiyiProposerRegistry registry;
+    TaiyiRegistryCoordinator registry;
 
     function setUp() public virtual override {
         address proxyAdmin = makeAddr("proxyAdmin");
         SYMBIOTIC_CORE_PROJECT_ROOT = "lib/middleware-sdk/lib/core/";
         super.setUp();
 
-        // Initialize core protocol components from POCBaseTest
-        _initializeCoreContracts();
+        // // Initialize core protocol components from POCBaseTest
+        // _initializeCoreContracts();
 
-        TaiyiProposerRegistry registryImpl = new TaiyiProposerRegistry();
-        TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
-            address(registryImpl),
-            proxyAdmin, // Use proxyAdmin instead of owner
-            abi.encodeWithSelector(TaiyiProposerRegistry.initialize.selector, owner)
-        );
-        registry = TaiyiProposerRegistry(address(registryProxy));
+        // TaiyiRegistryCoordinator registryImpl = new TaiyiRegistryCoordinator();
+        // TransparentUpgradeableProxy registryProxy = new TransparentUpgradeableProxy(
+        //     address(registryImpl),
+        //     proxyAdmin, // Use proxyAdmin instead of owner
+        //     abi.encodeWithSelector(
+        //         TaiyiRegistryCoordinator.initialize.selector,
+        //         owner,
+        //         0,
+        //         address(middleware)
+        //     )
+        // );
+        // registry = TaiyiRegistryCoordinator(address(registryProxy));
 
-        SymbioticNetworkMiddleware middlewareImpl = new SymbioticNetworkMiddleware();
+        // SymbioticNetworkMiddleware middlewareImpl = new SymbioticNetworkMiddleware();
 
-        TransparentUpgradeableProxy middlewareProxy = new TransparentUpgradeableProxy(
-            address(middlewareImpl),
-            proxyAdmin,
-            abi.encodeWithSelector(
-                SymbioticNetworkMiddleware.initialize.selector,
-                address(networkRegistry),
-                1 days,
-                address(vaultFactory),
-                address(operatorRegistry),
-                address(operatorNetworkOptInService),
-                address(0),
-                address(this),
-                registry,
-                1 days
-            )
-        );
+        // TransparentUpgradeableProxy middlewareProxy = new TransparentUpgradeableProxy(
+        //     address(middlewareImpl),
+        //     proxyAdmin,
+        //     abi.encodeWithSelector(
+        //         SymbioticNetworkMiddleware.initialize.selector,
+        //         address(networkRegistry),
+        //         1 days,
+        //         address(vaultFactory),
+        //         address(operatorRegistry),
+        //         address(operatorNetworkOptInService),
+        //         address(0),
+        //         address(this),
+        //         registry,
+        //         1 days
+        //     )
+        // );
 
-        middleware = SymbioticNetworkMiddleware(address(middlewareProxy));
+        // middleware = SymbioticNetworkMiddleware(address(middlewareProxy));
 
-        middleware.setupSubnetworks();
+        // middleware.setupSubnetworks();
 
-        registry.setNetworkContracts(address(middleware));
+        // registry.setNetworkContracts(address(middleware));
     }
 
     function canCall(

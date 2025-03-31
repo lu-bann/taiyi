@@ -7,10 +7,11 @@ import { OwnableUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from
     "@openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-import { EnumerableMap } from
-    "@openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
+
+import { Math } from "@openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { EnumerableMapLib } from "@solady/utils/EnumerableMapLib.sol";
 
 import { EnumerableMapLib } from "@solady/utils/EnumerableMapLib.sol";
 
@@ -40,7 +41,12 @@ import { IStrategy } from "@eigenlayer-contracts/src/contracts/interfaces/IStrat
 import { IStrategyManager } from
     "@eigenlayer-contracts/src/contracts/interfaces/IStrategyManager.sol";
 
+import { OperatorSet } from
+    "@eigenlayer-contracts/src/contracts/libraries/OperatorSetLib.sol";
 import { IRegistry } from "@urc/IRegistry.sol";
+import { ISlasher } from "@urc/ISlasher.sol";
+import { Registry } from "@urc/Registry.sol";
+
 import { BLS } from "@urc/lib/BLS.sol";
 
 /// @title EigenLayer Middleware contract
@@ -51,43 +57,8 @@ contract EigenLayerMiddleware is
     EigenLayerMiddlewareStorage
 {
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    // ========= EVENTS =========
-
-    event AVSDirectorySet(address indexed avsDirectory);
-    event RewardsInitiatorUpdated(
-        address indexed previousRewardsInitiator, address indexed newRewardsInitiator
-    );
-
-    // ========= ERRORS =========
-
-    error ValidatorNotActiveWithinEigenCore();
-    error StrategyAlreadyRegistered();
-    error StrategyNotRegistered();
-    error OperatorNotRegistered();
-    error OperatorNotRegisteredInEigenLayer();
-    error CallerNotOperator();
-    error OnlyRegistryCoordinator();
-    error OnlyRewardsInitiator();
-    error InvalidQueryParameters();
-    error UnsupportedStrategy();
-    error UseCreateOperatorDirectedAVSRewardsSubmission();
-    error UseAllocationManagerForOperatorRegistration();
-    error OperatorNotRegisteredInAVS();
-    error OperatorIsNotYetRegisteredInValidatorOperatorSet();
-    error OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
-    error OperatorNotOwnerOfRegistrationRoot();
-    error RegistrationRootNotFound();
-    error PubKeyNotFound();
-
-    // Using Solady's EnumerableMapLib for efficient delegation storage
-    struct DelegationStore {
-        // index -> hashed pubkey
-        EnumerableMapLib.Uint256ToBytes32Map delegationMap;
-        // hashed pubkey -> signed delegation
-        mapping(bytes32 => IRegistry.SignedDelegation) delegations;
-    }
-
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableMapLib for EnumerableMapLib.Uint256ToBytes32Map;
     // ========= MODIFIERS =========
 
     /// @notice Modifier that restricts function access to operators registered
@@ -95,7 +66,10 @@ contract EigenLayerMiddleware is
     /// @dev Reverts with CallerNotOperator if msg.sender is not an EigenLayer
     /// operator
     modifier onlyValidatorOperatorSet() {
-        if (!REGISTRY_COORDINATOR.getOperatorSet(1).contains(msg.sender)) {
+        if (
+            REGISTRY_COORDINATOR.getOperatorFromOperatorSet(uint32(1), msg.sender)
+                == address(0)
+        ) {
             revert OperatorIsNotYetRegisteredInValidatorOperatorSet();
         }
         _;
@@ -136,16 +110,12 @@ contract EigenLayerMiddleware is
     /// @param _owner Address of contract owner
     /// @param _avsDirectory Address of AVS directory contract
     /// @param _delegationManager Address of delegation manager contract
-    /// @param _strategyManager Address of strategy manager contract
-    /// @param _eigenPodManager Address of eigen pod manager contract
     /// @param _rewardCoordinator Address of reward coordinator contract
     /// @param _rewardInitiator Address of reward initiator
     function initialize(
         address _owner,
         address _avsDirectory,
         address _delegationManager,
-        address _strategyManager,
-        address _eigenPodManager,
         address _rewardCoordinator,
         address _rewardInitiator,
         address _registryCoordinator,
@@ -161,13 +131,11 @@ contract EigenLayerMiddleware is
 
         AVS_DIRECTORY = IAVSDirectory(_avsDirectory);
         DELEGATION_MANAGER = DelegationManagerStorage(_delegationManager);
-        STRATEGY_MANAGER = StrategyManagerStorage(_strategyManager);
-        EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
         UNDERWRITER_SHARE_BIPS = _underwriterShareBips;
         REGISTRY_COORDINATOR = ITaiyiRegistryCoordinator(_registryCoordinator);
-        REGISTRY = IRegistry(_registry);
+        REGISTRY = Registry(_registry);
     }
 
     // Todo: add a slashing function in ISlasher to slash the operator when Registry.slashRegistration is successfully
@@ -199,14 +167,13 @@ contract EigenLayerMiddleware is
     function batchSetDelegations(
         bytes32 registrationRoot,
         BLS.G1Point[] calldata pubkeys,
-        IRegistry.SignedDelegation[] calldata delegations
+        ISlasher.SignedDelegation[] calldata delegations
     )
         external
     {
         _batchSetDelegations(registrationRoot, pubkeys, delegations);
     }
 
-    // Todo: extend the operator set to be more forward compatible
     function unregisterValidators(bytes32 registrationRoot) external {
         // Ensure the registration root is valid for this operator
         if (
@@ -223,9 +190,9 @@ contract EigenLayerMiddleware is
 
         // Clear all delegations
         for (uint256 i = 0; i < delegationStore.delegationMap.length(); i++) {
-            bytes32 pubkeyHash = delegationStore.delegationMap.get(i);
+            (uint256 index, bytes32 pubkeyHash) = delegationStore.delegationMap.at(i);
             delete delegationStore.delegations[pubkeyHash];
-            delegationStore.delegationMap.remove(pubkeyHash);
+            delegationStore.delegationMap.remove(index);
         }
 
         // Delete the pubkey hashes array
@@ -236,8 +203,12 @@ contract EigenLayerMiddleware is
         REGISTRY.unregister(registrationRoot);
     }
 
-    function createOperatorSet(IStrategy[] memory strategies) external onlyOwner {
-        _createOperatorSet(strategies);
+    function createOperatorSet(IStrategy[] memory strategies)
+        external
+        onlyOwner
+        returns (uint32)
+    {
+        return REGISTRY_COORDINATOR.createOperatorSet(strategies);
     }
 
     function addStrategiesToOperatorSet(
@@ -286,14 +257,6 @@ contract EigenLayerMiddleware is
         _setClaimerFor(claimer);
     }
 
-    function createOperatorSet(IStrategy[] memory strategies)
-        external
-        onlyOwner
-        returns (uint32)
-    {
-        return REGISTRY_COORDINATOR.createOperatorSet(strategies);
-    }
-
     function createAVSRewardsSubmission(
         IRewardsCoordinator.RewardsSubmission[] calldata submissions
     )
@@ -312,9 +275,9 @@ contract EigenLayerMiddleware is
     }
 
     /// @dev Internal function that registers an operator.
-    function registerOperatorToAvs(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+    function _registerOperatorToAvs(
+        address, /* operator */
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata /* operatorSignature */
     )
         internal
     {
@@ -326,31 +289,30 @@ contract EigenLayerMiddleware is
     function _batchSetDelegations(
         bytes32 registrationRoot,
         BLS.G1Point[] calldata pubkeys,
-        IRegistry.SignedDelegation[] calldata delegations
+        ISlasher.SignedDelegation[] calldata delegations
     )
         internal
         onlyValidatorOperatorSet
     {
-        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+        (address owner,,, uint32 registeredAt, uint32 unregisteredAt, uint32 slashedAt) =
+            REGISTRY.registrations(registrationRoot);
+        if (registeredAt == 0) {
             revert RegistrationRootNotFound();
         }
 
-        if (REGISTRY.registrations(registrationRoot).owner != msg.sender) {
+        if (owner != msg.sender) {
             revert OperatorNotOwnerOfRegistrationRoot();
         }
 
-        if (REGISTRY.registrations(registrationRoot).slashedAt != 0) {
+        if (slashedAt != 0) {
             revert OperatorSlashed();
         }
 
-        if (REGISTRY.registrations(registrationRoot).unregisteredAt < block.number) {
+        if (unregisteredAt < block.number) {
             revert OperatorUnregistered();
         }
 
-        if (
-            REGISTRY.registrations(registrationRoot).registeredAt
-                + REGISTRY.FRAUD_PROOF_PERIOD() > block.number
-        ) {
+        if (registeredAt + REGISTRY.FRAUD_PROOF_WINDOW() > block.number) {
             revert OperatorFraudProofPeriodNotOver();
         }
 
@@ -365,7 +327,8 @@ contract EigenLayerMiddleware is
         for (uint256 i = 0; i < pubkeys.length; i++) {
             bytes32 pubkeyHash = keccak256(abi.encode(pubkeys[i]));
 
-            if (delegationStore.delegationMap.contains(pubkeyHash)) {
+            (, bytes32 storedHash) = delegationStore.delegationMap.at(i);
+            if (storedHash == pubkeyHash) {
                 delegationStore.delegations[pubkeyHash] = delegations[i];
             }
         }
@@ -381,12 +344,10 @@ contract EigenLayerMiddleware is
         internal
         onlyValidatorOperatorSet
     {
-        require(
-            delegateePubKey.length > 0,
-            "ValidatorAVS: Must choose a valid Gateway delegate"
-        );
-
-        if (!REGISTRY_COORDINATOR.getOperatorSet(0).contains(delegateeAddress)) {
+        if (
+            REGISTRY_COORDINATOR.getOperatorFromOperatorSet(0, delegateeAddress)
+                == address(0)
+        ) {
             revert OperatorIsNotYetRegisteredInUnderwriterOperatorSet();
         }
 
@@ -405,8 +366,8 @@ contract EigenLayerMiddleware is
         operatorRegistrationRoots[msg.sender].add(registrationRoot);
 
         for (uint256 i = 0; i < registrations.length; ++i) {
-            IRegistry.SignedDelegation memory signedDelegation = ISlasher.SignedDelegation({
-                delegation: IRegistry.Delegation({
+            ISlasher.SignedDelegation memory signedDelegation = ISlasher.SignedDelegation({
+                delegation: ISlasher.Delegation({
                     proposer: registrations[i].pubkey,
                     delegate: delegateePubKey,
                     committer: delegateeAddress,
@@ -446,7 +407,7 @@ contract EigenLayerMiddleware is
     }
 
     function _createAVSRewardsSubmission(
-        IRewardsCoordinator.RewardsSubmission[] calldata submissions
+        IRewardsCoordinator.RewardsSubmission[] calldata /* submissions */
     )
         internal
     {
@@ -688,7 +649,7 @@ contract EigenLayerMiddleware is
 
     /// @notice Query the stake amount for an operator across all strategies
     /// @param operator The address of the operator to query
-    /// @return strategyAddresses Array of strategy addresses
+    /// @return strategies Array of strategy addresses
     /// @return stakeAmounts Array of corresponding stake amounts
     function getStrategiesAndStakes(address operator)
         external
@@ -696,12 +657,7 @@ contract EigenLayerMiddleware is
         returns (IStrategy[] memory strategies, uint256[] memory stakeAmounts)
     {
         strategies = getOperatorRestakedStrategies(operator);
-        stakeAmounts = new uint256[](strategies.length);
-        for (uint256 i = 0; i < strategies.length; i++) {
-            stakeAmounts[i] = strategies[i].sharesToUnderlyingView(
-                DELEGATION_MANAGER.getOperatorShares(operator, strategies[i])
-            );
-        }
+        stakeAmounts = DELEGATION_MANAGER.getOperatorShares(operator, strategies);
     }
 
     /// @notice Query the registration status of an operator
@@ -730,7 +686,7 @@ contract EigenLayerMiddleware is
 
     /// @notice Get the strategies an operator has restaked in
     /// @param operator Address of the operator
-    /// @return Array of strategy addresses the operator has restaked in
+    /// @return strategies Array of strategy addresses the operator has restaked in
     function getOperatorRestakedStrategies(address operator)
         public
         view
@@ -738,35 +694,126 @@ contract EigenLayerMiddleware is
     {
         OperatorSet[] memory operatorSets = verifyRegistration(operator);
 
-        EnumerableSet.AddressSet memory restakedStrategies =
-            new EnumerableSet.AddressSet();
+        // First count all strategies across all operator sets
+        uint256 totalStrategiesCount = 0;
         for (uint256 i = 0; i < operatorSets.length; i++) {
             IStrategy[] memory setStrategies = REGISTRY_COORDINATOR
-                .getOperatorAllocatedStrategies(operator, operatorSets[i].operatorSetId);
+                .getOperatorAllocatedStrategies(operator, operatorSets[i].id);
+            totalStrategiesCount += setStrategies.length;
+        }
+
+        // Create array to store all strategies (with potential duplicates)
+        address[] memory allStrategies = new address[](totalStrategiesCount);
+        uint256 allStrategiesLength = 0;
+
+        // Fill array with all strategies
+        for (uint256 i = 0; i < operatorSets.length; i++) {
+            IStrategy[] memory setStrategies = REGISTRY_COORDINATOR
+                .getOperatorAllocatedStrategies(operator, operatorSets[i].id);
             for (uint256 j = 0; j < setStrategies.length; j++) {
-                if (!restakedStrategies.contains(address(setStrategies[j]))) {
-                    restakedStrategies.add(address(setStrategies[j]));
-                    strategies.push(setStrategies[j]);
+                allStrategies[allStrategiesLength] = address(setStrategies[j]);
+                allStrategiesLength++;
+            }
+        }
+
+        // Count unique strategies
+        uint256 uniqueCount = 0;
+        for (uint256 i = 0; i < allStrategiesLength; i++) {
+            bool isDuplicate = false;
+            for (uint256 j = 0; j < i; j++) {
+                if (allStrategies[j] == allStrategies[i]) {
+                    isDuplicate = true;
+                    break;
                 }
+            }
+            if (!isDuplicate) {
+                uniqueCount++;
+            }
+        }
+
+        // Create result array with unique strategies
+        strategies = new IStrategy[](uniqueCount);
+        uint256 resultIndex = 0;
+
+        for (uint256 i = 0; i < allStrategiesLength; i++) {
+            bool isDuplicate = false;
+            for (uint256 j = 0; j < resultIndex; j++) {
+                if (allStrategies[i] == address(strategies[j])) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                strategies[resultIndex] = IStrategy(allStrategies[i]);
+                resultIndex++;
             }
         }
     }
 
     /// @notice Get all strategies that can be restaked across all operator sets
     /// @return Array of all registered strategy addresses
-    function getAllRestakeableStrategies()
-        external
-        view
-        returns (EnumerableSet.AddressSet memory)
-    {
+    function getAllRestakeableStrategies() external view returns (address[] memory) {
         uint32 operatorSetCount = REGISTRY_COORDINATOR.getOperatorSetCount();
-        EnumerableSet.AddressSet memory strategies = new EnumerableSet.AddressSet();
+
+        // First count all strategies across all operator sets
+        uint256 totalStrategiesCount = 0;
+        for (uint32 i = 0; i < operatorSetCount; i++) {
+            IStrategy[] memory operatorSet =
+                REGISTRY_COORDINATOR.getOperatorSetStrategies(i);
+            totalStrategiesCount += operatorSet.length;
+        }
+
+        // Create array to store all strategies (with potential duplicates)
+        address[] memory allStrategies = new address[](totalStrategiesCount);
+        uint256 allStrategiesLength = 0;
+
+        // Fill array with all strategies
         for (uint32 i = 0; i < operatorSetCount; i++) {
             IStrategy[] memory operatorSet =
                 REGISTRY_COORDINATOR.getOperatorSetStrategies(i);
             for (uint256 j = 0; j < operatorSet.length; j++) {
-                strategies.add(address(operatorSet[j]));
+                allStrategies[allStrategiesLength] = address(operatorSet[j]);
+                allStrategiesLength++;
             }
+        }
+
+        // Count unique strategies
+        uint256 uniqueCount = 0;
+        for (uint256 i = 0; i < allStrategiesLength; i++) {
+            bool isDuplicate = false;
+            for (uint256 j = 0; j < i; j++) {
+                if (allStrategies[j] == allStrategies[i]) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                uniqueCount++;
+            }
+        }
+
+        // Create result array with unique strategies
+        address[] memory result = new address[](uniqueCount);
+        uint256 resultIndex = 0;
+
+        for (uint256 i = 0; i < allStrategiesLength; i++) {
+            bool isDuplicate = false;
+            for (uint256 j = 0; j < resultIndex; j++) {
+                if (allStrategies[i] == result[j]) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                result[resultIndex] = allStrategies[i];
+                resultIndex++;
+            }
+        }
+
+        // Create correctly sized result array
+        address[] memory strategies = new address[](uniqueCount);
+        for (uint256 i = 0; i < uniqueCount; i++) {
+            strategies[i] = result[i];
         }
         return strategies;
     }
@@ -798,13 +845,16 @@ contract EigenLayerMiddleware is
     )
         public
         view
-        returns (IRegistry.SignedDelegation memory)
+        returns (ISlasher.SignedDelegation memory)
     {
-        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+        (address owner,,, uint32 registeredAt,,) =
+            REGISTRY.registrations(registrationRoot);
+
+        if (registeredAt == 0) {
             revert RegistrationRootNotFound();
         }
 
-        if (REGISTRY.registrations(registrationRoot).owner != operator) {
+        if (owner != operator) {
             revert OperatorNotOwnerOfRegistrationRoot();
         }
 
@@ -812,7 +862,7 @@ contract EigenLayerMiddleware is
         DelegationStore storage delegationStore =
             operatorDelegations[operator][registrationRoot];
 
-        if (delegationStore.delegationMap.contains(pubkeyHash)) {
+        if (delegationStore.delegations[pubkeyHash].delegation.committer != address(0)) {
             return delegationStore.delegations[pubkeyHash];
         } else {
             revert PubKeyNotFound();
@@ -832,14 +882,17 @@ contract EigenLayerMiddleware is
         view
         returns (
             BLS.G1Point[] memory pubkeys,
-            IRegistry.SignedDelegation[] memory delegations
+            ISlasher.SignedDelegation[] memory delegations
         )
     {
-        if (REGISTRY.registrations(registrationRoot).registeredAt == 0) {
+        (address owner,,, uint32 registeredAt,,) =
+            REGISTRY.registrations(registrationRoot);
+
+        if (registeredAt == 0) {
             revert RegistrationRootNotFound();
         }
 
-        if (REGISTRY.registrations(registrationRoot).owner != operator) {
+        if (owner != operator) {
             revert OperatorNotOwnerOfRegistrationRoot();
         }
 
@@ -848,11 +901,11 @@ contract EigenLayerMiddleware is
         uint256 count = delegationStore.delegationMap.length();
 
         pubkeys = new BLS.G1Point[](count);
-        delegations = new IRegistry.SignedDelegation[](count);
+        delegations = new ISlasher.SignedDelegation[](count);
 
         for (uint256 i = 0; i < count; i++) {
             bytes32 pubkeyHash = delegationStore.delegationMap.get(i);
-            IRegistry.SignedDelegation memory delegation =
+            ISlasher.SignedDelegation memory delegation =
                 delegationStore.delegations[pubkeyHash];
             pubkeys[i] = delegation.delegation.proposer;
             delegations[i] = delegation;
