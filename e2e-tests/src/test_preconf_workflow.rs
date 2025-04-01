@@ -490,7 +490,10 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         )
         .await?;
         nonce += 2;
-
+        info!("slot: {}, tip_transaction: {:?}", target_slot, request.tip_transaction.tx_hash());
+        for tx in &request.preconf_transaction {
+            info!("slot: {}, preconf_transaction: {:?}", target_slot, tx.tx_hash());
+        }
         let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
         let status = res.status();
         let body = res.bytes().await?;

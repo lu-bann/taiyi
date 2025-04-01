@@ -330,8 +330,9 @@ pub async fn verify_txs_inclusion(execution_url: &str, txs: Vec<TxEnvelope>) -> 
         ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
 
     for tx in &txs {
+        info!("checking tx inclusion: {:?}", tx.tx_hash());
         let tx_receipt = provider.get_transaction_by_hash(*tx.tx_hash()).await?;
-        assert!(tx_receipt.is_some());
+        assert!(tx_receipt.is_some(), "tx {:?} not found", tx.tx_hash());
     }
 
     Ok(())
