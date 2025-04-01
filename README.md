@@ -1,7 +1,8 @@
 # Taiyi(太一) - an Ethereum L1 Underwriting Protocol
 
 
-![image](https://github.com/user-attachments/assets/83a56bc0-da7f-45ef-8833-c0931cb01130)
+![2025-04-01 16 23 13](https://github.com/user-attachments/assets/8a2ecd2a-378c-4f49-8d3c-31b1e06e11fa)
+
 
 Taiyi (太一) is Luban’s solution to underwrite Ethereum L1 blockspace. To learn more about Taiyi refer our docs [here](https://docs.luban.wtf/taiyi_overview).
 
