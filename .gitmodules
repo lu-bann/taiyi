@@ -61,3 +61,11 @@
 	path = contracts/lib/sp1-contracts
 	url = https://github.com/succinctlabs/sp1-contracts
 	commit = 26651fdb1c1d6513443560d42888dedc3f68bde6
+
+[submodule "contracts/lib/solady"]
+	path = contracts/lib/solady
+	url = https://github.com/Vectorized/solady
+
+[submodule "contracts/lib/urc20"]
+	path = contracts/lib/urc
+	url = https://github.com/eth-fabric/urc
