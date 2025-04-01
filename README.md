@@ -1,9 +1,9 @@
-# Taiyi(太一) - an Ethereum L1 Preconfirmation Protocol
+# Taiyi(太一) - an Ethereum L1 Underwriting Protocol
 
 
 ![image](https://github.com/user-attachments/assets/83a56bc0-da7f-45ef-8833-c0931cb01130)
 
-Taiyi (太一) is Luban’s solution for Ethereum L1 preconfirmation. To learn more about Taiyi refer our docs [here](https://docs.luban.wtf/taiyi_overview).
+Taiyi (太一) is Luban’s solution to underwrite Ethereum L1 blockspace. To learn more about Taiyi refer our docs [here](https://docs.luban.wtf/taiyi_overview).
 
 
 ### For Validators
