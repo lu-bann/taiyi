@@ -48,3 +48,40 @@ jobs:
       - name: Run e2e tests
         run: |
           make e2e-test
+  e2e-fraud:
+    name: Run e2e fraud tests 
+    runs-on: ubuntu-latest-m
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install SP1 toolchain
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          ~/.sp1/bin/sp1up --version v4.0.1
+          ~/.sp1/bin/cargo-prove prove --version
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install kurtosis
+        run: |
+          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt update
+          sudo apt install kurtosis-cli
+      - name: Run kurtosis devnet
+        run: |
+          make e2e-network
+      - name: Pre setup taiyi
+        run: |
+          make e2e-setup
+      - name: Run e2e fraud tests
+        run: |
+          make e2e-fraud-test

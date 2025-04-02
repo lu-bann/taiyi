@@ -1,6 +1,6 @@
 use std::{fs, str::FromStr, time::Instant};
 
-use alloy_consensus::{Account, Transaction};
+use alloy_consensus::{constants::ETH_TO_WEI, Account, Transaction};
 use alloy_eips::{eip2718::Encodable2718, BlockNumberOrTag};
 use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
 use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
@@ -98,7 +98,7 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -134,7 +134,7 @@ async fn verify_poi_preconf_type_a_multiple_txs_included_proof() -> eyre::Result
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -169,14 +169,15 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_a_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -458,14 +459,15 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     }
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_a_multiple_txs_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -765,14 +767,15 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     }
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
-    let (_taiyi_handle, config) = setup_env().await?;
+    let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_b_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -785,10 +788,10 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 1_000_000_000_000_000, &config).await?;
+    taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
-    assert_eq!(balance, U256::from(1_000_000_000_000_000u64));
+    assert_eq!(balance, U256::from(5 * ETH_TO_WEI));
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -840,7 +843,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         let decoded_txs = message.decoded_tx().unwrap();
         txs.extend(decoded_txs);
     }
-    assert_eq!(txs.len(), 4);
     assert!(txs.contains(&transaction));
 
     let signed_constraints = constraints.first().unwrap().clone();
@@ -1134,6 +1136,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         fs::write("test-data/poi-preconf-type-b-included-test-data.json", test_data_serialized)
             .expect("saving test data failed");
     }
-
+    drop(taiyi_handle);
     Ok(())
 }

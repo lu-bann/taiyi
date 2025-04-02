@@ -42,3 +42,4 @@ sp1-build = { workspace = true }
 
 [features]
 generate-proof = []
+fraud-test = []

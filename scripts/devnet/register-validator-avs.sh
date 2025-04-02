@@ -9,7 +9,7 @@ export VALIDATOR_OPERATOR_ADDRESS=`cast wallet address --private-key $VALIDATOR_
 OPERATOR_PRIVATE_KEY=$VALIDATOR_OPERATOR_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
 
 # convert eth to WETH
-cast send -vvvvv --rpc-url $EXECUTION_URL $WETH_ADDRESS \
+cast send --rpc-url $EXECUTION_URL $WETH_ADDRESS \
     "deposit()" \
     --value 10ether \
     --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY

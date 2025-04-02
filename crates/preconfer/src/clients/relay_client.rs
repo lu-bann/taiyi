@@ -133,6 +133,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "devnet is down"]
     async fn test_get_current_epoch_validators() -> eyre::Result<()> {
         let relay_clinet = RelayClient::new(vec![reqwest::Url::parse(
             "https://relay.taiyi-devnet-0.preconfs.org",

@@ -6,15 +6,14 @@ participants:
       "--always-prepare-payload", 
       "--prepare-payload-lookahead=8000",
       ]
-    el_image: ethereum/client-go:v1.14.13
+    el_image: ethereum/client-go:v1.15.5
+    cl_image: sigp/lighthouse:v7.0.0-beta.4
     count: 1
 mev_type: helix
 additional_services:
-  - tx_spammer
-  - blob_spammer
-  - custom_flood
-  - dora
-  - rbuilder
+  - spamoor
+  - spamoor_blob
+  # - rbuilder
   # - blockscout
 mev_params:
   mev_boost_image: ghcr.io/commit-boost/pbs:v0.6.0
