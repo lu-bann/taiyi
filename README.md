@@ -1,4 +1,4 @@
-# Taiyi(太一) - an Ethereum L1 Underwriting Protocol
+# Taiyi(太一) - an Ethereum L1 Blockspace Underwriting Protocol
 
 
 ![2025-04-01 16 23 13](https://github.com/user-attachments/assets/8a2ecd2a-378c-4f49-8d3c-31b1e06e11fa)
