@@ -60,7 +60,7 @@ sol! {
     function getTip(PreconfRequestBType calldata preconfRequestBType);
 }
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ErrorResponse {
     pub code: u64,
     pub message: String,

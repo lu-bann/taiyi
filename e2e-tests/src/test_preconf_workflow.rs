@@ -385,6 +385,10 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
         generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee).await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
+    info!("tip tx: {:?}", request.tip_transaction.tx_hash());
+    for tx in &request.preconf_transaction {
+        info!("preconf tx: {:?}", tx.tx_hash());
+    }
     let res = send_type_a_request(request.clone(), signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
@@ -416,8 +420,16 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     }
 
     // check if constraints contains our transaction
-    assert!(txs.contains(&request.preconf_transaction.first().unwrap()));
-    assert!(txs.contains(&request.tip_transaction));
+    assert!(
+        txs.contains(&request.preconf_transaction.first().unwrap()),
+        "preconf tx {:?} is not in the constraints",
+        request.preconf_transaction.first().unwrap().tx_hash()
+    );
+    assert!(
+        txs.contains(&request.tip_transaction),
+        "tip tx {:?} is not in the constraints",
+        request.tip_transaction.tx_hash()
+    );
 
     wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
@@ -445,6 +457,139 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     );
 
     // Optionally, cleanup when done
+    taiyi_handle.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<()> {
+    // Start taiyi command in background
+    let (taiyi_handle, config) = setup_env().await?;
+
+    // Create two different users
+    let user1 = new_account(&config).await?;
+    let user2 = new_account(&config).await?;
+
+    // Pick a slot from the lookahead
+    let available_slot = get_available_slot(&config.taiyi_url()).await?;
+    let target_slot = available_slot.first().unwrap().slot;
+
+    // Fetch preconf fee for the target slot
+    let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
+
+    // Generate first request and signature from user1
+    let (request1, signature1) =
+        generate_type_a_request(user1.clone(), target_slot, &config.execution_url, fee.clone())
+            .await?;
+
+    info!("Submitting first request from user1 for target slot: {:?}", target_slot);
+    info!("user1 tip tx: {:?}", request1.tip_transaction.tx_hash());
+    for tx in &request1.preconf_transaction {
+        info!("user1 preconf tx: {:?}", tx.tx_hash());
+    }
+    let res1 = send_type_a_request(request1.clone(), signature1, &config.taiyi_url()).await?;
+    let status1 = res1.status();
+    let body1 = res1.bytes().await?;
+    info!("First Type A request response: {:?}", body1);
+    assert_eq!(status1, 200);
+    let preconf_response1: PreconfResponseData = serde_json::from_slice(&body1)?;
+    info!("First preconf_response: {:?}", preconf_response1);
+
+    // Generate second request and signature from user2 for the same slot
+    let (request2, signature2) =
+        generate_type_a_request(user2.clone(), target_slot, &config.execution_url, fee).await?;
+
+    info!("Submitting second request from user2 for target slot: {:?}", target_slot);
+    info!("user2 tip tx: {:?}", request2.tip_transaction.tx_hash());
+    for tx in &request2.preconf_transaction {
+        info!("user2 preconf tx: {:?}", tx.tx_hash());
+    }
+    let res2 = send_type_a_request(request2.clone(), signature2, &config.taiyi_url()).await?;
+    let status2 = res2.status();
+    let body2 = res2.bytes().await?;
+    info!("Second Type A request response: {:?}", body2);
+    assert_eq!(status2, 200);
+
+    // Verify only the first request's transactions are included in the constraints
+    wait_until_deadline_of_slot(&config, target_slot).await?;
+
+    let constraints = get_constraints_from_relay(&config.relay_url, target_slot).await?;
+    let mut txs = Vec::new();
+    for constraint in constraints.iter() {
+        let message = constraint.message.clone();
+        let decoded_txs = message.decoded_tx().unwrap();
+        txs.extend(decoded_txs);
+    }
+
+    // Check if constraints contains only user1's transactions
+    assert!(
+        txs.contains(&request1.preconf_transaction.first().unwrap()),
+        "User1's preconf tx {:?} is in the constraints",
+        request1.preconf_transaction.first().unwrap().tx_hash()
+    );
+    assert!(
+        txs.contains(&request1.tip_transaction),
+        "User1's tip tx {:?} is in the constraints",
+        request1.tip_transaction.tx_hash()
+    );
+    assert!(
+        txs.contains(&request2.preconf_transaction.first().unwrap()),
+        "User2's preconf tx {:?} should be in the constraints",
+        request2.preconf_transaction.first().unwrap().tx_hash()
+    );
+    assert!(
+        txs.contains(&request2.tip_transaction),
+        "User2's tip tx {:?} should be in the constraints",
+        request2.tip_transaction.tx_hash()
+    );
+
+    wait_until_deadline_of_slot(&config, target_slot + 1).await?;
+    let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
+    info!("Block number: {}", block_number);
+
+    // Verify only user1's transactions are in the block
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request1.tip_transaction.tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "User1's tip tx is not in the block"
+    );
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request1.preconf_transaction.first().unwrap().tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "User1's preconf tx is not in the block"
+    );
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request2.tip_transaction.tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "User2's tip tx should be in the block"
+    );
+    assert!(
+        verify_tx_in_block(
+            &config.execution_url,
+            block_number,
+            request2.preconf_transaction.first().unwrap().tx_hash().clone()
+        )
+        .await
+        .is_ok(),
+        "User2's preconf tx should be in the block"
+    );
+
+    // Cleanup
     taiyi_handle.abort();
     Ok(())
 }
