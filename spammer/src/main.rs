@@ -24,11 +24,11 @@ use crate::http::HttpClient;
 mod http;
 #[derive(Parser)]
 struct Opts {
-    /// reth url
+    /// execution_client_url
     #[clap(long = "execution_client_url", default_value = "http://localhost:8545")]
     execution_client_url: String,
 
-    /// reth url
+    /// beacon_client_url
     #[clap(long = "beacon_client_url", default_value = "http://localhost:5062")]
     beacon_client_url: String,
 
