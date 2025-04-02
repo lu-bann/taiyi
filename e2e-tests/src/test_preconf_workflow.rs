@@ -36,7 +36,7 @@ async fn test_preconf_fee() -> eyre::Result<()> {
     let preconf_fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
     info!("preconf_fee: {:?}", preconf_fee);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -48,7 +48,7 @@ async fn test_health_check() -> eyre::Result<()> {
     let health_check = health_check(&config.taiyi_url()).await?;
     info!("health_check: {:?}", health_check);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -56,6 +56,7 @@ async fn test_health_check() -> eyre::Result<()> {
 async fn test_type_b_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+
     let signer = new_account(&config).await?;
 
     let provider = ProviderBuilder::new()
@@ -63,6 +64,8 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
         .wallet(EthereumWallet::new(signer.clone()))
         .on_builtin(&config.execution_url)
         .await?;
+
+    info!("type b preconf request");
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
@@ -180,7 +183,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     );
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -218,7 +221,7 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     let response = serde_json::from_slice::<ErrorResponse>(&body)?;
     assert_eq!(status, 400);
     assert!(response.message.contains("InsufficientEscrowBalance"));
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -276,7 +279,7 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     // CUrrently revert tx is not rejected.
     assert_eq!(status, 200);
     assert_eq!(preconf_response.request_id, request_id);
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -357,7 +360,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     assert_eq!(balance_after, balance - request.deposit);
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -457,7 +460,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     );
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -590,7 +593,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
     );
 
     // Cleanup
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -691,6 +694,6 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
         .await?;
     assert!(verify_txs_inclusion(&config.execution_url, submitted_txs).await.is_ok());
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }

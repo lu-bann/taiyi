@@ -18,6 +18,7 @@ mod test_fraud_proof;
 #[cfg(not(feature = "fraud-test"))]
 mod test_preconf_workflow;
 
+mod taiyi_process;
 mod utils;
 
 type TestProvider = FillProvider<

@@ -31,12 +31,19 @@ use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::constant::{
-    FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, SLOT_CHECK_INTERVAL_SECONDS,
+use crate::{
+    constant::{
+        FUNDING_SIGNER_PRIVATE, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK, SLOT_CHECK_INTERVAL_SECONDS,
+    },
+    taiyi_process::{ResourceHandle, ResourceManager},
 };
 
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
+    static ref TAIYI_PROCESS: Mutex<Option<ResourceManager>> =  Mutex::new(None);
+    static ref TAIYI_PORT: u16 = {
+        get_available_port()
+    };
     static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
 }
 
@@ -98,7 +105,7 @@ impl TestConfig {
             .expect("TAIYI_CORE_ADDRESS environment variable not set");
         let taiyi_port = std::env::var("TAIYI_PORT")
             .map(|res| res.parse::<u16>().expect("TAIYI_PORT is not a valid port"))
-            .unwrap_or_else(|_| get_available_port());
+            .unwrap_or_else(|_| *TAIYI_PORT);
 
         // FIXME: This does not work correctly -> it does not read the variable from the `.env.ci` file
         let sp1_private_key = std::env::var("SP1_PRIVATE_KEY").unwrap_or_else(|_| "".to_string()); // Only required for the `generate-proof` feature
@@ -200,47 +207,6 @@ pub async fn wait_until_slot(beacon_node_url: &str, slot: u64) -> eyre::Result<(
     }
 
     Ok(())
-}
-
-pub async fn start_taiyi_command_for_testing(
-    config: &TestConfig,
-) -> eyre::Result<tokio::task::JoinHandle<()>> {
-    // Initialize logging if not already initialized
-    let network_dir = format!("{}/{}", config.working_dir, "el_cl_genesis_data");
-    // Create a default instance of the main command or configure it as needed
-    let taiyi_command = PreconferCommand::parse_from([
-        "preconfer",
-        "--bls-sk",
-        PRECONFER_BLS_SK,
-        "--ecdsa-sk",
-        PRECONFER_ECDSA_SK,
-        "--network",
-        &network_dir,
-        "--execution-rpc-url",
-        &config.execution_url,
-        "--beacon-rpc-url",
-        &config.beacon_url,
-        "--relay-url",
-        &config.relay_url,
-        "--taiyi-rpc-port",
-        config.taiyi_port.to_string().as_str(),
-        "--taiyi-escrow-address",
-        config.taiyi_core.to_string().as_str(),
-    ]); // Assuming TaiyiCommand is the main command struct
-
-    // Spawn the taiyi command in a background task
-    let handle = tokio::spawn(async move {
-        tokio::select! {
-            res = taiyi_command.execute() => {
-                error!("Taiyi command error: {:?}", res);
-            }
-            _ = tokio::signal::ctrl_c() => {
-                info!("Ctrl-C received, shutting down...");
-            }
-        }
-    });
-
-    Ok(handle)
 }
 
 pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> {
@@ -647,7 +613,7 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     Ok(new_signer)
 }
 
-pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfig)> {
+pub async fn setup_env() -> eyre::Result<(ResourceHandle, TestConfig)> {
     init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);
@@ -655,10 +621,27 @@ pub async fn setup_env() -> eyre::Result<(tokio::task::JoinHandle<()>, TestConfi
     // the first two epoch after genesis is not available for preconf
     wait_until_slot(&config.beacon_url, 32).await.expect("Failed to wait for slot greater than 32");
 
-    info!("Starting preconfer");
-    let taiyi_handle = start_taiyi_command_for_testing(&config).await?;
-    tokio::time::sleep(Duration::from_secs(10)).await;
+    let taiyi_handle = init_taiyi_process(&config);
+    info!("taiyi_handle: {:?}", taiyi_handle);
+    info!("Got taiyi handle");
+    wait_taiyi_is_up(&config).await;
     Ok((taiyi_handle, config))
+}
+
+pub async fn wait_taiyi_is_up(config: &TestConfig) {
+    loop {
+        match get_available_slot(&config.taiyi_url()).await {
+            Ok(res) => {
+                if !res.is_empty() {
+                    break;
+                }
+            }
+            Err(_) => {}
+        }
+        info!("Waiting for taiyi to be up");
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    info!("taiyi is up");
 }
 
 fn init_log() {
@@ -666,5 +649,20 @@ fn init_log() {
     if !**is_init {
         initialize_tracing_log();
         **is_init = true;
+    }
+}
+
+fn init_taiyi_process(config: &TestConfig) -> ResourceHandle {
+    let taiyi_process = &mut TAIYI_PROCESS.lock().unwrap();
+    if taiyi_process.is_none() {
+        info!("Starting preconfer");
+        let resource_manager = ResourceManager::new(config);
+        let handle = resource_manager.acquire();
+        **taiyi_process = Some(resource_manager);
+        handle
+    } else {
+        let resource_manager = taiyi_process.as_ref().unwrap();
+        let handle = resource_manager.acquire();
+        handle
     }
 }
