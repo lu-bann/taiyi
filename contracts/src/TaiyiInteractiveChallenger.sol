@@ -279,7 +279,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address gatewayAddress,
+            address _underwriterAddress,
             bytes memory signature,
             uint64 genesisTimestamp,
             address taiyiCore
@@ -316,7 +316,7 @@ contract TaiyiInteractiveChallenger is ITaiyiInteractiveChallenger, Ownable {
         }
 
         // Verify the proof commitment signer matches the challenge commitment signer
-        if (gatewayAddress != challenge.commitmentSigner) {
+        if (_underwriterAddress != challenge.commitmentSigner) {
             revert CommitmentSignerDoesNotMatch();
         }
 

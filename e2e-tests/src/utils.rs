@@ -61,9 +61,9 @@ sol! {
     struct PreconfRequestBType {
         BlockspaceAllocation blockspaceAllocation;
         bytes blockspaceAllocationSignature;
-        bytes gatewaySignedBlockspaceAllocation;
+        bytes underwriterSignedBlockspaceAllocation;
         bytes rawTx;
-        bytes gatewaySignedRawTx;
+        bytes underwriterSignedRawTx;
     }
     function getTip(PreconfRequestBType calldata preconfRequestBType);
 }
@@ -137,8 +137,8 @@ impl TestConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreconfTypeAJson {
-    pub gateway_address: String,
-    pub preconf_gateway_signature: String,
+    pub underwriter_address: String,
+    pub preconf_underwriter_signature: String,
     pub slot: String,
     pub tip_transaction_hash: String,
     pub user_transaction_hashes: Vec<String>,
@@ -157,12 +157,12 @@ impl PreconfTypeAJson {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreconfTypeBJson {
-    pub gateway_address: String,
-    pub preconf_gateway_signature: String,
+    pub underwriter_address: String,
+    pub preconf_underwriter_signature: String,
     pub slot: String,
     pub user_transaction_hash: String,
-    pub gateway_get_tip_transaction_hash: String,
-    pub gateway_sponsorship_transaction_hash: String,
+    pub underwriter_get_tip_transaction_hash: String,
+    pub underwriter_sponsorship_transaction_hash: String,
 }
 
 impl PreconfTypeBJson {

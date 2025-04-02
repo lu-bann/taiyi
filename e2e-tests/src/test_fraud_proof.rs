@@ -337,16 +337,16 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
+    // underwriter address
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
             UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
     );
 
-    // gateway address
-    let gateway_address = private_key_signer.address();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = private_key_signer.address();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -373,8 +373,8 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(
@@ -643,16 +643,16 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
+    // underwriter address
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
             UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
     );
 
-    // gateway address
-    let gateway_address = private_key_signer.address();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = private_key_signer.address();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -679,8 +679,8 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(
@@ -1026,9 +1026,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
-    let gateway_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -1055,8 +1055,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(

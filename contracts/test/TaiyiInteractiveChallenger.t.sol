@@ -731,7 +731,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
@@ -803,7 +803,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
@@ -875,7 +875,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
