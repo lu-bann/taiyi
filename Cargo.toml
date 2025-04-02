@@ -17,7 +17,8 @@ members = [
     "crates/underwriter",
     "crates/zkvm-verifier",
     "e2e-tests",
-    "examples",
+    "examples/type_a",
+    "examples/type_b",
     "spammer",
 ]
 default-members = [
@@ -29,7 +30,6 @@ default-members = [
     "crates/underwriter",
     "crates/primitives",
     "crates/contracts",
-    "examples",
 ]
 resolver = "2"
 

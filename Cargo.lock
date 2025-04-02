@@ -8722,22 +8722,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "taiyi-examples"
-version = "0.1.4"
-dependencies = [
- "alloy-contract",
- "alloy-primitives 0.8.15",
- "alloy-provider 0.8.1",
- "alloy-rpc-types 0.8.1",
- "alloy-signer-local",
- "eyre",
- "reqwest 0.12.9",
- "serde_json",
- "taiyi-primitives",
- "tokio",
-]
-
-[[package]]
 name = "taiyi-fraud-proof-cli"
 version = "0.1.0"
 dependencies = [
@@ -9471,6 +9455,54 @@ dependencies = [
  "tokio",
  "tower 0.5.2",
  "url",
+]
+
+[[package]]
+name = "type_a"
+version = "0.1.4"
+dependencies = [
+ "alloy-contract",
+ "alloy-eips 0.8.1",
+ "alloy-primitives 0.8.15",
+ "alloy-provider 0.8.1",
+ "alloy-rpc-types 0.8.1",
+ "alloy-signer 0.8.1",
+ "alloy-signer-local",
+ "beacon-api-client",
+ "eyre",
+ "hex",
+ "reqwest 0.12.9",
+ "serde_json",
+ "taiyi-primitives",
+ "taiyi-underwriter",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "type_b"
+version = "0.1.4"
+dependencies = [
+ "alloy-contract",
+ "alloy-eips 0.8.1",
+ "alloy-primitives 0.8.15",
+ "alloy-provider 0.8.1",
+ "alloy-rpc-types 0.8.1",
+ "alloy-signer 0.8.1",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "beacon-api-client",
+ "eyre",
+ "hex",
+ "reqwest 0.12.9",
+ "serde_json",
+ "taiyi-primitives",
+ "taiyi-underwriter",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid 1.11.0",
 ]
 
 [[package]]
