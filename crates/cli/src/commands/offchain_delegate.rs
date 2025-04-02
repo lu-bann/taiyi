@@ -27,7 +27,7 @@ pub struct DelegateCommand {
     /// Relay request timeout
     #[clap(long, env = "RELAY_REQUEST_TIMEOUT", default_value = "30")]
     pub relay_request_timeout: u64,
-    /// Preconfer BLS public key
+    /// underwriter BLS public key
     #[clap(long, env = "UNDERWRITER_PUBKEY")]
     pub underwriter_pubkey: String,
     /// Chain Network
@@ -52,10 +52,10 @@ impl DelegateCommand {
     pub async fn execute(&self) -> Result<()> {
         let signed_messages = match &self.source {
             KeySource::SecretKeys { secret_keys } => {
-                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
+                let underwriter_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
-                    preconfer_pubkey,
+                    underwriter_pubkey,
                     self.network.clone(),
                     self.action.clone(),
                 )?;
@@ -65,11 +65,11 @@ impl DelegateCommand {
             }
             KeySource::LocalKeystore { opts } => {
                 let keystore_secret = KeystoreSecret::from_keystore_options(opts)?;
-                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
+                let underwriter_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_keystore(
                     &opts.path,
                     keystore_secret,
-                    preconfer_pubkey,
+                    underwriter_pubkey,
                     self.network.clone(),
                     self.action.clone(),
                 )?;
@@ -81,10 +81,10 @@ impl DelegateCommand {
                 let mut dirk =
                     Dirk::connect(opts.url.clone(), opts.tls_credentials.clone()).await?;
 
-                let preconfer_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
+                let underwriter_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_dirk(
                     &mut dirk,
-                    preconfer_pubkey,
+                    underwriter_pubkey,
                     opts.wallet_path.clone(),
                     opts.passphrases.clone(),
                     self.network.clone(),
@@ -120,7 +120,7 @@ impl DelegateCommand {
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 enum SignedMessageAction {
-    /// Signal delegation of a validator pubkey to a preconfer pubkey.
+    /// Signal delegation of a validator pubkey to a underwriter pubkey.
     Delegation,
     /// Signal revocation of a previously delegated pubkey.
     Revocation,
@@ -150,11 +150,11 @@ pub struct DelegationMessage {
 
 impl DelegationMessage {
     /// Create a new delegation message.
-    pub fn new(validator_pubkey: BlsPublicKey, preconfer_pubkey: BlsPublicKey) -> Self {
+    pub fn new(validator_pubkey: BlsPublicKey, underwriter_pubkey: BlsPublicKey) -> Self {
         Self {
             action: SignedMessageAction::Delegation as u8,
             validator_pubkey,
-            delegatee_pubkey: preconfer_pubkey,
+            delegatee_pubkey: underwriter_pubkey,
         }
     }
 
@@ -179,13 +179,13 @@ pub struct SignedRevocation {
 pub struct RevocationMessage {
     action: u8,
     pub validator_pubkey: BlsPublicKey,
-    pub preconfer_pubkey: BlsPublicKey,
+    pub underwriter_pubkey: BlsPublicKey,
 }
 
 impl RevocationMessage {
     /// Create a new revocation message.
-    pub fn new(validator_pubkey: BlsPublicKey, preconfer_pubkey: BlsPublicKey) -> Self {
-        Self { action: SignedMessageAction::Revocation as u8, validator_pubkey, preconfer_pubkey }
+    pub fn new(validator_pubkey: BlsPublicKey, underwriter_pubkey: BlsPublicKey) -> Self {
+        Self { action: SignedMessageAction::Revocation as u8, validator_pubkey, underwriter_pubkey }
     }
 
     /// Compute the digest of the revocation message.
@@ -193,7 +193,7 @@ impl RevocationMessage {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
         hasher.update(self.validator_pubkey.to_vec());
-        hasher.update(self.preconfer_pubkey.to_vec());
+        hasher.update(self.underwriter_pubkey.to_vec());
 
         hasher.finalize().into()
     }

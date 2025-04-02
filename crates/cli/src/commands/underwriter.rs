@@ -2,9 +2,9 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use taiyi_preconfer::{metrics::models::init_metrics, spawn_service};
+use taiyi_underwriter::{metrics::models::init_metrics, spawn_service};
 #[derive(Debug, Parser)]
-pub struct PreconferCommand {
+pub struct UnderwriterCommand {
     /// jsonrpc service address to listen on.
     #[clap(long, env="TAIYI_RPC_ADDR", default_value_t = IpAddr::V4(Ipv4Addr::LOCALHOST))]
     pub taiyi_rpc_addr: IpAddr,
@@ -50,7 +50,7 @@ pub struct PreconferCommand {
     pub metrics_port: Option<u16>,
 }
 
-impl PreconferCommand {
+impl UnderwriterCommand {
     pub async fn execute(&self) -> eyre::Result<()> {
         let network: Network = self.network.clone().into();
         let context: Context = network.try_into()?;

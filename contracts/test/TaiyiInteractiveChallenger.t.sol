@@ -23,11 +23,11 @@ contract TaiyiInteractiveChallengerTest is Test {
     address verifierAddress;
     address user;
     address owner;
-    address preconfer = 0xD8F3183DEF51A987222D845be228e0Bbb932C222;
+    address underwriter = 0xD8F3183DEF51A987222D845be228e0Bbb932C222;
 
     uint256 internal userPrivateKey;
     uint256 internal ownerPrivateKey;
-    uint256 internal preconferPrivateKey =
+    uint256 internal underwriterPrivateKey =
         0xc5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2;
 
     TaiyiInteractiveChallenger taiyiInteractiveChallenger;
@@ -43,7 +43,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         // Fund test accounts
         vm.deal(user, 100 ether);
         vm.deal(owner, 100 ether);
-        vm.deal(preconfer, 100 ether);
+        vm.deal(underwriter, 100 ether);
 
         parameterManager = new TaiyiParameterManager();
         parameterManager.initialize(
@@ -143,14 +143,14 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
 
         // Expect event
         vm.expectEmit(true, true, true, false);
-        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, underwriter);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -190,7 +190,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -218,14 +218,14 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
 
         // Expect event
         vm.expectEmit(true, true, true, false);
-        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, underwriter);
 
         taiyiInteractiveChallenger.createChallengeAType{ value: bond }(
             preconfRequestAType, signature
@@ -268,14 +268,14 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
 
         // Expect event
         vm.expectEmit(true, true, true, false);
-        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, preconfer);
+        emit ITaiyiInteractiveChallenger.ChallengeOpened(challengeId, user, underwriter);
 
         taiyiInteractiveChallenger.createChallengeBType{ value: bond }(
             preconfRequestBType, signature
@@ -298,7 +298,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -344,7 +344,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -374,7 +374,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -428,7 +428,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -464,7 +464,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -515,7 +515,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -548,7 +548,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -598,7 +598,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -632,7 +632,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -686,7 +686,7 @@ contract TaiyiInteractiveChallengerTest is Test {
 
         vm.warp(blockTimestamp);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -731,7 +731,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
@@ -747,7 +747,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -803,7 +803,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
@@ -819,7 +819,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -875,7 +875,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         (
             uint64 proofBlockTimestamp,
             bytes32 proofBlockHash,
-            address proofGatewayAddress,
+            address proofUnderwriterAddress,
             bytes memory proofSignature
         ) = abi.decode(
             vm.parseBytes(vm.parseJsonString(json, ".public_values")),
@@ -896,7 +896,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestBTypeHash(preconfRequestBType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes32 challengeId = keccak256(signature);
 
@@ -990,7 +990,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         bytes32 dataHash =
             PreconfRequestLib.getPreconfRequestATypeHash(preconfRequestAType);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(preconferPrivateKey, dataHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(underwriterPrivateKey, dataHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bytes32 challengeId = keccak256(signature);
@@ -1005,7 +1005,7 @@ contract TaiyiInteractiveChallengerTest is Test {
         assertEq(challenge.id, challengeId);
         // TODO[Martin]: Check challenge.createdAt
         assertEq(challenge.challenger, user);
-        assertEq(challenge.commitmentSigner, preconfer);
+        assertEq(challenge.commitmentSigner, underwriter);
         assertTrue(challenge.status == ITaiyiInteractiveChallenger.ChallengeStatus.Open);
         assertEq(challenge.preconfType, 0);
         assertEq(challenge.commitmentData, abi.encode(preconfRequestAType));

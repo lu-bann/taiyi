@@ -15,8 +15,8 @@ use sp1_sdk::{
     include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Proof,
     SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
-use taiyi_preconfer::{context_ext::ContextExt, TaiyiCore};
 use taiyi_primitives::PreconfResponseData;
+use taiyi_underwriter::{context_ext::ContextExt, TaiyiCore};
 use taiyi_zkvm_types::{
     types::{
         AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB,
@@ -28,7 +28,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    constant::{PRECONFER_ADDRESS, PRECONFER_BLS_PK, PRECONFER_BLS_SK, PRECONFER_ECDSA_SK},
+    constant::{UNDERWRITER_ADDRESS, UNDERWRITER_BLS_PK, UNDERWRITER_BLS_SK, UNDERWRITER_ECDSA_SK},
     contract_call::{taiyi_balance, taiyi_deposit},
     utils::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
@@ -337,16 +337,16 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
+    // underwriter address
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
-            PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
+            UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
     );
 
-    // gateway address
-    let gateway_address = private_key_signer.address();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = private_key_signer.address();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -373,8 +373,8 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(
@@ -643,16 +643,16 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
+    // underwriter address
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
-            PRECONFER_ECDSA_SK.strip_prefix("0x").unwrap_or(&PRECONFER_ECDSA_SK),
+            UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
     );
 
-    // gateway address
-    let gateway_address = private_key_signer.address();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = private_key_signer.address();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -679,8 +679,8 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(
@@ -878,7 +878,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     assert_eq!(
         message.pubkey,
-        BlsPublicKey::try_from(hex::decode(PRECONFER_BLS_PK).unwrap().as_slice()).unwrap()
+        BlsPublicKey::try_from(hex::decode(UNDERWRITER_BLS_PK).unwrap().as_slice()).unwrap()
     );
 
     assert_eq!(message.slot, target_slot);
@@ -959,7 +959,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let preconf_b = PreconfRequestTypeB {
         allocation: BlockspaceAllocation {
             sender: signer.address(),
-            recipient: Address::from_str(PRECONFER_ADDRESS).unwrap(),
+            recipient: Address::from_str(UNDERWRITER_ADDRESS).unwrap(),
             gas_limit: get_tip_call
                 .preconfRequestBType
                 .blockspaceAllocation
@@ -1026,9 +1026,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // previous block hash
     stdin.write(&previous_block.header.hash_slow());
 
-    // gateway address
-    let gateway_address = Address::from_str(PRECONFER_ADDRESS).unwrap();
-    stdin.write(&gateway_address);
+    // underwriter address
+    let underwriter_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
+    stdin.write(&underwriter_address);
 
     // genesis time
     let genesis_time = config.context.actual_genesis_time();
@@ -1055,8 +1055,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
-    // Check gateway address is correct
-    assert_eq!(public_values_struct.gatewayAddress, gateway_address);
+    // Check underwriter address is correct
+    assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
     // Check signature is correct
     assert_eq!(

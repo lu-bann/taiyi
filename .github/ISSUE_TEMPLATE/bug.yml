@@ -64,13 +64,6 @@ body:
     validations:
       required: true
   - type: textarea
-    id: database-version
-    attributes:
-      label: What database version are you on?
-      description: This can be obtained with `reth db version`
-    validations:
-      required: true
-  - type: textarea
     id: network
     attributes:
       label: Which chain / network are you on?

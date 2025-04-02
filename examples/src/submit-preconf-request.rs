@@ -10,7 +10,7 @@ use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB, SlotInfo};
 const PRECONF_REQUEST_PATH: &str = "/commitments/v1/preconf_request";
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    let taiyi_url = std::env::var("TAIYI_PRECONFER_URL")
+    let taiyi_url = std::env::var("TAIYI_UNDERWRITER_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:5656".to_string());
     let el_url = std::env::var("RPC_URL").unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
     let signer_private = std::env::var("PRIVATE_KEY").expect("Input private key");

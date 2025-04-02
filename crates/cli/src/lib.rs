@@ -8,8 +8,8 @@ pub use commands::{
     get_strategies_stakes::GetStrategiesStakesCommand,
     get_validators_for_operators::GetValidatorsForOperatorsCommand,
     offchain_delegate::DelegateCommand, operator_info::OperatorInfoCommand,
-    preconfer::PreconferCommand, register_underwriter_avs::RegisterUnderwriterAVSCommand,
+    register_underwriter_avs::RegisterUnderwriterAVSCommand,
     register_validator_avs::RegisterValidatorAVSCommand,
-    register_validators::RegisterValidatorsCommand,
+    register_validators::RegisterValidatorsCommand, underwriter::UnderwriterCommand,
 };
 pub use utils::initialize_tracing_log;

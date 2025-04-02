@@ -27,7 +27,7 @@ pub fn main() {
     let inclusion_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the inclusion block
     let previous_block_header = sp1_zkvm::io::read::<String>(); // block header of the previous block encoded as serde string
     let previous_block_hash = sp1_zkvm::io::read::<B256>(); // hash of the previous block
-    let gateway_address = sp1_zkvm::io::read::<Address>(); // address of the gateway
+    let underwriter_address = sp1_zkvm::io::read::<Address>(); // address of the underwriter
     let genesis_timestamp = sp1_zkvm::io::read::<u64>(); // genesis timestamp
     let taiyi_core = sp1_zkvm::io::read::<Address>(); // taiyi core address
 
@@ -45,9 +45,9 @@ pub fn main() {
 
         let chain_id = txs.first().unwrap().chain_id().unwrap();
 
-        // Check that the gateway address matches the preconf req type a signer
+        // Check that the underwriter address matches the preconf req type a signer
         assert!(
-            gateway_address
+            underwriter_address
                 == preconf_signature
                     .recover_address_from_prehash(&preconf_req_a.preconf.digest(chain_id))
                     .unwrap()
@@ -57,7 +57,7 @@ pub fn main() {
         let bytes = (
             inclusion_block_header.timestamp,
             inclusion_block_hash,
-            gateway_address,
+            underwriter_address,
             preconf_signature.as_bytes().to_vec(),
             genesis_timestamp,
             taiyi_core,
@@ -189,9 +189,9 @@ pub fn main() {
         let tx = preconf_req_b.preconf.clone().transaction.unwrap();
         let chain_id = tx.chain_id().unwrap();
 
-        // Check that the gateway address matches the preconf req type b signer
+        // Check that the underwriter address matches the preconf req type b signer
         assert!(
-            gateway_address
+            underwriter_address
                 == preconf_signature
                     .recover_address_from_prehash(&preconf_req_b.preconf.digest(chain_id))
                     .unwrap()
@@ -201,7 +201,7 @@ pub fn main() {
         let bytes = (
             inclusion_block_header.timestamp,
             inclusion_block_hash,
-            gateway_address,
+            underwriter_address,
             preconf_signature.as_bytes().to_vec(),
             genesis_timestamp,
             taiyi_core,
@@ -326,7 +326,7 @@ pub fn main() {
     let bytes = (
         inclusion_block_header.timestamp,
         inclusion_block_hash,
-        gateway_address,
+        underwriter_address,
         preconf_signature.as_bytes().to_vec(),
         genesis_timestamp,
         taiyi_core,

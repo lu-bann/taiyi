@@ -18,7 +18,7 @@ pragma solidity ^0.8.25;
 /// @param sender The address initiating the preconfirmation request
 /// @param recipient The address receiving the preconfirmation tip
 /// @param deposit Amount deposited for making the reservation
-/// @param tip Fee paid to the preconfer for their service
+/// @param tip Fee paid to the underwriter for their service
 /// @param targetSlot Target block slot for the preconfirmation
 /// @param blobCount Number of blobs in the transaction. If > 0, indicates a
 /// blob transaction request

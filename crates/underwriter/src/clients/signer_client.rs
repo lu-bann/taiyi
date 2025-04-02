@@ -21,7 +21,7 @@ impl SignerClient {
     pub fn new(bls_sk: String, ecdsa_sk: String) -> eyre::Result<Self> {
         let bls =
             SecretKey::from_bytes(&hex::decode(bls_sk.strip_prefix("0x").unwrap_or(&bls_sk))?)
-                .map_err(|e| eyre!("Failed decoding preconfer private key: {:?}", e))?;
+                .map_err(|e| eyre!("Failed decoding underwriter private key: {:?}", e))?;
 
         let ecdsa = alloy_signer_local::PrivateKeySigner::from_signing_key(
             k256::ecdsa::SigningKey::from_slice(&hex::decode(
