@@ -12,10 +12,8 @@ use alloy_transport::BoxTransport;
 
 mod constant;
 mod contract_call;
-#[cfg(feature = "fraud-test")]
 mod test_fraud_proof;
 
-#[cfg(not(feature = "fraud-test"))]
 mod test_preconf_workflow;
 
 mod taiyi_process;

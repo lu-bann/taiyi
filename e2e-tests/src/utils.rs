@@ -623,7 +623,6 @@ pub async fn setup_env() -> eyre::Result<(ResourceHandle, TestConfig)> {
 
     let taiyi_handle = init_taiyi_process(&config);
     info!("taiyi_handle: {:?}", taiyi_handle);
-    info!("Got taiyi handle");
     wait_taiyi_is_up(&config).await;
     Ok((taiyi_handle, config))
 }
@@ -634,12 +633,16 @@ pub async fn wait_taiyi_is_up(config: &TestConfig) {
             Ok(res) => {
                 if !res.is_empty() {
                     break;
+                } else {
+                    info!("Waiting for taiyi to be up, no available slot");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
             }
-            Err(_) => {}
+            Err(e) => {
+                info!("Waiting for taiyi to be up: {}", e);
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
         }
-        info!("Waiting for taiyi to be up");
-        tokio::time::sleep(Duration::from_secs(1)).await;
     }
     info!("taiyi is up");
 }

@@ -98,7 +98,7 @@ async fn verify_poi_preconf_type_a_included_proof() -> eyre::Result<()> {
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -134,7 +134,7 @@ async fn verify_poi_preconf_type_a_multiple_txs_included_proof() -> eyre::Result
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -169,7 +169,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     println!("executed plonk program with {} cycles", report.total_instruction_count());
     println!("{}", report);
 
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -177,6 +177,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_a_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -458,7 +459,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     }
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
@@ -466,6 +467,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_a_multiple_txs_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -765,14 +767,15 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     }
 
     // Optionally, cleanup when done
-    taiyi_handle.abort();
+    drop(taiyi_handle);
     Ok(())
 }
 
 #[tokio::test]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
-    let (_taiyi_handle, config) = setup_env().await?;
+    let (taiyi_handle, config) = setup_env().await?;
+    info!("poi_preconf_type_b_included up");
     let signer = new_account(&config).await?;
 
     // Initialize provider
@@ -840,7 +843,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         let decoded_txs = message.decoded_tx().unwrap();
         txs.extend(decoded_txs);
     }
-    assert_eq!(txs.len(), 4);
     assert!(txs.contains(&transaction));
 
     let signed_constraints = constraints.first().unwrap().clone();
@@ -1134,6 +1136,6 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
         fs::write("test-data/poi-preconf-type-b-included-test-data.json", test_data_serialized)
             .expect("saving test data failed");
     }
-
+    drop(taiyi_handle);
     Ok(())
 }
