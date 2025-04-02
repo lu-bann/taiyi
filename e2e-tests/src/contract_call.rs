@@ -72,12 +72,14 @@ pub async fn revert_call(
     let contract_address: Address = REVERTER_CONTRACT_ADDRESS.parse()?;
     let revert_contract = Reverter::new(contract_address, provider.clone());
     let mut revert_call_tx = revert_contract.revertFromRevert().into_transaction_request();
+    let chain_id = provider.get_chain_id().await?;
     let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
     revert_call_tx.set_nonce(nonce);
     revert_call_tx.set_gas_limit(100000);
     let estimate = provider.estimate_eip1559_fees(None).await?;
     revert_call_tx.set_max_fee_per_gas(estimate.max_fee_per_gas);
     revert_call_tx.set_max_priority_fee_per_gas(estimate.max_priority_fee_per_gas);
+    revert_call_tx.set_chain_id(chain_id);
 
     let typed_tx = revert_call_tx.build(&wallet).await?;
     Ok(typed_tx)
