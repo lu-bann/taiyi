@@ -1,13 +1,14 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
 use alloy_consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
-use alloy_eips::{calc_excess_blob_gas, calc_next_block_base_fee, eip1559::BaseFeeParams};
+use alloy_eips::{calc_next_block_base_fee, eip1559::BaseFeeParams};
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
     pbs::{
-        DenebSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageDeneb, GetHeaderResponse,
-        KzgCommitments, PayloadAndBlobsDeneb, SignedExecutionPayloadHeader,
+        ElectraSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageElectra,
+        ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
+        SignedExecutionPayloadHeader,
     },
     signer::BlsSecretKey,
 };
@@ -28,7 +29,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct SignedPayloadResponse {
     pub header: GetHeaderResponse,
-    pub payload: PayloadAndBlobsDeneb,
+    pub payload: PayloadAndBlobsElectra,
 }
 
 // "Local built by Taiyi"
@@ -46,6 +47,16 @@ pub struct LocalBlockBuilder {
     fee_recipient: Address,
     extra_data: Bytes,
     bls_secret_key: BlsSecretKey,
+}
+
+const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
+
+fn calc_excess_blob_gas(parent_excess_blob_gas: u64, parent_blob_gas_used: u64) -> u64 {
+    if parent_excess_blob_gas + parent_blob_gas_used < TARGET_BLOB_GAS_PER_BLOCK {
+        0
+    } else {
+        parent_excess_blob_gas + parent_blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK
+    }
 }
 
 // The local block builder was based on bolt's implementation.
@@ -173,7 +184,7 @@ impl LocalBlockBuilder {
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
         let value = U256::from(100_000_000_000_000_000_000u128);
         let execution_payload = to_cb_execution_payload(&block);
-        let payload_and_blobs = PayloadAndBlobsDeneb { execution_payload, blobs_bundle };
+        let payload_and_blobs = PayloadAndBlobsElectra { execution_payload, blobs_bundle };
         let execution_payload_header = to_cb_execution_payload_header(&block);
 
         let signed_bid = self.create_signed_execution_payload_header(
@@ -183,7 +194,7 @@ impl LocalBlockBuilder {
         )?;
 
         Ok(SignedPayloadResponse {
-            header: cb_common::pbs::VersionedResponse::Deneb(signed_bid),
+            header: cb_common::pbs::VersionedResponse::Electra(signed_bid),
             payload: payload_and_blobs,
         })
     }
@@ -191,13 +202,18 @@ impl LocalBlockBuilder {
     pub fn create_signed_execution_payload_header(
         &self,
         value: U256,
-        header: ExecutionPayloadHeader<DenebSpec>,
-        blob_kzg_commitments: KzgCommitments<DenebSpec>,
-    ) -> eyre::Result<SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageDeneb>> {
+        header: ExecutionPayloadHeader<ElectraSpec>,
+        blob_kzg_commitments: KzgCommitments<ElectraSpec>,
+    ) -> eyre::Result<SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageElectra>> {
         let consensus_pubkey = self.bls_secret_key.sk_to_pk().to_bytes();
         let pubkey = BlsPublicKey::from(consensus_pubkey);
-        let message =
-            ExecutionPayloadHeaderMessageDeneb { header, blob_kzg_commitments, value, pubkey };
+        let message = ExecutionPayloadHeaderMessageElectra {
+            header,
+            blob_kzg_commitments,
+            value,
+            pubkey,
+            execution_requests: <ExecutionRequests<ElectraSpec>>::default(),
+        };
         // Note: the application builder domain specs require the genesis_validators_root
         // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
         // same rule.

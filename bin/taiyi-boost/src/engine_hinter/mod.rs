@@ -4,13 +4,17 @@ use std::ops::Deref;
 use alloy_consensus::{Block, BlockBody, Header, Sealed, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use alloy_provider::ext::EngineApi;
-use alloy_rpc_types_engine::{ClientCode, ExecutionPayloadV3, JwtSecret, PayloadStatusEnum};
+use alloy_rpc_types_engine::{ClientCode, JwtSecret, PayloadStatusEnum};
 use alloy_rpc_types_eth::{Block as RPCBlock, Withdrawal, Withdrawals};
 use engine_hints::parse_hint_from_engine_response;
 use reqwest::Url;
 use tracing::{debug, error};
 
-use crate::{engine::EngineClient, error::BuilderError, types::to_alloy_execution_payload};
+use crate::{
+    engine::EngineClient,
+    error::BuilderError,
+    types::{to_alloy_execution_payload, ExecutionPayloadV4},
+};
 
 mod engine_hints;
 
@@ -60,14 +64,12 @@ impl EngineHinter {
             // Build a new block header using the hints from the context
             let header = ctx.build_block_header_with_hints();
 
-            let sealed_hash = header.hash_slow();
-            let sealed_header = header.seal(sealed_hash);
+            let block_hash = ctx.hints.block_hash.unwrap_or(header.hash_slow());
+            let sealed_header = header.seal(block_hash);
             let sealed_block = Block { header: sealed_header, body: body.clone() };
-            let block_hash = ctx.hints.block_hash.unwrap_or(sealed_block.header.hash());
 
             // build the new execution payload from the block header
-            let exec_payload = to_alloy_execution_payload(&sealed_block, block_hash);
-
+            let exec_payload = to_alloy_execution_payload(&sealed_block);
             // attempt to fetch the next hint from the engine API payload response
             let hint = self.next_hint(exec_payload, &ctx).await?;
 
@@ -91,18 +93,18 @@ impl EngineHinter {
     /// Returns Ok([EngineApiHint::ValidPayload]) if the payload is valid.
     async fn next_hint(
         &self,
-        exec_payload: ExecutionPayloadV3,
+        exec_payload: ExecutionPayloadV4,
         ctx: &EngineHinterContext,
     ) -> Result<EngineApiHint, BuilderError> {
         let payload_status = self
             .engine_client
-            .new_payload_v3(
-                exec_payload,
+            .new_payload_v4(
+                exec_payload.payload_inner,
                 ctx.blob_versioned_hashes.clone(),
                 ctx.parent_beacon_block_root,
+                exec_payload.execution_requests, // https://eips.ethereum.org/EIPS/eip-7685, ignore now
             )
             .await?;
-
         let validation_error = match payload_status.status {
             PayloadStatusEnum::Valid => return Ok(EngineApiHint::ValidPayload),
             PayloadStatusEnum::Invalid { validation_error } => validation_error,

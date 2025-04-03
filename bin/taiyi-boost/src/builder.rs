@@ -5,7 +5,7 @@ use std::{
 };
 
 use ::tree_hash::Hash256;
-use alloy_primitives::{utils::format_ether, B256, U256};
+use alloy_primitives::{utils::format_ether, FixedBytes, B256, U256};
 use alloy_rpc_types_beacon::BlsPublicKey as AlloyBlsPublicKey;
 use async_trait::async_trait;
 use axum::{
@@ -51,7 +51,7 @@ pub const PATH_BUILDER_API: &str = "/relay/v1/builder";
 pub struct SidecarBuilderState {
     constraints: ConstraintsCache,
     local_block_builder: LocalBlockBuilder,
-    local_payload: Arc<Mutex<Option<SignedPayloadResponse>>>,
+    local_payload: Arc<Mutex<HashMap<u64, SignedPayloadResponse>>>,
 }
 
 impl BuilderApiState for SidecarBuilderState {}
@@ -75,7 +75,7 @@ impl SidecarBuilderState {
         Self {
             constraints: ConstraintsCache::new(),
             local_block_builder,
-            local_payload: Arc::new(Mutex::new(None)),
+            local_payload: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -159,8 +159,6 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         .await
         {
             Ok(Some(response)) => {
-                let mut local_payload = state.data.local_payload.lock();
-                *local_payload = None;
                 return Ok(Some(response.header));
             }
             Ok(None) => {
@@ -180,7 +178,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 .await?;
             {
                 let mut local_payload = state.data.local_payload.lock();
-                *local_payload = Some(resp.clone());
+                local_payload.insert(params.slot, resp.clone());
             }
             Ok(Some(resp.header))
         } else {
@@ -194,10 +192,15 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         req_headers: HeaderMap,
         state: PbsState<SidecarBuilderState>,
     ) -> Result<SubmitBlindedBlockResponse> {
-        if let Some(local_payload) = state.data.local_payload.lock().take() {
+        let slot = signed_blinded_block.slot();
+        if let Some(local_payload) = state.data.local_payload.lock().get(&slot) {
             // todo: do some checks
-            return Ok(cb_common::pbs::VersionedResponse::Deneb(local_payload.payload));
+            info!("submit block with local payload {:?}", local_payload.payload.block_hash());
+            let res = cb_common::pbs::VersionedResponse::Electra(local_payload.payload.clone());
+            debug!("local payload: {:?}", serde_json::to_string(&res));
+            return Ok(res);
         }
+        info!("payload can not be found locally, request block from relay");
         submit_block(signed_blinded_block, req_headers, state).await
     }
 }
@@ -463,7 +466,7 @@ async fn send_one_get_header(
     validate_header(
         &get_header_response.header,
         chain,
-        relay.pubkey().into(),
+        relay.pubkey(),
         params.parent_hash,
         skip_sigverify,
         min_bid_wei,
@@ -505,9 +508,10 @@ fn validate_header(
         return Err(ValidationError::BidTooLow { min: minimum_bid_wei, got: value });
     }
 
-    if expected_relay_pubkey != received_relay_pubkey.into() {
+    if expected_relay_pubkey != <FixedBytes<48> as Into<BlsPublicKey>>::into(received_relay_pubkey)
+    {
         return Err(ValidationError::PubkeyMismatch {
-            expected: expected_relay_pubkey.into(),
+            expected: expected_relay_pubkey,
             got: received_relay_pubkey,
         });
     }
