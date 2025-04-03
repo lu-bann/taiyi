@@ -55,5 +55,5 @@ tree_hash_derive = { workspace = true }
 alloy-node-bindings = { workspace = true }
 ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
-lighthouse-types = { workspace = true }
+lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v6.0.1" }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
