@@ -2471,7 +2471,7 @@ dependencies = [
 [[package]]
 name = "cb-cli"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "cb-common",
  "clap",
@@ -2487,7 +2487,7 @@ dependencies = [
 [[package]]
 name = "cb-common"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "aes 0.8.4",
  "alloy 0.12.6",
@@ -2529,7 +2529,7 @@ dependencies = [
 [[package]]
 name = "cb-metrics"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "axum 0.8.1",
  "cb-common",
@@ -2543,7 +2543,7 @@ dependencies = [
 [[package]]
 name = "cb-pbs"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "alloy 0.12.6",
  "async-trait",
@@ -2571,7 +2571,7 @@ dependencies = [
 [[package]]
 name = "cb-signer"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "alloy 0.12.6",
  "axum 0.8.1",
@@ -2827,7 +2827,7 @@ dependencies = [
 [[package]]
 name = "commit-boost"
 version = "0.7.0"
-source = "git+https://github.com/Commit-Boost/commit-boost-client?tag=v0.7.0#6b6b10f6cd9dde3eb361bbe146016ab6b42b276f"
+source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
 dependencies = [
  "cb-cli",
  "cb-common",
@@ -9256,7 +9256,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
- "ssz_types 0.8.0",
+ "ssz_types 0.10.1",
  "taiyi-beacon-client",
  "taiyi-cmd",
  "thiserror 2.0.12",
@@ -9264,8 +9264,8 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "tracing-subscriber",
- "tree_hash 0.8.0",
- "tree_hash_derive 0.8.0",
+ "tree_hash 0.9.1",
+ "tree_hash_derive 0.9.1",
  "types",
 ]
 
@@ -9277,7 +9277,7 @@ dependencies = [
  "eyre",
  "taiyi-cmd",
  "tokio",
- "tree_hash 0.8.0",
+ "tree_hash 0.9.1",
 ]
 
 [[package]]
@@ -9353,7 +9353,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-core",
- "tree_hash 0.8.0",
+ "tree_hash 0.9.1",
  "uuid 1.11.0",
 ]
 

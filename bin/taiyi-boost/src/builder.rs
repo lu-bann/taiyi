@@ -4,7 +4,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+use ::tree_hash::Hash256;
 use alloy_primitives::{utils::format_ether, B256, U256};
+use alloy_rpc_types_beacon::BlsPublicKey as AlloyBlsPublicKey;
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
@@ -13,13 +15,14 @@ use axum::{
 use cb_common::{
     config::PbsConfig,
     constants::APPLICATION_BUILDER_DOMAIN,
+    error::BlstErrorWrapper,
     pbs::{
         error::{PbsError, ValidationError},
         GetHeaderParams, GetHeaderResponse, RelayClient, SignedBlindedBeaconBlock,
-        SignedExecutionPayloadHeader, SubmitBlindedBlockResponse, Version, EMPTY_TX_ROOT_HASH,
-        HEADER_START_TIME_UNIX_MS,
+        SubmitBlindedBlockResponse, EMPTY_TX_ROOT_HASH, HEADER_START_TIME_UNIX_MS,
     },
-    signature::verify_signed_message,
+    signature::{compute_domain, compute_signing_root},
+    signer::verify_bls_signature,
     types::Chain,
     utils::{get_user_agent_with_version, ms_into_slot},
 };
@@ -36,11 +39,9 @@ use tracing::{debug, error, info, warn};
 use crate::{
     block_builder::{LocalBlockBuilder, SignedPayloadResponse},
     constraints::ConstraintsCache,
+    get_header_response_ext::GetHeaderResponseExt,
     proofs::verify_multiproofs,
-    types::{
-        ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints,
-        SignedExecutionPayloadHeaderWithProofs,
-    },
+    types::{ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints},
 };
 
 pub const PATH_BUILDER_CONSTRAINTS: &str = "/constraints";
@@ -160,10 +161,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
             Ok(Some(response)) => {
                 let mut local_payload = state.data.local_payload.lock();
                 *local_payload = None;
-                return Ok(Some(GetHeaderResponse {
-                    data: response.data.header,
-                    ..Default::default()
-                }));
+                return Ok(Some(response.header));
             }
             Ok(None) => {
                 warn!("No bids received from relay, slot: {}", params.slot);
@@ -184,7 +182,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 let mut local_payload = state.data.local_payload.lock();
                 *local_payload = Some(resp.clone());
             }
-            Ok(Some(GetHeaderResponse { version: Version::Deneb, data: resp.header.clone() }))
+            Ok(Some(resp.header))
         } else {
             info!("No constraints found, EL must build the block");
             Ok(None)
@@ -198,10 +196,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
     ) -> Result<SubmitBlindedBlockResponse> {
         if let Some(local_payload) = state.data.local_payload.lock().take() {
             // todo: do some checks
-            return Ok(SubmitBlindedBlockResponse {
-                version: Version::Deneb,
-                data: local_payload.payload.clone(),
-            });
+            return Ok(cb_common::pbs::VersionedResponse::Electra(local_payload.payload));
         }
         submit_block(signed_blinded_block, req_headers, state).await
     }
@@ -267,14 +262,14 @@ async fn get_header_with_proofs(
 
         match res {
             Ok(Some(res)) => {
-                let root = res.data.header.message.header.transactions_root;
+                let root = res.header.transactions_root();
 
                 let start = Instant::now();
 
                 // If we have constraints to verify, do that here in order to validate the bid
                 if let Some(ref constraints) = maybe_constraints {
                     // Verify the multiproofs and continue if not valid
-                    if let Err(e) = verify_multiproofs(&constraints.1, &res.data.proofs, root) {
+                    if let Err(e) = verify_multiproofs(&constraints.1, &res.proofs, root) {
                         error!(?e, relay_id, "Failed to verify multiproof, skipping bid");
                         continue;
                     }
@@ -282,14 +277,10 @@ async fn get_header_with_proofs(
                     tracing::debug!("Verified multiproof in {:?}", start.elapsed());
 
                     // Save the proofs per block hash
-                    hash_to_proofs
-                        .insert(res.data.header.message.header.block_hash, res.data.proofs);
+                    hash_to_proofs.insert(res.header.block_hash(), res.proofs.clone());
                 }
 
-                let vanilla_response =
-                    GetHeaderResponse { version: res.version, data: res.data.header };
-
-                relay_bids.push(vanilla_response)
+                relay_bids.push(res)
             }
             Ok(None) => {
                 warn!(relay_id, "no header from relay");
@@ -298,20 +289,8 @@ async fn get_header_with_proofs(
         }
     }
 
-    if let Some(winning_bid) = relay_bids.iter().max_by_key(|bid| bid.value()).cloned() {
-        let header_with_proofs = GetHeaderWithProofsResponse {
-            data: SignedExecutionPayloadHeaderWithProofs {
-                // If there are no proofs, default to empty. This should never happen unless there
-                // were no constraints to verify.
-                proofs: hash_to_proofs
-                    .get(&winning_bid.data.message.header.block_hash)
-                    .cloned()
-                    .unwrap_or_default(),
-                header: winning_bid.data,
-            },
-            version: winning_bid.version,
-        };
-        Ok(Some(header_with_proofs))
+    if let Some(winning_bid) = relay_bids.iter().max_by_key(|bid| bid.header.value()).cloned() {
+        Ok(Some(winning_bid))
     } else {
         Ok(None)
     }
@@ -476,13 +455,13 @@ async fn send_one_get_header(
 
     debug!(
         latency = ?request_latency,
-        block_hash = %get_header_response.data.message.header.block_hash,
-        value_eth = format_ether(get_header_response.data.message.value),
+        block_hash = %get_header_response.header.block_hash(),
+        value_eth = format_ether(get_header_response.header.value()),
         "received new header"
     );
 
     validate_header(
-        &get_header_response.data,
+        &get_header_response.header,
         chain,
         relay.pubkey().into(),
         params.parent_hash,
@@ -495,26 +474,26 @@ async fn send_one_get_header(
 
 /// The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/unstable/bolt-boost/src/server.rs#L471
 fn validate_header(
-    signed_header: &SignedExecutionPayloadHeader,
+    signed_header: &GetHeaderResponse,
     chain: Chain,
     expected_relay_pubkey: BlsPublicKey,
     parent_hash: B256,
     skip_sig_verify: bool,
     minimum_bid_wei: U256,
 ) -> Result<(), ValidationError> {
-    let block_hash = signed_header.message.header.block_hash;
-    let received_relay_pubkey = signed_header.message.pubkey;
-    let tx_root = signed_header.message.header.transactions_root;
-    let value = signed_header.message.value;
+    let block_hash = signed_header.block_hash();
+    let received_relay_pubkey = signed_header.pubkey();
+    let tx_root = signed_header.transactions_root();
+    let value = signed_header.value();
 
     if block_hash == B256::ZERO {
         return Err(ValidationError::EmptyBlockhash);
     }
 
-    if parent_hash != signed_header.message.header.parent_hash {
+    if parent_hash != signed_header.parent_hash() {
         return Err(ValidationError::ParentHashMismatch {
             expected: parent_hash,
-            got: signed_header.message.header.parent_hash,
+            got: signed_header.parent_hash(),
         });
     }
 
@@ -538,12 +517,24 @@ fn validate_header(
         verify_signed_message(
             chain,
             &received_relay_pubkey,
-            &signed_header.message,
-            &signed_header.signature,
+            &signed_header.message_tree_root(),
+            &signed_header.signautre(),
             APPLICATION_BUILDER_DOMAIN,
         )
         .map_err(ValidationError::Sigverify)?;
     }
 
     Ok(())
+}
+pub fn verify_signed_message(
+    chain: Chain,
+    pubkey: &AlloyBlsPublicKey,
+    msg: &Hash256,
+    signature: &BlsSignature,
+    domain_mask: [u8; 4],
+) -> Result<(), BlstErrorWrapper> {
+    let domain = compute_domain(chain, domain_mask);
+    let signing_root = compute_signing_root(msg.0, domain);
+
+    verify_bls_signature(pubkey, &signing_root, signature)
 }

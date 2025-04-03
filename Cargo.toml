@@ -62,9 +62,9 @@ axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.7.0" }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.7.0" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client", tag = "v0.7.0" }
+commit-boost = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
+cb-common = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
+cb-pbs = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
 
 # alloy
 alloy-primitives = { version = "0.8.15", features = [
@@ -136,8 +136,8 @@ reqwest = "0.12.9"
 secp256k1 = { version = "0.30.0", features = ["global-context"] }
 k256 = "0.13.4"
 derive_more = "1.0.0"
-tree_hash = "0.8.0"
-tree_hash_derive = "0.8.0"
+tree_hash = "0.9.1"
+tree_hash_derive = "0.9.1"
 futures-util = "0.3.31"
 lazy_static = "1.5.0"
 prometheus = "0.13.4"
@@ -152,7 +152,7 @@ uuid = { version = "1.11.0", features = ["serde", "v4"] }
 scc = "2.2.6"
 ethereum_ssz = "0.7"
 ethereum_ssz_derive = "0.7"
-ssz_types = "0.8"
+ssz_types = "0.10"
 http-body-util = "0.1.2"
 tower = "0.5.2"
 sha2 = "0.10.8"

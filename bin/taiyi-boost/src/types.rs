@@ -11,9 +11,9 @@ use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPa
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use axum::http::HeaderMap;
 use cb_common::pbs::{
-    Blob, BlobsBundle, DenebSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
-    KzgProof, SignedExecutionPayloadHeader, Transaction as cbTransaction, Transactions,
-    VersionedResponse, Withdrawal as cbWithdrawal,
+    Blob, BlobsBundle, DenebSpec, ElectraSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader,
+    GetHeaderResponse, KzgCommitment, KzgProof, Transaction as cbTransaction, Transactions,
+    Withdrawal as cbWithdrawal,
 };
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction as ConsensusTransaction,
@@ -164,13 +164,13 @@ fn hash_tree_root_raw_tx(raw_tx: Vec<u8>) -> AlloyHashTreeRoot {
 }
 
 /// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
-pub type GetHeaderWithProofsResponse = VersionedResponse<SignedExecutionPayloadHeaderWithProofs>;
+pub type GetHeaderWithProofsResponse = SignedExecutionPayloadHeaderWithProofs;
 
 /// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SignedExecutionPayloadHeaderWithProofs {
     #[serde(flatten)]
-    pub header: SignedExecutionPayloadHeader,
+    pub header: GetHeaderResponse,
     #[serde(default)]
     pub proofs: InclusionProofs,
 }
@@ -195,7 +195,7 @@ impl InclusionProofs {
 }
 
 impl Deref for SignedExecutionPayloadHeaderWithProofs {
-    type Target = SignedExecutionPayloadHeader;
+    type Target = GetHeaderResponse;
 
     fn deref(&self) -> &Self::Target {
         &self.header
@@ -283,7 +283,7 @@ pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
 }
 
 // NOTE: This returns an empty BlobsBundle if there are no blob transactions
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> {
     transactions
         .iter()
         .filter_map(|tx| match tx {
@@ -294,7 +294,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
             _ => None,
         })
         .fold(
-            BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
+            BlobsBundle::<ElectraSpec>::default(), // Initialize with an empty BlobsBundle
             |mut acc, sidecar| {
                 for commitment in sidecar.commitments.iter() {
                     acc.commitments
@@ -309,19 +309,19 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
                         .ok();
                 }
                 for blob in sidecar.blobs.iter() {
-                    acc.blobs.push(Blob::<DenebSpec>::from(blob.as_slice().to_vec())).ok();
+                    acc.blobs.push(Blob::<ElectraSpec>::from(blob.as_slice().to_vec())).ok();
                 }
                 acc
             },
         )
 }
 
-pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpec> {
+pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<ElectraSpec> {
     let hash = value.hash();
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
-    let transactions: Transactions<DenebSpec> = transactions
+    let transactions: Transactions<ElectraSpec> = transactions
         .iter()
         .map(|t| VariableList::from(t.encoded_2718()))
         .collect::<Vec<_>>()
@@ -340,7 +340,7 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpe
             .collect::<Vec<_>>(),
     );
 
-    ExecutionPayload::<DenebSpec> {
+    ExecutionPayload::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,
@@ -361,7 +361,7 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpe
     }
 }
 
-pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHeader<DenebSpec> {
+pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
@@ -392,7 +392,7 @@ pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHe
         withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
     );
 
-    ExecutionPayloadHeader::<DenebSpec> {
+    ExecutionPayloadHeader::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,
