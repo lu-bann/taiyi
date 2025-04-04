@@ -31,7 +31,7 @@ default-members = [
     "crates/primitives",
     "crates/contracts",
 ]
-resolver = "3"
+resolver = "2"
 
 [workspace.metadata.cargo-machete]
 ignored = [
