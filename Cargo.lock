@@ -2125,7 +2125,7 @@ dependencies = [
 [[package]]
 name = "bls"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
  "arbitrary",
@@ -2133,10 +2133,10 @@ dependencies = [
  "ethereum_hashing 0.7.0",
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
- "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "hex",
  "rand 0.8.5",
- "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "serde",
  "tree_hash 0.8.0",
  "zeroize",
@@ -2734,7 +2734,7 @@ dependencies = [
 [[package]]
 name = "compare_fields"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "itertools 0.10.5",
 ]
@@ -2742,7 +2742,7 @@ dependencies = [
 [[package]]
 name = "compare_fields_derive"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -2847,9 +2847,9 @@ dependencies = [
 
 [[package]]
 name = "crate_crypto_internal_eth_kzg_bls12_381"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "319cb241b1ad37f8c376b2ebcd7233f53e033a50de6f0a9cf38e6cc545554de4"
+checksum = "76f9cdad245e39a3659bc4c8958e93de34bd31ba3131ead14ccfb4b2cd60e52d"
 dependencies = [
  "blst",
  "blstrs",
@@ -2861,9 +2861,9 @@ dependencies = [
 
 [[package]]
 name = "crate_crypto_internal_eth_kzg_erasure_codes"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abedcc3eb4d04655c53704a66880945f5a39c6d96b337f0ab4a086dda795c954"
+checksum = "581d28bcc93eecd97a04cebc5293271e0f41650f03c102f24d6cd784cbedb9f2"
 dependencies = [
  "crate_crypto_internal_eth_kzg_bls12_381",
  "crate_crypto_internal_eth_kzg_polynomial",
@@ -2871,24 +2871,24 @@ dependencies = [
 
 [[package]]
 name = "crate_crypto_internal_eth_kzg_maybe_rayon"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3db089718921ca28d137ed8b1a7406f10e6bfbc61794a2339bcd9c99d5ddefc6"
+checksum = "06fc0f984e585ea984a766c5b58d6bf6c51e463b0a0835b0dd4652d358b506b3"
 
 [[package]]
 name = "crate_crypto_internal_eth_kzg_polynomial"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750e6dbe493d337d98502975137f055a52767021bcdb69aa8926ed8ee28c7980"
+checksum = "56dff7a45e2d80308b21abdbc5520ec23c3ebfb3a94fafc02edfa7f356af6d7f"
 dependencies = [
  "crate_crypto_internal_eth_kzg_bls12_381",
 ]
 
 [[package]]
 name = "crate_crypto_kzg_multi_open_fk20"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3337262f48c7fee2999cf23bb9cb693299211671fe46b593ac81fcb218de68b"
+checksum = "1a0c2f82695a88809e713e1ff9534cb90ceffab0a08f4bd33245db711f9d356f"
 dependencies = [
  "crate_crypto_internal_eth_kzg_bls12_381",
  "crate_crypto_internal_eth_kzg_maybe_rayon",
@@ -3625,9 +3625,9 @@ dependencies = [
 [[package]]
 name = "eth2_interop_keypairs"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
- "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "ethereum_hashing 0.7.0",
  "hex",
  "num-bigint 0.4.6",
@@ -3638,11 +3638,11 @@ dependencies = [
 [[package]]
 name = "eth2_key_derivation"
 version = "0.1.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
- "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "num-bigint-dig",
- "ring 0.16.20",
+ "ring 0.17.8",
  "sha2 0.9.9",
  "zeroize",
 ]
@@ -3662,11 +3662,11 @@ dependencies = [
 [[package]]
 name = "eth2_keystore"
 version = "0.1.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "aes 0.7.5",
- "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
- "eth2_key_derivation 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
+ "eth2_key_derivation 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "hex",
  "hmac 0.11.0",
  "pbkdf2 0.8.0",
@@ -4036,10 +4036,10 @@ dependencies = [
 [[package]]
 name = "fixed_bytes"
 version = "0.1.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
- "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
 ]
 
 [[package]]
@@ -4986,7 +4986,7 @@ dependencies = [
 [[package]]
 name = "int_to_bytes"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "bytes",
 ]
@@ -5158,7 +5158,7 @@ dependencies = [
 [[package]]
 name = "kzg"
 version = "0.1.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "arbitrary",
  "c-kzg",
@@ -5331,12 +5331,12 @@ checksum = "3d97bbf43eb4f088f8ca469930cde17fa036207c9a5e02ccc5107c4e8b17c964"
 [[package]]
 name = "merkle_proof"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
  "ethereum_hashing 0.7.0",
- "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
- "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
+ "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
 ]
 
 [[package]]
@@ -7207,9 +7207,9 @@ dependencies = [
 
 [[package]]
 name = "rust_eth_kzg"
-version = "0.5.1"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3291fd0d9c629a56537d74bbc1e7bcaf5be610f2f7b55af85c4fea843c6aeca3"
+checksum = "3f83b5559e1dcd3f7721838909288faf4500fb466eff98eac99b67ac04335b93"
 dependencies = [
  "crate_crypto_internal_eth_kzg_bls12_381",
  "crate_crypto_internal_eth_kzg_erasure_codes",
@@ -7366,7 +7366,7 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 [[package]]
 name = "safe_arith"
 version = "0.1.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 
 [[package]]
 name = "safe_arith"
@@ -8636,11 +8636,11 @@ dependencies = [
 [[package]]
 name = "swap_or_not_shuffle"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
  "ethereum_hashing 0.7.0",
- "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
 ]
 
 [[package]]
@@ -8878,7 +8878,7 @@ dependencies = [
  "blst",
  "cb-common",
  "clap",
- "eth2_keystore 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "eth2_keystore 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "ethereum-consensus",
  "eyre",
  "hex",
@@ -9087,7 +9087,7 @@ dependencies = [
 [[package]]
 name = "test_random_derive"
 version = "0.2.0"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -9788,12 +9788,12 @@ checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
 [[package]]
 name = "types"
 version = "0.2.1"
-source = "git+https://github.com/sigp/lighthouse?tag=v6.0.1#0d90135047519f4c2ee586d50e560f7bb2ff9b10"
+source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
  "alloy-rlp",
  "arbitrary",
- "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "compare_fields",
  "compare_fields_derive",
  "derivative",
@@ -9802,7 +9802,7 @@ dependencies = [
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
- "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "hex",
  "int_to_bytes",
  "itertools 0.10.5",
@@ -9819,7 +9819,7 @@ dependencies = [
  "regex",
  "rpds",
  "rusqlite",
- "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v6.0.1)",
+ "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "serde",
  "serde_json",
  "serde_yaml 0.9.33",

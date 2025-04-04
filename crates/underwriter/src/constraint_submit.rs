@@ -76,9 +76,9 @@ where
                         (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
                     }
                 };
-            let blob_fee = header.next_block_blob_fee(BlobParams::cancun()).unwrap_or_default();
+            let blob_fee = header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
             let blob_excess_fee =
-                header.next_block_excess_blob_gas(BlobParams::cancun()).unwrap_or_default();
+                header.next_block_excess_blob_gas(BlobParams::prague()).unwrap_or_default();
 
             info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 

@@ -108,7 +108,7 @@ pub fn main() {
                 // Check balance
                 if account.balance
                     < U256::from(
-                        inclusion_block_header.blob_fee(BlobParams::cancun()).unwrap()
+                        inclusion_block_header.blob_fee(BlobParams::prague()).unwrap()
                             * DATA_GAS_PER_BLOB as u128
                             * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len()
                                 as u128
@@ -251,7 +251,7 @@ pub fn main() {
             // Check balance
             if account.balance
                 < U256::from(
-                    inclusion_block_header.blob_fee(BlobParams::cancun()).unwrap()
+                    inclusion_block_header.blob_fee(BlobParams::prague()).unwrap()
                         * DATA_GAS_PER_BLOB as u128
                         * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128
                         + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())
