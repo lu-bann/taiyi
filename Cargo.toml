@@ -31,7 +31,7 @@ default-members = [
     "crates/primitives",
     "crates/contracts",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.metadata.cargo-machete]
 ignored = [
@@ -94,24 +94,15 @@ alloy-rpc-types-eth = { version = "0.8.1", default-features = false }
 alloy-rpc-types-trace = { version = "0.8.1", default-features = false }
 alloy-trie = "0.7.9"
 
-# reth
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-common = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "03649f256d41231152856d6d88765b1a9860fd4e" }
-
 # eth
 eth_trie = "0.5.0"
 eth-trie-proofs = "0.1.2"
 
 # sp1
-sp1-build = "=4.0.1"
-sp1-sdk = "=4.0.1"
-sp1-zkvm = "=4.0.1"
-sp1-verifier = "=4.0.1"
+sp1-build = "=4.1.7"
+sp1-sdk = "=4.1.7"
+sp1-zkvm = "=4.1.7"
+sp1-verifier = "=4.1.7"
 
 clap = { version = "4.5.23", features = ["derive", "env"] }
 eyre = { version = "0.6.12" }

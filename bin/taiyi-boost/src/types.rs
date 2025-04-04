@@ -1,6 +1,8 @@
 use std::{fmt::Debug, ops::Deref};
 
-use alloy_consensus::{BlockHeader, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
+use alloy_consensus::{
+    Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
+};
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
@@ -26,7 +28,6 @@ use ethereum_consensus::{
     ssz::prelude::{HashTreeRoot, List},
 };
 use reqwest::Url;
-use reth_primitives::{SealedBlock, Transaction, TransactionSigned};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
@@ -210,7 +211,7 @@ pub struct RequestConfig {
 }
 
 pub(crate) fn to_alloy_execution_payload(
-    block: &SealedBlock,
+    block: &Block<TxEnvelope, Sealed<Header>>,
     block_hash: B256,
 ) -> ExecutionPayloadV3 {
     let alloy_withdrawals = block
@@ -231,55 +232,33 @@ pub(crate) fn to_alloy_execution_payload(
         .unwrap_or_default();
 
     ExecutionPayloadV3 {
-        blob_gas_used: block.header.header().blob_gas_used.unwrap_or_default(),
-        excess_blob_gas: block.excess_blob_gas.unwrap_or_default(),
+        blob_gas_used: block.header.blob_gas_used.unwrap_or_default(),
+        excess_blob_gas: block.header.excess_blob_gas.unwrap_or_default(),
         payload_inner: ExecutionPayloadV2 {
             payload_inner: ExecutionPayloadV1 {
-                base_fee_per_gas: U256::from(block.base_fee_per_gas.unwrap_or_default()),
+                base_fee_per_gas: U256::from(block.header.base_fee_per_gas.unwrap_or_default()),
                 block_hash,
-                block_number: block.number,
-                extra_data: block.extra_data.clone(),
-                transactions: block.encoded_2718_transactions(),
+                block_number: block.header.number,
+                extra_data: block.header.extra_data.clone(),
+                transactions: block
+                    .body
+                    .transactions()
+                    .map(|tx| tx.encoded_2718())
+                    .map(Into::into)
+                    .collect(),
                 fee_recipient: block.header.beneficiary,
-                gas_limit: block.gas_limit,
-                gas_used: block.gas_used,
-                logs_bloom: block.logs_bloom,
-                parent_hash: block.parent_hash,
-                prev_randao: block.mix_hash,
-                receipts_root: block.receipts_root,
-                state_root: block.state_root,
-                timestamp: block.timestamp,
+                gas_limit: block.header.gas_limit,
+                gas_used: block.header.gas_used,
+                logs_bloom: block.header.logs_bloom,
+                parent_hash: block.header.parent_hash,
+                prev_randao: block.header.mix_hash,
+                receipts_root: block.header.receipts_root,
+                state_root: block.header.state_root,
+                timestamp: block.header.timestamp,
             },
             withdrawals: alloy_withdrawals,
         },
     }
-}
-
-pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
-    let (transaction, signature, hash) = match tx {
-        TxEnvelope::Legacy(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Legacy(tx), sig, hash)
-        }
-        TxEnvelope::Eip2930(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip2930(tx), sig, hash)
-        }
-        TxEnvelope::Eip1559(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip1559(tx), sig, hash)
-        }
-        TxEnvelope::Eip4844(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip4844(tx.into()), sig, hash)
-        }
-        TxEnvelope::Eip7702(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip7702(tx), sig, hash)
-        }
-        _ => panic!("Unsupported transaction type: {tx:?}"),
-    };
-    TransactionSigned { transaction, signature, hash: hash.into() }
 }
 
 // NOTE: This returns an empty BlobsBundle if there are no blob transactions
@@ -316,8 +295,10 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> 
         )
 }
 
-pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<ElectraSpec> {
-    let hash = value.hash();
+pub fn to_cb_execution_payload(
+    value: &Block<TxEnvelope, Sealed<Header>>,
+) -> ExecutionPayload<ElectraSpec> {
+    let hash = value.header.hash();
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
@@ -356,12 +337,14 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<ElectraS
         block_hash: hash,
         transactions,
         withdrawals,
-        blob_gas_used: value.blob_gas_used().unwrap_or_default(),
-        excess_blob_gas: value.excess_blob_gas.unwrap_or_default(),
+        blob_gas_used: value.header.blob_gas_used.unwrap_or_default(),
+        excess_blob_gas: value.header.excess_blob_gas.unwrap_or_default(),
     }
 }
 
-pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHeader<ElectraSpec> {
+pub fn to_cb_execution_payload_header(
+    value: &Block<TxEnvelope, Sealed<Header>>,
+) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;

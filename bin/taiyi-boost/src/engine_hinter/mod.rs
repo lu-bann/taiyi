@@ -1,16 +1,13 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/engine_hinter.rs
 use std::ops::Deref;
 
-use alloy_consensus::EMPTY_OMMER_ROOT_HASH;
+use alloy_consensus::{Block, BlockBody, Header, Sealed, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{ClientCode, ExecutionPayloadV3, JwtSecret, PayloadStatusEnum};
-use alloy_rpc_types_eth::{Block, Withdrawal, Withdrawals};
+use alloy_rpc_types_eth::{Block as RPCBlock, Withdrawal, Withdrawals};
 use engine_hints::parse_hint_from_engine_response;
 use reqwest::Url;
-use reth_primitives::{
-    BlockBody, Header as RethHeader, SealedBlock, SealedHeader, TransactionSigned,
-};
 use tracing::{debug, error};
 
 use crate::{engine::EngineClient, error::BuilderError, types::to_alloy_execution_payload};
@@ -48,7 +45,7 @@ impl EngineHinter {
     pub async fn fetch_payload_from_hints(
         &self,
         mut ctx: EngineHinterContext,
-    ) -> Result<SealedBlock, BuilderError> {
+    ) -> Result<Block<TxEnvelope, Sealed<Header>>, BuilderError> {
         // The block body can be the same for all iterations, since it only contains
         // the transactions and withdrawals from the context.
         let body = ctx.build_block_body();
@@ -64,9 +61,9 @@ impl EngineHinter {
             let header = ctx.build_block_header_with_hints();
 
             let sealed_hash = header.hash_slow();
-            let sealed_header = SealedHeader::new(header, sealed_hash);
-            let sealed_block = SealedBlock::new(sealed_header, body.clone());
-            let block_hash = ctx.hints.block_hash.unwrap_or(sealed_block.hash());
+            let sealed_header = header.seal(sealed_hash);
+            let sealed_block = Block { header: sealed_header, body: body.clone() };
+            let block_hash = ctx.hints.block_hash.unwrap_or(sealed_block.header.hash());
 
             // build the new execution payload from the block header
             let exec_payload = to_alloy_execution_payload(&sealed_block, block_hash);
@@ -205,16 +202,16 @@ pub struct EngineHinterContext {
     pub parent_beacon_block_root: B256,
     pub blob_versioned_hashes: Vec<B256>,
     pub block_timestamp: u64,
-    pub transactions: Vec<TransactionSigned>,
+    pub transactions: Vec<TxEnvelope>,
     pub withdrawals: Vec<Withdrawal>,
-    pub head_block: Block,
+    pub head_block: RPCBlock,
     pub hints: Hints,
     pub el_client_code: ClientCode,
 }
 
 impl EngineHinterContext {
     /// Build a block body using the transactions and withdrawals from the context.
-    pub fn build_block_body(&self) -> BlockBody {
+    pub fn build_block_body(&self) -> BlockBody<TxEnvelope> {
         BlockBody {
             ommers: Vec::new(),
             transactions: self.transactions.clone(),
@@ -224,14 +221,14 @@ impl EngineHinterContext {
 
     /// Build a header using the info from the context.
     /// Use any hints available, and default to an empty value if not present.
-    pub fn build_block_header_with_hints(&self) -> RethHeader {
+    pub fn build_block_header_with_hints(&self) -> Header {
         // Use the available hints, or default to an empty value if not present.
         let gas_used = self.hints.gas_used.unwrap_or_default();
         let receipts_root = self.hints.receipts_root.unwrap_or_default();
         let logs_bloom = self.hints.logs_bloom.unwrap_or_default();
         let state_root = self.hints.state_root.unwrap_or_default();
 
-        RethHeader {
+        Header {
             parent_hash: self.head_block.header.hash,
             ommers_hash: EMPTY_OMMER_ROOT_HASH,
             beneficiary: self.fee_recipient,

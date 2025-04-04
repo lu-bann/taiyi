@@ -1,4 +1,5 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
+use alloy_consensus::{proofs, Block, Header, Sealed};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::{calc_excess_blob_gas, calc_next_block_base_fee, eip1559::BaseFeeParams};
 use alloy_primitives::{Address, Bytes, U256};
@@ -14,7 +15,6 @@ use cb_common::{
 };
 use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
 use reqwest::Url;
-use reth_primitives::{proofs, SealedBlock, TransactionSigned};
 use taiyi_beacon_client::BeaconClient;
 use tracing::debug;
 use tree_hash::TreeHash;
@@ -23,10 +23,7 @@ use crate::{
     engine_hinter::{EngineHinter, EngineHinterContext},
     error::BuilderError,
     execution::ExecutionClient,
-    types::{
-        to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header,
-        tx_envelope_to_signed,
-    },
+    types::{to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header},
     utils::compute_signing_root,
 };
 
@@ -86,8 +83,8 @@ impl LocalBlockBuilder {
     pub async fn build_local_payload(
         &self,
         target_slot: u64,
-        transactions: &[TransactionSigned],
-    ) -> Result<SealedBlock, BuilderError> {
+        transactions: &[TxEnvelope],
+    ) -> Result<Block<TxEnvelope, Sealed<Header>>, BuilderError> {
         // Fetch the latest block to get the necessary parent values for the new block.
         // For the timestamp, we must use the one expected by the beacon chain instead, to
         // prevent edge cases where the proposer before us has missed their slot and therefore
@@ -170,10 +167,9 @@ impl LocalBlockBuilder {
     pub async fn build_signed_payload_response(
         &self,
         target_slot: u64,
-        transactions: &[TxEnvelope],
+        signed_transactions: Vec<TxEnvelope>,
     ) -> eyre::Result<SignedPayloadResponse> {
-        let signed_transactions: Vec<TransactionSigned> =
-            transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
+        let transactions: &[TxEnvelope] = signed_transactions.as_ref();
         let blobs_bundle = to_blobs_bundle(transactions);
         let kzg_commitments = blobs_bundle.clone().commitments.clone();
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
@@ -286,7 +282,7 @@ mod test {
         let tx = gen_test_tx_request(sender, chain_id, Some(nonce));
         let tx_signed = tx.build(&wallet).await?;
         let raw_encoded = tx_signed.encoded_2718();
-        let tx_signed_reth = TransactionSigned::decode_2718(&mut raw_encoded.as_slice())?;
+        let tx_signed_reth = TxEnvelope::decode_2718(&mut raw_encoded.as_slice())?;
 
         let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,

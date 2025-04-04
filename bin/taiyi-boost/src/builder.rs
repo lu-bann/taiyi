@@ -176,7 +176,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
             let resp = state
                 .data
                 .local_block_builder
-                .build_signed_payload_response(params.slot, &transactions.transactions)
+                .build_signed_payload_response(params.slot, transactions.transactions)
                 .await?;
             {
                 let mut local_payload = state.data.local_payload.lock();
