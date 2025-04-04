@@ -1,7 +1,10 @@
 mod tests {
     #![allow(unused_variables)]
 
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::{
+        net::{IpAddr, Ipv4Addr, SocketAddr},
+        str::FromStr,
+    };
 
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
@@ -79,12 +82,8 @@ mod tests {
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
-
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet.clone())
-            .on_builtin(&rpc_url)
-            .await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(url);
         let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract
@@ -157,7 +156,7 @@ mod tests {
             Url::parse(&server_endpoint).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
         let chain_id = provider.get_chain_id().await?;
         let sender = signer.address();
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         let nonce = provider.get_transaction_count(sender).await?;
         let transaction = TransactionRequest::default()
             .with_from(sender)
@@ -223,12 +222,8 @@ mod tests {
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
-
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet.clone())
-            .on_builtin(&rpc_url)
-            .await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(url);
         let chain_id = provider.get_chain_id().await?;
 
         // Deploy escrow contract

@@ -1,4 +1,7 @@
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+};
 
 use alloy_primitives::Address;
 use alloy_provider::{Provider, ProviderBuilder};
@@ -35,8 +38,7 @@ pub async fn spawn_service(
     taiyi_escrow_address: Address,
     taiyi_service_url: Option<String>,
 ) -> eyre::Result<()> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_rpc_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(&execution_rpc_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let network_state = NetworkState::new(context.clone());

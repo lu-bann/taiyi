@@ -211,7 +211,7 @@ pub struct EngineHinterContext {
 
 impl EngineHinterContext {
     /// Build a block body using the transactions and withdrawals from the context.
-    pub fn build_block_body(&self) -> BlockBody<TxEnvelope> {
+    pub fn build_block_body(&self) -> BlockBody<TxEnvelope, Sealed<Header>> {
         BlockBody {
             ommers: Vec::new(),
             transactions: self.transactions.clone(),
@@ -251,7 +251,6 @@ impl EngineHinterContext {
             extra_data: self.extra_data.clone(),
             // TODO: handle the Pectra-related fields
             requests_hash: None,
-            target_blobs_per_block: None,
         }
     }
 }

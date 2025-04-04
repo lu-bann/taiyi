@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT, eip4844::MAX_BLOBS_PER_BLOCK};
+use alloy_eips::{eip1559::ETHEREUM_BLOCK_GAS_LIMIT_30M, eip4844::MAX_BLOBS_PER_BLOCK};
 use alloy_primitives::{Address, U256};
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,7 @@ pub struct BlockspaceAvailable {
 impl Default for BlockspaceAvailable {
     fn default() -> Self {
         Self {
-            gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
+            gas_limit: ETHEREUM_BLOCK_GAS_LIMIT_30M,
             blobs: MAX_BLOBS_PER_BLOCK,
             num_of_constraints: 256,
         }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::ProviderBuilder;
@@ -5,6 +7,7 @@ use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
 use hex::FromHex;
+use reqwest::Url;
 use taiyi_contracts::TaiyiValidatorAVSEigenlayerMiddleware;
 use tracing::info;
 
@@ -40,10 +43,8 @@ impl RegisterValidatorsCommand {
         // Setup provider and signer
         let signer: PrivateKeySigner = self.private_key.parse()?;
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&self.execution_rpc_url)
-            .await?;
+            .on_http(Url::from_str(&self.execution_rpc_url)?);
 
         // Parse validator pubkeys into Vec<Vec<u8>>
         let val_pub_keys: Vec<Vec<Bytes>> = self

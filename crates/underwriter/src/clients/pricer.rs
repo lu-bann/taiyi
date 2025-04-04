@@ -90,7 +90,7 @@ where
     P: Provider + Clone + Send + Sync + 'static,
 {
     async fn get_preconf_fee(&self, _slot: u64) -> Result<PreconfFeeResponse, PricerError> {
-        let estimate = self.provider.estimate_eip1559_fees(None).await?;
+        let estimate = self.provider.estimate_eip1559_fees().await?;
         let blob_gas_fee = self.provider.get_blob_base_fee().await?;
         Ok(PreconfFeeResponse { gas_fee: estimate.max_fee_per_gas, blob_gas_fee })
     }
@@ -98,7 +98,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use alloy_provider::ProviderBuilder;
+    use reqwest::Url;
 
     use crate::clients::pricer::PreconfPricer;
 
@@ -115,7 +118,8 @@ mod tests {
     async fn test_execution_client_pricer() -> eyre::Result<()> {
         let anvil = alloy_node_bindings::Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-        let provider = ProviderBuilder::new().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
 
         let pricer = crate::clients::pricer::ExecutionClientPricer::new(provider);
         let preconf_fee = pricer.get_preconf_fee(0).await;

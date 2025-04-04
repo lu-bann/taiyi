@@ -62,7 +62,7 @@ async fn main() -> eyre::Result<()> {
     // This is required to able to reserve blockspace for the slot.
     let taiyi_escrow = TaiyiEscrow::new(taiyi_core_address, provider.clone());
     let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
 
     let tx = taiyi_escrow
         .deposit()

@@ -1,6 +1,5 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
-use alloy_consensus::{proofs, Block, Header, Sealed};
-use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
 use alloy_eips::{calc_excess_blob_gas, calc_next_block_base_fee, eip1559::BaseFeeParams};
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
@@ -274,8 +273,7 @@ mod test {
         let sk = SigningKey::from_slice(hex::decode(hex_sk)?.as_slice())?;
         let signer = PrivateKeySigner::from_signing_key(sk.clone());
         let wallet = EthereumWallet::from(signer);
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_http(config.execution_api);
+        let provider = ProviderBuilder::new().on_http(config.execution_api);
         let sender = Address::from_private_key(&sk);
         let nonce = provider.get_transaction_count(sender).await?;
 
