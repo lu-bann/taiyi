@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.83.0 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.85.0 AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -10,7 +10,7 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN apt update &&apt install -y protobuf-compiler
 # Install SP1 toolchain
 RUN curl -L https://sp1.succinct.xyz | bash
-RUN ~/.sp1/bin/sp1up --version v4.0.1 && ~/.sp1/bin/cargo-prove prove --version
+RUN ~/.sp1/bin/sp1up --version v4.1.7 && ~/.sp1/bin/cargo-prove prove --version
 ENV PATH="~/.sp1/bin:${PATH}"
 
 # Build dependencies - this is the caching Docker layer!

@@ -6,9 +6,8 @@ use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
     pbs::{
-        ElectraSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageElectra,
-        ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
-        SignedExecutionPayloadHeader,
+        DenebSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageDeneb, GetHeaderResponse,
+        KzgCommitments, PayloadAndBlobsDeneb, SignedExecutionPayloadHeader,
     },
     signer::BlsSecretKey,
 };
@@ -29,7 +28,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct SignedPayloadResponse {
     pub header: GetHeaderResponse,
-    pub payload: PayloadAndBlobsElectra,
+    pub payload: PayloadAndBlobsDeneb,
 }
 
 // "Local built by Taiyi"
@@ -174,7 +173,7 @@ impl LocalBlockBuilder {
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
         let value = U256::from(100_000_000_000_000_000_000u128);
         let execution_payload = to_cb_execution_payload(&block);
-        let payload_and_blobs = PayloadAndBlobsElectra { execution_payload, blobs_bundle };
+        let payload_and_blobs = PayloadAndBlobsDeneb { execution_payload, blobs_bundle };
         let execution_payload_header = to_cb_execution_payload_header(&block);
 
         let signed_bid = self.create_signed_execution_payload_header(
@@ -184,7 +183,7 @@ impl LocalBlockBuilder {
         )?;
 
         Ok(SignedPayloadResponse {
-            header: cb_common::pbs::VersionedResponse::Electra(signed_bid),
+            header: cb_common::pbs::VersionedResponse::Deneb(signed_bid),
             payload: payload_and_blobs,
         })
     }
@@ -192,18 +191,13 @@ impl LocalBlockBuilder {
     pub fn create_signed_execution_payload_header(
         &self,
         value: U256,
-        header: ExecutionPayloadHeader<ElectraSpec>,
-        blob_kzg_commitments: KzgCommitments<ElectraSpec>,
-    ) -> eyre::Result<SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageElectra>> {
+        header: ExecutionPayloadHeader<DenebSpec>,
+        blob_kzg_commitments: KzgCommitments<DenebSpec>,
+    ) -> eyre::Result<SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageDeneb>> {
         let consensus_pubkey = self.bls_secret_key.sk_to_pk().to_bytes();
         let pubkey = BlsPublicKey::from(consensus_pubkey);
-        let message = ExecutionPayloadHeaderMessageElectra {
-            header,
-            blob_kzg_commitments,
-            value,
-            pubkey,
-            execution_requests: ExecutionRequests::default(),
-        };
+        let message =
+            ExecutionPayloadHeaderMessageDeneb { header, blob_kzg_commitments, value, pubkey };
         // Note: the application builder domain specs require the genesis_validators_root
         // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
         // same rule.

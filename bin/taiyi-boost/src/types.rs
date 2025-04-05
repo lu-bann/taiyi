@@ -262,7 +262,7 @@ pub(crate) fn to_alloy_execution_payload(
 }
 
 // NOTE: This returns an empty BlobsBundle if there are no blob transactions
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> {
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
     transactions
         .iter()
         .filter_map(|tx| match tx {
@@ -273,7 +273,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> 
             _ => None,
         })
         .fold(
-            BlobsBundle::<ElectraSpec>::default(), // Initialize with an empty BlobsBundle
+            BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
             |mut acc, sidecar| {
                 for commitment in sidecar.commitments.iter() {
                     acc.commitments
@@ -297,7 +297,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> 
 
 pub fn to_cb_execution_payload(
     value: &Block<TxEnvelope, Sealed<Header>>,
-) -> ExecutionPayload<ElectraSpec> {
+) -> ExecutionPayload<DenebSpec> {
     let hash = value.header.hash();
     let header = &value.header;
     let transactions = &value.body.transactions;
@@ -321,7 +321,7 @@ pub fn to_cb_execution_payload(
             .collect::<Vec<_>>(),
     );
 
-    ExecutionPayload::<ElectraSpec> {
+    ExecutionPayload::<DenebSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,
@@ -344,7 +344,7 @@ pub fn to_cb_execution_payload(
 
 pub fn to_cb_execution_payload_header(
     value: &Block<TxEnvelope, Sealed<Header>>,
-) -> ExecutionPayloadHeader<ElectraSpec> {
+) -> ExecutionPayloadHeader<DenebSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
@@ -375,7 +375,7 @@ pub fn to_cb_execution_payload_header(
         withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
     );
 
-    ExecutionPayloadHeader::<ElectraSpec> {
+    ExecutionPayloadHeader::<DenebSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,

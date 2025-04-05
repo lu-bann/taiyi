@@ -196,7 +196,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
     ) -> Result<SubmitBlindedBlockResponse> {
         if let Some(local_payload) = state.data.local_payload.lock().take() {
             // todo: do some checks
-            return Ok(cb_common::pbs::VersionedResponse::Electra(local_payload.payload));
+            return Ok(cb_common::pbs::VersionedResponse::Deneb(local_payload.payload));
         }
         submit_block(signed_blinded_block, req_headers, state).await
     }
