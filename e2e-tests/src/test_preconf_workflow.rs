@@ -7,6 +7,7 @@ use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
+use reqwest::Url;
 use serde::de;
 use taiyi_primitives::{PreconfRequestTypeA, PreconfResponseData, SubmitTransactionRequest};
 use taiyi_underwriter::TaiyiCore;
@@ -60,10 +61,8 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let signer = new_account(&config).await?;
 
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(signer.clone()))
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
 
     info!("type b preconf request");
     let chain_id = provider.get_chain_id().await?;
@@ -194,10 +193,8 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
 
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet.clone())
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
@@ -232,10 +229,8 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
 
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet.clone())
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
@@ -290,10 +285,8 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     let signer = new_account(&config).await?;
 
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(signer.clone()))
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
@@ -372,8 +365,9 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
 
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&config.execution_url).await?;
+    let provider = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(signer.clone()))
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     // Pick a slot from the lookahead
@@ -604,10 +598,8 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
     let signer = new_account(&config).await?;
 
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(signer.clone()))
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore

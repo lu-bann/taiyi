@@ -36,7 +36,7 @@ pub async fn taiyi_deposit(
     amount: u128,
     test_config: &TestConfig,
 ) -> eyre::Result<()> {
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     info!("Fees: {:?}", fees);
     let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
     // Call deposit function
@@ -76,7 +76,7 @@ pub async fn revert_call(
     let nonce = provider.get_transaction_count(wallet.default_signer().address()).await?;
     revert_call_tx.set_nonce(nonce);
     revert_call_tx.set_gas_limit(100000);
-    let estimate = provider.estimate_eip1559_fees(None).await?;
+    let estimate = provider.estimate_eip1559_fees().await?;
     revert_call_tx.set_max_fee_per_gas(estimate.max_fee_per_gas);
     revert_call_tx.set_max_priority_fee_per_gas(estimate.max_priority_fee_per_gas);
     revert_call_tx.set_chain_id(chain_id);

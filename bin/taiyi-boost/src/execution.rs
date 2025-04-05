@@ -3,16 +3,25 @@ use std::ops::{Deref, DerefMut};
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{Address, Bytes, TxHash, B256, U256, U64};
-use alloy_provider::{ProviderBuilder, RootProvider};
+use alloy_provider::{
+    fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
+    ProviderBuilder, RootProvider,
+};
 use alloy_rpc_client::{BatchRequest, ClientBuilder, RpcClient};
 use alloy_rpc_types_eth::{Block, FeeHistory, TransactionReceipt};
 use alloy_transport::{TransportErrorKind, TransportResult};
-use alloy_transport_http::Http;
 use futures::{stream::FuturesUnordered, StreamExt};
-use reqwest::{Client, Url};
+use reqwest::Url;
 
 use crate::types::AccountState;
 
+type EthClientProvider = FillProvider<
+    JoinFill<
+        alloy_provider::Identity,
+        JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+    >,
+    RootProvider,
+>;
 /// An HTTP-based JSON-RPC execution client provider that supports batching.
 ///
 /// This struct is a wrapper over an inner [`RootProvider`] and extends it with
@@ -20,14 +29,20 @@ use crate::types::AccountState;
 #[derive(Clone, Debug)]
 pub struct ExecutionClient {
     /// The custom RPC client that allows us to add custom batching and extend the provider.
-    rpc: RpcClient<Http<Client>>,
+    rpc: RpcClient,
     /// The inner provider that implements all the JSON-RPC methods, that can be
     /// easily used via dereferencing this struct.
-    inner: RootProvider<Http<Client>>,
+    inner: EthClientProvider,
 }
 
 impl Deref for ExecutionClient {
-    type Target = RootProvider<Http<Client>>;
+    type Target = FillProvider<
+        JoinFill<
+            alloy_provider::Identity,
+            JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+        >,
+        RootProvider,
+    >;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -52,7 +67,7 @@ impl ExecutionClient {
     }
 
     /// Create a new batch request.
-    pub fn new_batch(&self) -> BatchRequest<'_, Http<Client>> {
+    pub fn new_batch(&self) -> BatchRequest<'_> {
         self.rpc.new_batch()
     }
 
