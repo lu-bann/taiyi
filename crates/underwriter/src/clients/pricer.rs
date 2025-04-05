@@ -13,7 +13,6 @@ pub struct EstimateBaseFeeResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EstimateBaseFeeQuery {
-    pub chain_id: i64,
     pub block_number: i64,
 }
 
@@ -42,25 +41,23 @@ pub trait PreconfPricer {
 pub struct TaiyiPricer {
     client: reqwest::Client,
     url: String,
-    chain_id: u64,
 }
 
 impl TaiyiPricer {
-    pub fn new(url: String, chain_id: u64) -> Self {
-        Self { client: reqwest::Client::new(), url, chain_id }
+    pub fn new(url: String) -> Self {
+        Self { client: reqwest::Client::new(), url }
     }
 
     pub async fn get_preconf_fee(&self, slot: u64) -> Result<PreconfFeeResponse, PricerError> {
         let url = format!("{}/prediction/fee/estimate-base-fee", self.url);
-        let query =
-            EstimateBaseFeeQuery { chain_id: self.chain_id as i64, block_number: slot as i64 };
+        let query = EstimateBaseFeeQuery { block_number: slot as i64 };
         let response = self.client.get(url).query(&query).send().await?;
         let body = response.text().await?;
-        let preconf_fee = serde_json::from_str::<EstimateBaseFeeResponse>(&body)
+        let estimate_fee = serde_json::from_str::<EstimateBaseFeeResponse>(&body)
             .map_err(|e| PricerError::ParseError(e.to_string()))?;
         Ok(PreconfFeeResponse {
-            gas_fee: preconf_fee.base_fee as u128,
-            blob_gas_fee: preconf_fee.blob_base_fee as u128,
+            gas_fee: (estimate_fee.base_fee) as u128,
+            blob_gas_fee: (estimate_fee.blob_base_fee) as u128,
         })
     }
 }
@@ -98,9 +95,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use std::{str::FromStr, time::Duration};
 
-    use alloy_provider::ProviderBuilder;
+    use alloy_provider::{Provider, ProviderBuilder};
     use reqwest::Url;
 
     use crate::clients::pricer::PreconfPricer;
@@ -109,9 +106,28 @@ mod tests {
     #[tokio::test]
     async fn test_taiyi_pricer() {
         let pricer_url = std::env::var("PRICER_URL").unwrap();
-        let pricer = crate::clients::pricer::TaiyiPricer::new(pricer_url, 1);
-        let preconf_fee = pricer.get_preconf_fee(0).await;
+        let pricer = crate::clients::pricer::TaiyiPricer::new(pricer_url);
+        let rpc = "https://1rpc.io/holesky";
+        // let rpc = "https://eth.merkle.io";
+        let provider = ProviderBuilder::new().on_http(rpc.parse().unwrap());
+        let block_number = provider.get_block_number().await.unwrap() + 1;
+
+        let preconf_fee = pricer.get_preconf_fee(block_number).await;
         assert!(preconf_fee.is_ok());
+        let preconf_fee = preconf_fee.unwrap();
+        println!("Preconf fee: {:?}", preconf_fee);
+        tokio::time::sleep(Duration::from_secs(12)).await;
+        let header = provider
+            .get_block_by_number(alloy_eips::BlockNumberOrTag::Number(block_number))
+            .await
+            .unwrap()
+            .unwrap()
+            .header;
+        println!(
+            "actual base fee {:?}, actual blob base fee {:?}",
+            header.base_fee_per_gas,
+            header.blob_fee()
+        );
     }
 
     #[tokio::test]

@@ -53,7 +53,7 @@ pub async fn spawn_service(
     match taiyi_service_url {
         Some(url) => {
             info!("Using Taiyi service at {}", url);
-            let pricer = Pricer::new(TaiyiPricer::new(url, chain_id));
+            let pricer = Pricer::new(TaiyiPricer::new(url));
             let state = PreconfState::new(
                 network_state,
                 relay_client,
