@@ -5,7 +5,10 @@ use core::panic;
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use alloy_consensus::{Header, Transaction, TxEnvelope};
-use alloy_eips::{eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB, merge::SLOT_DURATION_SECS};
+use alloy_eips::{
+    eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB, eip7840::BlobParams,
+    merge::SLOT_DURATION_SECS,
+};
 use alloy_primitives::{keccak256, Address, PrimitiveSignature, B256, U256};
 use alloy_sol_types::{SolCall, SolValue};
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
@@ -105,7 +108,7 @@ pub fn main() {
                 // Check balance
                 if account.balance
                     < U256::from(
-                        inclusion_block_header.blob_fee().unwrap()
+                        inclusion_block_header.blob_fee(BlobParams::prague()).unwrap()
                             * DATA_GAS_PER_BLOB as u128
                             * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len()
                                 as u128
@@ -248,7 +251,7 @@ pub fn main() {
             // Check balance
             if account.balance
                 < U256::from(
-                    inclusion_block_header.blob_fee().unwrap()
+                    inclusion_block_header.blob_fee(BlobParams::prague()).unwrap()
                         * DATA_GAS_PER_BLOB as u128
                         * tx_eip4844.tx().blob_versioned_hashes().unwrap_or_default().len() as u128
                         + (inclusion_block_header.base_fee_per_gas.unwrap() * tx.gas_limit())

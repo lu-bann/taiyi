@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_provider::ProviderBuilder;
@@ -5,6 +7,7 @@ use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use hex::FromHex;
+use reqwest::Url;
 use taiyi_contracts::{
     AVSDirectory, SignatureWithSaltAndExpiry, TaiyiUnderwriterAVSEigenlayerMiddleware,
 };
@@ -41,10 +44,8 @@ impl RegisterUnderwriterAVSCommand {
 
         // Connect to the Ethereum network
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&self.execution_rpc_url)
-            .await?;
+            .on_http(Url::from_str(&self.execution_rpc_url)?);
 
         let underwriter_contract = TaiyiUnderwriterAVSEigenlayerMiddleware::new(
             self.underwriter_avs_address,

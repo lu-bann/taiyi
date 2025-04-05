@@ -11,6 +11,7 @@ mod engine;
 mod engine_hinter;
 mod error;
 mod execution;
+mod get_header_response_ext;
 mod metrics;
 mod proofs;
 mod types;

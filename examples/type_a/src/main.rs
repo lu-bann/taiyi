@@ -61,7 +61,7 @@ async fn main() -> eyre::Result<()> {
 
     // Step-3: Send preconf transactions
     let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     // Sends preconf fees to the underwriter
     let tip_transaction = TransactionRequest::default()
         .with_from(signer.address())

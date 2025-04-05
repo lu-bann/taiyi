@@ -1,5 +1,5 @@
 mod tests {
-    use std::time::Duration;
+    use std::{str::FromStr, time::Duration};
 
     use alloy_consensus::{SidecarBuilder, SimpleCoder, TxEnvelope};
     use alloy_eips::{
@@ -13,6 +13,7 @@ mod tests {
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
+    use reqwest::Url;
     use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
     use tokio::time::sleep;
     use tracing::info;
@@ -64,9 +65,8 @@ mod tests {
 
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -76,7 +76,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas
@@ -118,9 +118,9 @@ mod tests {
     async fn test_validate_4844_ok() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
+        let url = Url::from_str(&rpc_url)?;
 
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -130,7 +130,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas
@@ -183,9 +183,8 @@ mod tests {
     async fn test_validate_4844_err_esceed_blob_count_limit() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -195,7 +194,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas
@@ -248,9 +247,8 @@ mod tests {
     async fn test_low_balance_err() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -260,7 +258,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas
@@ -301,8 +299,8 @@ mod tests {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
 
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -312,7 +310,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas
@@ -353,9 +351,8 @@ mod tests {
     async fn test_nonce_too_low() -> eyre::Result<()> {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_builtin(&rpc_url).await?;
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
         let preconf_pool =
             PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
 
@@ -365,7 +362,7 @@ mod tests {
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
         let wallet = EthereumWallet::from(signer.clone());
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         let transaction = TransactionRequest::default()
             .with_from(*sender)
             .with_value(U256::from(10))
@@ -388,7 +385,7 @@ mod tests {
         // wait for 2*block_time duration
         sleep(Duration::from_secs(2)).await;
 
-        let fees = provider.estimate_eip1559_fees(None).await?;
+        let fees = provider.estimate_eip1559_fees().await?;
         info!(
             "Fees: max_fee_per_gas: {:?}, max_priority_fee_per_gas: {:?}",
             fees.max_fee_per_gas, fees.max_priority_fee_per_gas

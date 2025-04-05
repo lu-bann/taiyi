@@ -1,11 +1,14 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, U256};
-use alloy_provider::{ext::DebugApi, Provider, ProviderBuilder, RootProvider};
+use alloy_provider::{
+    ext::DebugApi,
+    fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
+    Provider, ProviderBuilder, RootProvider,
+};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_sol_types::sol;
-use alloy_transport_http::Http;
-use reqwest::{Client, Url};
+use reqwest::Url;
 
 sol! {
     #[sol(rpc)]
@@ -18,9 +21,17 @@ sol! {
     }
 }
 
+type EthClientProvider = FillProvider<
+    JoinFill<
+        alloy_provider::Identity,
+        JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
+    >,
+    RootProvider,
+>;
+
 #[derive(Clone, Debug)]
 pub struct ExecutionClient {
-    inner: RootProvider<Http<Client>>,
+    inner: EthClientProvider,
 }
 
 impl ExecutionClient {

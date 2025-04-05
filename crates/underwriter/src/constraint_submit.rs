@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy_consensus::Header;
-use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, BlockId};
+use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, eip7840::BlobParams, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, keccak256, private::alloy_rlp::Decodable, Bytes, U256};
 use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
@@ -72,12 +72,13 @@ where
                 match header.next_block_base_fee(BaseFeeParams::ethereum()) {
                     Some(base_fee) => (base_fee.into(), EIP1559_MIN_PRIORITY_FEE),
                     None => {
-                        let estimate = state.provider.estimate_eip1559_fees(None).await?;
+                        let estimate = state.provider.estimate_eip1559_fees().await?;
                         (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
                     }
                 };
-            let blob_fee = header.next_block_blob_fee().unwrap_or_default();
-            let blob_excess_fee = header.next_block_excess_blob_gas().unwrap_or_default();
+            let blob_fee = header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
+            let blob_excess_fee =
+                header.next_block_excess_blob_gas(BlobParams::prague()).unwrap_or_default();
 
             info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 

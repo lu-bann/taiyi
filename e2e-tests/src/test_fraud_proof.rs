@@ -183,10 +183,8 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet.clone())
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -237,22 +235,15 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let user_transaction = provider.get_transaction_by_hash(*user_tx.tx_hash()).await?.unwrap();
     let tip_transaction = provider.get_transaction_by_hash(*tip_tx.tx_hash()).await?.unwrap();
 
-    let inclusion_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
-        .await?
-        .unwrap();
+    let inclusion_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await?.unwrap();
 
-    let previous_block = provider
-        .get_block_by_number(
-            BlockNumberOrTag::Number(block_number - 1),
-            BlockTransactionsKind::Full,
-        )
-        .await?
-        .unwrap();
+    let previous_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number - 1)).await?.unwrap();
 
     // account proof
     let account_proof = provider
-        .get_proof(user_transaction.from, vec![])
+        .get_proof(user_transaction.inner.signer(), vec![])
         .block_id((block_number - 1).into())
         .await?;
 
@@ -473,10 +464,8 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet.clone())
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -540,24 +529,19 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     }
     let tip_transaction = provider.get_transaction_by_hash(*tip_tx.tx_hash()).await?.unwrap();
 
-    let inclusion_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
-        .await?
-        .unwrap();
+    let inclusion_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await?.unwrap();
 
-    let previous_block = provider
-        .get_block_by_number(
-            BlockNumberOrTag::Number(block_number - 1),
-            BlockTransactionsKind::Full,
-        )
-        .await?
-        .unwrap();
+    let previous_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number - 1)).await?.unwrap();
 
     // account proofs
     let mut account_proofs = Vec::new();
     for tx in &user_transactions {
-        let account_proof =
-            provider.get_proof(tx.from, vec![]).block_id((block_number - 1).into()).await?;
+        let account_proof = provider
+            .get_proof(tx.inner.signer(), vec![])
+            .block_id((block_number - 1).into())
+            .await?;
 
         account_proofs.push(AccountMerkleProof {
             address: account_proof.address,
@@ -781,10 +765,8 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(wallet.clone())
-        .on_builtin(&config.execution_url)
-        .await?;
+        .on_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
@@ -893,24 +875,17 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let sponsorship_transaction =
         provider.get_transaction_by_hash(*sponsorship_tx.tx_hash()).await?.unwrap();
 
-    let inclusion_block = provider
-        .get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Full)
-        .await?
-        .unwrap();
+    let inclusion_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await?.unwrap();
 
-    let previous_block = provider
-        .get_block_by_number(
-            BlockNumberOrTag::Number(block_number - 1),
-            BlockTransactionsKind::Full,
-        )
-        .await?
-        .unwrap();
+    let previous_block =
+        provider.get_block_by_number(BlockNumberOrTag::Number(block_number - 1)).await?.unwrap();
 
     let get_tip_call = getTipCall::abi_decode(get_tip_transaction.input(), true).unwrap();
 
     // account proof
     let account_proof = provider
-        .get_proof(user_transaction.from, vec![])
+        .get_proof(user_transaction.inner.signer(), vec![])
         .block_id((block_number - 1).into())
         .await?;
 

@@ -4,6 +4,7 @@ use alloy_primitives::Address;
 use alloy_provider::ProviderBuilder;
 use clap::Parser;
 use eyre::Result;
+use reqwest::Url;
 use taiyi_contracts::{AVSType, ProposerRegistry};
 use tracing::info;
 
@@ -55,7 +56,7 @@ pub struct OperatorInfoCommand {
 
 impl OperatorInfoCommand {
     pub async fn execute(&self) -> Result<()> {
-        let provider = ProviderBuilder::new().on_builtin(&self.execution_rpc_url).await?;
+        let provider = ProviderBuilder::new().on_http(Url::from_str(&self.execution_rpc_url)?);
 
         let registry = ProposerRegistry::new(self.proposer_registry_address, provider);
 

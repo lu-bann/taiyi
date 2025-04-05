@@ -22,12 +22,10 @@ mod utils;
 type TestProvider = FillProvider<
     JoinFill<
         JoinFill<
-            Identity,
+            alloy_provider::Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
         >,
         WalletFiller<EthereumWallet>,
     >,
-    RootProvider<BoxTransport>,
-    BoxTransport,
-    Ethereum,
+    RootProvider,
 >;

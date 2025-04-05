@@ -283,8 +283,7 @@ pub async fn verify_tx_in_block(
     block_number: u64,
     target_tx_hash: TxHash,
 ) -> eyre::Result<()> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
 
     let tx_receipt =
         provider.get_transaction_by_hash(target_tx_hash).await?.expect("tx receipt not found");
@@ -293,8 +292,7 @@ pub async fn verify_tx_in_block(
 }
 
 pub async fn verify_txs_inclusion(execution_url: &str, txs: Vec<TxEnvelope>) -> eyre::Result<()> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
 
     for tx in &txs {
         info!("checking tx inclusion: {:?}", tx.tx_hash());
@@ -309,12 +307,11 @@ pub async fn generate_tx(
     execution_url: &str,
     signer: PrivateKeySigner,
 ) -> eyre::Result<TxEnvelope> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
     info!("Transaction nonce: {}", nonce);
@@ -337,12 +334,11 @@ pub async fn generate_tx_with_nonce(
     signer: PrivateKeySigner,
     nonce: u64,
 ) -> eyre::Result<TxEnvelope> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer);
     info!("Transaction nonce: {}", nonce);
     let transaction = TransactionRequest::default()
@@ -403,12 +399,11 @@ pub async fn generate_type_a_request(
     execution_url: &str,
     fee: PreconfFeeResponse,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer.clone());
     let nonce = provider.get_transaction_count(sender).await?;
     let tip_transaction = TransactionRequest::default()
@@ -451,12 +446,11 @@ pub async fn generate_type_a_request_with_multiple_txs(
     fee: PreconfFeeResponse,
     count: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer.clone());
     let nonce = provider.get_transaction_count(sender).await?;
     let tip_transaction = TransactionRequest::default()
@@ -504,12 +498,11 @@ pub async fn generate_type_a_request_with_nonce(
     fee: PreconfFeeResponse,
     nonce: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider =
-        ProviderBuilder::new().with_recommended_fillers().on_builtin(&execution_url).await?;
+    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
-    let fees = provider.estimate_eip1559_fees(None).await?;
+    let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer.clone());
     let tip_transaction = TransactionRequest::default()
         .with_from(sender)
@@ -600,11 +593,8 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     let funding: PrivateKeySigner = FUNDING_SIGNER_PRIVATE.parse()?;
     info!("Funding signer: {:?}", funding.address());
     let wallet = EthereumWallet::new(funding.clone());
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet)
-        .on_builtin(&config.execution_url)
-        .await?;
+    let provider =
+        ProviderBuilder::new().wallet(wallet).on_http(Url::from_str(&config.execution_url)?);
     let new_signer = PrivateKeySigner::random();
     let mut tx = TransactionRequest::default();
     tx.set_to(new_signer.address());
