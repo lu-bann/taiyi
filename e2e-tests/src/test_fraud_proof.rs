@@ -173,7 +173,7 @@ async fn verify_poi_preconf_type_b_included_proof() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -364,6 +364,9 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
+    // Check block number is correct
+    assert_eq!(public_values_struct.proofBlockNumber, inclusion_block.header.number);
+
     // Check underwriter address is correct
     assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
@@ -454,7 +457,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -663,6 +666,9 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
 
+    // Check block number is correct
+    assert_eq!(public_values_struct.proofBlockNumber, inclusion_block.header.number);
+
     // Check underwriter address is correct
     assert_eq!(public_values_struct.underwriterAddress, underwriter_address);
 
@@ -755,7 +761,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -1029,6 +1035,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
 
     // Check block hash is correct
     assert_eq!(public_values_struct.proofBlockHash, inclusion_block.header.hash_slow());
+
+    // Check block number is correct
+    assert_eq!(public_values_struct.proofBlockNumber, inclusion_block.header.number);
 
     // Check underwriter address is correct
     assert_eq!(public_values_struct.underwriterAddress, underwriter_address);

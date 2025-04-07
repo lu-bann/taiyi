@@ -60,6 +60,7 @@ pub fn main() {
         let bytes = (
             inclusion_block_header.timestamp,
             inclusion_block_hash,
+            inclusion_block_header.number,
             underwriter_address,
             preconf_signature.as_bytes().to_vec(),
             genesis_timestamp,
@@ -204,6 +205,7 @@ pub fn main() {
         let bytes = (
             inclusion_block_header.timestamp,
             inclusion_block_hash,
+            inclusion_block_header.number,
             underwriter_address,
             preconf_signature.as_bytes().to_vec(),
             genesis_timestamp,
@@ -329,6 +331,7 @@ pub fn main() {
     let bytes = (
         inclusion_block_header.timestamp,
         inclusion_block_hash,
+        inclusion_block_header.number,
         underwriter_address,
         preconf_signature.as_bytes().to_vec(),
         genesis_timestamp,
