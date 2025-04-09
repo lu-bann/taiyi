@@ -166,7 +166,7 @@ where
                     sequence_num: None,
                 };
                 // Send the commitment data to the stream
-                self.commitments_handle.send_commitments((result, commitment.clone()));
+                self.commitments_handle.send_commitment((result, commitment.clone()));
                 Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),
@@ -230,7 +230,7 @@ where
                     sequence_num: result.sequence_num(),
                 };
                 // Send the commitment data to the stream
-                self.commitments_handle.send_commitments((result, commitment.clone()));
+                self.commitments_handle.send_commitment((result, commitment.clone()));
                 Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),

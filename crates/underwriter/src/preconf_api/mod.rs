@@ -33,7 +33,7 @@ pub struct CommitmentsHandle {
 }
 
 impl CommitmentsHandle {
-    pub fn send_commitments(&self, commitment: (PreconfRequest, PreconfResponseData)) {
+    pub fn send_commitment(&self, commitment: (PreconfRequest, PreconfResponseData)) {
         match self.commitments_tx.send(commitment) {
             Ok(res) => info!("Sent constraint: {:?}", res),
             Err(_) => error!("Failed to send constraint"),
