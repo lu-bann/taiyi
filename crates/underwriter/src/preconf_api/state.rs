@@ -11,6 +11,7 @@ use taiyi_primitives::{
     BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData, SlotInfo,
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::{
@@ -22,6 +23,7 @@ use crate::{
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
+    preconf_api::CommitmentsHandle,
     preconf_pool::{PreconfPool, PreconfPoolBuilder},
 };
 
@@ -33,6 +35,7 @@ pub struct PreconfState<P, F> {
     pub signer_client: SignerClient,
     pub provider: P,
     pub pricer: Pricer<F>,
+    pub commitments_handle: CommitmentsHandle,
 }
 
 impl<P, F> PreconfState<P, F>
@@ -51,7 +54,18 @@ where
         pricer: Pricer<F>,
     ) -> Self {
         let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
-        Self { relay_client, network_state, preconf_pool, signer_client, provider, pricer }
+
+        let commitments_tx = broadcast::channel(128).0;
+        let commitments_handle = CommitmentsHandle { commitments_tx };
+        Self {
+            relay_client,
+            network_state,
+            preconf_pool,
+            signer_client,
+            provider,
+            pricer,
+            commitments_handle,
+        }
     }
 
     /// reserve blockspace for a slot
@@ -93,7 +107,7 @@ where
             .map_err(RpcError::PoolError)
     }
 
-    pub async fn submit_transaction(
+    pub async fn submit_transaction_typeb(
         &self,
         request: SubmitTransactionRequest,
         signature: PrimitiveSignature,
@@ -145,11 +159,15 @@ where
                     .map_err(|e| {
                         RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponseData {
+
+                let commitment = PreconfResponseData {
                     request_id: request.request_id,
                     commitment: Some(commitment),
                     sequence_num: None,
-                })
+                };
+                // Send the commitment data to the stream
+                self.commitments_handle.send_commitments((result, commitment.clone()));
+                Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
@@ -205,11 +223,15 @@ where
                     .map_err(|e| {
                         RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
                     })?;
-                Ok(PreconfResponseData {
+
+                let commitment = PreconfResponseData {
                     request_id,
                     commitment: Some(commitment),
                     sequence_num: result.sequence_num(),
-                })
+                };
+                // Send the commitment data to the stream
+                self.commitments_handle.send_commitments((result, commitment.clone()));
+                Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),
         }
