@@ -15,7 +15,7 @@ use ethereum_consensus::{
 };
 use futures::StreamExt;
 use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedConstraints, TxExt};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     context_ext::ContextExt,
@@ -33,7 +33,6 @@ where
     let relay_client = state.relay_client.clone();
     let context = state.network_state.context();
     let chain_id = state.network_state.chain_id();
-    info!("Starting constraint submitter, chain_id: {chain_id}");
 
     async move {
         let clock = from_system_time(
@@ -66,21 +65,28 @@ where
 
             // calculate base fee for next slot based on parent header
             // Its fine to use latest block as we are submitting constraints for next block
-            let rlp_encoded_header = state.provider.debug_get_raw_header(BlockId::latest()).await?;
-            let header = Header::decode(&mut rlp_encoded_header.as_ref())?;
-            let (base_fee, priority_fee) =
-                match header.next_block_base_fee(BaseFeeParams::ethereum()) {
-                    Some(base_fee) => (base_fee.into(), EIP1559_MIN_PRIORITY_FEE),
-                    None => {
-                        let estimate = state.provider.estimate_eip1559_fees().await?;
-                        (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
-                    }
-                };
-            let blob_fee = header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
-            let blob_excess_fee =
-                header.next_block_excess_blob_gas(BlobParams::prague()).unwrap_or_default();
-
-            info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
+            let rlp_encoded_header = state.provider.debug_get_raw_header(BlockId::latest()).await;
+            let (base_fee, blob_fee) = match rlp_encoded_header {
+                Ok(header) => {
+                    let header = Header::decode(&mut header.as_ref())?;
+                    let base_fee = match header.next_block_base_fee(BaseFeeParams::ethereum()) {
+                        Some(base_fee) => base_fee.into(),
+                        None => {
+                            let estimate = state.provider.estimate_eip1559_fees().await?;
+                            estimate.max_fee_per_gas
+                        }
+                    };
+                    let blob_fee =
+                        header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
+                    (base_fee, blob_fee)
+                }
+                Err(err) => {
+                    warn!(?err, "Failed to get raw header");
+                    let estimate = state.provider.estimate_eip1559_fees().await?;
+                    let blob_fee = state.provider.get_blob_base_fee().await.unwrap_or(0);
+                    (estimate.max_fee_per_gas, blob_fee)
+                }
+            };
 
             let mut constraints = Vec::new();
             let mut sponsoring_tx = Vec::new();
@@ -97,7 +103,7 @@ where
             let mut cummalative_preconf_tips = U256::ZERO;
             let fee_reciepient =
                 state.network_state.get_fee_recipient(next_slot).unwrap_or_default();
-            info!(fee_reciepient=?fee_reciepient);
+            debug!(base_fee=?base_fee,  blob_fee=?blob_fee, current_slot=slot, next_slot=next_slot, fee_reciepient=?fee_reciepient);
 
             match state.preconf_pool.fetch_ready(next_slot) {
                 Ok(preconf_requests) => {
@@ -183,7 +189,7 @@ where
                                         .with_nonce(nonce)
                                         .with_gas_limit(1_000_000)
                                         .with_max_fee_per_gas(base_fee)
-                                        .with_max_priority_fee_per_gas(priority_fee)
+                                        .with_max_priority_fee_per_gas(EIP1559_MIN_PRIORITY_FEE)
                                         .build(&wallet)
                                         .await?;
                                     // increment nonce
@@ -203,7 +209,7 @@ where
                         .with_chain_id(chain_id)
                         .with_gas_limit(1_000_000)
                         .with_max_fee_per_gas(base_fee)
-                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_max_priority_fee_per_gas(EIP1559_MIN_PRIORITY_FEE)
                         .build(&wallet)
                         .await?;
                     let tx_bytes = sponsor_tx.to_ssz_bytes();
@@ -216,7 +222,7 @@ where
                         .with_chain_id(chain_id)
                         .with_gas_limit(21_000)
                         .with_max_fee_per_gas(base_fee)
-                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_max_priority_fee_per_gas(EIP1559_MIN_PRIORITY_FEE)
                         .with_to(fee_reciepient)
                         .with_value(value)
                         .build(&wallet)
@@ -270,7 +276,7 @@ where
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
                             .with_max_fee_per_gas(base_fee)
-                            .with_max_priority_fee_per_gas(priority_fee)
+                            .with_max_priority_fee_per_gas(EIP1559_MIN_PRIORITY_FEE)
                             .build(&wallet)
                             .await?;
                         // increment nonce

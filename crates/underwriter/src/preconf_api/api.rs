@@ -55,7 +55,6 @@ impl PreconfApiServer {
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
-        info!("Starting rpc server...");
         let listener = match TcpListener::bind(&self.addr).await {
             Ok(l) => l,
             Err(e) => {
@@ -70,7 +69,7 @@ impl PreconfApiServer {
             }
         });
 
-        info!("Started rpc server on http://{} ", self.addr);
+        info!("RPC server started url={} ", self.endpoint());
         Ok(())
     }
 

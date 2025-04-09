@@ -48,11 +48,11 @@ pub async fn spawn_service(
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
-    info!("underwriter is on chain_id: {:?}", chain_id);
+    info!("Starting Taiyi Underwriter on chain_id: {:?}", chain_id);
 
     match taiyi_service_url {
         Some(url) => {
-            info!("Using Taiyi service at {}", url);
+            info!("Using Taiyi pricing service, pricer_url:{}", url);
             let pricer = Pricer::new(TaiyiPricer::new(url));
             let state = PreconfState::new(
                 network_state,

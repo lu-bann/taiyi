@@ -33,7 +33,7 @@ impl LookaheadFetcher {
             .expect("Invalid public key");
         Self {
             beacon_client: BeaconClient::new(
-                Url::parse(&beacon_rpc_url).expect("Invalid URL"),
+                Url::parse(&beacon_rpc_url).expect("Invalid beacon rpc url"),
                 None,
             ),
             network_state,
@@ -75,7 +75,7 @@ impl LookaheadFetcher {
                         if delegation_message.action == DELEGATION_ACTION
                             && delegation_message.delegatee_pubkey == self.underwriter_pubkey
                         {
-                            info!("Delegation to underwriter found for slot: {}", slot);
+                            info!("Delegation found for slot: {}", slot);
                             self.network_state.add_slot(slot);
                             break 'delegation_loop;
                         }
@@ -128,15 +128,16 @@ impl LookaheadFetcher {
         let beacon_url_head_event =
             format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint().as_str());
 
-        info!("Starts to subscribe to {}", beacon_url_head_event);
+        info!("Subscribing to beacon head events, url={}", beacon_url_head_event);
         let mut stream: mev_share_sse::client::EventStream<HeadEvent> =
             client.subscribe(&beacon_url_head_event).await?;
 
         while let Some(event) = stream.try_next().await? {
-            info!(
+            debug!(
                 head_slot = event.slot,
                 epoch = event.slot / EPOCH_SLOTS,
                 epoch_transition = event.epoch_transition,
+                "Updated head slot"
             );
             let new_slot = event.slot;
             if event.epoch_transition {
