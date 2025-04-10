@@ -4,23 +4,29 @@ mod tests {
     use std::{
         net::{IpAddr, Ipv4Addr, SocketAddr},
         str::FromStr,
+        sync::Arc,
     };
 
+    use alloy_consensus::TxEnvelope;
+    use alloy_eips::Decodable2718;
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{hex, Address, U256};
+    use alloy_primitives::{hex, Address, PrimitiveSignature, U256};
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_sol_types::sol;
     use ethereum_consensus::deneb::Context;
+    use futures::StreamExt;
+    use parking_lot::Mutex;
     use reqwest::Url;
+    use reqwest_eventsource::{Event, EventSource};
     use taiyi_primitives::{
-        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, PreconfResponseData,
-        SubmitTransactionRequest,
+        BlockspaceAllocation, PreconfFeeResponse, PreconfRequest, PreconfRequestTypeB,
+        PreconfResponseData, SubmitTransactionRequest,
     };
-    use tracing::info;
+    use tracing::{error, info};
     use uuid::Uuid;
 
     use crate::{
@@ -32,8 +38,8 @@ mod tests {
         network_state::NetworkState,
         preconf_api::{
             api::{
-                PreconfApiServer, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
-                SUBMIT_TRANSACTION_PATH,
+                PreconfApiServer, COMMITMENT_STREAM_PATH, PRECONF_FEE_PATH,
+                RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH,
             },
             state::PreconfState,
         },
@@ -271,6 +277,118 @@ mod tests {
             .has_enough_balance(*sender, preconf_request.preconf_tip())
             .await
             .is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_commitment_stream() -> eyre::Result<()> {
+        let context = Context::for_mainnet();
+        let network_state = NetworkState::new(context.clone());
+        let slots = vec![20_000_000];
+        for slot in 20_000_000..20_000_000 + 10 {
+            network_state.add_slot(slot);
+        }
+
+        let relay_client = RelayClient::new(vec![]);
+
+        let bls_sk = "4bd1960f5721d636400cb9dff7d17d5cfcc155f113280b8b9158596e2c0084ce".to_string();
+        let ecdsa_sk =
+            "0xa37e56991c7e88b7a4d80010a729fecce48fb2da505f3dccab7c2fa89bb69c4f".to_string();
+        let ecdsa_pubkey =
+            "03643b2c19f03891a7d103f50fab07ad0dbe7cb19477074d42488a28e345b07145".to_string();
+        let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
+
+        let anvil = Anvil::new().block_time(12).chain_id(1).spawn();
+        let rpc_url = anvil.endpoint();
+        let url = Url::from_str(&rpc_url)?;
+        let provider = ProviderBuilder::new().on_http(url);
+        let chain_id = provider.get_chain_id().await?;
+
+        let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+
+        // spawn api server
+        let state = PreconfState::new(
+            network_state.clone(),
+            relay_client,
+            signer_client.clone(),
+            rpc_url.parse().unwrap(),
+            Address::default(),
+            provider.clone(),
+            pricer,
+        );
+
+        let preconfapiserver =
+            PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
+        let server_endpoint = preconfapiserver.endpoint();
+        let _ = preconfapiserver.run(state.clone()).await;
+
+        let request_endpoint =
+            Url::parse(&server_endpoint).unwrap().join(COMMITMENT_STREAM_PATH).unwrap();
+        let req = reqwest::Client::new().get(request_endpoint);
+        let event_source = EventSource::new(req).unwrap_or_else(|err| {
+            panic!("Failed to create EventSource: {:?}", err);
+        });
+
+        let received_commmitments = Arc::new(Mutex::new(Vec::new()));
+        let received_commitments_clone = Arc::clone(&received_commmitments);
+
+        tokio::spawn(async move {
+            let mut event_source = event_source;
+            while let Some(event) = event_source.next().await {
+                match event {
+                    Ok(Event::Message(message)) => {
+                        if message.event == "commitment_data" {
+                            let data = &message.data;
+                            println!("{}", data);
+                            let parsed_data = serde_json::from_str::<
+                                Vec<(PreconfRequest, PreconfResponseData)>,
+                            >(data)
+                            .unwrap()
+                            .first()
+                            .unwrap()
+                            .clone();
+                            let mut lock = received_commitments_clone.lock();
+                            lock.push(parsed_data);
+                        }
+                    }
+                    Ok(Event::Open) => {
+                        info!("SSE connection opened");
+                    }
+                    Err(err) => {
+                        error!("Error receiving SSE event: {:?}", err);
+                    }
+                }
+            }
+        });
+
+        // Delay to ensure the subscription is set up
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
+        let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
+        let preconf = PreconfRequestTypeB {
+            allocation: BlockspaceAllocation { target_slot: 1, ..Default::default() },
+            alloc_sig: PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
+            transaction: Some(transaction),
+            signer: Address::default(),
+        };
+        let test_data = (
+            PreconfRequest::TypeB(preconf),
+            PreconfResponseData {
+                request_id: Uuid::default(),
+                commitment: Some(PrimitiveSignature::new(U256::ZERO, U256::ZERO, false)),
+                sequence_num: None,
+            },
+        );
+
+        state.commitments_handle.send_commitment(test_data.clone());
+
+        // Wait for the constraints to be received
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        let locked_commitments = received_commmitments.lock();
+        assert_eq!(locked_commitments.first().unwrap().clone(), test_data);
 
         Ok(())
     }

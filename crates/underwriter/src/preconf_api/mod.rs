@@ -9,6 +9,8 @@ use api::PreconfApiServer;
 use ethereum_consensus::deneb::Context;
 use reqwest::Url;
 use state::PreconfState;
+use taiyi_primitives::{PreconfRequest, PreconfResponseData};
+use tokio::sync::broadcast;
 use tracing::{error, info};
 
 use crate::{
@@ -24,6 +26,20 @@ use crate::{
 
 pub mod api;
 pub mod state;
+
+#[derive(Clone, Debug)]
+pub struct CommitmentsHandle {
+    pub commitments_tx: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
+}
+
+impl CommitmentsHandle {
+    pub fn send_commitment(&self, commitment: (PreconfRequest, PreconfResponseData)) {
+        match self.commitments_tx.send(commitment) {
+            Ok(res) => info!("Sent constraint: {:?}", res),
+            Err(_) => error!("Failed to send constraint"),
+        }
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(

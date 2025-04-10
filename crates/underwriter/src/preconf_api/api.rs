@@ -9,6 +9,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use futures::StreamExt;
 use reqwest::header::HeaderMap;
 use serde_json::json;
 use taiyi_primitives::{
@@ -29,6 +30,7 @@ pub const PRECONF_FEE_PATH: &str = "/commitments/v0/preconf_fee";
 pub const RESERVE_BLOCKSPACE_PATH: &str = "/commitments/v0/reserve_blockspace";
 pub const SUBMIT_TYPEA_TRANSACTION_PATH: &str = "/commitments/v0/submit_tx_type_a";
 pub const SUBMIT_TRANSACTION_PATH: &str = "/commitments/v0/submit_tx_type_b";
+pub const COMMITMENT_STREAM_PATH: &str = "/commitments/v0/commitment_stream";
 
 pub struct PreconfApiServer {
     /// The address to bind the server to
@@ -47,11 +49,12 @@ impl PreconfApiServer {
     {
         let app = Router::new()
             .route(RESERVE_BLOCKSPACE_PATH, post(handle_reserve_blockspace))
-            .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction))
+            .route(SUBMIT_TRANSACTION_PATH, post(handle_submit_transaction_typeb))
             .route(SUBMIT_TYPEA_TRANSACTION_PATH, post(handle_submit_typea_transaction))
             .route(AVAILABLE_SLOT_PATH, get(get_slots))
             .route("/health", get(health_check))
             .route(PRECONF_FEE_PATH, post(handle_preconf_fee))
+            .route(COMMITMENT_STREAM_PATH, get(commitments_stream))
             .layer(middleware::from_fn(metrics_middleware))
             .with_state(state);
 
@@ -115,7 +118,7 @@ where
     }
 }
 
-pub async fn handle_submit_transaction<P, F>(
+pub async fn handle_submit_transaction_typeb<P, F>(
     headers: HeaderMap,
     State(state): State<PreconfState<P, F>>,
     Json(request): Json<SubmitTransactionRequest>,
@@ -133,7 +136,7 @@ where
         PrimitiveSignature::from_str(sig).expect("Failed to parse signature")
     };
 
-    match state.submit_transaction(request, signature).await {
+    match state.submit_transaction_typeb(request, signature).await {
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }
@@ -187,4 +190,25 @@ where
         Ok(response) => Ok(Json(response)),
         Err(e) => Err(e),
     }
+}
+
+pub async fn commitments_stream<P, F>(
+    State(state): State<PreconfState<P, F>>,
+) -> axum::response::Sse<impl futures::Stream<Item = eyre::Result<axum::response::sse::Event>>> {
+    let commitments_handle = state.commitments_handle;
+    let commitmetns_rx = commitments_handle.commitments_tx.subscribe();
+    let stream = tokio_stream::wrappers::BroadcastStream::new(commitmetns_rx);
+
+    let filtered = stream.map(|result| match result {
+        Ok(data) => match serde_json::to_string(&vec![data]) {
+            Ok(json) => Ok(axum::response::sse::Event::default()
+                .data(json)
+                .event("commitment_data")
+                .retry(std::time::Duration::from_millis(50))),
+            Err(err) => Err(eyre::eyre!("Error serializing constraint: {:?}", err)),
+        },
+        Err(err) => Err(eyre::eyre!("Error receiving constraint: {:?}", err)),
+    });
+
+    axum::response::Sse::new(filtered).keep_alive(axum::response::sse::KeepAlive::default())
 }
