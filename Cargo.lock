@@ -8402,7 +8402,7 @@ dependencies = [
 
 [[package]]
 name = "spammer"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-eips 0.12.6",
@@ -8797,7 +8797,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "clap",
  "eyre",
@@ -8807,7 +8807,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-beacon-client"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-primitives 0.8.25",
  "alloy-rpc-types-engine 0.12.6",
@@ -8890,7 +8890,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-cmd"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-network 0.12.6",
@@ -8921,7 +8921,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-contracts"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-rpc-client 0.12.6",
@@ -8930,7 +8930,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-e2e-tests"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-consensus 0.12.6",
  "alloy-contract",
@@ -9006,7 +9006,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-primitives"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-consensus 0.12.6",
  "alloy-eips 0.12.6",
@@ -9022,7 +9022,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-underwriter"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-consensus 0.12.6",
  "alloy-contract",
@@ -9071,7 +9071,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-zkvm-types"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-consensus 0.12.6",
  "alloy-eips 0.12.6",
@@ -9758,7 +9758,7 @@ dependencies = [
 
 [[package]]
 name = "type_a"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-eips 0.12.6",
@@ -9781,7 +9781,7 @@ dependencies = [
 
 [[package]]
 name = "type_b"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-eips 0.12.6",
