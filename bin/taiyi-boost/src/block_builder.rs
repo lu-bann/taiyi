@@ -52,10 +52,11 @@ pub struct LocalBlockBuilder {
 const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
 
 fn calc_excess_blob_gas(parent_excess_blob_gas: u64, parent_blob_gas_used: u64) -> u64 {
-    if parent_excess_blob_gas + parent_blob_gas_used < TARGET_BLOB_GAS_PER_BLOCK {
+    let parant_blob_gas_info = parent_excess_blob_gas.saturating_add(parent_blob_gas_used);
+    if parant_blob_gas_info < TARGET_BLOB_GAS_PER_BLOCK {
         0
     } else {
-        parent_excess_blob_gas + parent_blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK
+        parant_blob_gas_info.saturating_sub(TARGET_BLOB_GAS_PER_BLOCK)
     }
 }
 
