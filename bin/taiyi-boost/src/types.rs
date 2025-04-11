@@ -210,10 +210,19 @@ pub struct RequestConfig {
     pub headers: HeaderMap,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionPayloadV4 {
+    /// Inner V2 payload
+    #[serde(flatten)]
+    pub payload_inner: ExecutionPayloadV3,
+
+    pub execution_requests: Vec<Bytes>,
+}
+
 pub(crate) fn to_alloy_execution_payload(
     block: &Block<TxEnvelope, Sealed<Header>>,
-    block_hash: B256,
-) -> ExecutionPayloadV3 {
+) -> ExecutionPayloadV4 {
     let alloy_withdrawals = block
         .body
         .withdrawals
@@ -231,38 +240,41 @@ pub(crate) fn to_alloy_execution_payload(
         })
         .unwrap_or_default();
 
-    ExecutionPayloadV3 {
-        blob_gas_used: block.header.blob_gas_used.unwrap_or_default(),
-        excess_blob_gas: block.header.excess_blob_gas.unwrap_or_default(),
-        payload_inner: ExecutionPayloadV2 {
-            payload_inner: ExecutionPayloadV1 {
-                base_fee_per_gas: U256::from(block.header.base_fee_per_gas.unwrap_or_default()),
-                block_hash,
-                block_number: block.header.number,
-                extra_data: block.header.extra_data.clone(),
-                transactions: block
-                    .body
-                    .transactions()
-                    .map(|tx| tx.encoded_2718())
-                    .map(Into::into)
-                    .collect(),
-                fee_recipient: block.header.beneficiary,
-                gas_limit: block.header.gas_limit,
-                gas_used: block.header.gas_used,
-                logs_bloom: block.header.logs_bloom,
-                parent_hash: block.header.parent_hash,
-                prev_randao: block.header.mix_hash,
-                receipts_root: block.header.receipts_root,
-                state_root: block.header.state_root,
-                timestamp: block.header.timestamp,
+    ExecutionPayloadV4 {
+        payload_inner: ExecutionPayloadV3 {
+            blob_gas_used: block.header.blob_gas_used.unwrap_or_default(),
+            excess_blob_gas: block.header.excess_blob_gas.unwrap_or_default(),
+            payload_inner: ExecutionPayloadV2 {
+                payload_inner: ExecutionPayloadV1 {
+                    base_fee_per_gas: U256::from(block.header.base_fee_per_gas.unwrap_or_default()),
+                    block_hash: block.header.hash(),
+                    block_number: block.header.number,
+                    extra_data: block.header.extra_data.clone(),
+                    transactions: block
+                        .body
+                        .transactions()
+                        .map(|tx| tx.encoded_2718())
+                        .map(Into::into)
+                        .collect(),
+                    fee_recipient: block.header.beneficiary,
+                    gas_limit: block.header.gas_limit,
+                    gas_used: block.header.gas_used,
+                    logs_bloom: block.header.logs_bloom,
+                    parent_hash: block.header.parent_hash,
+                    prev_randao: block.header.mix_hash,
+                    receipts_root: block.header.receipts_root,
+                    state_root: block.header.state_root,
+                    timestamp: block.header.timestamp,
+                },
+                withdrawals: alloy_withdrawals,
             },
-            withdrawals: alloy_withdrawals,
         },
+        execution_requests: vec![],
     }
 }
 
 // NOTE: This returns an empty BlobsBundle if there are no blob transactions
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> {
     transactions
         .iter()
         .filter_map(|tx| match tx {
@@ -273,7 +285,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
             _ => None,
         })
         .fold(
-            BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
+            BlobsBundle::<ElectraSpec>::default(), // Initialize with an empty BlobsBundle
             |mut acc, sidecar| {
                 for commitment in sidecar.commitments.iter() {
                     acc.commitments
@@ -297,7 +309,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
 
 pub fn to_cb_execution_payload(
     value: &Block<TxEnvelope, Sealed<Header>>,
-) -> ExecutionPayload<DenebSpec> {
+) -> ExecutionPayload<ElectraSpec> {
     let hash = value.header.hash();
     let header = &value.header;
     let transactions = &value.body.transactions;
@@ -321,7 +333,7 @@ pub fn to_cb_execution_payload(
             .collect::<Vec<_>>(),
     );
 
-    ExecutionPayload::<DenebSpec> {
+    ExecutionPayload::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,
@@ -344,7 +356,7 @@ pub fn to_cb_execution_payload(
 
 pub fn to_cb_execution_payload_header(
     value: &Block<TxEnvelope, Sealed<Header>>,
-) -> ExecutionPayloadHeader<DenebSpec> {
+) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
@@ -375,7 +387,7 @@ pub fn to_cb_execution_payload_header(
         withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
     );
 
-    ExecutionPayloadHeader::<DenebSpec> {
+    ExecutionPayloadHeader::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,

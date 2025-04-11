@@ -2380,24 +2380,21 @@ dependencies = [
 
 [[package]]
 name = "cb-cli"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "cb-common",
  "clap",
  "docker-compose-types",
- "dotenvy",
  "eyre",
  "indexmap 2.7.0",
- "serde",
- "serde_json",
  "serde_yaml 0.9.33",
 ]
 
 [[package]]
 name = "cb-common"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "aes 0.8.4",
  "alloy 0.12.6",
@@ -2414,7 +2411,7 @@ dependencies = [
  "ethereum_ssz 0.8.1",
  "ethereum_ssz_derive 0.8.1",
  "eyre",
- "k256 0.13.4",
+ "jsonwebtoken",
  "pbkdf2 0.12.2",
  "rand 0.9.0",
  "reqwest 0.12.9",
@@ -2438,8 +2435,8 @@ dependencies = [
 
 [[package]]
 name = "cb-metrics"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "axum 0.8.1",
  "cb-common",
@@ -2452,8 +2449,8 @@ dependencies = [
 
 [[package]]
 name = "cb-pbs"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "alloy 0.12.6",
  "async-trait",
@@ -2462,7 +2459,6 @@ dependencies = [
  "blst",
  "cb-common",
  "cb-metrics",
- "dashmap",
  "eyre",
  "futures",
  "lazy_static",
@@ -2470,7 +2466,6 @@ dependencies = [
  "prometheus",
  "reqwest 0.12.9",
  "serde_json",
- "thiserror 2.0.12",
  "tokio",
  "tracing",
  "tree_hash 0.9.1",
@@ -2480,8 +2475,8 @@ dependencies = [
 
 [[package]]
 name = "cb-signer"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "alloy 0.12.6",
  "axum 0.8.1",
@@ -2493,6 +2488,7 @@ dependencies = [
  "eyre",
  "futures",
  "headers",
+ "jsonwebtoken",
  "lazy_static",
  "prometheus",
  "prost",
@@ -2734,8 +2730,8 @@ dependencies = [
 
 [[package]]
 name = "commit-boost"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "cb-cli",
  "cb-common",
@@ -3422,12 +3418,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac81fa3e28d21450aa4d2ac065992ba96a1d7303efbce51a95f4fd175b67562"
 
 [[package]]
-name = "dotenvy"
-version = "0.15.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
-
-[[package]]
 name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3943,6 +3933,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
+name = "eventsource-stream"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74fef4569247a5f429d9156b9d0a2599914385dd189c539334c625d8099d90ab"
+dependencies = [
+ "futures-core",
+ "nom",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4204,6 +4205,12 @@ name = "futures-task"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f90f7dce0722e95104fcb095585910c0977252f286e354b5e3bd38902cd99988"
+
+[[package]]
+name = "futures-timer"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f288b0a4f20f9a56b5d1da57e2227c661b7b16168e2f72365f57b63326e29b24"
 
 [[package]]
 name = "futures-util"
@@ -5092,11 +5099,11 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "9.3.0"
+version = "9.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9ae10193d25051e74945f1ea2d0b42e03cc3b890f7e4cc5faa44997d808193f"
+checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "js-sys",
  "pem",
  "ring 0.17.8",
@@ -7069,6 +7076,22 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "windows-registry",
+]
+
+[[package]]
+name = "reqwest-eventsource"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "632c55746dbb44275691640e7b40c907c16a2dc1a5842aa98aaec90da6ec6bde"
+dependencies = [
+ "eventsource-stream",
+ "futures-core",
+ "futures-timer",
+ "mime",
+ "nom",
+ "pin-project-lite",
+ "reqwest 0.12.9",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -9081,6 +9104,7 @@ dependencies = [
  "parking_lot",
  "prometheus",
  "reqwest 0.12.9",
+ "reqwest-eventsource",
  "serde",
  "serde_json",
  "serde_with",
@@ -9090,6 +9114,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "tokio-stream",
  "tracing",
  "tracing-subscriber",
  "tree_hash 0.6.0",

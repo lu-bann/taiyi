@@ -109,6 +109,7 @@ async fn main() -> eyre::Result<()> {
         .send()
         .await?;
     let bytes = result.bytes().await?;
+    info!("{:?}", bytes);
     let data: PreconfResponseData = serde_json::from_slice(&bytes)?;
     let commitment = hex::encode(data.commitment.unwrap().as_bytes());
     info!("Commitment: {:?}", format!("0x{}", commitment));

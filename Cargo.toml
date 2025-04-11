@@ -64,9 +64,9 @@ axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
 beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
-commit-boost = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
-cb-common = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
-cb-pbs = { git = "https://github.com/zsluedem/commit-boost-client.git", rev = "7fb9c6b6590e9c51799502af33cf2b35f6fa0818" }
+commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
+cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
+cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
 
 # alloy
 alloy-primitives = { version = "0.8.15", features = [

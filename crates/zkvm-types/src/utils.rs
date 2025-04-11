@@ -5,6 +5,7 @@ sol! {
     struct PublicValuesStruct {
         uint64 proofBlockTimestamp;
         bytes32 proofBlockHash;
+        uint64 proofBlockNumber;
         address underwriterAddress;
         bytes proofSignature;
         uint64 genesisTimestamp;
