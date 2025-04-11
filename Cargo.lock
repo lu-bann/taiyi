@@ -2360,24 +2360,21 @@ dependencies = [
 
 [[package]]
 name = "cb-cli"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "cb-common",
  "clap",
  "docker-compose-types",
- "dotenvy",
  "eyre",
  "indexmap 2.7.0",
- "serde",
- "serde_json",
  "serde_yaml 0.9.33",
 ]
 
 [[package]]
 name = "cb-common"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "aes 0.8.4",
  "alloy 0.12.6",
@@ -2394,7 +2391,7 @@ dependencies = [
  "ethereum_ssz 0.8.1",
  "ethereum_ssz_derive 0.8.1",
  "eyre",
- "k256 0.13.4",
+ "jsonwebtoken",
  "pbkdf2 0.12.2",
  "rand 0.9.0",
  "reqwest 0.12.9",
@@ -2418,8 +2415,8 @@ dependencies = [
 
 [[package]]
 name = "cb-metrics"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "axum 0.8.1",
  "cb-common",
@@ -2432,8 +2429,8 @@ dependencies = [
 
 [[package]]
 name = "cb-pbs"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "alloy 0.12.6",
  "async-trait",
@@ -2442,7 +2439,6 @@ dependencies = [
  "blst",
  "cb-common",
  "cb-metrics",
- "dashmap",
  "eyre",
  "futures",
  "lazy_static",
@@ -2450,7 +2446,6 @@ dependencies = [
  "prometheus",
  "reqwest 0.12.9",
  "serde_json",
- "thiserror 2.0.12",
  "tokio",
  "tracing",
  "tree_hash 0.9.1",
@@ -2460,8 +2455,8 @@ dependencies = [
 
 [[package]]
 name = "cb-signer"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "alloy 0.12.6",
  "axum 0.8.1",
@@ -2473,6 +2468,7 @@ dependencies = [
  "eyre",
  "futures",
  "headers",
+ "jsonwebtoken",
  "lazy_static",
  "prometheus",
  "prost",
@@ -2714,8 +2710,8 @@ dependencies = [
 
 [[package]]
 name = "commit-boost"
-version = "0.7.0"
-source = "git+https://github.com/zsluedem/commit-boost-client.git?rev=7fb9c6b6590e9c51799502af33cf2b35f6fa0818#7fb9c6b6590e9c51799502af33cf2b35f6fa0818"
+version = "0.7.0-rc.2"
+source = "git+https://github.com/Commit-Boost/commit-boost-client.git?rev=f776bca71db413ab0a0d83488cbcdbe96a5216c8#f776bca71db413ab0a0d83488cbcdbe96a5216c8"
 dependencies = [
  "cb-cli",
  "cb-common",
@@ -3400,12 +3396,6 @@ name = "doctest-file"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac81fa3e28d21450aa4d2ac065992ba96a1d7303efbce51a95f4fd175b67562"
-
-[[package]]
-name = "dotenvy"
-version = "0.15.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "downcast-rs"
@@ -5089,11 +5079,11 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "9.3.0"
+version = "9.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9ae10193d25051e74945f1ea2d0b42e03cc3b890f7e4cc5faa44997d808193f"
+checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "js-sys",
  "pem",
  "ring 0.17.8",

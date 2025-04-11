@@ -24,4 +24,7 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y libssl-dev
 WORKDIR /app
 COPY --from=builder /app/target/release/taiyi* /usr/local/bin
+
+LABEL org.opencontainers.image.source="https://github.com/lu-bann/taiyi"
+
 ENTRYPOINT ["/usr/local/bin/taiyi"]
