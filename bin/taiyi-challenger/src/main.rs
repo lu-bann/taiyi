@@ -276,7 +276,7 @@ async fn handle_challenge_creation(
                     open_challenge = true;
                 }
 
-                if open_challenge {
+                if open_challenge || opts.always_open_challenges {
                     let read_tx = challenge_db.begin_read().unwrap();
                     let table = read_tx.open_table(CHALLENGE_TABLE).unwrap();
                     let challenges = table.get(&challenge_submission_slot);
@@ -315,7 +315,9 @@ async fn handle_challenge_creation(
                     serde_json::from_str::<PreconfRequestTypeB>(&preconf.preconf_request).unwrap();
 
                 // Check if all user txs are included in the block
-                if !tx_hashes.contains(preconf_request.transaction.unwrap().tx_hash()) {
+                if !tx_hashes.contains(preconf_request.transaction.unwrap().tx_hash())
+                    || opts.always_open_challenges
+                {
                     let read_tx = challenge_db.begin_read().unwrap();
                     let table = read_tx.open_table(CHALLENGE_TABLE).unwrap();
                     let challenges = table.get(&slot);

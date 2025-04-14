@@ -8908,7 +8908,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-challenger"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "alloy-contract",
  "alloy-eips 0.12.6",
