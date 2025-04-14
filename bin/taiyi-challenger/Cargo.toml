@@ -20,11 +20,12 @@ clap = { workspace = true }
 eyre = { workspace = true }
 futures-util = { workspace = true }
 redb = { workspace = true }
+reqwest = { workspace = true }
+reqwest-eventsource = "0.6"
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
-
 taiyi-primitives = { workspace = true }
+tokio = { workspace = true }
 
 [[bin]]
 name = "taiyi-challenger"

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use alloy_eips::{eip2718::Encodable2718, merge::SLOT_DURATION_SECS, BlockNumberOrTag};
 use alloy_primitives::{hex, Address, Bytes, U256};
@@ -8,8 +8,12 @@ use alloy_sol_types::sol;
 use clap::Parser;
 use futures_util::{future::join_all, StreamExt};
 use redb::{Database, TableDefinition};
-use taiyi_primitives::{PreconfRequestTypeA, PreconfRequestTypeB};
-use tracing::{info, level_filters::LevelFilter};
+use reqwest::Url;
+use reqwest_eventsource::{Event, EventSource};
+use taiyi_primitives::{
+    PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData,
+};
+use tracing::{debug, error, level_filters::LevelFilter};
 
 mod preconf_request_data;
 use preconf_request_data::{Bincode, PreconfRequestData};
@@ -19,9 +23,6 @@ const PRECONF_TABLE: TableDefinition<u64, Bincode<Vec<PreconfRequestData>>> =
 const CHALLENGE_TABLE: TableDefinition<u64, Bincode<Vec<PreconfRequestData>>> =
     TableDefinition::new("challenge");
 
-// TODO: Read from context ?
-const GENESIS_TIMESTAMP: u64 = 1744102518;
-
 pub fn get_slot_from_timestamp(timestamp: u64, genesis_timestamp: u64) -> u64 {
     (timestamp - genesis_timestamp) / SLOT_DURATION_SECS
 }
@@ -29,20 +30,26 @@ pub fn get_slot_from_timestamp(timestamp: u64, genesis_timestamp: u64) -> u64 {
 #[derive(Parser, Clone)]
 struct Opts {
     /// execution_client_ws_url
-    #[clap(long = "execution_client_ws_url", default_value = "ws://localhost:54488")]
+    #[clap(long = "execution-client-ws-url")]
     execution_client_ws_url: String,
+    /// beacon_url
+    #[clap(long = "beacon-url")]
+    beacon_url: String,
     /// finalization_window
-    #[clap(long = "finalization_window", default_value = "32")]
+    #[clap(long = "finalization-window")]
     finalization_window: u64,
     /// underwriter stream urls
-    #[clap(long = "underwriter_stream_urls", default_value = "1, 2, 3")]
+    #[clap(long = "underwriter-stream-urls")]
     underwriter_stream_urls: Vec<String>,
     /// Private key to sign transactions
-    #[clap(long = "private_key")]
+    #[clap(long = "private-key")]
     private_key: String,
     /// Taiyi challenger contract address
-    #[clap(long = "taiyi_challenger_address")]
+    #[clap(long = "taiyi-challenger-address")]
     taiyi_challenger_address: Address,
+    /// Always open challenges
+    #[clap(long = "always-open-challenges", default_value = "false")]
+    always_open_challenges: bool,
 }
 
 sol! {
@@ -99,14 +106,87 @@ sol! {
     }
 }
 
-async fn handle_underwriter_stream(preconf_db: Arc<Database>, opts: Arc<Opts>) -> eyre::Result<()> {
-    // TODO: Implement underwriter stream ingestion
-    let write_tx = preconf_db.begin_write().unwrap();
-    {
-        let mut table = write_tx.open_table(PRECONF_TABLE).unwrap();
-        table.insert(&0, vec![]).unwrap();
+async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre::Result<()> {
+    let req = reqwest::Client::new().get(url);
+
+    let mut event_source = EventSource::new(req).unwrap_or_else(|err| {
+        panic!("Failed to create EventSource: {:?}", err);
+    });
+
+    while let Some(event) = event_source.next().await {
+        match event {
+            Ok(Event::Message(message)) => {
+                let data = &message.data;
+
+                let parsed_data =
+                    serde_json::from_str::<Vec<(PreconfRequest, PreconfResponseData)>>(data)
+                        .unwrap();
+
+                debug!("[Stream Ingestor]: Received {} preconfirmations", parsed_data.len());
+
+                for (preconf_request, preconf_response_data) in parsed_data.iter() {
+                    let target_slot = preconf_request.target_slot();
+                    debug!(
+                        "[Stream Ingestor]: Processing preconfirmation for slot {}",
+                        target_slot
+                    );
+
+                    let preconf_request_data = PreconfRequestData {
+                        preconf_type: match preconf_request {
+                            PreconfRequest::TypeA(_) => 0,
+                            PreconfRequest::TypeB(_) => 1,
+                        },
+                        preconf_request: match preconf_request {
+                            PreconfRequest::TypeA(preconf_request) => {
+                                serde_json::to_string(preconf_request).unwrap()
+                            }
+                            PreconfRequest::TypeB(preconf_request) => {
+                                serde_json::to_string(preconf_request).unwrap()
+                            }
+                        },
+                        preconf_request_signature: hex::encode(
+                            preconf_response_data.commitment.unwrap().as_bytes(),
+                        ),
+                    };
+
+                    let read_tx = preconf_db.begin_read().unwrap();
+                    let table = read_tx.open_table(PRECONF_TABLE).unwrap();
+                    let preconfs = table.get(&target_slot);
+
+                    if preconfs.is_err() {
+                        // Storage error
+                        error!(
+                            "[Stream Ingestor]: Storage error for slot {}. Error: {:?}",
+                            target_slot,
+                            preconfs.err()
+                        );
+                        continue;
+                    }
+
+                    let preconfs = preconfs.unwrap();
+                    let mut preconfs =
+                        if preconfs.is_none() { Vec::new() } else { preconfs.unwrap().value() };
+
+                    preconfs.push(preconf_request_data);
+
+                    let write_tx = preconf_db.begin_write().unwrap();
+                    {
+                        let mut table = write_tx.open_table(PRECONF_TABLE).unwrap();
+                        table.insert(&target_slot, preconfs).unwrap();
+                    }
+                    write_tx.commit().unwrap();
+
+                    debug!("[Stream Ingestor]: Stored preconfirmation for slot {}", target_slot);
+                }
+            }
+            Ok(Event::Open) => {
+                debug!("[Stream Ingestor]: SSE connection opened");
+            }
+            Err(err) => {
+                error!("[Stream Ingestor]: Error receiving SSE event: {:?}", err);
+            }
+        }
     }
-    write_tx.commit().unwrap();
 
     Ok(())
 }
@@ -115,9 +195,10 @@ async fn handle_challenge_creation(
     preconf_db: Arc<Database>,
     challenge_db: Arc<Database>,
     opts: Arc<Opts>,
+    genesis_timestamp: u64,
 ) -> eyre::Result<()> {
     // Create a ws provider
-    let ws = WsConnect::new(opts.execution_client_ws_url.clone());
+    let ws = WsConnect::new(&opts.execution_client_ws_url);
     let provider = ProviderBuilder::new().on_ws(ws).await.unwrap();
 
     // Subscribe to block headers.
@@ -125,9 +206,9 @@ async fn handle_challenge_creation(
     let mut stream = subscription.into_stream();
 
     while let Some(header) = stream.next().await {
-        info!("[Challenger Creator]: Processing block {:?}", header.number);
-        let slot = get_slot_from_timestamp(header.timestamp, GENESIS_TIMESTAMP);
-        info!("[Challenger Creator]: Slot: {:?}", slot);
+        debug!("[Challenger Creator]: Processing block {:?}", header.number);
+        let slot = get_slot_from_timestamp(header.timestamp, genesis_timestamp);
+        debug!("[Challenger Creator]: Slot: {:?}", slot);
 
         // Check if preconfirmations exists for the slot
         let read_tx = preconf_db.begin_read().unwrap();
@@ -136,7 +217,7 @@ async fn handle_challenge_creation(
 
         if preconfs.is_err() {
             // Storage error
-            info!(
+            error!(
                 "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
                 slot,
                 preconfs.err()
@@ -148,19 +229,19 @@ async fn handle_challenge_creation(
 
         if preconfs.is_none() {
             // No preconfirmation found for the slot
-            info!("[Challenger Creator]: No preconfirmations found for slot {}", slot);
+            debug!("[Challenger Creator]: No preconfirmations found for slot {}", slot);
             continue;
         }
 
         let preconfs = preconfs.unwrap().value();
 
-        info!("[Challenger Creator]: Found {} preconfirmations for slot {}", preconfs.len(), slot);
+        debug!("[Challenger Creator]: Found {} preconfirmations for slot {}", preconfs.len(), slot);
 
         let block = provider.get_block_by_number(BlockNumberOrTag::Number(header.number)).await;
 
         if block.is_err() {
             // RPC error
-            info!(
+            error!(
                 "[Challenger Creator]: RPC error for block {}. Error: {:?}",
                 header.number,
                 block.err()
@@ -178,7 +259,6 @@ async fn handle_challenge_creation(
         // For each preconfirmation, check if the required txs are included in the block
         for preconf in preconfs {
             let preconf_type = preconf.preconf_type;
-            let preconf_request_signature = preconf.preconf_request_signature;
 
             if preconf_type == 0 {
                 // Type A
@@ -197,7 +277,37 @@ async fn handle_challenge_creation(
                 }
 
                 if open_challenge {
-                    // TODO: Create a challenge
+                    let read_tx = challenge_db.begin_read().unwrap();
+                    let table = read_tx.open_table(CHALLENGE_TABLE).unwrap();
+                    let challenges = table.get(&challenge_submission_slot);
+
+                    if challenges.is_err() {
+                        // Storage error
+                        error!(
+                            "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
+                            challenge_submission_slot,
+                            challenges.err()
+                        );
+                        continue;
+                    }
+
+                    let challenges = challenges.unwrap();
+                    let mut challenges =
+                        if challenges.is_none() { Vec::new() } else { challenges.unwrap().value() };
+
+                    challenges.push(preconf);
+
+                    let write_tx = challenge_db.begin_write().unwrap();
+                    {
+                        let mut table = write_tx.open_table(CHALLENGE_TABLE).unwrap();
+                        table.insert(&challenge_submission_slot, challenges).unwrap();
+                    }
+                    write_tx.commit().unwrap();
+
+                    debug!(
+                        "[Challenger Creator]: Stored challenge for slot {}",
+                        challenge_submission_slot
+                    );
                 }
             } else {
                 // Type B
@@ -206,21 +316,48 @@ async fn handle_challenge_creation(
 
                 // Check if all user txs are included in the block
                 if !tx_hashes.contains(preconf_request.transaction.unwrap().tx_hash()) {
-                    // TODO: Create a challenge
+                    let read_tx = challenge_db.begin_read().unwrap();
+                    let table = read_tx.open_table(CHALLENGE_TABLE).unwrap();
+                    let challenges = table.get(&slot);
+
+                    if challenges.is_err() {
+                        // Storage error
+                        error!(
+                            "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
+                            slot,
+                            challenges.err()
+                        );
+                        continue;
+                    }
+
+                    let challenges = challenges.unwrap();
+                    let mut challenges =
+                        if challenges.is_none() { Vec::new() } else { challenges.unwrap().value() };
+
+                    challenges.push(preconf);
+
+                    let write_tx = challenge_db.begin_write().unwrap();
+                    {
+                        let mut table = write_tx.open_table(CHALLENGE_TABLE).unwrap();
+                        table.insert(&slot, challenges).unwrap();
+                    }
+                    write_tx.commit().unwrap();
+
+                    debug!("[Challenger Creator]: Stored challenge for slot {}", slot);
                 }
             }
         }
 
-        info!("[Challenger Creator]: Processed block {:?}", header.number);
+        debug!("[Challenger Creator]: Processed block {:?}", header.number);
     }
 
     Ok(())
 }
 
 async fn handle_challenge_submission(
-    preconf_db: Arc<Database>,
     challenge_db: Arc<Database>,
     opts: Arc<Opts>,
+    genesis_timestamp: u64,
 ) -> eyre::Result<()> {
     // Initialize signer
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
@@ -231,12 +368,12 @@ async fn handle_challenge_submission(
     );
     let signer_address = private_key_signer.address();
 
-    info!("[Challenger Submitter]: Signer address: {}", signer_address);
+    debug!("[Challenger Submitter]: Signer address: {}", signer_address);
 
-    let ws = WsConnect::new(opts.execution_client_ws_url.clone());
-
+    let ws = WsConnect::new(&opts.execution_client_ws_url);
     let provider = ProviderBuilder::new().wallet(private_key_signer).on_ws(ws).await.unwrap();
-    info!(
+
+    debug!(
         "[Challenger Submitter]: Signer ETH balance: {}",
         provider.get_balance(signer_address).await.unwrap()
     );
@@ -248,10 +385,10 @@ async fn handle_challenge_submission(
     let mut stream = subscription.into_stream();
 
     while let Some(header) = stream.next().await {
-        info!("[Challenger Submitter]: Processing block {:?}", header.number);
-        let slot = get_slot_from_timestamp(header.timestamp, GENESIS_TIMESTAMP);
-        info!("[Challenger Submitter]: Slot: {:?}", slot);
-        info!(
+        debug!("[Challenger Submitter]: Processing block {:?}", header.number);
+        let slot = get_slot_from_timestamp(header.timestamp, genesis_timestamp);
+        debug!("[Challenger Submitter]: Slot: {:?}", slot);
+        debug!(
             "[Challenger Submitter]: Signer ETH balance: {}",
             provider.get_balance(signer_address).await.unwrap()
         );
@@ -263,7 +400,7 @@ async fn handle_challenge_submission(
 
         if challenges.is_err() {
             // Storage error
-            info!(
+            error!(
                 "[Challenger Submitter]: Storage error for slot {}. Error: {:?}",
                 slot,
                 challenges.err()
@@ -275,16 +412,15 @@ async fn handle_challenge_submission(
 
         if challenges.is_none() {
             // No challenges found for the slot
-            info!("[Challenger Submitter]: No challenges found for slot {}", slot);
+            debug!("[Challenger Submitter]: No challenges found for slot {}", slot);
             continue;
         }
 
         let challenges = challenges.unwrap().value();
-        info!("[Challenger Submitter]: Found {} challenges for slot {}", challenges.len(), slot);
+        debug!("[Challenger Submitter]: Found {} challenges for slot {}", challenges.len(), slot);
 
         // For each challenge, check if the challenge is expired
         for challenge in challenges {
-            // TODO: Open challanges on-chan
             if challenge.preconf_type == 0 {
                 // Type A
                 let preconf_request =
@@ -317,7 +453,6 @@ async fn handle_challenge_submission(
                     Bytes::from(hex::decode(challenge.preconf_request_signature).unwrap());
 
                 // TODO: Should we watch/wait for the transaction here ?
-                // TODO: Maybe store this in a Vec<_> and wait for them separately ?
                 let _ = taiyi_challenger
                     .createChallengeAType(preconf_request_a_type, signature_bytes)
                     .send()
@@ -325,7 +460,6 @@ async fn handle_challenge_submission(
                     .unwrap();
             } else {
                 // Type B
-                // TODO: Maybe I will already get the `TaiyiInteractiveChallenger::PreconfRequestBType` type here`
                 let preconf_request =
                     serde_json::from_str::<PreconfRequestTypeB>(&challenge.preconf_request)
                         .unwrap();
@@ -345,12 +479,12 @@ async fn handle_challenge_submission(
                         blobCount: U256::from(preconf_request.allocation.blob_count),
                     },
                     blockspaceAllocationSignature:
-                        // TODO: Maybe we need to hex encode this ?
+                        // TODO: Check types here (hex encoding or not...)
                         preconf_request.alloc_sig.as_bytes().into()
                     ,
                     rawTx: Bytes::from(tx_raw),
+                    // TODO: Can we remove this two fields ?
                     underwriterSignedBlockspaceAllocation: Bytes::from([]),
-                    // TODO: Maybe we need to chage the `rawTx` type to String
                     underwriterSignedRawTx: Bytes::from([]),
                 };
 
@@ -365,7 +499,7 @@ async fn handle_challenge_submission(
             }
         }
 
-        info!("[Challenger Submitter]: Processed block {:?}", header.number);
+        debug!("[Challenger Submitter]: Processed block {:?}", header.number);
     }
 
     Ok(())
@@ -378,7 +512,7 @@ async fn main() -> eyre::Result<()> {
     let opts = Arc::new(opts);
 
     // Initialize tracing
-    tracing_subscriber::fmt().with_max_level(LevelFilter::INFO).init();
+    tracing_subscriber::fmt().with_max_level(LevelFilter::DEBUG).init();
 
     let preconf_db = Database::create("preconf.db").unwrap_or_else(|e| {
         eprintln!("Failed to create preconf database: {}", e);
@@ -395,7 +529,7 @@ async fn main() -> eyre::Result<()> {
     let challenge_db = Arc::new(challenge_db);
 
     // Create tables if they don't exist
-    info!("Creating tables...");
+    debug!("Creating tables...");
     let tx = preconf_db.begin_write().unwrap();
     tx.open_table(PRECONF_TABLE).unwrap();
     tx.commit().unwrap();
@@ -403,15 +537,29 @@ async fn main() -> eyre::Result<()> {
     let tx = challenge_db.begin_write().unwrap();
     tx.open_table(CHALLENGE_TABLE).unwrap();
     tx.commit().unwrap();
-    info!("Tables created successfully");
+    debug!("Tables created successfully");
+
+    // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
+    let beacon_genesis_response = reqwest::Client::new()
+        .get(format!("{}/eth/v1/beacon/genesis", opts.beacon_url))
+        .send()
+        .await
+        .unwrap();
+
+    let beacon_genesis_response =
+        beacon_genesis_response.json::<serde_json::Value>().await.unwrap();
+    let genesis_timestamp =
+        u64::from_str(&beacon_genesis_response["data"]["genesis_time"].as_str().unwrap()).unwrap();
 
     let mut handles = Vec::new();
 
     // Handles for ingesting underwriter streams
     let underwriter_stream_urls = opts.underwriter_stream_urls.clone();
+    let underwriter_stream_urls =
+        underwriter_stream_urls.iter().map(|url| Url::parse(&url).unwrap()).collect::<Vec<_>>();
 
     for url in underwriter_stream_urls {
-        let handle = tokio::spawn(handle_underwriter_stream(preconf_db.clone(), opts.clone()));
+        let handle = tokio::spawn(handle_underwriter_stream(preconf_db.clone(), url));
         handles.push(handle);
     }
 
@@ -420,15 +568,16 @@ async fn main() -> eyre::Result<()> {
         preconf_db.clone(),
         challenge_db.clone(),
         opts.clone(),
+        genesis_timestamp,
     ));
 
     handles.push(challenger_creator_handle);
 
     // Handle for submitting challenges
     let challenger_submitter_handle = tokio::spawn(handle_challenge_submission(
-        preconf_db.clone(),
         challenge_db.clone(),
         opts.clone(),
+        genesis_timestamp,
     ));
 
     handles.push(challenger_submitter_handle);

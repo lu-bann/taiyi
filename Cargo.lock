@@ -8922,6 +8922,8 @@ dependencies = [
  "eyre",
  "futures-util",
  "redb",
+ "reqwest 0.12.9",
+ "reqwest-eventsource",
  "serde",
  "serde_json",
  "taiyi-primitives",
