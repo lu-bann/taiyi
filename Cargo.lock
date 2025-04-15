@@ -9076,6 +9076,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-prover"
+version = "0.1.5"
+dependencies = [
+ "alloy-contract",
+ "alloy-eips 0.12.6",
+ "alloy-primitives 0.8.25",
+ "alloy-provider 0.12.6",
+ "alloy-rlp",
+ "alloy-rpc-types 0.12.6",
+ "alloy-signer 0.12.6",
+ "alloy-signer-local 0.12.6",
+ "alloy-sol-types",
+ "bincode 2.0.1",
+ "clap",
+ "eth-trie-proofs",
+ "eyre",
+ "futures-util",
+ "redb",
+ "reqwest 0.12.9",
+ "reqwest-eventsource",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "taiyi-primitives",
+ "taiyi-zkvm-types",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "taiyi-underwriter"
 version = "0.1.5"
 dependencies = [
