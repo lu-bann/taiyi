@@ -6,7 +6,7 @@ if [ -z "$TAIYI_BOOST_IMAGE" ]; then
   export TAIYI_BOOST_IMAGE="lubann/taiyi:latest"
 fi
 
-sed -i "s|lubann/taiyi:latest|${TAIYI_BOOST_IMAGE}|g" scripts/devnet/luban.yml
+# sed -i "s|lubann/taiyi:latest|${TAIYI_BOOST_IMAGE}|g" scripts/devnet/luban.yml
 
 cat scripts/devnet/luban.yml
 pushd $WORKING_DIR
