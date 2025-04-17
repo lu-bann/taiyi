@@ -28,6 +28,9 @@ contract TaiyiParameterManager is
     /// @dev The slot time of the chain.
     uint256 public slotTime;
 
+    /// @dev The address of the TaiyiCore contract.
+    address public taiyiCore;
+
     /// @dev Total storage slots: 50
     uint256[50] private __gap;
 
@@ -38,7 +41,8 @@ contract TaiyiParameterManager is
         uint256 _challengeMaxDuration,
         uint256 _challengeCreationWindow,
         uint256 _genesisTimestamp,
-        uint256 _slotTime
+        uint256 _slotTime,
+        address _taiyiCore
     )
         public
         initializer
@@ -50,6 +54,7 @@ contract TaiyiParameterManager is
         challengeCreationWindow = _challengeCreationWindow;
         genesisTimestamp = _genesisTimestamp;
         slotTime = _slotTime;
+        taiyiCore = _taiyiCore;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
@@ -80,5 +85,10 @@ contract TaiyiParameterManager is
     /// @inheritdoc ITaiyiParameterManager
     function setSlotTime(uint256 _slotTime) external onlyOwner {
         slotTime = _slotTime;
+    }
+
+    /// @inheritdoc ITaiyiParameterManager
+    function setTaiyiCore(address _taiyiCore) external onlyOwner {
+        taiyiCore = _taiyiCore;
     }
 }

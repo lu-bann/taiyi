@@ -24,17 +24,17 @@ use crate::http::HttpClient;
 mod http;
 #[derive(Parser)]
 struct Opts {
-    /// reth url
+    /// execution_client_url
     #[clap(long = "execution_client_url", default_value = "http://localhost:8545")]
     execution_client_url: String,
 
-    /// reth url
+    /// beacon_client_url
     #[clap(long = "beacon_client_url", default_value = "http://localhost:5062")]
     beacon_client_url: String,
 
-    /// Preconfer URL
-    #[clap(long = "gateway_url", default_value = "http://localhost:18550")]
-    gateway_url: String,
+    /// underwriter URL
+    #[clap(long = "underwriter_url", default_value = "http://localhost:18550")]
+    underwriter_url: String,
 
     /// Private key to sign the transaction
     #[clap(long = "private_key")]
@@ -87,7 +87,7 @@ async fn main() -> eyre::Result<()> {
     // let receipt = pending_tx.get_receipt().await?;
     // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
 
-    let http_client = HttpClient::new(opts.gateway_url.parse()?, signer.clone(), chain_id);
+    let http_client = HttpClient::new(opts.underwriter_url.parse()?, signer.clone(), chain_id);
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
     let client = EventClient::new(reqwest::Client::new());
 
@@ -121,20 +121,14 @@ async fn main() -> eyre::Result<()> {
         let epoch = slot / EPOCH_SLOTS;
         let next_slot = slot + 1;
 
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
         let account_nonce = provider.get_transaction_count(signer.address()).await?;
         info!("Submitting transactions for next slot: {:?}", next_slot);
 
-        // if slots.contains(&next_slot) {
-        //     let data =
-        //         http_client.submit_type_a_request(next_slot, account_nonce, chain_id).await?;
-        //     let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-        //     info!("Commitment type a: {:?}", format!("0x{}", commitment));
-        //     info!("Sequence Number: {:?}", data.sequence_num.unwrap());
-        // }
-
         if request_store.contains_key(&next_slot) {
             let data = http_client
-                .submit_transaction(
+                .submit_transaction_type_b(
                     *request_store.get(&next_slot).unwrap(),
                     account_nonce,
                     chain_id,
@@ -142,10 +136,16 @@ async fn main() -> eyre::Result<()> {
                 .await?;
             let commitment = hex::encode(data.commitment.unwrap().as_bytes());
             info!("Commitment type b: {:?}", format!("0x{}", commitment));
+
+            let data =
+                http_client.submit_type_a_request(next_slot, account_nonce + 1, chain_id).await?;
+            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+            info!("Commitment type a: {:?}", format!("0x{}", commitment));
+            info!("Sequence Number: {:?}", data.sequence_num.unwrap());
         }
 
         if event.epoch_transition {
-            info!("Epoch changed to: {:?}, querying gateway for available slots..", epoch);
+            info!("Epoch changed to: {:?}, querying underwriter for available slots..", epoch);
             let mut slots = http_client.slots().await?;
             let head_slot = beacon_client.get_sync_status().await?.head_slot;
             info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());

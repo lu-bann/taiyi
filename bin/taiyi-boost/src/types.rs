@@ -1,26 +1,21 @@
-use std::{
-    fmt::{self, Debug},
-    ops::Deref,
-    path::Path,
-};
+use std::{fmt::Debug, ops::Deref};
 
-use alloy_consensus::{BlockHeader, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope};
+use alloy_consensus::{
+    Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
+};
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
 };
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_rpc_types_engine::{
-    ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3, JwtError, JwtSecret,
-};
+use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use axum::http::HeaderMap;
-use blst::min_pk::SecretKey as BlsSecretKey;
 use cb_common::pbs::{
-    Blob, BlobsBundle, DenebSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader, KzgCommitment,
-    KzgProof, SignedExecutionPayloadHeader, Transaction as cbTransaction, Transactions,
-    VersionedResponse, Withdrawal as cbWithdrawal,
+    Blob, BlobsBundle, DenebSpec, ElectraSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader,
+    GetHeaderResponse, KzgCommitment, KzgProof, Transaction as cbTransaction, Transactions,
+    Withdrawal as cbWithdrawal,
 };
 use ethereum_consensus::{
     bellatrix::mainnet::Transaction as ConsensusTransaction,
@@ -33,10 +28,10 @@ use ethereum_consensus::{
     ssz::prelude::{HashTreeRoot, List},
 };
 use reqwest::Url;
-use reth_primitives::{SealedBlock, Transaction, TransactionSigned};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
+use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 use tree_hash::TreeHash;
 
 /// A hash tree root.
@@ -52,79 +47,6 @@ pub struct ExtraConfig {
     pub engine_jwt: JwtSecretWrapper,
     pub network: Network,
     pub auth_token: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct JwtSecretWrapper(pub JwtSecret);
-
-impl<'de> Deserialize<'de> for JwtSecretWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<JwtSecretWrapper, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        JwtSecretWrapper::try_from(s.as_str()).map_err(serde::de::Error::custom)
-    }
-}
-
-impl TryFrom<&str> for JwtSecretWrapper {
-    type Error = JwtError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let jwt = if Path::new(&s).exists() {
-            JwtSecret::from_file(Path::new(&s))
-        } else {
-            JwtSecret::from_hex(s)
-        }?;
-        Ok(JwtSecretWrapper(jwt))
-    }
-}
-
-impl Deref for JwtSecretWrapper {
-    type Target = JwtSecret;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for JwtSecretWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BlsSecretKeyWrapper(pub BlsSecretKey);
-
-impl<'de> Deserialize<'de> for BlsSecretKeyWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<BlsSecretKeyWrapper, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let sk = String::deserialize(deserializer)?;
-        Ok(BlsSecretKeyWrapper::from(sk.as_str()))
-    }
-}
-
-impl From<&str> for BlsSecretKeyWrapper {
-    fn from(sk: &str) -> Self {
-        let hex_sk = sk.strip_prefix("0x").unwrap_or(sk);
-        let sk =
-            BlsSecretKey::from_bytes(&hex::decode(hex_sk).expect("valid hex")).expect("valid sk");
-        BlsSecretKeyWrapper(sk)
-    }
-}
-
-impl Deref for BlsSecretKeyWrapper {
-    type Target = BlsSecretKey;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for BlsSecretKeyWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", const_hex::encode_prefixed(self.0.to_bytes()))
-    }
 }
 
 /// Minimal account state needed for commitment validation.
@@ -243,13 +165,13 @@ fn hash_tree_root_raw_tx(raw_tx: Vec<u8>) -> AlloyHashTreeRoot {
 }
 
 /// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
-pub type GetHeaderWithProofsResponse = VersionedResponse<SignedExecutionPayloadHeaderWithProofs>;
+pub type GetHeaderWithProofsResponse = SignedExecutionPayloadHeaderWithProofs;
 
 /// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SignedExecutionPayloadHeaderWithProofs {
     #[serde(flatten)]
-    pub header: SignedExecutionPayloadHeader,
+    pub header: GetHeaderResponse,
     #[serde(default)]
     pub proofs: InclusionProofs,
 }
@@ -274,7 +196,7 @@ impl InclusionProofs {
 }
 
 impl Deref for SignedExecutionPayloadHeaderWithProofs {
-    type Target = SignedExecutionPayloadHeader;
+    type Target = GetHeaderResponse;
 
     fn deref(&self) -> &Self::Target {
         &self.header
@@ -288,10 +210,19 @@ pub struct RequestConfig {
     pub headers: HeaderMap,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionPayloadV4 {
+    /// Inner V2 payload
+    #[serde(flatten)]
+    pub payload_inner: ExecutionPayloadV3,
+
+    pub execution_requests: Vec<Bytes>,
+}
+
 pub(crate) fn to_alloy_execution_payload(
-    block: &SealedBlock,
-    block_hash: B256,
-) -> ExecutionPayloadV3 {
+    block: &Block<TxEnvelope, Sealed<Header>>,
+) -> ExecutionPayloadV4 {
     let alloy_withdrawals = block
         .body
         .withdrawals
@@ -309,60 +240,41 @@ pub(crate) fn to_alloy_execution_payload(
         })
         .unwrap_or_default();
 
-    ExecutionPayloadV3 {
-        blob_gas_used: block.header.header().blob_gas_used.unwrap_or_default(),
-        excess_blob_gas: block.excess_blob_gas.unwrap_or_default(),
-        payload_inner: ExecutionPayloadV2 {
-            payload_inner: ExecutionPayloadV1 {
-                base_fee_per_gas: U256::from(block.base_fee_per_gas.unwrap_or_default()),
-                block_hash,
-                block_number: block.number,
-                extra_data: block.extra_data.clone(),
-                transactions: block.encoded_2718_transactions(),
-                fee_recipient: block.header.beneficiary,
-                gas_limit: block.gas_limit,
-                gas_used: block.gas_used,
-                logs_bloom: block.logs_bloom,
-                parent_hash: block.parent_hash,
-                prev_randao: block.mix_hash,
-                receipts_root: block.receipts_root,
-                state_root: block.state_root,
-                timestamp: block.timestamp,
+    ExecutionPayloadV4 {
+        payload_inner: ExecutionPayloadV3 {
+            blob_gas_used: block.header.blob_gas_used.unwrap_or_default(),
+            excess_blob_gas: block.header.excess_blob_gas.unwrap_or_default(),
+            payload_inner: ExecutionPayloadV2 {
+                payload_inner: ExecutionPayloadV1 {
+                    base_fee_per_gas: U256::from(block.header.base_fee_per_gas.unwrap_or_default()),
+                    block_hash: block.header.hash(),
+                    block_number: block.header.number,
+                    extra_data: block.header.extra_data.clone(),
+                    transactions: block
+                        .body
+                        .transactions()
+                        .map(|tx| tx.encoded_2718())
+                        .map(Into::into)
+                        .collect(),
+                    fee_recipient: block.header.beneficiary,
+                    gas_limit: block.header.gas_limit,
+                    gas_used: block.header.gas_used,
+                    logs_bloom: block.header.logs_bloom,
+                    parent_hash: block.header.parent_hash,
+                    prev_randao: block.header.mix_hash,
+                    receipts_root: block.header.receipts_root,
+                    state_root: block.header.state_root,
+                    timestamp: block.header.timestamp,
+                },
+                withdrawals: alloy_withdrawals,
             },
-            withdrawals: alloy_withdrawals,
         },
+        execution_requests: vec![],
     }
 }
 
-pub fn tx_envelope_to_signed(tx: TxEnvelope) -> TransactionSigned {
-    let (transaction, signature, hash) = match tx {
-        TxEnvelope::Legacy(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Legacy(tx), sig, hash)
-        }
-        TxEnvelope::Eip2930(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip2930(tx), sig, hash)
-        }
-        TxEnvelope::Eip1559(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip1559(tx), sig, hash)
-        }
-        TxEnvelope::Eip4844(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip4844(tx.into()), sig, hash)
-        }
-        TxEnvelope::Eip7702(tx) => {
-            let (tx, sig, hash) = tx.into_parts();
-            (Transaction::Eip7702(tx), sig, hash)
-        }
-        _ => panic!("Unsupported transaction type: {tx:?}"),
-    };
-    TransactionSigned { transaction, signature, hash: hash.into() }
-}
-
 // NOTE: This returns an empty BlobsBundle if there are no blob transactions
-pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
+pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<ElectraSpec> {
     transactions
         .iter()
         .filter_map(|tx| match tx {
@@ -373,7 +285,7 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
             _ => None,
         })
         .fold(
-            BlobsBundle::<DenebSpec>::default(), // Initialize with an empty BlobsBundle
+            BlobsBundle::<ElectraSpec>::default(), // Initialize with an empty BlobsBundle
             |mut acc, sidecar| {
                 for commitment in sidecar.commitments.iter() {
                     acc.commitments
@@ -388,19 +300,21 @@ pub fn to_blobs_bundle(transactions: &[TxEnvelope]) -> BlobsBundle<DenebSpec> {
                         .ok();
                 }
                 for blob in sidecar.blobs.iter() {
-                    acc.blobs.push(Blob::<DenebSpec>::from(blob.as_slice().to_vec())).ok();
+                    acc.blobs.push(Blob::<ElectraSpec>::from(blob.as_slice().to_vec())).ok();
                 }
                 acc
             },
         )
 }
 
-pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpec> {
-    let hash = value.hash();
+pub fn to_cb_execution_payload(
+    value: &Block<TxEnvelope, Sealed<Header>>,
+) -> ExecutionPayload<ElectraSpec> {
+    let hash = value.header.hash();
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
-    let transactions: Transactions<DenebSpec> = transactions
+    let transactions: Transactions<ElectraSpec> = transactions
         .iter()
         .map(|t| VariableList::from(t.encoded_2718()))
         .collect::<Vec<_>>()
@@ -419,7 +333,7 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpe
             .collect::<Vec<_>>(),
     );
 
-    ExecutionPayload::<DenebSpec> {
+    ExecutionPayload::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,
@@ -435,12 +349,14 @@ pub fn to_cb_execution_payload(value: &SealedBlock) -> ExecutionPayload<DenebSpe
         block_hash: hash,
         transactions,
         withdrawals,
-        blob_gas_used: value.blob_gas_used().unwrap_or_default(),
-        excess_blob_gas: value.excess_blob_gas.unwrap_or_default(),
+        blob_gas_used: value.header.blob_gas_used.unwrap_or_default(),
+        excess_blob_gas: value.header.excess_blob_gas.unwrap_or_default(),
     }
 }
 
-pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHeader<DenebSpec> {
+pub fn to_cb_execution_payload_header(
+    value: &Block<TxEnvelope, Sealed<Header>>,
+) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
     let withdrawals = &value.body.withdrawals;
@@ -471,7 +387,7 @@ pub fn to_cb_execution_payload_header(value: &SealedBlock) -> ExecutionPayloadHe
         withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
     );
 
-    ExecutionPayloadHeader::<DenebSpec> {
+    ExecutionPayloadHeader::<ElectraSpec> {
         parent_hash: header.parent_hash,
         fee_recipient: header.beneficiary,
         state_root: header.state_root,

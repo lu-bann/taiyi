@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+taiyi-beacon-client = { workspace = true }
 taiyi-cmd = { workspace = true }
 
 alloy-consensus = { workspace = true }
@@ -22,12 +23,9 @@ alloy-transport = { workspace = true }
 alloy-transport-http = { workspace = true, features = ["jwt-auth"] }
 async-trait = { workspace = true }
 axum = { workspace = true }
-beacon-api-client = { workspace = true }
-blst = { workspace = true }
 cb-common = { workspace = true }
 cb-pbs = { workspace = true }
 commit-boost = { workspace = true }
-const-hex = "1.13.2"
 ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }
@@ -40,7 +38,6 @@ parking_lot = { workspace = true }
 prometheus = { workspace = true }
 regex = "1.11.1"
 reqwest = { workspace = true, features = ["json"] }
-reth-primitives = { workspace = true }
 scc = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -57,5 +54,5 @@ tree_hash_derive = { workspace = true }
 alloy-node-bindings = { workspace = true }
 ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
-lighthouse-types = { workspace = true }
+lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v7.0.0-beta.5" }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

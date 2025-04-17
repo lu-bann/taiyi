@@ -5,11 +5,6 @@ import { PreconfRequestAType } from "../types/PreconfRequestATypes.sol";
 import { PreconfRequestBType } from "../types/PreconfRequestBTypes.sol";
 
 interface ITaiyiNonInteractiveChallenger {
-    struct Proof {
-        // TODO[Martin]: Define other necessary proof fields
-        uint256 inclusionBlockNumber;
-    }
-
     struct Challenge {
         bytes32 id;
         uint256 createdAt;
@@ -65,9 +60,9 @@ interface ITaiyiNonInteractiveChallenger {
         external
         payable;
 
-    /// @notice Set the address of the SP1 gateway contract.
-    /// @param _verifierGateway The address of the SP1 gateway contract.
-    function setVerifierGateway(address _verifierGateway) external;
+    /// @notice Set the address of the SP1 underwriter contract.
+    /// @param _verifierUnderwriter The address of the SP1 underwriter contract.
+    function setVerifierUnderwriter(address _verifierUnderwriter) external;
 
     /// @notice Set the verification key for the interactive fraud proof program.
     /// @param _interactiveFraudProofVKey The verification key.

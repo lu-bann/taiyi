@@ -1,0 +1,405 @@
+openapi: 3.0.0
+info:
+  version: v1
+  title: Commitments API
+  description: The API for taiyi preconfimation service
+servers:
+  - description: Taiyi devnet
+    url: "https://gateway.taiyi-devnet-0.preconfs.org"
+
+paths:
+  /commitments/v0/slots:
+    get:
+      operationId: getSlots
+      tags:
+        - v1
+      summary: Slots
+      description: |
+        * Fetch available slots for preconfirmations.
+        * Returns an array of SlotInfo
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SlotInfo"
+
+  /commitments/v0/preconf_fee:
+    post:
+      operationId: getFee
+      tags:
+        - v1
+      summary: Preconf Fee
+      description: |
+        * Fetch preconf fees/tip for a slot.
+        * Return fees requried per gas in WEI.
+      requestBody:
+        description: Slot
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              format: uint64
+              example: 53920
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreconfFeeResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                  message:
+                    description: Message describing error
+                    type: string
+              example:
+                code: 500
+                message: internal server error
+
+  /commitments/v0/reserve_blockspace:
+    post:
+      operationId: reserveBlockspace
+      tags:
+        - v1
+      summary: Reserves blockspace
+      description: |
+        * Reserve blockspace for a slot in advance.
+        * User must have sufficient escrow balance in TaiyiCore
+      parameters:
+        - schema:
+            type: string
+            format: hex
+            pattern: "^0x[a-fA-F0-9]{130}$"
+            example: "0x8a726dc1d89dc0b10a27130c562cce2d346f2bbac1af683d9b55632825e4abc0480bcf25276452a3c076f2a5d756c6deedd552cfc343dd34a5953835f4d7c8a71c"
+          in: header
+          name: x-luban-signature
+          description: An ECDSA signature from the user over the hash of request body. See [here](https://github.com/lu-bann/taiyi/blob/dev/crates/primitives/src/preconf_request_type_b.rs#L105) for signature constrution.
+          required: true
+      requestBody:
+        description: Reserve blockspace request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReserveBlockSpaceRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReserveBlockSpaceResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                    example: 400
+                  message:
+                    description: Message describing error
+                    type: string
+                    example: requested blockspace not available for slot
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                  message:
+                    description: Message describing error
+                    type: string
+              example:
+                code: 500
+                message: internal server error
+
+  /commitments/v0/submit_tx_type_b:
+    post:
+      operationId: submitTransactionTypeB
+      tags:
+        - v1
+      summary: Type B request
+      description: |
+        * Submit transaction for a previously reserved slot.
+      parameters:
+        - schema:
+            type: string
+            format: hex
+            pattern: "^0x[a-fA-F0-9]{130}$"
+            example: "0x8a726dc1d89dc0b10a27130c562cce2d346f2bbac1af683d9b55632825e4abc0480bcf25276452a3c076f2a5d756c6deedd552cfc343dd34a5953835f4d7c8a71c"
+          in: header
+          name: x-luban-signature
+          required: true
+          description: An ECDSA signature from the user over fields of body. See [here](https://github.com/lu-bann/taiyi/blob/dev/crates/primitives/src/preconf_request_type_b.rs#L136) for signature construction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTransactionRequestTypeB"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreconfResponseData"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                    example: 400
+                  message:
+                    description: Message describing error
+                    type: string
+                    example: Transaction for this request id was already submitted
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                  message:
+                    description: Message describing error
+                    type: string
+              example:
+                code: 500
+                message: internal server error
+
+  /commitments/v0/submit_tx_type_a:
+    post:
+      operationId: submitTransactionTypeA
+      tags:
+        - v1
+      summary: Type A request
+      description: |
+        * Endpoint to submit transaction without reserving blockspace
+        * Requires 2 transaction at minimum.
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: x-luban-signature
+          required: true
+          description: An ECDSA signature from the user over fields of body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTransactionRequestTypeA"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreconfResponseData"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                    example: 400
+                  message:
+                    description: Message describing error
+                    type: string
+                    example: Transaction for this request id was already submitted
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    description: Either specific error code in case of invalid request or http status code
+                    type: number
+                  message:
+                    description: Message describing error
+                    type: string
+              example:
+                code: 500
+                message: internal server error
+components:
+  schemas:
+    SubmitTransactionRequestTypeB:
+      type: object
+      required:
+        - request_id
+        - transaction
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          example: 0729a580-2240-11e6-9eb5-0002a5d5c51b
+        transaction:
+          type: string
+    SubmitTransactionRequestTypeA:
+      type: object
+      required:
+        - target_slot
+        - tip_transaction
+        - preconf_transaction
+      properties:
+        tip_transaction:
+          type: string
+        preconf_transaction:
+          type: array
+          items:
+            format: string
+        target_slot:
+          type: integer
+          format: uint64
+
+    ReserveBlockSpaceRequest:
+      type: object
+      required:
+        - target_slot
+        - sender
+        - recipient
+        - deposit
+        - tip
+        - gas_limit
+        - blob_count
+      properties:
+        gas_limit:
+          type: integer
+          format: uint64
+          example: "983798"
+        sender:
+          type: string
+          format: hex
+          description: An address on the execution (Ethereum 1) network.
+          example: "0xAbcF8e0d4e9587369b2301D0790347320302cc09"
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        recipient:
+          type: string
+          format: hex
+          description: An address on the execution (Ethereum 1) network.
+          example: "0xAbcF8e0d4e9587369b2301D0790347320302cc09"
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        deposit:
+          type: integer
+          format: uint256
+          description: |
+            This is the amount deducted from the user's escrow balance when the user fails to submit a transaction for the allocated blockspace.
+
+            The deposit is calculated as follows:
+            { gas_limit * gas_fee + blob_count * blob_gas_fee } * 0.5
+          example: "293872836"
+        tip:
+          type: integer
+          format: uint256
+          description: |
+            This is the amount deducted from the user's escrow balance along with `[deposit]` when the user submits a transaction for the allocated blockspace.
+
+            The tip is calculated as follows:
+            { gas_limit * gas_fee + blob_count * blob_gas_fee } * 0.5
+          example: "293872836"
+        target_slot:
+          type: integer
+          format: uint64
+          example: "64"
+        blob_count:
+          type: integer
+          format: uint32
+          example: "1"
+          minimum: 0
+          maximum: 6
+    ReserveBlockSpaceResponse:
+      type: string
+      format: uuid
+      example: 0729a580-2240-11e6-9eb5-0002a5d5c51b
+    SlotInfo:
+      type: object
+      required: [slot, gas_available, blobs_available, constraints_availaible]
+      properties:
+        slot:
+          type: integer
+          format: uint64
+          example: "64"
+        gas_available:
+          type: integer
+          format: uint64
+          example: "983798"
+        blobs_available:
+          type: integer
+          format: uint32
+          example: "3"
+          minimum: 0
+          maximum: 6
+        constraints_available:
+          type: integer
+          format: uint32
+          example: "78"
+          minimum: 0
+          maximum: 256
+    PreconfFeeResponse:
+      type: object
+      required: [gas_fee, blob_gas_fee]
+      description: denominated in wei
+      properties:
+        gas_fee:
+          type: integer
+          format: uint64
+          example: 682000000
+        blob_gas_fee:
+          type: integer
+          format: uint64
+          example: 408014488
+    PreconfResponseData:
+      type: object
+      required: [request_id, commitment]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          example: 0729a580-2240-11e6-9eb5-0002a5d5c51b
+        commitment:
+          type: string
+          format: hex
+          pattern: "^0x[a-fA-F0-9]{130}$"
+          example: "0x8a726dc1d89dc0b10a27130c562cce2d346f2bbac1af683d9b55632825e4abc0480bcf25276452a3c076f2a5d756c6deedd552cfc343dd34a5953835f4d7c8a71c"
+        sequence_num:
+          type: integer
+          format: uint64
+          description: Tip tx index wrt to the anchor tx.

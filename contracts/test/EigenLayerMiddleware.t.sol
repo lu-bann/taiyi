@@ -25,7 +25,7 @@ import { TaiyiProposerRegistry } from "src/TaiyiProposerRegistry.sol";
 import { EigenLayerMiddleware } from "src/eigenlayer-avs/EigenLayerMiddleware.sol";
 
 import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
-import { GatewayAVS } from "src/eigenlayer-avs/GatewayAVS.sol";
+import { UnderwriterAVS } from "src/eigenlayer-avs/UnderwriterAVS.sol";
 import { ValidatorAVS } from "src/eigenlayer-avs/ValidatorAVS.sol";
 import { IProposerRegistry } from "src/interfaces/IProposerRegistry.sol";
 
@@ -40,7 +40,7 @@ contract EigenlayerMiddlewareTest is Test {
     using BLS12381 for BLS12381.G1Point;
 
     ValidatorAVS public validatorAVS;
-    GatewayAVS public gatewayAVS;
+    UnderwriterAVS public underwriterAVS;
     TaiyiProposerRegistry public proposerRegistry;
     EigenlayerDeployer public eigenLayerDeployer;
 
@@ -52,13 +52,13 @@ contract EigenlayerMiddlewareTest is Test {
     bytes operatorBLSPubKey;
 
     uint256 constant STAKE_AMOUNT = 32 ether;
-    uint256 constant GATEWAY_SHARE_BIPS = 8000; // 80%
+    uint256 constant UNDERWRITER_SHARE_BIPS = 8000; // 80%
 
     // Events to track
     event ValidatorOperatorRegistered(
         address indexed operator,
         address indexed avs,
-        bytes delegatedGatewayPubKey,
+        bytes delegatedUnderwriterPubKey,
         bytes validatorPubKey
     );
 
@@ -111,18 +111,18 @@ contract EigenlayerMiddlewareTest is Test {
                 address(eigenLayerDeployer.eigenPodManager()),
                 address(eigenLayerDeployer.rewardsCoordinator()),
                 rewardsInitiator,
-                GATEWAY_SHARE_BIPS
+                UNDERWRITER_SHARE_BIPS
             )
         );
         validatorAVS = ValidatorAVS(address(validatorProxy));
 
-        // Deploy GatewayAVS
-        GatewayAVS gatewayImpl = new GatewayAVS();
-        TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
-            address(gatewayImpl),
+        // Deploy UnderwriterAVS
+        UnderwriterAVS underwriterImpl = new UnderwriterAVS();
+        TransparentUpgradeableProxy underwriterProxy = new TransparentUpgradeableProxy(
+            address(underwriterImpl),
             proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
-                GatewayAVS.initialize.selector,
+                UnderwriterAVS.initialize.selector,
                 owner,
                 address(proposerRegistry),
                 address(eigenLayerDeployer.avsDirectory()),
@@ -131,17 +131,17 @@ contract EigenlayerMiddlewareTest is Test {
                 address(eigenLayerDeployer.eigenPodManager()),
                 address(eigenLayerDeployer.rewardsCoordinator()),
                 rewardsInitiator,
-                GATEWAY_SHARE_BIPS
+                UNDERWRITER_SHARE_BIPS
             )
         );
-        gatewayAVS = GatewayAVS(address(gatewayProxy));
+        underwriterAVS = UnderwriterAVS(address(underwriterProxy));
 
         // Set AVS contracts in registry
-        proposerRegistry.setAVSContracts(address(gatewayAVS), address(validatorAVS));
+        proposerRegistry.setAVSContracts(address(underwriterAVS), address(validatorAVS));
 
         // Register AVS contracts with the registry
         // proposerRegistry.addRestakingMiddlewareContract(address(validatorAVS));
-        // proposerRegistry.addRestakingMiddlewareContract(address(gatewayAVS));
+        // proposerRegistry.addRestakingMiddlewareContract(address(underwriterAVS));
 
         // Set AVS types in the registry
         // proposerRegistry.setAvsType(
@@ -149,7 +149,7 @@ contract EigenlayerMiddlewareTest is Test {
         //     IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
         // );
         // proposerRegistry.setAvsType(
-        //     address(gatewayAVS), IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+        //     address(underwriterAVS), IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
         // );
 
         vm.stopPrank();
@@ -166,23 +166,59 @@ contract EigenlayerMiddlewareTest is Test {
         assertEq(eigenLayerDeployer.delegation().delegatedTo(staker), operator);
     }
 
-    function testGatewayOperatorAVSRegistration() public {
+    function testUnderwriterOperatorAVSRegistration() public {
         _operatorRegistration(operator);
-        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
+        _underwriterOperatorAVSRegistration(
+            operator, operatorSecretKey, 0, operatorBLSPubKey
+        );
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             ),
-            "Gateway operator registration failed"
+            "Underwriter operator registration failed"
         );
 
         (
-            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory underwriterOpData,
             IProposerRegistry.Operator memory validatorOpData
         ) = proposerRegistry.getRegisteredOperator(operator);
         validatorOpData;
         assertEq(
-            keccak256(gatewayOpData.blsKey),
+            keccak256(underwriterOpData.blsKey),
+            keccak256(operatorBLSPubKey),
+            "BLS key should match"
+        );
+    }
+
+    /// @notice Tests Underwriter operator registration and event emission
+    /// @dev Verifies:
+    /// 1. Operator can register with UnderwriterAVS
+    /// 2. BLS key is properly stored
+    /// 3. Events are emitted for preconf delegation message
+    function test_UnderwriterOperatorRegistration() public {
+        // Register operator in EigenLayer first
+        _operatorRegistration(operator);
+
+        _underwriterOperatorAVSRegistration(
+            operator, operatorSecretKey, 0, operatorBLSPubKey
+        );
+
+        // Verify registration
+        assertTrue(
+            proposerRegistry.isOperatorRegisteredInAVS(
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
+            ),
+            "Operator should be registered in UnderwriterAVS"
+        );
+
+        // Verify BLS key storage
+        (
+            IProposerRegistry.Operator memory underwriterOpData,
+            IProposerRegistry.Operator memory validatorOpData
+        ) = proposerRegistry.getRegisteredOperator(operator);
+        validatorOpData;
+        assertEq(
+            keccak256(underwriterOpData.blsKey),
             keccak256(operatorBLSPubKey),
             "BLS key should match"
         );
@@ -196,38 +232,6 @@ contract EigenlayerMiddlewareTest is Test {
                 operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
             ),
             "Validator operator registration failed"
-        );
-    }
-
-    /// @notice Tests Gateway operator registration and event emission
-    /// @dev Verifies:
-    /// 1. Operator can register with GatewayAVS
-    /// 2. BLS key is properly stored
-    /// 3. Events are emitted for preconf delegation message
-    function test_GatewayOperatorRegistration() public {
-        // Register operator in EigenLayer first
-        _operatorRegistration(operator);
-
-        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
-
-        // Verify registration
-        assertTrue(
-            proposerRegistry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
-            ),
-            "Operator should be registered in GatewayAVS"
-        );
-
-        // Verify BLS key storage
-        (
-            IProposerRegistry.Operator memory gatewayOpData,
-            IProposerRegistry.Operator memory validatorOpData
-        ) = proposerRegistry.getRegisteredOperator(operator);
-        validatorOpData;
-        assertEq(
-            keccak256(gatewayOpData.blsKey),
-            keccak256(operatorBLSPubKey),
-            "BLS key should match"
         );
     }
 
@@ -303,13 +307,14 @@ contract EigenlayerMiddlewareTest is Test {
             mockPodOwnerBLSPubKey[i] = 0xcd;
         }
 
-        // 4. Register as Operator in GatewayAVS
-        _gatewayOperatorAVSRegistration(mockPodOwner, 1, 0, mockPodOwnerBLSPubKey);
+        // 4. Register as Operator in UnderwriterAVS
+        _underwriterOperatorAVSRegistration(mockPodOwner, 1, 0, mockPodOwnerBLSPubKey);
         assertTrue(
             proposerRegistry.isOperatorRegisteredInAVS(
-                mockPodOwner, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                mockPodOwner,
+                IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             ),
-            "Operator should be registered in GatewayAVS"
+            "Operator should be registered in UnderwriterAVS"
         );
 
         // 5. Register as Operator in ValidatorAVS
@@ -336,11 +341,11 @@ contract EigenlayerMiddlewareTest is Test {
         address[] memory podOwners = new address[](1);
         podOwners[0] = mockPodOwner;
 
-        bytes[] memory delegatedGateways = new bytes[](1);
-        delegatedGateways[0] = mockPodOwnerBLSPubKey;
+        bytes[] memory delegatedUnderwriters = new bytes[](1);
+        delegatedUnderwriters[0] = mockPodOwnerBLSPubKey;
 
         vm.prank(mockPodOwner);
-        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedUnderwriters);
 
         // 8. Verify registration status in proposer registry
         bytes32 pubkeyHash = keccak256(validatorPubkey);
@@ -378,15 +383,17 @@ contract EigenlayerMiddlewareTest is Test {
         _delegationToOperator(podOwner, operator);
 
         // Register operator in both AVS
-        _gatewayOperatorAVSRegistration(operator, operatorSecretKey, 0, operatorBLSPubKey);
+        _underwriterOperatorAVSRegistration(
+            operator, operatorSecretKey, 0, operatorBLSPubKey
+        );
         _validatorOperatorAVSRegistration(operator, operatorSecretKey, 1);
 
         // Prepare multiple validator keys
         uint256 validatorCount = 3;
         bytes[][] memory valPubKeys = new bytes[][](1);
         valPubKeys[0] = new bytes[](validatorCount);
-        bytes[] memory delegatedGateways = new bytes[](1);
-        delegatedGateways[0] = operatorBLSPubKey; // Use operator's BLS key as delegatee
+        bytes[] memory delegatedUnderwriters = new bytes[](1);
+        delegatedUnderwriters[0] = operatorBLSPubKey; // Use operator's BLS key as delegatee
         address[] memory podOwners = new address[](1);
         podOwners[0] = podOwner;
 
@@ -400,7 +407,7 @@ contract EigenlayerMiddlewareTest is Test {
 
         // Register validators
         vm.prank(podOwner);
-        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedUnderwriters);
 
         // Verify registrations
         for (uint256 i = 0; i < validatorCount; i++) {
@@ -429,23 +436,23 @@ contract EigenlayerMiddlewareTest is Test {
         );
     }
 
-    /// @notice Tests reward distribution between GatewayAVS and ValidatorAVS
+    /// @notice Tests reward distribution between UnderwriterAVS and ValidatorAVS
     function test_RewardDistribution() public {
         // Setup reward token and get shares
-        (IERC20 rewardToken, uint256 gatewayShare, uint256 validatorShare) =
+        (IERC20 rewardToken, uint256 underwriterShare, uint256 validatorShare) =
             _setupRewardToken();
         validatorShare;
 
         // Setup operators
         (
-            address gatewayOp,
+            address underwriterOp,
             address validatorOp1,
             address validatorOp2,
-            uint256 gatewayOpKey,
+            uint256 underwriterOpKey,
             uint256 validatorOp1Key,
             uint256 validatorOp2Key
         ) = _setupOperators();
-        gatewayOpKey;
+        underwriterOpKey;
 
         // Setup validator operators in both AVSs
         _setupValidatorOperatorsInAVS(
@@ -459,18 +466,18 @@ contract EigenlayerMiddlewareTest is Test {
             multiplier: 1 ether
         });
 
-        // First submission: Gateway rewards
-        IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
+        // First submission: Underwriter rewards
+        IRewardsCoordinator.OperatorReward[] memory underwriterRewards =
             new IRewardsCoordinator.OperatorReward[](3);
 
         // Create rewards with operators (already in ascending order from _setupOperators)
-        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
-            operator: gatewayOp,
-            amount: gatewayShare
+        underwriterRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: underwriterOp,
+            amount: underwriterShare
         });
-        gatewayRewards[1] =
+        underwriterRewards[1] =
             IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp1, amount: 0 });
-        gatewayRewards[2] =
+        underwriterRewards[2] =
             IRewardsCoordinatorTypes.OperatorReward({ operator: validatorOp2, amount: 0 });
 
         // Second submission: Validator rewards (with sorted operators)
@@ -487,14 +494,14 @@ contract EigenlayerMiddlewareTest is Test {
 
         _warpToNextInterval(7 days + 1);
 
-        // Gateway submission
+        // Underwriter submission
         submissions[0] = IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: strategyAndMultipliers,
             token: rewardToken,
-            operatorRewards: gatewayRewards,
+            operatorRewards: underwriterRewards,
             startTimestamp: uint32(block.timestamp - 14 days),
             duration: 7 days,
-            description: "gateway"
+            description: "underwriter"
         });
 
         // Validator submission
@@ -511,11 +518,11 @@ contract EigenlayerMiddlewareTest is Test {
             rewardToken.balanceOf(address(eigenLayerDeployer.rewardsCoordinator()));
 
         vm.expectEmit(true, true, false, true);
-        emit GatewayAVS.ValidatorAmountForwarded(200 ether); // 1000 ether * 20%
+        emit UnderwriterAVS.ValidatorAmountForwarded(200 ether); // 1000 ether * 20%
 
         // Submit rewards as rewardsInitiator
         vm.prank(rewardsInitiator);
-        gatewayAVS.createOperatorDirectedAVSRewardsSubmission(submissions);
+        underwriterAVS.createOperatorDirectedAVSRewardsSubmission(submissions);
 
         uint256 afterBal =
             rewardToken.balanceOf(address(eigenLayerDeployer.rewardsCoordinator()));
@@ -526,25 +533,6 @@ contract EigenlayerMiddlewareTest is Test {
             1,
             "Coordinator balance should have increased by 1000 tokens"
         );
-
-        // Todo: test the processClaim
-        // vm.prank(gatewayOp);
-        // gatewayAVS.processClaim(gatewayOp, address(rewardToken));
-        // assertApproxEqAbs(
-        //     rewardToken.balanceOf(gatewayOp), gatewayShare, 1, "Wrong gateway reward"
-        // );
-        // assertApproxEqAbs(
-        //     rewardToken.balanceOf(validatorOp1),
-        //     (validatorShare * 2) / 3,
-        //     1,
-        //     "Wrong validator1 reward"
-        // );
-        // assertApproxEqAbs(
-        //     rewardToken.balanceOf(validatorOp2),
-        //     validatorShare / 3,
-        //     1,
-        //     "Wrong validator2 reward"
-        // );
     }
 
     function _warpToNextInterval(uint256 secondsToAdd) internal {
@@ -567,40 +555,40 @@ contract EigenlayerMiddlewareTest is Test {
         IERC20 reward = IERC20(address(rewardToken));
 
         uint256 totalReward = 1000 ether;
-        uint256 gatewayShare = totalReward;
+        uint256 underwriterShare = totalReward;
 
-        // First approve gatewayAVS to spend tokens from rewardsInitiator
+        // First approve underwriterAVS to spend tokens from rewardsInitiator
         vm.startPrank(rewardsInitiator);
-        reward.approve(address(gatewayAVS), type(uint256).max);
+        reward.approve(address(underwriterAVS), type(uint256).max);
         vm.stopPrank();
 
-        // Then approve RewardsCoordinator to spend tokens from gatewayAVS
-        vm.prank(address(gatewayAVS));
+        // Then approve RewardsCoordinator to spend tokens from underwriterAVS
+        vm.prank(address(underwriterAVS));
         reward.approve(
             address(eigenLayerDeployer.rewardsCoordinator()), type(uint256).max
         );
 
-        return (reward, gatewayShare, 0 ether);
+        return (reward, underwriterShare, 0 ether);
     }
 
     /// @notice Helper function to setup operators
     function _setupOperators()
         internal
         returns (
-            address gatewayOp,
+            address underwriterOp,
             address validatorOp1,
             address validatorOp2,
-            uint256 gatewayOpKey,
+            uint256 underwriterOpKey,
             uint256 validatorOp1Key,
             uint256 validatorOp2Key
         )
     {
         // Create operators in ascending order by manipulating the labels
-        (gatewayOp, gatewayOpKey) = makeAddrAndKey("aaa_gateway1");
+        (underwriterOp, underwriterOpKey) = makeAddrAndKey("aaa_underwriter1");
         (validatorOp1, validatorOp1Key) = makeAddrAndKey("bbb_validator1");
         (validatorOp2, validatorOp2Key) = makeAddrAndKey("ccc_validator2");
 
-        _setupOperator(gatewayOp, true, gatewayOpKey);
+        _setupOperator(underwriterOp, true, underwriterOpKey);
         _setupOperator(validatorOp1, false, validatorOp1Key);
         _setupOperator(validatorOp2, false, validatorOp2Key);
     }
@@ -617,10 +605,10 @@ contract EigenlayerMiddlewareTest is Test {
         bytes memory validatorOp1BLSPubKey = _generateMockBLSKey();
         bytes memory validatorOp2BLSPubKey = _generateMockBLSKey();
 
-        _gatewayOperatorAVSRegistration(
+        _underwriterOperatorAVSRegistration(
             validatorOp1, validatorOp1Key, 1, validatorOp1BLSPubKey
         );
-        _gatewayOperatorAVSRegistration(
+        _underwriterOperatorAVSRegistration(
             validatorOp2, validatorOp2Key, 2, validatorOp2BLSPubKey
         );
 
@@ -644,35 +632,35 @@ contract EigenlayerMiddlewareTest is Test {
         return blsKey;
     }
 
-    /// @notice Helper function to create gateway rewards submission
-    function _createGatewayRewardsSubmission(
+    /// @notice Helper function to create underwriter rewards submission
+    function _createUnderwriterRewardsSubmission(
         IERC20 rewardToken,
-        address gatewayOperator1,
-        address gatewayOperator2,
-        uint256 gatewayShare
+        address underwriterOperator1,
+        address underwriterOperator2,
+        uint256 underwriterShare
     )
         internal
         view
         returns (IRewardsCoordinator.OperatorDirectedRewardsSubmission memory)
     {
-        IRewardsCoordinator.OperatorReward[] memory gatewayRewards =
+        IRewardsCoordinator.OperatorReward[] memory underwriterRewards =
             new IRewardsCoordinatorTypes.OperatorReward[](2);
-        gatewayRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
-            operator: gatewayOperator1,
-            amount: gatewayShare / 2
+        underwriterRewards[0] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: underwriterOperator1,
+            amount: underwriterShare / 2
         });
-        gatewayRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
-            operator: gatewayOperator2,
-            amount: gatewayShare / 2
+        underwriterRewards[1] = IRewardsCoordinatorTypes.OperatorReward({
+            operator: underwriterOperator2,
+            amount: underwriterShare / 2
         });
 
         return IRewardsCoordinatorTypes.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: new IRewardsCoordinatorTypes.StrategyAndMultiplier[](0),
             token: rewardToken,
-            operatorRewards: gatewayRewards,
+            operatorRewards: underwriterRewards,
             startTimestamp: uint32(block.timestamp),
             duration: 7 days,
-            description: "gateway"
+            description: "underwriter"
         });
     }
 
@@ -710,14 +698,14 @@ contract EigenlayerMiddlewareTest is Test {
 
     function _setupOperator(
         address localOperator,
-        bool isGateway,
+        bool isUnderwriter,
         uint256 localOperatorSecretKey
     )
         internal
         impersonate(localOperator)
     {
-        bytes memory blsKey = isGateway ? new bytes(48) : bytes("");
-        if (isGateway) {
+        bytes memory blsKey = isUnderwriter ? new bytes(48) : bytes("");
+        if (isUnderwriter) {
             for (uint256 i = 0; i < 48; i++) {
                 blsKey[i] = 0xab;
             }
@@ -728,14 +716,14 @@ contract EigenlayerMiddlewareTest is Test {
         );
 
         ISignatureUtils.SignatureWithSaltAndExpiry memory sig = _getOperatorSignature(
-            isGateway ? address(gatewayAVS) : address(validatorAVS),
+            isUnderwriter ? address(underwriterAVS) : address(validatorAVS),
             localOperator,
             localOperatorSecretKey,
             0
         );
 
-        if (isGateway) {
-            gatewayAVS.registerOperatorToAVSWithPubKey(localOperator, sig, blsKey);
+        if (isUnderwriter) {
+            underwriterAVS.registerOperatorToAVSWithPubKey(localOperator, sig, blsKey);
         } else {
             validatorAVS.registerOperatorToAVS(localOperator, sig);
         }
@@ -749,8 +737,8 @@ contract EigenlayerMiddlewareTest is Test {
     {
         bytes[][] memory valPubKeys = new bytes[][](1);
         valPubKeys[0] = new bytes[](count);
-        bytes[] memory delegatedGateways = new bytes[](1);
-        delegatedGateways[0] = operatorBLSPubKey;
+        bytes[] memory delegatedUnderwriters = new bytes[](1);
+        delegatedUnderwriters[0] = operatorBLSPubKey;
         address[] memory podOwners = new address[](1);
         podOwners[0] = localOperator;
 
@@ -771,7 +759,7 @@ contract EigenlayerMiddlewareTest is Test {
         }
 
         vm.prank(localOperator);
-        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedGateways);
+        validatorAVS.registerValidators(valPubKeys, podOwners, delegatedUnderwriters);
     }
 
     /// @notice Helper function to simulate a validator being active in EigenLayer by manipulating storage
@@ -842,8 +830,8 @@ contract EigenlayerMiddlewareTest is Test {
         );
     }
 
-    /// @notice Registers operator with Gateway AVS using signed message
-    function _gatewayOperatorAVSRegistration(
+    /// @notice Registers operator with Underwriter AVS using signed message
+    function _underwriterOperatorAVSRegistration(
         address localOperator,
         uint256 localOperatorSecretKey,
         uint256 salt,
@@ -854,9 +842,9 @@ contract EigenlayerMiddlewareTest is Test {
     {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
         _getOperatorSignature(
-            address(gatewayAVS), localOperator, localOperatorSecretKey, salt
+            address(underwriterAVS), localOperator, localOperatorSecretKey, salt
         );
-        gatewayAVS.registerOperatorToAVSWithPubKey(
+        underwriterAVS.registerOperatorToAVSWithPubKey(
             localOperator, operatorSignature, blsPubKey
         );
     }

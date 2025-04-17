@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::ProviderBuilder;
@@ -5,6 +7,7 @@ use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
 use hex::FromHex;
+use reqwest::Url;
 use taiyi_contracts::TaiyiValidatorAVSEigenlayerMiddleware;
 use tracing::info;
 
@@ -30,9 +33,9 @@ pub struct RegisterValidatorsCommand {
     #[clap(long, env = "POD_OWNERS", value_delimiter = ',')]
     pod_owners: Vec<String>,
 
-    /// Comma-separated list of delegated gateways in hex format
-    #[clap(long, env = "DELEGATED_GATEWAYS", value_delimiter = ',')]
-    delegated_gateways: Vec<String>,
+    /// Comma-separated list of delegated underwriters in hex format
+    #[clap(long, env = "DELEGATED_UNDERWRITERS", value_delimiter = ',')]
+    delegated_underwriters: Vec<String>,
 }
 
 impl RegisterValidatorsCommand {
@@ -40,10 +43,8 @@ impl RegisterValidatorsCommand {
         // Setup provider and signer
         let signer: PrivateKeySigner = self.private_key.parse()?;
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&self.execution_rpc_url)
-            .await?;
+            .on_http(Url::from_str(&self.execution_rpc_url)?);
 
         // Parse validator pubkeys into Vec<Vec<u8>>
         let val_pub_keys: Vec<Vec<Bytes>> = self
@@ -66,13 +67,13 @@ impl RegisterValidatorsCommand {
             })
             .collect();
 
-        // Parse delegated gateways into Vec<Bytes>
-        let delegated_gateways: Vec<Bytes> = self
-            .delegated_gateways
+        // Parse delegated underwriters into Vec<Bytes>
+        let delegated_underwriters: Vec<Bytes> = self
+            .delegated_underwriters
             .iter()
-            .map(|gateway| {
-                Bytes::from_hex(gateway.trim()).unwrap_or_else(|_| {
-                    panic!("Invalid hex string {gateway:} for delegated gateway")
+            .map(|underwriter| {
+                Bytes::from_hex(underwriter.trim()).unwrap_or_else(|_| {
+                    panic!("Invalid hex string {underwriter:} for delegated underwriter")
                 })
             })
             .collect();
@@ -85,7 +86,7 @@ impl RegisterValidatorsCommand {
 
         // Register validators
         let tx = middleware
-            .registerValidators(val_pub_keys, pod_owners, delegated_gateways)
+            .registerValidators(val_pub_keys, pod_owners, delegated_underwriters)
             .send()
             .await?;
 

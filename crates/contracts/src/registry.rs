@@ -4,7 +4,7 @@ sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     enum AVSType {
-        GATEWAY,
+        UNDERWRITER,
         VALIDATOR
     }
     #[sol(rpc)]

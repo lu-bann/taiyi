@@ -30,7 +30,7 @@ pub struct InputData {
     pub n: u32,
 }
 
-const ELF: &[u8] = include_elf!("sp1-poi");
+const ELF: &[u8] = include_elf!("taiyi-poi");
 
 pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
     // 1. Read input data

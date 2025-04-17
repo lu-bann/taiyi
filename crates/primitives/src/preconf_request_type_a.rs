@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeA {
-    /// ETH transfer to the gateway
+    /// ETH transfer to the underwriter
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
     pub preconf_tx: Vec<TxEnvelope>,
@@ -54,14 +54,14 @@ impl PreconfRequestTypeA {
 
         keccak256(
             (
-                tip_tx_raw.as_bytes(),
-                preconf_txs.iter().map(|s| s.as_bytes()).collect::<Vec<_>>(),
-                self.target_slot,
-                sequence_number,
+                tip_tx_raw,
+                preconf_txs,
+                U256::from(self.target_slot),
+                U256::from(sequence_number),
                 self.signer,
-                chain_id,
+                U256::from(chain_id),
             )
-                .abi_encode_packed(),
+                .abi_encode_sequence(),
         )
     }
 
@@ -77,7 +77,7 @@ impl PreconfRequestTypeA {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SubmitTypeATransactionRequest {
-    /// ETH transfer to the gateway
+    /// ETH transfer to the underwriter
     pub tip_transaction: TxEnvelope,
     /// Preconf transactions from user
     pub preconf_transaction: Vec<TxEnvelope>,

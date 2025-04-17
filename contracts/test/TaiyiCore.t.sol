@@ -36,7 +36,7 @@ contract TaiyiCoreTest is Test {
     bytes rawTx =
         hex"000000000000000000000000a83114a443da1cecefc50368531cace9f37fcccb0000000000000000000000006d2e03b7effeae98bd302a9f836d0d6ab000276600000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000005208000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000011100000000000000000000000000000000000000000000000000000000000000";
 
-    event Exhausted(address indexed preconfer, uint256 amount);
+    event Exhausted(address indexed underwriter, uint256 amount);
 
     function setUp() public {
         (user, userPrivatekey) = makeAddrAndKey("user");
@@ -81,17 +81,17 @@ contract TaiyiCoreTest is Test {
 
         (v, r, s) =
             vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
-        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedRawTx = abi.encodePacked(r, s, v);
 
         preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
             blockspaceAllocationSignature: blockspaceAllocationSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            underwriterSignedBlockspaceAllocation: underwriterSignedBlockspaceAllocation,
             rawTx: rawTx,
-            gatewaySignedRawTx: gatewaySignedRawTx
+            underwriterSignedRawTx: underwriterSignedRawTx
         });
     }
 
@@ -107,18 +107,18 @@ contract TaiyiCoreTest is Test {
 
         (v, r, s) =
             vm.sign(ownerPrivatekey, blockspaceAllocationSignature.hashSignature());
-        bytes memory gatewaySignedBlockspaceAllocation = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedBlockspaceAllocation = abi.encodePacked(r, s, v);
 
         bytes memory rawTx = new bytes(0);
         (v, r, s) = vm.sign(ownerPrivatekey, rawTx.hashSignature());
-        bytes memory gatewaySignedRawTx = abi.encodePacked(r, s, v);
+        bytes memory underwriterSignedRawTx = abi.encodePacked(r, s, v);
 
         preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
             blockspaceAllocationSignature: blockspaceAllocationSignature,
-            gatewaySignedBlockspaceAllocation: gatewaySignedBlockspaceAllocation,
+            underwriterSignedBlockspaceAllocation: underwriterSignedBlockspaceAllocation,
             rawTx: rawTx,
-            gatewaySignedRawTx: gatewaySignedRawTx
+            underwriterSignedRawTx: underwriterSignedRawTx
         });
     }
 

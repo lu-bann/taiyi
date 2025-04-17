@@ -1,9 +1,12 @@
+use std::str::FromStr;
+
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, U256};
 use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
+use reqwest::Url;
 use taiyi_contracts::{
     IStrategy, IStrategyManager,
     IERC20::{self, balanceOfReturn},
@@ -40,10 +43,8 @@ impl DepositCommand {
         let signer: PrivateKeySigner = self.private_key.parse()?;
         // Connect to the Ethereum network
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_builtin(&self.execution_rpc_url)
-            .await?;
+            .on_http(Url::from_str(&self.execution_rpc_url)?);
 
         // Create Strategy contract interface
         let strategy = IStrategy::new(self.strategy_address, provider.clone());

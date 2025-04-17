@@ -34,11 +34,11 @@ interface IValidatorAVS {
     /// @notice Register validators for a pod owner
     /// @param valPubKeys Array of validator BLS public keys to register
     /// @param podOwners Array of pod owner addresses
-    /// @param delegatedGatewayPubKeys Array of delegated gateway public keys
+    /// @param delegatedUnderwriterPubKeys Array of delegated underwriter public keys
     function registerValidators(
         bytes[][] calldata valPubKeys,
         address[] calldata podOwners,
-        bytes[] calldata delegatedGatewayPubKeys
+        bytes[] calldata delegatedUnderwriterPubKeys
     )
         external;
 }

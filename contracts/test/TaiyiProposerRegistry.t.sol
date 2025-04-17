@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import "../src/TaiyiProposerRegistry.sol";
 
-import "../src/eigenlayer-avs/GatewayAVS.sol";
+import "../src/eigenlayer-avs/UnderwriterAVS.sol";
 import "../src/eigenlayer-avs/ValidatorAVS.sol";
 import "../src/interfaces/IProposerRegistry.sol";
 
@@ -12,12 +12,11 @@ import { EigenlayerDeployer } from "./utils/EigenlayerDeployer.sol";
 import { TransparentUpgradeableProxy } from
     "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
 
 contract TaiyiProposerRegistryTest is Test {
     TaiyiProposerRegistry public registry;
 
-    uint256 constant GATEWAY_SHARE_BIPS = 8000; // 80%
+    uint256 constant UNDERWRITER_SHARE_BIPS = 8000; // 80%
 
     address public owner;
     address public operator;
@@ -46,13 +45,13 @@ contract TaiyiProposerRegistryTest is Test {
         );
         registry = TaiyiProposerRegistry(address(registryProxy));
 
-        // Deploy GatewayAVS as an upgradeable proxy
-        GatewayAVS gatewayImpl = new GatewayAVS();
-        TransparentUpgradeableProxy gatewayProxy = new TransparentUpgradeableProxy(
-            address(gatewayImpl),
+        // Deploy UnderwriterAVS as an upgradeable proxy
+        UnderwriterAVS underwriterImpl = new UnderwriterAVS();
+        TransparentUpgradeableProxy underwriterProxy = new TransparentUpgradeableProxy(
+            address(underwriterImpl),
             proxyAdmin, // Use proxyAdmin instead of owner
             abi.encodeWithSelector(
-                GatewayAVS.initialize.selector,
+                UnderwriterAVS.initialize.selector,
                 owner,
                 address(registry),
                 address(eigenLayerDeployer.avsDirectory()),
@@ -61,10 +60,10 @@ contract TaiyiProposerRegistryTest is Test {
                 address(eigenLayerDeployer.eigenPodManager()),
                 address(eigenLayerDeployer.rewardsCoordinator()),
                 rewardsInitiator,
-                GATEWAY_SHARE_BIPS
+                UNDERWRITER_SHARE_BIPS
             )
         );
-        GatewayAVS gatewayAVSInstance = GatewayAVS(address(gatewayProxy));
+        UnderwriterAVS underwriterAVSInstance = UnderwriterAVS(address(underwriterProxy));
 
         // Deploy ValidatorAVS as an upgradeable proxy
         ValidatorAVS validatorImpl = new ValidatorAVS();
@@ -81,19 +80,19 @@ contract TaiyiProposerRegistryTest is Test {
                 address(eigenLayerDeployer.eigenPodManager()),
                 address(eigenLayerDeployer.rewardsCoordinator()),
                 rewardsInitiator,
-                GATEWAY_SHARE_BIPS
+                UNDERWRITER_SHARE_BIPS
             )
         );
         ValidatorAVS validatorAVSInstance = ValidatorAVS(address(validatorProxy));
 
         // Set AVS contracts in registry
         registry.setAVSContracts(
-            address(gatewayAVSInstance), address(validatorAVSInstance)
+            address(underwriterAVSInstance), address(validatorAVSInstance)
         );
 
         // Add middleware contracts
         // registry.addRestakingMiddlewareContract(address(validatorAVSInstance));
-        // registry.addRestakingMiddlewareContract(address(gatewayAVSInstance));
+        // registry.addRestakingMiddlewareContract(address(underwriterAVSInstance));
 
         vm.stopPrank();
     }
@@ -102,8 +101,8 @@ contract TaiyiProposerRegistryTest is Test {
         assertEq(registry.owner(), owner);
         assertTrue(
             registry.isOperatorRegisteredInAVS(
-                address(registry.gatewayAVS()),
-                IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                address(registry.underwriterAVS()),
+                IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             ) == false
         );
         assertTrue(
@@ -114,26 +113,26 @@ contract TaiyiProposerRegistryTest is Test {
         );
     }
 
-    /// @notice Test EigenLayer Gateway operator registration
-    function test_EigenLayerGatewayOperatorRegistration() public {
-        vm.prank(address(registry.gatewayAVS()));
+    /// @notice Test EigenLayer Underwriter operator registration
+    function test_EigenLayerUnderwriterOperatorRegistration() public {
+        vm.prank(address(registry.underwriterAVS()));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
 
-        (IProposerRegistry.Operator memory gatewayOp,) =
+        (IProposerRegistry.Operator memory underwriterOp,) =
             registry.getOperatorData(operator);
-        assertEq(gatewayOp.operatorAddress, operator);
+        assertEq(underwriterOp.operatorAddress, operator);
         assertEq(
-            uint256(gatewayOp.serviceType),
-            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY)
+            uint256(underwriterOp.serviceType),
+            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
         );
-        assertEq(keccak256(gatewayOp.blsKey), keccak256(mockBlsPubKey));
+        assertEq(keccak256(underwriterOp.blsKey), keccak256(mockBlsPubKey));
         assertTrue(
             registry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
         );
     }
@@ -285,14 +284,14 @@ contract TaiyiProposerRegistryTest is Test {
 
     /// @notice Test AVS type management
     function test_AVSTypeManagement() public {
-        address gatewayAVS = makeAddr("gatewayAVS");
+        address underwriterAVS = makeAddr("underwriterAVS");
         address validatorAVS = makeAddr("validatorAVS");
 
         vm.prank(owner);
-        registry.setAVSContracts(gatewayAVS, validatorAVS);
+        registry.setAVSContracts(underwriterAVS, validatorAVS);
         assertEq(
-            uint8(registry.getAvsType(gatewayAVS)),
-            uint8(IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY)
+            uint8(registry.getAvsType(underwriterAVS)),
+            uint8(IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
         );
 
         assertEq(
@@ -303,11 +302,11 @@ contract TaiyiProposerRegistryTest is Test {
 
     /// @notice Test operator counting and querying
     function test_OperatorQueries() public {
-        // Register operator in Gateway AVS
-        vm.startPrank(address(registry.gatewayAVS()));
+        // Register operator in Underwriter AVS
+        vm.startPrank(address(registry.underwriterAVS()));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
         vm.stopPrank();
@@ -319,11 +318,11 @@ contract TaiyiProposerRegistryTest is Test {
         );
         vm.stopPrank();
 
-        // Test Gateway operator queries
-        address[] memory gatewayOps =
-            registry.getActiveOperatorsForAVS(address(registry.gatewayAVS()));
-        assertEq(gatewayOps.length, 1);
-        assertEq(gatewayOps[0], operator);
+        // Test Underwriter operator queries
+        address[] memory underwriterOps =
+            registry.getActiveOperatorsForAVS(address(registry.underwriterAVS()));
+        assertEq(underwriterOps.length, 1);
+        assertEq(underwriterOps[0], operator);
 
         // Test Validator operator queries
         address[] memory validatorOps =
@@ -333,17 +332,17 @@ contract TaiyiProposerRegistryTest is Test {
 
         // Verify operator data
         (
-            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory underwriterOpData,
             IProposerRegistry.Operator memory validatorOpData
         ) = registry.getRegisteredOperator(operator);
 
-        // Verify Gateway operator data
-        assertEq(gatewayOpData.operatorAddress, operator);
+        // Verify Underwriter operator data
+        assertEq(underwriterOpData.operatorAddress, operator);
         assertEq(
-            uint256(gatewayOpData.serviceType),
-            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY)
+            uint256(underwriterOpData.serviceType),
+            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
         );
-        assertEq(keccak256(gatewayOpData.blsKey), keccak256(mockBlsPubKey));
+        assertEq(keccak256(underwriterOpData.blsKey), keccak256(mockBlsPubKey));
 
         // Verify Validator operator data
         assertEq(validatorOpData.operatorAddress, operator);
@@ -356,19 +355,19 @@ contract TaiyiProposerRegistryTest is Test {
 
     function test_RegisterOperatorRevertsIfAlreadyRegistered() public {
         // First time success
-        vm.prank(address(registry.gatewayAVS()));
+        vm.prank(address(registry.underwriterAVS()));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
 
         // Second time revert
-        vm.prank(address(registry.gatewayAVS()));
+        vm.prank(address(registry.underwriterAVS()));
         vm.expectRevert(bytes("Already registered"));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
     }
@@ -377,7 +376,7 @@ contract TaiyiProposerRegistryTest is Test {
         vm.expectRevert(bytes("Unauthorized middleware"));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
     }
@@ -473,16 +472,16 @@ contract TaiyiProposerRegistryTest is Test {
         );
         assertFalse(
             registry.isOperatorRegisteredInAVS(
-                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
         );
 
         // Verify operator data is cleared
         (
-            IProposerRegistry.Operator memory gatewayOpData,
+            IProposerRegistry.Operator memory underwriterOpData,
             IProposerRegistry.Operator memory validatorOpData
         ) = registry.getRegisteredOperator(operator);
-        gatewayOpData;
+        underwriterOpData;
         assertEq(validatorOpData.operatorAddress, address(0));
         assertEq(validatorOpData.restakingMiddlewareContract, address(0));
         assertEq(validatorOpData.blsKey.length, 0);
@@ -647,24 +646,24 @@ contract TaiyiProposerRegistryTest is Test {
         )
     {
         (
-            IProposerRegistry.Operator memory gatewayOp,
+            IProposerRegistry.Operator memory underwriterOp,
             IProposerRegistry.Operator memory validatorOp
         ) = registry.getRegisteredOperator(operatorAddr);
         validatorOp;
         return (
-            gatewayOp.operatorAddress,
-            gatewayOp.restakingMiddlewareContract,
-            gatewayOp.serviceType,
-            gatewayOp.blsKey
+            underwriterOp.operatorAddress,
+            underwriterOp.restakingMiddlewareContract,
+            underwriterOp.serviceType,
+            underwriterOp.blsKey
         );
     }
 
     function test_ProtocolSpecificBLSKeyUpdate() public {
-        // Register as EigenLayer Gateway operator
-        vm.prank(address(registry.gatewayAVS()));
+        // Register as EigenLayer Underwriter operator
+        vm.prank(address(registry.underwriterAVS()));
         registry.registerOperator(
             operator,
-            IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY,
+            IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER,
             mockBlsPubKey
         );
 
@@ -672,12 +671,12 @@ contract TaiyiProposerRegistryTest is Test {
         vm.prank(operator);
         registry.updateOperatorBLSKey(operator, newBlsKey);
 
-        (IProposerRegistry.Operator memory gatewayOp,) =
+        (IProposerRegistry.Operator memory underwriterOp,) =
             registry.getOperatorData(operator);
-        assertEq(keccak256(gatewayOp.blsKey), keccak256(newBlsKey));
+        assertEq(keccak256(underwriterOp.blsKey), keccak256(newBlsKey));
         assertEq(
-            uint256(gatewayOp.serviceType),
-            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY)
+            uint256(underwriterOp.serviceType),
+            uint256(IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER)
         );
     }
 }

@@ -22,10 +22,10 @@ hex = { workspace = true }
 mev-share-sse = { git = "https://github.com/paradigmxyz/mev-share-rs", rev = "a75c5959e98a79031a89f8893c97528e8f726826" }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
-taiyi-preconfer = { workspace = true }
 # serde = { workspace = true }
 # serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
+taiyi-underwriter = { workspace = true }
 # time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

@@ -22,31 +22,31 @@ contract DeployTest is Test {
 
     uint256 internal userPrivatekey;
     uint256 internal ownerPrivatekey;
-    uint256 internal preconferPrivatekey;
+    uint256 internal underwriterPrivatekey;
 
     address user;
     address owner;
-    address preconfer;
+    address underwriter;
 
     uint8 v;
     bytes32 r;
     bytes32 s;
 
-    event Exhausted(address indexed preconfer, uint256 amount);
+    event Exhausted(address indexed underwriter, uint256 amount);
 
     function setUp() public {
         (user, userPrivatekey) = makeAddrAndKey("user");
         (owner, ownerPrivatekey) = makeAddrAndKey("owner");
-        (preconfer, preconferPrivatekey) = makeAddrAndKey("preconfer");
+        (underwriter, underwriterPrivatekey) = makeAddrAndKey("underwriter");
 
         console.log("user:      ", user, " | balance: ", user.balance);
         console.log("owner:     ", owner, " | balance: ", owner.balance);
-        console.log("preconfer: ", preconfer, " | balance: ", preconfer.balance);
+        console.log("underwriter: ", underwriter, " | balance: ", underwriter.balance);
     }
 
     function signRawTx(bytes memory _rawTx) internal view returns (bytes memory) {
         (uint8 _v, bytes32 _r, bytes32 _s) =
-            vm.sign(preconferPrivatekey, keccak256(_rawTx));
+            vm.sign(underwriterPrivatekey, keccak256(_rawTx));
         return abi.encodePacked(_r, _s, _v);
     }
 
@@ -58,7 +58,7 @@ contract DeployTest is Test {
         taiyiCore = TaiyiCore(payable(0x88F59F8826af5e695B13cA934d6c7999875A9EeA));
         console.log("Taiyi Core Address:   ", address(taiyiCore));
 
-        // check preconfer
+        // check underwriter
         vm.stopBroadcast();
 
         //////////////////////////
@@ -68,7 +68,7 @@ contract DeployTest is Test {
         BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
             sender: user,
-            recipient: preconfer,
+            recipient: underwriter,
             deposit: 0.1 ether,
             tip: 0.1 ether,
             targetSlot: 10,
@@ -81,7 +81,7 @@ contract DeployTest is Test {
         bytes memory blockspaceAllocationUserSignature = abi.encodePacked(r, s, v);
 
         (v, r, s) = vm.sign(
-            preconferPrivatekey, blockspaceAllocationUserSignature.hashSignature()
+            underwriterPrivatekey, blockspaceAllocationUserSignature.hashSignature()
         );
 
         console.log("user balance:    ", taiyiEscrow.balanceOf(user));

@@ -4,7 +4,6 @@ use eyre::Result;
 use taiyi_cmd::initialize_tracing_log;
 use types::ExtraConfig;
 
-mod beacon;
 mod block_builder;
 mod builder;
 mod constraints;
@@ -12,6 +11,7 @@ mod engine;
 mod engine_hinter;
 mod error;
 mod execution;
+mod get_header_response_ext;
 mod metrics;
 mod proofs;
 mod types;

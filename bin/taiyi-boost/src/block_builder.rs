@@ -1,38 +1,35 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
-use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::{calc_excess_blob_gas, calc_next_block_base_fee, eip1559::BaseFeeParams};
+use alloy_consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
+use alloy_eips::{calc_next_block_base_fee, eip1559::BaseFeeParams};
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
     pbs::{
-        DenebSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessage, KzgCommitments,
-        PayloadAndBlobs, SignedExecutionPayloadHeader,
+        ElectraSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageElectra,
+        ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
+        SignedExecutionPayloadHeader,
     },
     signer::BlsSecretKey,
 };
 use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
 use reqwest::Url;
-use reth_primitives::{proofs, SealedBlock, TransactionSigned};
+use taiyi_beacon_client::BeaconClient;
 use tracing::debug;
 use tree_hash::TreeHash;
 
 use crate::{
-    beacon::BeaconClient,
     engine_hinter::{EngineHinter, EngineHinterContext},
     error::BuilderError,
     execution::ExecutionClient,
-    types::{
-        to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header,
-        tx_envelope_to_signed,
-    },
+    types::{to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header},
     utils::compute_signing_root,
 };
 
 #[derive(Debug, Clone)]
 pub struct SignedPayloadResponse {
-    pub header: SignedExecutionPayloadHeader,
-    pub payload: PayloadAndBlobs,
+    pub header: GetHeaderResponse,
+    pub payload: PayloadAndBlobsElectra,
 }
 
 // "Local built by Taiyi"
@@ -50,6 +47,17 @@ pub struct LocalBlockBuilder {
     fee_recipient: Address,
     extra_data: Bytes,
     bls_secret_key: BlsSecretKey,
+}
+
+const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
+
+fn calc_excess_blob_gas(parent_excess_blob_gas: u64, parent_blob_gas_used: u64) -> u64 {
+    let parant_blob_gas_info = parent_excess_blob_gas.saturating_add(parent_blob_gas_used);
+    if parant_blob_gas_info < TARGET_BLOB_GAS_PER_BLOCK {
+        0
+    } else {
+        parant_blob_gas_info.saturating_sub(TARGET_BLOB_GAS_PER_BLOCK)
+    }
 }
 
 // The local block builder was based on bolt's implementation.
@@ -85,8 +93,8 @@ impl LocalBlockBuilder {
     pub async fn build_local_payload(
         &self,
         target_slot: u64,
-        transactions: &[TransactionSigned],
-    ) -> Result<SealedBlock, BuilderError> {
+        transactions: &[TxEnvelope],
+    ) -> Result<Block<TxEnvelope, Sealed<Header>>, BuilderError> {
         // Fetch the latest block to get the necessary parent values for the new block.
         // For the timestamp, we must use the one expected by the beacon chain instead, to
         // prevent edge cases where the proposer before us has missed their slot and therefore
@@ -169,17 +177,15 @@ impl LocalBlockBuilder {
     pub async fn build_signed_payload_response(
         &self,
         target_slot: u64,
-        transactions: &[TxEnvelope],
+        signed_transactions: Vec<TxEnvelope>,
     ) -> eyre::Result<SignedPayloadResponse> {
-        let signed_transactions: Vec<TransactionSigned> =
-            transactions.iter().map(|tx| tx_envelope_to_signed(tx.clone())).collect();
+        let transactions: &[TxEnvelope] = signed_transactions.as_ref();
         let blobs_bundle = to_blobs_bundle(transactions);
         let kzg_commitments = blobs_bundle.clone().commitments.clone();
         let block = self.build_local_payload(target_slot, &signed_transactions).await?;
         let value = U256::from(100_000_000_000_000_000_000u128);
         let execution_payload = to_cb_execution_payload(&block);
-        let payload_and_blobs =
-            PayloadAndBlobs { execution_payload, blobs_bundle: Some(blobs_bundle) };
+        let payload_and_blobs = PayloadAndBlobsElectra { execution_payload, blobs_bundle };
         let execution_payload_header = to_cb_execution_payload_header(&block);
 
         let signed_bid = self.create_signed_execution_payload_header(
@@ -188,18 +194,27 @@ impl LocalBlockBuilder {
             kzg_commitments,
         )?;
 
-        Ok(SignedPayloadResponse { header: signed_bid, payload: payload_and_blobs })
+        Ok(SignedPayloadResponse {
+            header: cb_common::pbs::VersionedResponse::Electra(signed_bid),
+            payload: payload_and_blobs,
+        })
     }
 
     pub fn create_signed_execution_payload_header(
         &self,
         value: U256,
-        header: ExecutionPayloadHeader<DenebSpec>,
-        blob_kzg_commitments: KzgCommitments<DenebSpec>,
-    ) -> eyre::Result<SignedExecutionPayloadHeader> {
+        header: ExecutionPayloadHeader<ElectraSpec>,
+        blob_kzg_commitments: KzgCommitments<ElectraSpec>,
+    ) -> eyre::Result<SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageElectra>> {
         let consensus_pubkey = self.bls_secret_key.sk_to_pk().to_bytes();
         let pubkey = BlsPublicKey::from(consensus_pubkey);
-        let message = ExecutionPayloadHeaderMessage { header, blob_kzg_commitments, value, pubkey };
+        let message = ExecutionPayloadHeaderMessageElectra {
+            header,
+            blob_kzg_commitments,
+            value,
+            pubkey,
+            execution_requests: <ExecutionRequests<ElectraSpec>>::default(),
+        };
         // Note: the application builder domain specs require the genesis_validators_root
         // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
         // same rule.
@@ -269,15 +284,14 @@ mod test {
         let sk = SigningKey::from_slice(hex::decode(hex_sk)?.as_slice())?;
         let signer = PrivateKeySigner::from_signing_key(sk.clone());
         let wallet = EthereumWallet::from(signer);
-        let provider =
-            ProviderBuilder::new().with_recommended_fillers().on_http(config.execution_api);
+        let provider = ProviderBuilder::new().on_http(config.execution_api);
         let sender = Address::from_private_key(&sk);
         let nonce = provider.get_transaction_count(sender).await?;
 
         let tx = gen_test_tx_request(sender, chain_id, Some(nonce));
         let tx_signed = tx.build(&wallet).await?;
         let raw_encoded = tx_signed.encoded_2718();
-        let tx_signed_reth = TransactionSigned::decode_2718(&mut raw_encoded.as_slice())?;
+        let tx_signed_reth = TxEnvelope::decode_2718(&mut raw_encoded.as_slice())?;
 
         let genesis_time = match context.genesis_time() {
             Ok(genesis_time) => genesis_time,

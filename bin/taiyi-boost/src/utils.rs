@@ -26,11 +26,9 @@ pub(crate) mod tests {
     use lighthouse_types::{ExecPayload, MainnetEthSpec, SignedBeaconBlockDeneb};
     use reqwest::Url;
     use ssz::Decode;
+    use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 
-    use crate::{
-        types::{BlsSecretKeyWrapper, JwtSecretWrapper},
-        ExtraConfig,
-    };
+    use crate::ExtraConfig;
 
     const TEST_BLOCK: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),

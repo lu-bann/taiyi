@@ -7,7 +7,7 @@ use prometheus::{
 };
 
 pub fn init_metrics(chain: Chain) -> Result<()> {
-    PbsService::register_metric(Box::new(PRECONFER_SLOT.clone()));
+    PbsService::register_metric(Box::new(UNDERWRITER_SLOT.clone()));
     PbsService::register_metric(Box::new(BEACON_NODE_LATEST_SLOT.clone()));
     PbsService::register_metric(Box::new(DELEGATION_FAIL_SLOT.clone()));
     PbsService::register_metric(Box::new(DELEGATION_SUCCESS_VALIDATORS.clone()));
@@ -19,10 +19,10 @@ lazy_static! {
     pub static ref TAIYI_BOOST_METRICS: Registry =
         Registry::new_custom(Some("taiyi_boost".to_string()), None).expect("fail to create registry");
 
-    /// Preconfer slot for which our validator has the right to propose a block
-    pub static ref PRECONFER_SLOT: IntGaugeVec = register_int_gauge_vec_with_registry!(
-        "preconfer_slot",
-        "Preconfer slot for which our validator has the right to propose a block",
+    /// underwriter slot for which our validator has the right to propose a block
+    pub static ref UNDERWRITER_SLOT: IntGaugeVec = register_int_gauge_vec_with_registry!(
+        "underwriter_slot",
+        "underwriter slot for which our validator has the right to propose a block",
         &["epoch_id"],
         TAIYI_BOOST_METRICS
     )

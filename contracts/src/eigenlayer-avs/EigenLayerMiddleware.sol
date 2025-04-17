@@ -13,8 +13,8 @@ import { EnumerableSet } from
     "@openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { Time } from "@openzeppelin-contracts/contracts/utils/types/Time.sol";
 
-import { IGatewayAVS } from "../interfaces/IGatewayAVS.sol";
 import { IProposerRegistry } from "../interfaces/IProposerRegistry.sol";
+import { IUnderwriterAVS } from "../interfaces/IUnderwriterAVS.sol";
 import { IValidatorAVS } from "../interfaces/IValidatorAVS.sol";
 
 import { AVSDirectoryStorage } from
@@ -45,8 +45,8 @@ import { IServiceManager } from
     "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
 import { BitmapUtils } from "@eigenlayer-middleware/src/libraries/BitmapUtils.sol";
 
-/// @title Abstract base contract for EigenLayer AVS modules (GatewayAVS or ValidatorAVS).
-/// @dev Both GatewayAVS and ValidatorAVS should inherit from this contract.
+/// @title Abstract base contract for EigenLayer AVS modules (UnderwriterAVS or ValidatorAVS).
+/// @dev Both UnderwriterAVS and ValidatorAVS should inherit from this contract.
 abstract contract EigenLayerMiddleware is
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -94,7 +94,7 @@ abstract contract EigenLayerMiddleware is
     modifier onlyRegisteredOperatorOrOwner() {
         if (
             !proposerRegistry.isOperatorRegisteredInAVS(
-                msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+                msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
             )
                 && !proposerRegistry.isOperatorRegisteredInAVS(
                     msg.sender, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
@@ -138,7 +138,7 @@ abstract contract EigenLayerMiddleware is
         address _eigenPodManager,
         address _rewardCoordinator,
         address _rewardInitiator,
-        uint256 _gatewayShareBips
+        uint256 _underwriterShareBips
     )
         public
         virtual
@@ -155,7 +155,7 @@ abstract contract EigenLayerMiddleware is
         EIGEN_POD_MANAGER = IEigenPodManager(_eigenPodManager);
         REWARDS_COORDINATOR = IRewardsCoordinator(_rewardCoordinator);
         _setRewardsInitiator(_rewardInitiator);
-        GATEWAY_SHARE_BIPS = _gatewayShareBips;
+        UNDERWRITER_SHARE_BIPS = _underwriterShareBips;
     }
 
     /// @notice Register multiple validators for multiple pod owners in a single
@@ -170,13 +170,13 @@ abstract contract EigenLayerMiddleware is
     function registerValidators(
         bytes[][] calldata valPubKeys,
         address[] calldata podOwners,
-        bytes[] calldata delegatedGateways
+        bytes[] calldata delegatedUnderwriters
     )
         external
     {
         uint256 len = podOwners.length;
         for (uint256 i = 0; i < len; ++i) {
-            _registerValidators(valPubKeys[i], podOwners[i], delegatedGateways[i]);
+            _registerValidators(valPubKeys[i], podOwners[i], delegatedUnderwriters[i]);
         }
     }
 
@@ -263,7 +263,7 @@ abstract contract EigenLayerMiddleware is
     // ========= INTERNAL FUNCTIONS =========
 
     /// @notice Helper function to build an OperatorDirectedRewardsSubmission for a single operator
-    /// @dev Reused in both gateway distribution and validator distribution to reduce code duplication
+    /// @dev Reused in both underwriter distribution and validator distribution to reduce code duplication
     function _buildOperatorSubmission(
         IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata baseSubmission,
         IERC20 token,
@@ -346,7 +346,7 @@ abstract contract EigenLayerMiddleware is
     function _registerValidators(
         bytes[] calldata valPubKeys,
         address podOwner,
-        bytes calldata delegatedGatewayPubKey
+        bytes calldata delegatedUnderwriterPubKey
     )
         internal
         virtual
@@ -444,9 +444,9 @@ abstract contract EigenLayerMiddleware is
         return REWARD_INITIATOR;
     }
 
-    /// @notice Get the gateway share in BIPS
-    function getGatewayShareBips() public view returns (uint256) {
-        return GATEWAY_SHARE_BIPS;
+    /// @notice Get the underwriter share in BIPS
+    function getUnderwriterShareBips() public view returns (uint256) {
+        return UNDERWRITER_SHARE_BIPS;
     }
 
     /// @notice Query the stake amount for an operator across all strategies
@@ -483,19 +483,19 @@ abstract contract EigenLayerMiddleware is
         bool isDelegated = DELEGATION_MANAGER.isOperator(operator);
 
         // Check registration in both AVS types
-        bool isGateway = proposerRegistry.isOperatorRegisteredInAVS(
-            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY
+        bool isUnderwriter = proposerRegistry.isOperatorRegisteredInAVS(
+            operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER
         );
         bool isValidator = proposerRegistry.isOperatorRegisteredInAVS(
             operator, IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR
         );
 
-        if (isDelegated && (isGateway || isValidator)) {
+        if (isDelegated && (isUnderwriter || isValidator)) {
             isRegistered = true;
         }
-        if (isGateway && !isValidator) {
-            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_GATEWAY;
-        } else if (!isGateway && isValidator) {
+        if (isUnderwriter && !isValidator) {
+            avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_UNDERWRITER;
+        } else if (!isUnderwriter && isValidator) {
             avsType = IProposerRegistry.RestakingServiceType.EIGENLAYER_VALIDATOR;
         }
 
@@ -534,10 +534,10 @@ abstract contract EigenLayerMiddleware is
         return strategies.values();
     }
 
-    /// @notice Gets the GatewayAVS address from the registry
-    /// @return The address of the GatewayAVS contract
-    function getGatewayAVSAddress() public view returns (address) {
-        return address(proposerRegistry.gatewayAVS());
+    /// @notice Gets the UnderwriterAVS address from the registry
+    /// @return The address of the UnderwriterAVS contract
+    function getUnderwriterAVSAddress() public view returns (address) {
+        return address(proposerRegistry.underwriterAVS());
     }
 
     /// @notice Gets the ValidatorAVS address from the registry by AVS type
@@ -546,10 +546,10 @@ abstract contract EigenLayerMiddleware is
         return address(proposerRegistry.validatorAVS());
     }
 
-    /// @notice Gets the GatewayAVS contract instance from the registry
-    /// @return The GatewayAVS contract instance
-    function getGatewayAVS() public view returns (IGatewayAVS) {
-        return IGatewayAVS(proposerRegistry.gatewayAVS());
+    /// @notice Gets the UnderwriterAVS contract instance from the registry
+    /// @return The UnderwriterAVS contract instance
+    function getUnderwriterAVS() public view returns (IUnderwriterAVS) {
+        return IUnderwriterAVS(proposerRegistry.underwriterAVS());
     }
 
     /// @notice Gets the ValidatorAVS contract instance from the registry

@@ -2,7 +2,7 @@ use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfResponseData {
     pub request_id: Uuid,
     pub commitment: Option<PrimitiveSignature>,

@@ -9,7 +9,7 @@ export VALIDATOR_OPERATOR_ADDRESS=`cast wallet address --private-key $VALIDATOR_
 OPERATOR_PRIVATE_KEY=$VALIDATOR_OPERATOR_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
 
 # convert eth to WETH
-cast send -vvvvv --rpc-url $EXECUTION_URL $WETH_ADDRESS \
+cast send --rpc-url $EXECUTION_URL $WETH_ADDRESS \
     "deposit()" \
     --value 10ether \
     --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY
@@ -37,7 +37,7 @@ OPERATOR_STATUS=$(cargo run --bin taiyi-cli operator-info \
     --avs-type validator)
 
 if ! echo "$OPERATOR_STATUS" | grep -q "Is Active: true"; then
-    echo "Operator is not active in gateway AVS"
+    echo "Operator is not active in Underwriter AVS"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ cargo run --bin taiyi-cli register-validators \
     --taiyi-validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS \
     --validator-pubkeys $PRE_REGISTERED_VALIDATOR_KEYS \
     --pod-owners $POD_OWNERS \
-    --delegated-gateways "$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY,$GATEWAY_BLS_PUBLIC_KEY"
+    --delegated-underwriters "$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY"
 
 
 # check whether the validators are registered in taiyi validator avs
@@ -63,4 +63,3 @@ cargo run --bin taiyi-cli get-strategies-stakes \
     --execution-rpc-url $EXECUTION_URL \
     --operator-address $VALIDATOR_OPERATOR_ADDRESS \
     --validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS
-

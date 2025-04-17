@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "../src/TaiyiProposerRegistry.sol";
 
 import "../src/libs/PreconfRequestLib.sol";
+import "../src/types/PreconfRequestATypes.sol";
 import "../src/types/PreconfRequestBTypes.sol";
 import "../src/utils/Helper.sol";
 import "forge-std/Test.sol";
@@ -25,7 +26,25 @@ contract PreconTxTest is Test {
         (owner, ownerPrivatekey) = makeAddrAndKey("owner");
     }
 
-    function testPreconfRequestHash() public {
+    function testPreconfRequestHashPreconfRequestAType() public {
+        string[] memory txs = new string[](1);
+        txs[0] = "txs";
+
+        PreconfRequestAType memory preconfRequestAType = PreconfRequestAType({
+            tipTx: "tipTx",
+            txs: txs,
+            slot: 1,
+            sequenceNum: 1,
+            signer: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb
+        });
+        bytes32 preconfRequestATypeHash = preconfRequestAType.getPreconfRequestATypeHash();
+        assertEq(
+            preconfRequestATypeHash,
+            bytes32(0x9c7db1b36cb7e7a7dc42c4a03d2fae8a7ef43df867cbd588949c1b12bd655b2a)
+        );
+    }
+
+    function testPreconfRequestHashPreconfRequestBType() public {
         BlockspaceAllocation memory blockspaceAllocation = BlockspaceAllocation({
             gasLimit: 100_000,
             sender: 0xa83114A443dA1CecEFC50368531cACE9F37fCCcb,
@@ -37,16 +56,18 @@ contract PreconTxTest is Test {
         });
         PreconfRequestBType memory preconfRequestBType = PreconfRequestBType({
             blockspaceAllocation: blockspaceAllocation,
-            blockspaceAllocationSignature: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedBlockspaceAllocation: hex"52e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            rawTx: hex"53e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c",
-            gatewaySignedRawTx: hex"42e31ae52880f54549f244d411497e4990b2f8717cb61b7b0cae46cb2435fb3c072a6cf466b93a2539644bdc002480290794a0a96ee8c576f110f5185929b1771c"
+            blockspaceAllocationSignature: bytes("blockspaceAllocationSignature"),
+            underwriterSignedBlockspaceAllocation: bytes(
+                "underwriterSignedBlockspaceAllocation"
+            ),
+            rawTx: bytes("rawTx"),
+            underwriterSignedRawTx: bytes("underwriterSignedRawTx")
         });
         vm.chainId(1337);
         bytes32 preconfRequestBTypeHash = preconfRequestBType.getPreconfRequestBTypeHash();
         assertEq(
             preconfRequestBTypeHash,
-            bytes32(0xf54edbcf22dd1a0ac4a7d2c87e9552d283df6141ccff486754dffa1820021ac1)
+            bytes32(0x47587e59c3c292d44165684296207000aa23e9113f858cf7858b202c52afe959)
         );
     }
 }

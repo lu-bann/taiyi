@@ -67,10 +67,10 @@ pub fn verify_root(
 }
 
 /// Parse a BLS public key from a string
-pub fn parse_bls_public_key(preconfer_pubkey: &str) -> Result<BlsPublicKey> {
-    let hex_pk = preconfer_pubkey.strip_prefix("0x").unwrap_or(preconfer_pubkey);
+pub fn parse_bls_public_key(underwriter_pubkey: &str) -> Result<BlsPublicKey> {
+    let hex_pk = underwriter_pubkey.strip_prefix("0x").unwrap_or(underwriter_pubkey);
     BlsPublicKey::try_from(
-        hex::decode(hex_pk).wrap_err("Failed to hex-decode preconfer pubkey")?.as_slice(),
+        hex::decode(hex_pk).wrap_err("Failed to hex-decode underwriter pubkey")?.as_slice(),
     )
-    .map_err(|e| eyre::eyre!("Failed to parse preconfer public key '{}': {}", hex_pk, e))
+    .map_err(|e| eyre::eyre!("Failed to parse underwriter public key '{}': {}", hex_pk, e))
 }

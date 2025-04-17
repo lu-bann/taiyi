@@ -4,9 +4,9 @@ source "$(dirname "$0")/config.sh"
 
 pushd $WORKING_DIR
 rm -rf el_cl_genesis_data
-rm -rf 1-lighthouse-geth-0-63-0
+rm -rf 1-lighthouse-geth-0-63
 kurtosis files download $ENCLAVE_NAME el_cl_genesis_data
-kurtosis files download $ENCLAVE_NAME 1-lighthouse-geth-0-63-0
+kurtosis files download $ENCLAVE_NAME 1-lighthouse-geth-0-63
 export GENESIS_TIMESTAMP=`jq -r '.timestamp' ./el_cl_genesis_data/genesis.json`
 export PRIVATE_KEY=$TAIYI_CONTRACTS_DEPLOYER_PRIVATE_KEY
 export NETWORK="devnet"
@@ -17,4 +17,4 @@ popd
 pushd contracts
 git submodule update --recursive --init
 bash script/deploy.sh
-popd 
+popd

@@ -39,7 +39,7 @@ contract TaiyiCore is
     /// EVENTS
     ///////////////////////////////////////////////////////////////
 
-    event Exhausted(address indexed preconfer, uint256 amount);
+    event Exhausted(address indexed underwriter, uint256 amount);
     event TipCollected(uint256 amount, bytes32 preconfRequestHash);
     event TransactionExecutionFailed(address to, uint256 value);
 
@@ -132,7 +132,7 @@ contract TaiyiCore is
     ///////////////////////////////////////////////////////////////
 
     /// @notice Batch transfer ETH to multiple recipients in a single transaction
-    /// @dev Transfers specified ETH amounts to corresponding recipient addresses. Used by Gateway to sponsor ETH for preconf Txs
+    /// @dev Transfers specified ETH amounts to corresponding recipient addresses. Used by Underwriter to sponsor ETH for preconf Txs
     /// @param recipients Array of addresses to receive ETH
     /// @param amounts Array of ETH amounts to send to each recipient
     function _sponsorEthBatch(
@@ -183,14 +183,14 @@ contract TaiyiCore is
         Helper.verifySignature(
             preconfRequestBType.blockspaceAllocationSignature,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedBlockspaceAllocation,
-            "invalid gateway signature"
+            preconfRequestBType.underwriterSignedBlockspaceAllocation,
+            "invalid underwriter signature"
         );
         Helper.verifySignature(
             preconfRequestBType.rawTx,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedRawTx,
-            "invalid raw tx signature"
+            preconfRequestBType.underwriterSignedRawTx,
+            "invalid underwriter signature"
         );
     }
 
@@ -228,8 +228,8 @@ contract TaiyiCore is
         Helper.verifySignature(
             preconfRequestBType.blockspaceAllocationSignature,
             blockspaceAllocation.recipient,
-            preconfRequestBType.gatewaySignedBlockspaceAllocation,
-            "invalid gateway signature"
+            preconfRequestBType.underwriterSignedBlockspaceAllocation,
+            "invalid underwriter signature"
         );
     }
 
@@ -241,12 +241,12 @@ contract TaiyiCore is
         require(success, "Gas burn failed");
     }
 
-    /// @notice Handles payment by updating preconfer tips
-    /// @dev Adds the specified amount to the preconfer tips
-    /// @param amount The amount to be added to the preconfer tips
+    /// @notice Handles payment by updating underwriter tips
+    /// @dev Adds the specified amount to the underwriter tips
+    /// @param amount The amount to be added to the underwriter tips
     /// @param preconfRequestHash The hash of the PreconfRequest
     function _handlePayment(uint256 amount, bytes32 preconfRequestHash) internal {
-        preconferTips[preconfRequestHash] += amount;
+        underwriterTips[preconfRequestHash] += amount;
     }
 
     /// @notice Processes and validates a tip payment for a preconfirmation request
@@ -298,7 +298,7 @@ contract TaiyiCore is
     ///      and marks the request as collected
     /// @param preconfRequestHash The hash of the preconfirmation request to collect tips for
     function _collectTip(bytes32 preconfRequestHash) internal {
-        uint256 tipAmount = preconferTips[preconfRequestHash];
+        uint256 tipAmount = underwriterTips[preconfRequestHash];
         require(tipAmount > 0, "No tip to collect");
 
         preconfRequestStatus[preconfRequestHash] = PreconfRequestStatus.Collected;

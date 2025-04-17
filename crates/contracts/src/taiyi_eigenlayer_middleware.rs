@@ -15,12 +15,12 @@ sol! {
             SignatureWithSaltAndExpiry calldata operatorSignature
         );
         function deregisterOperator() public;
-        function registerValidators(bytes[][] calldata valPubKeys,address[] calldata podOwners,bytes[] calldata delegatedGateways) external;
+        function registerValidators(bytes[][] calldata valPubKeys,address[] calldata podOwners,bytes[] calldata delegatedUnderwriters) external;
         function getStrategiesAndStakes(address operator) external view returns (address[] memory strategyAddresses, uint256[] memory stakeAmounts);
     }
 
     #[sol(rpc)]
-    interface TaiyiGatewayAVSEigenlayerMiddleware {
+    interface TaiyiUnderwriterAVSEigenlayerMiddleware {
         function registerOperatorToAVSWithPubKey(
             address operator,
             SignatureWithSaltAndExpiry calldata operatorSignature,
