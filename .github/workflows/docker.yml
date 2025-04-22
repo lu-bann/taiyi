@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - dev
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/e2e.tests.yml'
+      - '.github/workflows/release.yml'
 
 jobs:
   build:
