@@ -4,6 +4,7 @@ pub mod get_strategies_stakes;
 pub mod get_validators_for_operators;
 pub mod offchain_delegate;
 pub mod operator_info;
+pub mod register_for_operator_sets;
 pub mod register_underwriter_avs;
 pub mod register_validator_avs;
 pub mod register_validators;

@@ -5,6 +5,9 @@ source "$(dirname "$0")/config.sh"
 # register as eigenlayer operator
 OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
 
+# stake into eigenlayer
+OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY bash scripts/devnet/stake-into-eigenlayer.sh
+
 export OPERATOR_ADDRESS=`cast wallet address --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY`
 
 # register underwriter avs

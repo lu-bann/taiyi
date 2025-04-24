@@ -25,7 +25,7 @@ if kurtosis enclave inspect $ENCLAVE_NAME >/dev/null 2>&1; then
 fi
 
 # Read deployment data if file exists
-EIGENLAYER_DEPLOYMENT_FILE="contracts/script/output/devnet/M2_from_scratch_deployment_data.json"
+EIGENLAYER_DEPLOYMENT_FILE="linglong/script/output/devnet/M2_from_scratch_deployment_data.json"
 if [ -f "$EIGENLAYER_DEPLOYMENT_FILE" ]; then
     export DELEGATION_MANAGER_ADDRESS=$(jq -r '.addresses.delegationManager' "$EIGENLAYER_DEPLOYMENT_FILE")
     export STRATEGY_MANAGER_ADDRESS=$(jq -r '.addresses.strategyManager' "$EIGENLAYER_DEPLOYMENT_FILE")
@@ -35,11 +35,18 @@ if [ -f "$EIGENLAYER_DEPLOYMENT_FILE" ]; then
     export WETH_STRATEGY_ADDRESS=$(jq -r '.addresses.strategies.WETH' "$EIGENLAYER_DEPLOYMENT_FILE")
 fi
 
-TAIYI_DEPLOYMENT_FILE="contracts/script/output/devnet/taiyiAddresses.json"
+TAIYI_DEPLOYMENT_FILE="linglong/script/output/devnet/taiyiAddresses.json"
 if [ -f "$TAIYI_DEPLOYMENT_FILE" ]; then
     export WETH_ADDRESS=$(jq -r '.taiyiAddresses.weth' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_UNDERWRITER_AVS_ADDRESS=$(jq -r '.taiyiAddresses.underwriterAVSProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_VALIDATOR_AVS_ADDRESS=$(jq -r '.taiyiAddresses.validatorAVSProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_CORE_ADDRESS=$(jq -r '.taiyiAddresses.taiyiCoreProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_PROPOSER_REGISTRY_ADDRESS=$(jq -r '.taiyiAddresses.taiyiProposerRegistryProxy' "$TAIYI_DEPLOYMENT_FILE")
+    export TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS=$(jq -r '.taiyiAddresses.eigenLayerMiddleware' "$TAIYI_DEPLOYMENT_FILE")
+fi
+
+OPERATOR_SET_DEPLOYMENT_FILE="linglong/script/output/devnet/operatorSetId.json"
+if [ -f "$OPERATOR_SET_DEPLOYMENT_FILE" ]; then
+    export UNDERWRITER_OPERATOR_SET_ID=$(jq -r '.operatorSetId.underwriterOperatorSetId' "$OPERATOR_SET_DEPLOYMENT_FILE")
+    export VALIDATOR_OPERATOR_SET_ID=$(jq -r '.operatorSetId.validatorOperatorSetId' "$OPERATOR_SET_DEPLOYMENT_FILE")
 fi

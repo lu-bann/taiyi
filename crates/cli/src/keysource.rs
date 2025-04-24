@@ -1,5 +1,6 @@
 // codes are basically copied from https://github.com/chainbound/bolt/blob/89253d92b079adf0abf6c9279eeed1d5dc7a3aed/bolt-cli/src/common/keystore.rs
 use alloy_primitives::B256;
+use blst::blst_sk_to_pk_in_g1;
 use clap::Parser;
 use ethereum_consensus::{
     crypto::{PublicKey as BlsPublicKey, SecretKey as BlsSecretKey, Signature as BlsSignature},

@@ -14,7 +14,8 @@ popd
 
 # TAIYI propser registry would be 0x0A79920c296E86e7BB12Ad20ca7Ffbbd7AE5905B
 # TAIYI CORE would be 0xA791D59427B2b7063050187769AC871B497F4b3C
-pushd contracts
+pushd linglong
 git submodule update --recursive --init
 bash script/deploy.sh
+bash script/setup-contract.sh
 popd
