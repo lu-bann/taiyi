@@ -38,11 +38,10 @@ fi
 TAIYI_DEPLOYMENT_FILE="linglong/script/output/devnet/taiyiAddresses.json"
 if [ -f "$TAIYI_DEPLOYMENT_FILE" ]; then
     export WETH_ADDRESS=$(jq -r '.taiyiAddresses.weth' "$TAIYI_DEPLOYMENT_FILE")
-    export TAIYI_UNDERWRITER_AVS_ADDRESS=$(jq -r '.taiyiAddresses.underwriterAVSProxy' "$TAIYI_DEPLOYMENT_FILE")
-    export TAIYI_VALIDATOR_AVS_ADDRESS=$(jq -r '.taiyiAddresses.validatorAVSProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_CORE_ADDRESS=$(jq -r '.taiyiAddresses.taiyiCoreProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_PROPOSER_REGISTRY_ADDRESS=$(jq -r '.taiyiAddresses.taiyiProposerRegistryProxy' "$TAIYI_DEPLOYMENT_FILE")
     export TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS=$(jq -r '.taiyiAddresses.eigenLayerMiddleware' "$TAIYI_DEPLOYMENT_FILE")
+    export TAIYI_REGISTRY_COORDINATOR_ADDRESS=$(jq -r '.taiyiAddresses.taiyiRegistryCoordinator' "$TAIYI_DEPLOYMENT_FILE")
 fi
 
 OPERATOR_SET_DEPLOYMENT_FILE="linglong/script/output/devnet/operatorSetId.json"

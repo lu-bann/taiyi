@@ -14,6 +14,11 @@ sol! {
             uint32[] operatorSetIds;
             bytes data;
         }
+        struct PubkeyRegistrationParams {
+            bytes blsPubkey;
+            address operator;
+            bytes pubkeyRegistrationSignature;
+        }
 
         /**
          * @notice Register an operator for one or more operator sets within a given AVS

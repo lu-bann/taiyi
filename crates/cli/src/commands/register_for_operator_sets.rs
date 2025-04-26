@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
 use alloy_network::EthereumWallet;
-use alloy_primitives::Address;
+use alloy_primitives::{keccak256, Address, Bytes};
 use alloy_provider::ProviderBuilder;
+use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::SolValue;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;
@@ -36,9 +38,8 @@ pub struct RegisterForOperatorSetsCommand {
     #[clap(long, value_delimiter = ',')]
     operator_set_ids: Vec<u32>,
 
-    /// Optional data to pass to the AVS (hex-encoded)
-    #[clap(long, default_value = "0x")]
-    data: String,
+    #[clap(long)]
+    socket: String,
 }
 
 impl RegisterForOperatorSetsCommand {
@@ -49,32 +50,35 @@ impl RegisterForOperatorSetsCommand {
             .wallet(EthereumWallet::new(signer.clone()))
             .on_http(Url::from_str(&self.execution_rpc_url)?);
 
-        let allocation_manager = AllocationManager::new(self.allocation_manager_address, provider);
+        let allocation_manager =
+            AllocationManager::new(self.allocation_manager_address, provider.clone());
+        let bls_pub_key = Bytes::from_str(&self.operator_bls_key)?;
 
-        // Parse the data from hex
-        let data = if self.data == "0x" || self.data.is_empty() {
-            Vec::new()
-        } else {
-            hex::decode(self.data.trim_start_matches("0x"))?
+        let mut signing_target: Vec<u8> = Vec::new();
+        signing_target.extend(operator_address.to_vec());
+        signing_target.extend(bls_pub_key.to_vec());
+        let message_hash = keccak256(signing_target);
+        let signature = signer.sign_hash_sync(&message_hash)?;
+
+        let pubkey_params = AllocationManager::PubkeyRegistrationParams {
+            blsPubkey: bls_pub_key,
+            operator: operator_address,
+            pubkeyRegistrationSignature: Bytes::from(signature.as_bytes().to_vec()),
         };
+
+        let data = Bytes::from((self.socket.clone(), pubkey_params).abi_encode_sequence());
 
         // Create the RegisterParams struct
         let params = AllocationManager::RegisterParams {
             avs: self.avs_address,
             operatorSetIds: self.operator_set_ids.clone(),
-            data: data.into(),
+            data,
         };
-
         // Register the operator for the operator sets
-        let tx =
+        let res =
             allocation_manager.registerForOperatorSets(operator_address, params).send().await?;
 
-        info!("Transaction sent! Hash: {}", tx.tx_hash());
-        info!(
-            "Operator: {} registered for sets within AVS: {}",
-            operator_address, self.avs_address
-        );
-        info!("Operator set IDs: {:?}", self.operator_set_ids);
+        info!("Transaction sent! Hash: {:?}", res.tx_hash());
 
         Ok(())
     }
