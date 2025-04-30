@@ -6,7 +6,8 @@ source "$(dirname "$0")/config.sh"
 OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY bash scripts/devnet/register-eigenlayer-operator.sh
 
 # stake into eigenlayer
-OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY bash scripts/devnet/stake-into-eigenlayer.sh
+OPERATOR_PRIVATE_KEY=$UNDERWRITER_ECDSA_PRIVATE_KEY OPERATOR_SET_ID=$UNDERWRITER_OPERATOR_SET_ID \
+    bash scripts/devnet/stake-into-eigenlayer.sh
 
 export OPERATOR_ADDRESS=`cast wallet address --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY`
 
@@ -20,9 +21,3 @@ cargo run --bin taiyi-cli register-for-operator-sets \
     --avs-address $TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS \
     --socket test-luban
 
-# check whether the operator is in underwriter avs
-# OPERATOR_STATUS=$(cargo run --bin taiyi-cli operator-info \
-#     --execution-rpc-url $EXECUTION_URL \
-#     --operator-address $OPERATOR_ADDRESS \
-#     --proposer-registry-address $TAIYI_PROPOSER_REGISTRY_ADDRESS \
-#     --avs-type underwriter)
