@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use taiyi_cmd::{
-    initialize_tracing_log, DelegateCommand, DepositCommand, DeregisterValidatorAVSCommand,
+    initialize_tracing_log, DelegateCommand, DeregisterValidatorAVSCommand,
     GetStrategiesStakesCommand, GetValidatorsForOperatorsCommand, OperatorInfoCommand,
     RegisterForOperatorSetsCommand, RegisterUnderwriterAVSCommand, RegisterValidatorAVSCommand,
     RegisterValidatorsCommand,
@@ -22,9 +22,6 @@ pub enum Commands {
 
     #[command(name = "deregister-validator-avs")]
     DeregisterValidatorAVS(DeregisterValidatorAVSCommand),
-
-    #[command(name = "deposit")]
-    Deposit(DepositCommand),
 
     #[command(name = "delegate")]
     Delegate(DelegateCommand),
@@ -58,7 +55,6 @@ fn main() -> eyre::Result<()> {
     match cli.command {
         Commands::RegisterValidatorAVS(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::DeregisterValidatorAVS(cmd) => runtime.block_on(async { cmd.execute().await }),
-        Commands::Deposit(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::Delegate(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::RegisterValidators(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::OperatorInfo(cmd) => runtime.block_on(async { cmd.execute().await }),

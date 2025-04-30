@@ -1,4 +1,3 @@
-pub mod deposit;
 pub mod deregister_validator_avs;
 pub mod get_strategies_stakes;
 pub mod get_validators_for_operators;
