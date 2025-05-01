@@ -1,0 +1,21 @@
+[package]
+name = "taiyi-crypto"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+blst = { workspace = true }
+ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
+sha2.workspace = true
+eyre = {workspace = true}
+alloy-sol-types = {workspace= true}
+alloy-primitives = {workspace = true}
+alloy-provider = {workspace = true}
+alloy-contract = {workspace = true}
+reqwest = {workspace = true}
+tokio = {workspace = true}
+
+
+[dev-dependencies]
+
+[lib]
