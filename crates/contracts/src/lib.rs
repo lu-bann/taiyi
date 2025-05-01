@@ -1,9 +1,11 @@
+mod allocation_manager;
 mod avsdirectory;
 mod eigenlayer;
 mod erc20;
 mod registry;
 mod taiyi_eigenlayer_middleware;
 
+pub use allocation_manager::*;
 pub use avsdirectory::*;
 pub use eigenlayer::*;
 pub use erc20::*;
