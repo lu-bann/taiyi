@@ -19,5 +19,7 @@ cargo run --bin taiyi-cli register-for-operator-sets \
     --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY \
     --allocation-manager-address $ALLOCATION_MANAGER_ADDRESS \
     --avs-address $TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS \
+    --avs-directory-address $AVS_DIRECTORY_ADDRESS \
+    --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
     --socket test-luban
 

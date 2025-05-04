@@ -25,7 +25,7 @@ if kurtosis enclave inspect $ENCLAVE_NAME >/dev/null 2>&1; then
 fi
 
 # Read deployment data if file exists
-EIGENLAYER_DEPLOYMENT_FILE="linglong/script/output/devnet/M2_from_scratch_deployment_data.json"
+EIGENLAYER_DEPLOYMENT_FILE="linglong/script/output/devnet/SLASHING_deploy_from_scratch_deployment_data.json"
 if [ -f "$EIGENLAYER_DEPLOYMENT_FILE" ]; then
     export DELEGATION_MANAGER_ADDRESS=$(jq -r '.addresses.delegationManager' "$EIGENLAYER_DEPLOYMENT_FILE")
     export STRATEGY_MANAGER_ADDRESS=$(jq -r '.addresses.strategyManager' "$EIGENLAYER_DEPLOYMENT_FILE")

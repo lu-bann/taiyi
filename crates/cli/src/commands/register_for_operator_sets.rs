@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use alloy_network::EthereumWallet;
-use alloy_primitives::{keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::ProviderBuilder;
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
@@ -9,7 +9,7 @@ use alloy_sol_types::SolValue;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;
-use taiyi_contracts::AllocationManager;
+use taiyi_contracts::{AVSDirectory, AllocationManager, SignatureWithSaltAndExpiry};
 use tracing::info;
 
 #[derive(Debug, Parser)]
@@ -34,12 +34,19 @@ pub struct RegisterForOperatorSetsCommand {
     #[clap(long)]
     allocation_manager_address: Address,
 
+    /// AVS Directory contract address
+    #[clap(long)]
+    avs_directory_address: Address,
+
     /// Operator set IDs (comma-separated list of uint32 values)
     #[clap(long, value_delimiter = ',')]
     operator_set_ids: Vec<u32>,
 
     #[clap(long)]
     socket: String,
+
+    #[clap(long, env = "SALT")]
+    pub salt: B256,
 }
 
 impl RegisterForOperatorSetsCommand {
@@ -65,8 +72,29 @@ impl RegisterForOperatorSetsCommand {
             operator: operator_address,
             pubkeyRegistrationSignature: Bytes::from(signature.as_bytes().to_vec()),
         };
+        let avs_directory_contract =
+            AVSDirectory::new(self.avs_directory_address, provider.clone());
 
-        let data = Bytes::from((self.socket.clone(), pubkey_params).abi_encode_sequence());
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+        let expiry = now + std::time::Duration::from_secs(30 * 60);
+        let expiry = U256::from(expiry.as_secs());
+
+        let signature_digest_hash = avs_directory_contract
+            .calculateOperatorAVSRegistrationDigestHash(
+                signer.address(),
+                self.avs_address,
+                self.salt,
+                expiry,
+            )
+            .call()
+            .await?
+            ._0;
+        let signature = Bytes::from(signer.sign_hash_sync(&signature_digest_hash)?.as_bytes());
+        let signature_entry = SignatureWithSaltAndExpiry { signature, expiry, salt: self.salt };
+
+        let data = Bytes::from(
+            (self.socket.clone(), pubkey_params, signature_entry).abi_encode_sequence(),
+        );
 
         // Create the RegisterParams struct
         let params = AllocationManager::RegisterParams {
