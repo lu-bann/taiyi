@@ -9,6 +9,7 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "bin/taiyi-fraud-proof-cli",
+    "bin/taiyi-underwriter-monitor",
     "crates/cli",
     "crates/contracts",
     "crates/poi",
@@ -26,6 +27,7 @@ default-members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "bin/taiyi-fraud-proof-cli",
+    "bin/taiyi-underwriter-monitor",
     "crates/cli",
     "crates/underwriter",
     "crates/primitives",
@@ -147,6 +149,12 @@ ssz_types = "0.10"
 http-body-util = "0.1.2"
 tower = "0.5.2"
 sha2 = "0.10.8"
+sqlx = { default-features = true, version = "*", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "bigdecimal",
+] }
 
 [patch.crates-io]
 # SHA2
