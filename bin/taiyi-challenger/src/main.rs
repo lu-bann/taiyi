@@ -823,14 +823,14 @@ async fn main() -> eyre::Result<()> {
     tracing_subscriber::fmt().with_max_level(LevelFilter::DEBUG).init();
 
     let preconf_db = Database::create("preconf.db").unwrap_or_else(|e| {
-        eprintln!("Failed to create preconf database: {}", e);
+        eprintln!("Failed to create preconf database: {e}");
         std::process::exit(1);
     });
 
     let preconf_db = Arc::new(preconf_db);
 
     let challenge_db = Database::create("challenge.db").unwrap_or_else(|e| {
-        eprintln!("Failed to create challenge database: {}", e);
+        eprintln!("Failed to create challenge database: {e}");
         std::process::exit(1);
     });
 
