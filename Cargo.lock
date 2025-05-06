@@ -659,7 +659,7 @@ dependencies = [
  "cfg-if",
  "const-hex",
  "derive_more 0.99.18",
- "hex-literal",
+ "hex-literal 0.4.1",
  "itoa",
  "k256 0.13.4",
  "keccak-asm",
@@ -3450,7 +3450,7 @@ dependencies = [
  "der 0.7.9",
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
- "hex-literal",
+ "hex-literal 0.4.1",
  "rfc6979 0.4.0",
  "serdect",
  "signature 2.2.0",
@@ -4477,6 +4477,12 @@ name = "hex-literal"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
+
+[[package]]
+name = "hex-literal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcaaec4551594c969335c98c903c1397853d4198408ea609190f420500f6be71"
 
 [[package]]
 name = "hkdf"
@@ -8936,10 +8942,12 @@ dependencies = [
  "alloy-contract",
  "alloy-primitives 0.8.25",
  "alloy-provider 0.12.6",
+ "alloy-signer-local 0.12.6",
  "alloy-sol-types",
  "blst",
  "ethereum-consensus",
  "eyre",
+ "hex-literal 1.0.0",
  "reqwest 0.12.9",
  "sha2 0.10.8",
  "tokio",
