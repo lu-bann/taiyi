@@ -379,7 +379,8 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee).await?;
+        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee.clone())
+            .await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
     info!("tip tx: {:?}", request.tip_transaction.tx_hash());

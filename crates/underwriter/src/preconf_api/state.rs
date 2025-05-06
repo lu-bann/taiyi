@@ -141,7 +141,7 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
+        let preconf_fee = preconf_request.allocation.preconf_fee.clone();
         match self
             .preconf_pool
             .validate_and_store(
