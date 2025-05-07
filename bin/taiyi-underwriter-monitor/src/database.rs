@@ -78,7 +78,14 @@ impl UnderwriterTradeRow {
                         request.allocation.preconf_fee.blob_gas_fee,
                     ),
                     preconf_type,
-                    tx_hash: vec![request.transaction.as_ref().unwrap().hash().0],
+                    tx_hash: vec![
+                        request
+                            .transaction
+                            .as_ref()
+                            .expect("must not be none at this stage")
+                            .hash()
+                            .0,
+                    ],
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,

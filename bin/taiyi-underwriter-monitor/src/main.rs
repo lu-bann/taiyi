@@ -1,13 +1,13 @@
 mod database;
 
+use std::{process::exit, str::FromStr};
+
 use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
 use alloy_primitives::map::HashSet;
 use alloy_provider::{Provider as _, ProviderBuilder, WsConnect};
 use alloy_rpc_types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
-use std::{process::exit, str::FromStr};
-
 use eyre::OptionExt as _;
 use futures_util::StreamExt as _;
 use reqwest::Url;
@@ -28,7 +28,7 @@ async fn commitment_stream_listener(db_conn: TaiyiDBConnection, url: Url) -> eyr
     let req = reqwest::Client::new().get(url);
 
     let mut event_source = EventSource::new(req).unwrap_or_else(|err| {
-        panic!("Failed to create EventSource: {:?}", err);
+        panic!("Failed to create EventSource: {err:?}");
     });
 
     while let Some(event) = event_source.next().await {
@@ -37,17 +37,13 @@ async fn commitment_stream_listener(db_conn: TaiyiDBConnection, url: Url) -> eyr
                 let data = &message.data;
 
                 let parsed_data =
-                    serde_json::from_str::<Vec<(PreconfRequest, PreconfResponseData)>>(data)
-                        .unwrap();
+                    serde_json::from_str::<Vec<(PreconfRequest, PreconfResponseData)>>(data)?;
 
                 debug!("[Stream Ingestor]: Received {} preconfirmations", parsed_data.len());
 
                 for (preconf_request, preconf_response_data) in parsed_data.iter() {
                     let target_slot = preconf_request.target_slot();
-                    debug!(
-                        "[Stream Ingestor]: Processing preconfirmation for slot {}",
-                        target_slot
-                    );
+                    debug!("[Stream Ingestor]: Processing preconfirmation for slot {target_slot}");
                     let row = UnderwriterTradeRow::from_preconf_request(
                         preconf_response_data.current_slot,
                         preconf_response_data.request_id,
@@ -116,9 +112,8 @@ async fn tx_settlement_listener(
             };
         let receipts = provider
             .get_block_receipts(BlockId::number(block.header.number))
-            .await
-            .unwrap()
-            .unwrap();
+            .await?
+            .expect("no block receipts?");
 
         let tx_hashes = block.transactions.hashes().collect::<HashSet<_>>();
 
@@ -160,7 +155,7 @@ async fn tx_settlement_listener(
                         }
                     })
                     .collect::<Vec<_>>();
-                let first_elem = prices.first().unwrap();
+                let first_elem = prices.first().expect("bug, should have at least one hash");
                 if preconf_type == 0 {
                     // Type A
                     assert!(
@@ -200,22 +195,22 @@ fn get_blob_gas_price(data: &Block) -> eyre::Result<u128> {
 async fn get_genesis_time(beacon_url: &str) -> eyre::Result<u64> {
     // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
     let beacon_genesis_response = match reqwest::Client::new()
-        .get(format!("{}/eth/v1/beacon/genesis", beacon_url))
+        .get(format!("{beacon_url}/eth/v1/beacon/genesis"))
         .send()
         .await
     {
         Ok(response) => response,
         Err(e) => {
-            error!("Failed to get beacon genesis: {}", e);
-            return Err(eyre::eyre!("Failed to get beacon genesis: {}", e));
+            error!("Failed to get beacon genesis: {e}");
+            return Err(eyre::eyre!("Failed to get beacon genesis: {e}"));
         }
     };
 
     let beacon_genesis_response = match beacon_genesis_response.json::<serde_json::Value>().await {
         Ok(value) => value,
         Err(e) => {
-            error!("Failed to parse beacon genesis response: {}", e);
-            return Err(eyre::eyre!("Failed to parse beacon genesis response: {}", e));
+            error!("Failed to parse beacon genesis response: {e}");
+            return Err(eyre::eyre!("Failed to parse beacon genesis response: {e}"));
         }
     };
 
@@ -281,5 +276,4 @@ async fn main() -> eyre::Result<()> {
             exit(1)
         }
     };
-    Ok(())
 }
