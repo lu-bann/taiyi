@@ -210,6 +210,7 @@ async fn generate_reserve_blockspace_request(
         tip: U256::from(fee * 21_000 / 2),
         gas_limit: 21_000,
         blob_count: 0,
+        preconf_fee,
     };
     let signature =
         hex::encode(signer.sign_hash(&request.hash(chain_id)).await.unwrap().as_bytes());
