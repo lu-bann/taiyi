@@ -83,8 +83,6 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
-
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
         // Current + 1 slot transactions should use Type A transactions directly
@@ -95,6 +93,14 @@ where
 
         if request.gas_limit == 0 {
             return Err(RpcError::ParamsError("Gas limit cannot be zero".to_string()));
+        }
+
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+
+        if request.preconf_fee != preconf_fee {
+            return Err(RpcError::ParamsError(
+                "preconf_fee field does not match with currently quoted prices".to_string(),
+            ));
         }
 
         // Construct a preconf request
