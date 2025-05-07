@@ -1,5 +1,4 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/map_fp2_to_g2.rs
-
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/map_fp2_to_g2.rs
 use alloy_primitives::Bytes;
 
 use super::{

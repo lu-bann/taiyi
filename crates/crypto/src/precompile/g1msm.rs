@@ -1,13 +1,12 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_msm.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_msm.rs
 use alloy_primitives::Bytes;
 
+use super::error::PrecompileError;
 use crate::precompile::{
     blst_utils::{encode_g1_point, p1_msm, read_g1, read_scalar},
     constant::{G1_MSM_INPUT_LENGTH, PADDED_G1_LENGTH, SCALAR_LENGTH},
     utils::remove_g1_padding,
 };
-
-use super::error::PrecompileError;
 
 /// Implements EIP-2537 G1MSM precompile.
 /// G1 multi-scalar-multiplication call expects `160*k` bytes as an input that is interpreted

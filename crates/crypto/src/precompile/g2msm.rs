@@ -1,4 +1,4 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_msm.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_msm.rs
 use alloy_primitives::Bytes;
 
 use super::{

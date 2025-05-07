@@ -1,4 +1,4 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/utils.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/utils.rs
 use super::{
     constant::{FP_LENGTH, FP_PAD_BY, PADDED_FP_LENGTH, PADDED_G1_LENGTH, PADDED_G2_LENGTH},
     error::PrecompileError,
@@ -18,7 +18,7 @@ pub(super) fn remove_fp_padding(input: &[u8]) -> Result<&[u8; FP_LENGTH], Precom
             format!("{FP_PAD_BY} top bytes of input are not zero",),
         ));
     }
-    Ok(unpadded.try_into().unwrap())
+    Ok(unpadded.try_into().expect("unpadded should be 48 bytes"))
 }
 /// remove_g1_padding removes the padding applied to the Fp elements that constitute the
 /// encoded G1 element.

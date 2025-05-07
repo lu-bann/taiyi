@@ -4,18 +4,13 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+alloy-contract = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
 blst = { workspace = true }
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
-sha2.workspace = true
-eyre = {workspace = true}
-alloy-sol-types = {workspace= true}
-alloy-primitives = {workspace = true}
-alloy-provider = {workspace = true}
-alloy-contract = {workspace = true}
-alloy-signer-local = {workspace = true}
-reqwest = {workspace = true}
-tokio = {workspace = true}
+eyre = { workspace = true }
 hex-literal = "1.0.0"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 

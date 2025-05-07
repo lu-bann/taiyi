@@ -1,7 +1,5 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_add.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_add.rs
 use alloy_primitives::Bytes;
-
-use crate::precompile::constant::G1_ADD_INPUT_LENGTH;
 
 use super::{
     blst_utils::{encode_g1_point, p1_add_affine, read_g1_no_subgroup_check},
@@ -9,7 +7,9 @@ use super::{
     error::PrecompileError,
     utils::remove_g1_padding,
 };
+use crate::precompile::constant::G1_ADD_INPUT_LENGTH;
 
+#[allow(dead_code)]
 pub fn g1_add(input: &Bytes) -> Result<Bytes, PrecompileError> {
     if input.len() != G1_ADD_INPUT_LENGTH {
         return Err(PrecompileError::Other(format!(

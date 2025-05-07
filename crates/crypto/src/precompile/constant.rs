@@ -1,6 +1,6 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/map_fp_to_g1.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/map_fp_to_g1.rs
 // Constants related to the bls12-381 precompile inputs and outputs
-
+#![allow(dead_code)]
 /// FP_LENGTH specifies the number of bytes needed to represent an
 /// Fp element. This is an element in the base field of BLS12-381.
 ///

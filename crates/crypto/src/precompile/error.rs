@@ -1,7 +1,6 @@
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, thiserror::Error)]
 pub enum PrecompileError {
-    /// Fatal error with a custom error message
-    Fatal(String),
     /// Catch-all variant for other errors
+    #[error("bls calculation error: {0}")]
     Other(String),
 }

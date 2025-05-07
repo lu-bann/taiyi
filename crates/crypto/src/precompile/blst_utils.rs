@@ -1,5 +1,6 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/blst.rs
-///
+use std::{string::ToString, vec::Vec};
+
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/blst.rs
 // This module contains a safe wrapper around the blst library.
 use blst::{
     blst_bendian_from_fp, blst_final_exp, blst_fp, blst_fp12, blst_fp12_is_one, blst_fp12_mul,
@@ -9,10 +10,6 @@ use blst::{
     blst_p2_affine, blst_p2_affine_in_g2, blst_p2_affine_on_curve, blst_p2_from_affine,
     blst_p2_mult, blst_p2_to_affine, blst_scalar, blst_scalar_from_bendian, MultiPoint,
 };
-use std::string::ToString;
-use std::vec::Vec;
-
-use crate::precompile::constant::SCALAR_LENGTH_BITS;
 
 use super::{
     constant::{
@@ -20,6 +17,13 @@ use super::{
     },
     error::PrecompileError,
 };
+use crate::precompile::constant::SCALAR_LENGTH_BITS;
+// Big-endian non-Montgomery form.
+const MODULUS_REPR: [u8; 48] = [
+    0x1a, 0x01, 0x11, 0xea, 0x39, 0x7f, 0xe6, 0x9a, 0x4b, 0x1b, 0xa7, 0xb6, 0x43, 0x4b, 0xac, 0xd7,
+    0x64, 0x77, 0x4b, 0x84, 0xf3, 0x85, 0x12, 0xbf, 0x67, 0x30, 0xd2, 0xa0, 0xf6, 0xb0, 0xf6, 0x24,
+    0x1e, 0xab, 0xff, 0xfe, 0xb1, 0x53, 0xff, 0xff, 0xb9, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xab,
+];
 
 #[inline]
 fn p1_to_affine(p: &blst_p1) -> blst_p1_affine {

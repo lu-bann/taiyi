@@ -1,4 +1,4 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/pairing.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/pairing.rs
 use alloy_primitives::{Bytes, B256};
 
 use super::{
@@ -20,6 +20,7 @@ use super::{
 /// target field and 0x00 otherwise.
 ///
 /// See also: <https://eips.ethereum.org/EIPS/eip-2537#abi-for-pairing>
+#[allow(unused)]
 pub fn pairing(input: &Bytes) -> Result<Bytes, PrecompileError> {
     let input_len = input.len();
     if input_len == 0 || input_len % PAIRING_INPUT_LENGTH != 0 {

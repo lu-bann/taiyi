@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod blst_utils;
 mod constant;
 mod error;

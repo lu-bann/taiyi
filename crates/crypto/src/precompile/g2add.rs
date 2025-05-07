@@ -1,4 +1,4 @@
-/// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_add.rs
+// This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_add.rs
 use alloy_primitives::Bytes;
 
 use super::{
@@ -14,6 +14,7 @@ use super::{
 /// Output is an encoding of addition operation result - single G2 point (`256`
 /// bytes).
 /// See also <https://eips.ethereum.org/EIPS/eip-2537#abi-for-g2-addition>
+#[allow(dead_code)]
 pub fn g2_add(input: &Bytes) -> Result<Bytes, PrecompileError> {
     if input.len() != G2_ADD_INPUT_LENGTH {
         return Err(PrecompileError::Other(format!(
