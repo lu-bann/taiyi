@@ -80,6 +80,7 @@ alloy-rpc-types = { version = "0.12", features = [
 alloy-network = { version = "0.12", default-features = false }
 alloy-provider = { version = "0.12", features = [
     "reqwest",
+    "ws",
 ], default-features = false }
 alloy-signer = { version = "0.12", default-features = false }
 alloy-signer-local = { version = "0.12", features = ["mnemonic"] }

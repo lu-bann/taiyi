@@ -6,8 +6,11 @@ edition = { workspace = true }
 [dependencies]
 alloy-contract = { workspace = true }
 alloy-eips = { workspace = true }
+alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-eth = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
@@ -26,6 +29,7 @@ sqlx = { workspace = true }
 taiyi-primitives = { workspace = true }
 taiyi-underwriter = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 
 
 [dev-dependencies]
