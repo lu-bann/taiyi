@@ -6,6 +6,8 @@ use sqlx::{postgres::PgPoolOptions, types::BigDecimal, Pool, Postgres};
 use taiyi_primitives::PreconfRequest;
 use uuid::Uuid;
 
+const TABLE_NAME: &str = "underwriter_trades";
+
 pub type TaiyiDBConnection = Pool<Postgres>;
 
 #[derive(Clone, Debug, sqlx::FromRow, Default)]
@@ -37,7 +39,7 @@ pub struct UnderwriterTradeRow {
     ///     SELECT * FROM table_name
     ///     WHERE decode('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'hex') = ANY(tx_hash);
     // pub tx_hash: Option<Vec<Vec<u8>>>,
-    pub tx_hash: Vec<[u8; 32]>,
+    pub tx_hashes: Vec<[u8; 32]>,
     /// Set to true when inclusion has been checked on-chain
     pub settled: bool,
     /// Realized gas price at settlement time. Null before settlement
@@ -47,38 +49,41 @@ pub struct UnderwriterTradeRow {
 }
 
 impl UnderwriterTradeRow {
-    const TABLE_NAME: &str = "underwriter_trades";
-    pub fn from_preconf_request(current_slot: u64, uuid: Uuid, request: &PreconfRequest) -> Self {
+    pub fn try_from_preconf_request(
+        current_slot: u64,
+        uuid: Uuid,
+        request: &PreconfRequest,
+    ) -> eyre::Result<Self> {
         match request {
             PreconfRequest::TypeA(request) => {
                 let preconf_type = 0;
-                Self {
+                Ok(Self {
                     current_slot,
                     target_slot: request.target_slot,
-                    total_tip: u256_to_big_decimal(request.preconf_tip()),
+                    total_tip: u256_to_big_decimal(request.preconf_tip())?,
                     uuid,
-                    quoted_gas_price: u128_to_big_decimal(request.preconf_fee.gas_fee),
-                    quoted_blob_price: u128_to_big_decimal(request.preconf_fee.blob_gas_fee),
+                    quoted_gas_price: u128_to_big_decimal(request.preconf_fee.gas_fee)?,
+                    quoted_blob_price: u128_to_big_decimal(request.preconf_fee.blob_gas_fee)?,
                     preconf_type,
-                    tx_hash: request.preconf_tx.iter().map(|tx| tx.hash().0).collect(),
+                    tx_hashes: request.preconf_tx.iter().map(|tx| tx.hash().0).collect(),
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
-                }
+                })
             }
             PreconfRequest::TypeB(request) => {
                 let preconf_type = 1;
-                Self {
+                Ok(Self {
                     current_slot,
                     target_slot: request.allocation.target_slot,
-                    total_tip: u256_to_big_decimal(request.preconf_tip()),
+                    total_tip: u256_to_big_decimal(request.preconf_tip())?,
                     uuid,
-                    quoted_gas_price: u128_to_big_decimal(request.allocation.preconf_fee.gas_fee),
+                    quoted_gas_price: u128_to_big_decimal(request.allocation.preconf_fee.gas_fee)?,
                     quoted_blob_price: u128_to_big_decimal(
                         request.allocation.preconf_fee.blob_gas_fee,
-                    ),
+                    )?,
                     preconf_type,
-                    tx_hash: vec![
+                    tx_hashes: vec![
                         request
                             .transaction
                             .as_ref()
@@ -89,7 +94,7 @@ impl UnderwriterTradeRow {
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
-                }
+                })
             }
         }
     }
@@ -109,7 +114,7 @@ impl UnderwriterTradeRow {
         .bind(self.quoted_blob_price) // $5
         .bind(self.uuid) // $6
         .bind(self.preconf_type) // $7
-        .bind(self.tx_hash) // $8
+        .bind(self.tx_hashes) // $8
         .execute(db_conn)
         .await
         .map_err(|e| eyre!("DB error: {e}"))?;
@@ -117,7 +122,7 @@ impl UnderwriterTradeRow {
     }
 
     pub async fn find_all_by_slot(slot: u64, db_conn: &Pool<Postgres>) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as(&format!("SELECT * FROM {} WHERE $1 = current_slot;", Self::TABLE_NAME))
+        Ok(sqlx::query_as(&format!("SELECT * FROM {} WHERE $1 = current_slot;", TABLE_NAME))
             .bind(slot as i64)
             .fetch_all(db_conn)
             .await?)
@@ -138,7 +143,7 @@ impl UnderwriterTradeRow {
                     realized_gas_price = $1,
                     realized_blob_price = $2
                     WHERE uuid = $3",
-                    Self::TABLE_NAME
+                    TABLE_NAME
                 );
                 sqlx::query(&query_string)
                     .bind(realized_gas_price)
@@ -151,7 +156,7 @@ impl UnderwriterTradeRow {
                     SET settled = TRUE,
                     realized_gas_price = $1,
                     WHERE uuid = $3",
-                    Self::TABLE_NAME
+                    TABLE_NAME
                 );
                 sqlx::query(&query_string).bind(realized_gas_price).bind(uuid)
             }
@@ -161,7 +166,7 @@ impl UnderwriterTradeRow {
 
     pub async fn init_db_schema(db_conn: &Pool<sqlx::Postgres>) -> Result<()> {
         let create_table_str = generate_create_table(
-            Self::TABLE_NAME,
+            TABLE_NAME,
             vec![
                 ("current_slot", "BIGINT"),
                 ("target_slot", "BIGINT"),
@@ -194,12 +199,12 @@ pub fn generate_create_table(
     format!("CREATE TABLE {} {} (\n{}\n);", if_not_exists, table_name, columns.join(",\n"))
 }
 
-pub fn u128_to_big_decimal(x: u128) -> BigDecimal {
-    BigDecimal::from_str(&x.to_string()).expect("bug in either bigdecimal or u128 string methods")
+pub fn u128_to_big_decimal(x: u128) -> eyre::Result<BigDecimal> {
+    Ok(BigDecimal::from_str(&x.to_string())?)
 }
 
-pub fn u256_to_big_decimal(x: U256) -> BigDecimal {
-    BigDecimal::from_str(&x.to_string()).expect("bug in either bigdecimal or u128 string methods")
+pub fn u256_to_big_decimal(x: U256) -> eyre::Result<BigDecimal> {
+    Ok(BigDecimal::from_str(&x.to_string())?)
 }
 
 pub async fn get_db_connection(url: &str) -> Result<TaiyiDBConnection> {

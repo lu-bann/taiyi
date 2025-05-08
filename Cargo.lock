@@ -9343,6 +9343,7 @@ dependencies = [
  "alloy-provider 0.12.6",
  "alloy-rpc-types 0.12.6",
  "clap",
+ "ethereum-consensus",
  "eyre",
  "futures-util",
  "reqwest 0.12.9",

@@ -1,17 +1,16 @@
 mod database;
 
-use std::{process::exit, str::FromStr};
-
 use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
 use alloy_primitives::map::HashSet;
 use alloy_provider::{Provider as _, ProviderBuilder, WsConnect};
 use alloy_rpc_types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
-use eyre::OptionExt as _;
+use ethereum_consensus::{deneb::Context, networks::Network};
 use futures_util::StreamExt as _;
 use reqwest::Url;
 use reqwest_eventsource::{Event, EventSource};
+use std::process::exit;
 use taiyi_primitives::{PreconfRequest, PreconfResponseData};
 use tracing::{debug, error};
 
@@ -44,11 +43,11 @@ async fn commitment_stream_listener(db_conn: TaiyiDBConnection, url: Url) -> eyr
                 for (preconf_request, preconf_response_data) in parsed_data.iter() {
                     let target_slot = preconf_request.target_slot();
                     debug!("[Stream Ingestor]: Processing preconfirmation for slot {target_slot}");
-                    let row = UnderwriterTradeRow::from_preconf_request(
+                    let row = UnderwriterTradeRow::try_from_preconf_request(
                         preconf_response_data.current_slot,
                         preconf_response_data.request_id,
                         preconf_request,
-                    );
+                    )?;
                     row.insert_trade_initiation_into_db(&db_conn).await?;
                 }
             }
@@ -74,7 +73,7 @@ async fn tx_settlement_listener(
     let provider = match ProviderBuilder::new().on_ws(ws).await {
         Ok(provider) => provider,
         Err(e) => {
-            error!("[Challenger Creator]: Failed to create provider: {}", e);
+            error!("[Settlement Monitor]: Failed to create provider: {}", e);
             return Err(eyre::eyre!("Failed to create provider: {}", e));
         }
     };
@@ -83,28 +82,28 @@ async fn tx_settlement_listener(
     let subscription = match provider.subscribe_blocks().await {
         Ok(sub) => sub,
         Err(e) => {
-            error!("[Challenger Creator]: Failed to subscribe to blocks: {}", e);
+            error!("[Settlement Monitor]: Failed to subscribe to blocks: {}", e);
             return Err(eyre::eyre!("Failed to subscribe to blocks: {}", e));
         }
     };
     let mut stream = subscription.into_stream();
 
     while let Some(header) = stream.next().await {
-        debug!("[Challenger Creator]: Processing block {:?}", header.number);
+        debug!("[Settlement Monitor]: Processing block {:?}", header.number);
         let slot = get_slot_from_timestamp(header.timestamp, genesis_timestamp);
-        debug!("[Challenger Creator]: Slot: {:?}", slot);
+        debug!("[Settlement Monitor]: Slot: {:?}", slot);
 
         let block =
             match provider.get_block_by_number(BlockNumberOrTag::Number(header.number)).await {
                 Ok(Some(block)) => block,
                 Ok(None) => {
-                    error!("[Challenger Creator]: Block {} not found", header.number);
+                    error!("[Settlement Monitor]: Block {} not found", header.number);
                     continue;
                 }
                 Err(e) => {
                     // RPC error
                     error!(
-                        "[Challenger Creator]: RPC error for block {}. Error: {:?}",
+                        "[Settlement Monitor]: RPC error for block {}. Error: {:?}",
                         header.number, e
                     );
                     continue;
@@ -136,7 +135,7 @@ async fn tx_settlement_listener(
             );
 
             // Check if all user txs are included in the block
-            if !preconf.tx_hash.iter().all(|tx_hash| tx_hashes.contains(tx_hash)) {
+            if !preconf.tx_hashes.iter().all(|tx_hash| tx_hashes.contains(tx_hash)) {
                 error!(
                     "error: preconf tx with uuid {} was not completely \
                        included in the block number {}. Tx: {:?}",
@@ -148,7 +147,7 @@ async fn tx_settlement_listener(
                 let prices = receipts
                     .iter()
                     .filter_map(|receipt| {
-                        if preconf.tx_hash.iter().all(|y| y != receipt.transaction_hash) {
+                        if preconf.tx_hashes.iter().all(|y| y != receipt.transaction_hash) {
                             None
                         } else {
                             Some(receipt.effective_gas_price)
@@ -171,64 +170,25 @@ async fn tx_settlement_listener(
 
             UnderwriterTradeRow::update_with_settlement(
                 preconf.uuid,
-                u128_to_big_decimal(realized_gas_price),
-                realized_blob_price.as_ref().map(|x| u128_to_big_decimal(*x)).ok(),
+                u128_to_big_decimal(realized_gas_price)?,
+                realized_blob_price.and_then(|x| u128_to_big_decimal(x).ok()),
                 &db_conn,
             )
             .await?;
         }
 
-        debug!("[Challenger Creator]: Processed block {:?}", header.number);
+        debug!("[Settlement Monitor]: Processed block {:?}", header.number);
     }
 
     Ok(())
 }
 
-fn get_blob_gas_price(data: &Block) -> eyre::Result<u128> {
-    let excess_blob_gas =
-        data.header.excess_blob_gas.ok_or_eyre("no excess blob gas in block header")? as f64;
+fn get_blob_gas_price(data: &Block) -> Option<u128> {
+    // adapted from https://eips.ethereum.org/EIPS/eip-4844#gas-accounting
+    let excess_blob_gas = data.header.excess_blob_gas? as f64;
     let base_fee_per_blob_gas = MIN_BASE_FEE_PER_BLOB_GAS as f64
         * (excess_blob_gas / BLOB_BASE_FEE_UPDATE_FRACTION as f64).exp();
-    Ok(base_fee_per_blob_gas as u128)
-}
-
-async fn get_genesis_time(beacon_url: &str) -> eyre::Result<u64> {
-    // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
-    let beacon_genesis_response = match reqwest::Client::new()
-        .get(format!("{beacon_url}/eth/v1/beacon/genesis"))
-        .send()
-        .await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            error!("Failed to get beacon genesis: {e}");
-            return Err(eyre::eyre!("Failed to get beacon genesis: {e}"));
-        }
-    };
-
-    let beacon_genesis_response = match beacon_genesis_response.json::<serde_json::Value>().await {
-        Ok(value) => value,
-        Err(e) => {
-            error!("Failed to parse beacon genesis response: {e}");
-            return Err(eyre::eyre!("Failed to parse beacon genesis response: {e}"));
-        }
-    };
-
-    let genesis_time =
-        beacon_genesis_response["data"]["genesis_time"].as_str().ok_or_else(|| {
-            let err = "Failed to get genesis time from response";
-            error!("{}", err);
-            eyre::eyre!("{}", err)
-        })?;
-
-    let genesis_timestamp = match u64::from_str(genesis_time) {
-        Ok(timestamp) => timestamp,
-        Err(e) => {
-            error!("Failed to parse genesis time: {}", e);
-            return Err(eyre::eyre!("Failed to parse genesis time: {}", e));
-        }
-    };
-    Ok(genesis_timestamp)
+    Some(base_fee_per_blob_gas as u128)
 }
 
 #[derive(Parser, Clone)]
@@ -237,6 +197,8 @@ struct Opts {
     execution_client_ws_url: String,
     #[clap(long)]
     beacon_url: String,
+    #[clap(long)]
+    pub network: String,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
@@ -249,11 +211,13 @@ async fn main() -> eyre::Result<()> {
         db_conn.clone(),
         Url::parse("http://127.0.0.1:5656/commitments/v0/commitment_stream")?,
     );
-    let tx_settlement_handle = tx_settlement_listener(
-        opts.execution_client_ws_url,
-        get_genesis_time(&opts.beacon_url).await?,
-        db_conn,
-    );
+    let genesis_time = {
+        let network: Network = opts.network.clone().into();
+        let context: Context = network.try_into()?;
+        context.genesis_time()?
+    };
+    let tx_settlement_handle =
+        tx_settlement_listener(opts.execution_client_ws_url, genesis_time, db_conn);
     tokio::select! {
         result = commitment_handle => {
             error!("commitment listener task is dead. exiting...");
