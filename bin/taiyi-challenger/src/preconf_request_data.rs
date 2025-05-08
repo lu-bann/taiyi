@@ -36,7 +36,7 @@ where
     where
         Self: 'a,
     {
-        decode_from_slice(data, bincode::config::standard()).unwrap().0
+        decode_from_slice(data, bincode::config::standard()).expect("Failed to decode bincode").0
     }
 
     fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
@@ -44,7 +44,7 @@ where
         Self: 'a,
         Self: 'b,
     {
-        encode_to_vec(value, bincode::config::standard()).unwrap()
+        encode_to_vec(value, bincode::config::standard()).expect("Failed to encode bincode")
     }
 
     fn type_name() -> TypeName {
