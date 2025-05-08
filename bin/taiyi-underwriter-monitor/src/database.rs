@@ -10,7 +10,7 @@ const TABLE_NAME: &str = "underwriter_trades";
 
 pub type TaiyiDBConnection = Pool<Postgres>;
 
-#[derive(Clone, Debug, sqlx::FromRow, Default)]
+#[derive(Clone, Debug, sqlx::FromRow, Default, PartialEq)]
 pub struct UnderwriterTradeRow {
     #[sqlx(try_from = "i64")]
     pub current_slot: u64,
@@ -102,7 +102,7 @@ impl UnderwriterTradeRow {
         let _ = sqlx::query(
             &format!("\
             INSERT INTO {TABLE_NAME} (
-                current_slot, target_slot, total_tip, quoted_gas_price, quoted_blob_price, uuid, preconf_type,tx_hash \
+                current_slot, target_slot, total_tip, quoted_gas_price, quoted_blob_price, uuid, preconf_type,tx_hashes \
             ) \
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)")
         )
@@ -165,14 +165,15 @@ impl UnderwriterTradeRow {
         let create_table_str = generate_create_table(
             TABLE_NAME,
             vec![
-                ("current_slot", "BIGINT"),
-                ("target_slot", "BIGINT"),
-                ("total_tip", "NUMERIC(78,0)"),
-                ("quoted_gas_price", "NUMERIC(78,0)"),
-                ("quoted_blob_price", "NUMERIC(78,0)"),
-                ("uuid", "UUID"),
-                ("preconf_type", "SMALLINT"),
-                ("tx_hash", "BYTEA[]"),
+                ("current_slot", "BIGINT NOT NULL"),
+                ("target_slot", "BIGINT NOT NULL"),
+                ("total_tip", "NUMERIC(78,0) NOT NULL"),
+                ("quoted_gas_price", "NUMERIC(78,0) NOT NULL"),
+                ("quoted_blob_price", "NUMERIC(78,0) NOT NULL"),
+                ("uuid", "UUID NOT NULL"),
+                ("preconf_type", "SMALLINT NOT NULL"),
+                ("tx_hashes", "BYTEA[]"),
+                ("settled", "BOOLEAN NOT NULL DEFAULT false"),
                 ("realized_gas_price", "NUMERIC(78,0)"),
                 ("realized_blob_price", "NUMERIC(78,0)"),
             ],
@@ -206,4 +207,208 @@ pub fn u256_to_big_decimal(x: U256) -> eyre::Result<BigDecimal> {
 
 pub async fn get_db_connection(url: &str) -> Result<TaiyiDBConnection> {
     Ok(PgPoolOptions::new().max_connections(5).connect(url).await?)
+}
+
+#[cfg(test)]
+mod test {
+    use taiyi_primitives::{PreconfRequestTypeA, PreconfRequestTypeB};
+    use testcontainers_modules::{postgres, testcontainers::runners::AsyncRunner as _};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_init_db() -> eyre::Result<()> {
+        // start test postgresql server container
+        let container = postgres::Postgres::default().start().await?;
+        let host_ip = container.get_host().await?;
+        let host_port = container.get_host_port_ipv4(5432).await?;
+
+        let db_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
+            .await?;
+        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+
+        let empty_table_result = UnderwriterTradeRow::find_all_by_slot(123, &db_conn).await?;
+
+        assert_eq!(empty_table_result.len(), 0, "table should be newly created");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_from_preconf_type_a_request() -> eyre::Result<()> {
+        // start test postgresql server container
+        let container = postgres::Postgres::default().start().await?;
+        let host_ip = container.get_host().await?;
+        let host_port = container.get_host_port_ipv4(5432).await?;
+
+        let db_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
+            .await?;
+
+        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+
+        // Read json data
+        let request = {
+            let request: PreconfRequestTypeA =
+                serde_json::from_str(&std::fs::read_to_string("test-data/type-a.json")?)?;
+            PreconfRequest::TypeA(request)
+        };
+
+        let uuid = Uuid::new_v4();
+        let row = UnderwriterTradeRow::try_from_preconf_request(101, uuid, &request)?;
+
+        let PreconfRequest::TypeA(request) = request else { unreachable!() };
+
+        assert_eq!(row.current_slot, 101);
+        assert_eq!(row.target_slot, 105);
+        assert_eq!(row.total_tip, u256_to_big_decimal(request.preconf_tip())?);
+        assert_eq!(row.preconf_type, 0);
+        assert_eq!(row.uuid, uuid);
+        assert_eq!(row.quoted_gas_price, u128_to_big_decimal(request.preconf_fee.gas_fee)?);
+        assert_eq!(row.quoted_blob_price, u128_to_big_decimal(request.preconf_fee.blob_gas_fee)?);
+        assert_eq!(row.tx_hashes.len(), 1);
+        assert_eq!(row.tx_hashes.first().unwrap(), request.preconf_tx.first().unwrap().hash());
+        assert!(!row.settled);
+        assert_eq!(row.realized_gas_price, None);
+        assert_eq!(row.realized_blob_price, None);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_from_preconf_type_b_request() -> eyre::Result<()> {
+        // start test postgresql server container
+        let container = postgres::Postgres::default().start().await?;
+        let host_ip = container.get_host().await?;
+        let host_port = container.get_host_port_ipv4(5432).await?;
+
+        let db_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
+            .await?;
+
+        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+
+        // Read json data
+        let request = {
+            let request: PreconfRequestTypeB =
+                serde_json::from_str(&std::fs::read_to_string("test-data/type-b.json")?)?;
+            PreconfRequest::TypeB(request)
+        };
+
+        let uuid = Uuid::new_v4();
+        let row = UnderwriterTradeRow::try_from_preconf_request(101, uuid, &request)?;
+
+        let PreconfRequest::TypeB(request) = request else { unreachable!() };
+
+        assert_eq!(row.current_slot, 101);
+        assert_eq!(row.target_slot, 105);
+        assert_eq!(row.total_tip, u256_to_big_decimal(request.preconf_tip())?);
+        assert_eq!(row.preconf_type, 1);
+        assert_eq!(row.uuid, uuid);
+        assert_eq!(
+            row.quoted_gas_price,
+            u128_to_big_decimal(request.allocation.preconf_fee.gas_fee)?
+        );
+        assert_eq!(
+            row.quoted_blob_price,
+            u128_to_big_decimal(request.allocation.preconf_fee.blob_gas_fee)?
+        );
+        assert_eq!(row.tx_hashes.len(), 1);
+        assert_eq!(row.tx_hashes.first().unwrap(), request.transaction.unwrap().hash());
+        assert!(!row.settled);
+        assert_eq!(row.realized_gas_price, None);
+        assert_eq!(row.realized_blob_price, None);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_insert_into_db() -> eyre::Result<()> {
+        // start test postgresql server container
+        let container = postgres::Postgres::default().start().await?;
+        let host_ip = container.get_host().await?;
+        let host_port = container.get_host_port_ipv4(5432).await?;
+
+        let db_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
+            .await?;
+
+        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+
+        // Read json data
+        let request = {
+            let request: PreconfRequestTypeB =
+                serde_json::from_str(&std::fs::read_to_string("test-data/type-b.json")?)?;
+            PreconfRequest::TypeB(request)
+        };
+
+        let uuid = Uuid::new_v4();
+        let row = UnderwriterTradeRow::try_from_preconf_request(101, uuid, &request)?;
+
+        row.clone().insert_trade_initiation_into_db(&db_conn).await?;
+
+        let retrieved = UnderwriterTradeRow::find_all_by_slot(101, &db_conn).await?;
+        assert_eq!(retrieved.len(), 1);
+
+        let retrieved = retrieved.first().unwrap().clone();
+
+        assert_eq!(row, retrieved);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_update_with_settlement() -> eyre::Result<()> {
+        // start test postgresql server container
+        let container = postgres::Postgres::default().start().await?;
+        let host_ip = container.get_host().await?;
+        let host_port = container.get_host_port_ipv4(5432).await?;
+
+        let db_conn = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
+            .await?;
+
+        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+
+        // Read json data
+        let request = {
+            let request: PreconfRequestTypeB =
+                serde_json::from_str(&std::fs::read_to_string("test-data/type-b.json")?)?;
+            PreconfRequest::TypeB(request)
+        };
+
+        let uuid = Uuid::new_v4();
+        let row = UnderwriterTradeRow::try_from_preconf_request(101, uuid, &request)?;
+
+        row.clone().insert_trade_initiation_into_db(&db_conn).await?;
+
+        UnderwriterTradeRow::update_with_settlement(
+            uuid,
+            BigDecimal::from(234),
+            Some(BigDecimal::from(567)),
+            &db_conn,
+        )
+        .await?;
+
+        // expected values for the updated row are all the same except for these 3:
+        let row = UnderwriterTradeRow {
+            settled: true,
+            realized_gas_price: Some(BigDecimal::from(234)),
+            realized_blob_price: Some(BigDecimal::from(567)),
+            ..row
+        };
+
+        let retrieved = UnderwriterTradeRow::find_all_by_slot(101, &db_conn).await?;
+        assert_eq!(retrieved.len(), 1);
+
+        let retrieved = retrieved.first().unwrap().clone();
+        assert_eq!(row, retrieved);
+
+        Ok(())
+    }
 }

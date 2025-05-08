@@ -1,0 +1,45 @@
+{
+    "sequence_number": 1,
+    "signer": "0x2e0703873f2a4e37b224009911f2c3bcf26975bf",
+    "target_slot": 105,
+    "tip_transaction": {
+        "accessList": [],
+        "chainId": "0x301824",
+        "gas": "0x5208",
+        "hash": "0x65d7d46a599e431303fcdcf07f73a941b2391853717ea85932065216ed6c0120",
+        "input": "0x",
+        "maxFeePerGas": "0x2e99eb808",
+        "maxPriorityFeePerGas": "0x77359400",
+        "nonce": "0x0",
+        "r": "0x689500b6d46105a1a2797997e643d512e92cbbb1498392e1eb408acebe49a975",
+        "s": "0x151354c83e23f08f4ced182b95c6c9cdf125bd2b8478806328b8647f6b9e63f3",
+        "to": "0x2e0703873f2a4e37b224009911f2c3bcf26975bf",
+        "type": "0x2",
+        "v": "0x0",
+        "value": "0x1ddd847d0a080",
+        "yParity": "0x0"
+    },
+    "preconf_tx": [
+        {
+            "accessList": [],
+            "chainId": "0x301824",
+            "gas": "0x5208",
+            "hash": "0x77ce55b267b1492c8c9f3354a5f3b7190c4f3c5ecf274110f6f524e4b51469bd",
+            "input": "0x",
+            "maxFeePerGas": "0x2e99eb808",
+            "maxPriorityFeePerGas": "0x77359400",
+            "nonce": "0x1",
+            "r": "0x5341e6039dd799a34cfd35996102b23cb6d9987b62da0c087f3374dece0f02a5",
+            "s": "0x165c6649770ddc4a9aa923253c4ca3c016672fe5c170f98ba1f15432719304ed",
+            "to": "0x2e0703873f2a4e37b224009911f2c3bcf26975bf",
+            "type": "0x2",
+            "v": "0x1",
+            "value": "0x3e8",
+            "yParity": "0x1"
+        }
+    ],
+    "preconf_fee": {
+        "gas_fee": 123,
+        "blob_gas_fee": 456
+    }
+}
