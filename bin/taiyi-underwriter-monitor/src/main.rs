@@ -1,5 +1,7 @@
 mod database;
 
+use std::process::exit;
+
 use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
 use alloy_primitives::map::HashSet;
 use alloy_provider::{Provider as _, ProviderBuilder, WsConnect};
@@ -10,7 +12,6 @@ use ethereum_consensus::{deneb::Context, networks::Network};
 use futures_util::StreamExt as _;
 use reqwest::Url;
 use reqwest_eventsource::{Event, EventSource};
-use std::process::exit;
 use taiyi_primitives::{PreconfRequest, PreconfResponseData};
 use tracing::{debug, error};
 

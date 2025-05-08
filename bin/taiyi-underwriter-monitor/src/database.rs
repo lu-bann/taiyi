@@ -100,11 +100,11 @@ impl UnderwriterTradeRow {
 
     pub async fn insert_trade_initiation_into_db(self, db_conn: &Pool<Postgres>) -> Result<()> {
         let _ = sqlx::query(
-            "\
-            INSERT INTO underwriter_trades (
+            &format!("\
+            INSERT INTO {TABLE_NAME} (
                 current_slot, target_slot, total_tip, quoted_gas_price, quoted_blob_price, uuid, preconf_type,tx_hash \
             ) \
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)")
         )
         .bind(self.current_slot as i64) // $1
         .bind(self.target_slot as i64) // $2
@@ -121,7 +121,7 @@ impl UnderwriterTradeRow {
     }
 
     pub async fn find_all_by_slot(slot: u64, db_conn: &Pool<Postgres>) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as(&format!("SELECT * FROM {} WHERE $1 = current_slot;", TABLE_NAME))
+        Ok(sqlx::query_as(&format!("SELECT * FROM {TABLE_NAME} WHERE $1 = current_slot;"))
             .bind(slot as i64)
             .fetch_all(db_conn)
             .await?)
@@ -137,12 +137,11 @@ impl UnderwriterTradeRow {
         let query = match realized_blob_price {
             Some(realized_blob_price) => {
                 query_string = format!(
-                    "UPDATE {}
+                    "UPDATE {TABLE_NAME}
                     SET settled = TRUE,
                     realized_gas_price = $1,
                     realized_blob_price = $2
-                    WHERE uuid = $3",
-                    TABLE_NAME
+                    WHERE uuid = $3"
                 );
                 sqlx::query(&query_string)
                     .bind(realized_gas_price)
@@ -151,11 +150,10 @@ impl UnderwriterTradeRow {
             }
             None => {
                 query_string = format!(
-                    "UPDATE {}
+                    "UPDATE {TABLE_NAME}
                     SET settled = TRUE,
                     realized_gas_price = $1,
                     WHERE uuid = $3",
-                    TABLE_NAME
                 );
                 sqlx::query(&query_string).bind(realized_gas_price).bind(uuid)
             }
