@@ -25,7 +25,6 @@ futures-util = { workspace = true }
 redb = { workspace = true }
 reqwest = { workspace = true }
 reqwest-eventsource = "0.6"
-serde = { workspace = true }
 serde_json = { workspace = true }
 sp1-sdk = { workspace = true }
 taiyi-primitives = { workspace = true }

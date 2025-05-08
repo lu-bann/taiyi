@@ -9095,7 +9095,6 @@ dependencies = [
  "redb",
  "reqwest 0.12.9",
  "reqwest-eventsource",
- "serde",
  "serde_json",
  "sp1-build",
  "sp1-sdk",

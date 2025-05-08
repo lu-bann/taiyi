@@ -1,13 +1,10 @@
 use std::{str::FromStr, sync::Arc};
 
-use alloy_eips::{eip2718::Encodable2718, merge::SLOT_DURATION_SECS, BlockNumberOrTag};
-use alloy_primitives::{hex, keccak256, Address, Bytes, U256};
+use alloy_eips::{merge::SLOT_DURATION_SECS, BlockNumberOrTag};
+use alloy_primitives::{hex, keccak256, Address, U256};
 use alloy_provider::{Provider, ProviderBuilder, WsConnect};
 use alloy_rpc_types::Filter;
-use alloy_signer::{
-    k256::{self},
-    Signer,
-};
+use alloy_signer::k256;
 use alloy_sol_types::sol;
 use clap::Parser;
 use eth_trie_proofs::tx_trie::TxsMptHandler;
@@ -23,10 +20,7 @@ use tracing::{debug, error, level_filters::LevelFilter};
 
 mod preconf_request_data;
 use preconf_request_data::{Bincode, PreconfRequestData};
-use sp1_sdk::{
-    include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Proof,
-    SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
-};
+use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 
 const ELF_POI: &[u8] = include_elf!("taiyi-poi");
 
@@ -83,18 +77,29 @@ sol! {
 async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre::Result<()> {
     let req = reqwest::Client::new().get(url);
 
-    let mut event_source = EventSource::new(req).unwrap_or_else(|err| {
-        panic!("Failed to create EventSource: {:?}", err);
-    });
+    let mut event_source = match EventSource::new(req) {
+        Ok(source) => source,
+        Err(err) => {
+            error!("Failed to create EventSource: {:?}", err);
+            return Ok(());
+        }
+    };
 
     while let Some(event) = event_source.next().await {
         match event {
             Ok(Event::Message(message)) => {
                 let data = &message.data;
 
-                let parsed_data =
-                    serde_json::from_str::<Vec<(PreconfRequest, PreconfResponseData)>>(data)
-                        .unwrap();
+                let parsed_data = match serde_json::from_str::<
+                    Vec<(PreconfRequest, PreconfResponseData)>,
+                >(data)
+                {
+                    Ok(data) => data,
+                    Err(e) => {
+                        error!("Failed to parse preconf data: {}", e);
+                        continue;
+                    }
+                };
 
                 debug!("[Stream Ingestor]: Received {} preconfirmations", parsed_data.len());
 
@@ -105,6 +110,14 @@ async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre:
                         target_slot
                     );
 
+                    let commitment = match &preconf_response_data.commitment {
+                        Some(c) => c,
+                        None => {
+                            error!("Missing commitment for slot {}", target_slot);
+                            continue;
+                        }
+                    };
+
                     let preconf_request_data = PreconfRequestData {
                         preconf_type: match preconf_request {
                             PreconfRequest::TypeA(_) => 0,
@@ -112,53 +125,112 @@ async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre:
                         },
                         preconf_request: match preconf_request {
                             PreconfRequest::TypeA(preconf_request) => {
-                                serde_json::to_string(preconf_request).unwrap()
+                                match serde_json::to_string(preconf_request) {
+                                    Ok(s) => s,
+                                    Err(e) => {
+                                        error!("Failed to serialize TypeA request: {}", e);
+                                        continue;
+                                    }
+                                }
                             }
                             PreconfRequest::TypeB(preconf_request) => {
-                                serde_json::to_string(preconf_request).unwrap()
+                                match serde_json::to_string(preconf_request) {
+                                    Ok(s) => s,
+                                    Err(e) => {
+                                        error!("Failed to serialize TypeB request: {}", e);
+                                        continue;
+                                    }
+                                }
                             }
                         },
-                        preconf_request_signature: hex::encode(
-                            preconf_response_data.commitment.unwrap().as_bytes(),
-                        ),
+                        preconf_request_signature: hex::encode(commitment.as_bytes()),
                     };
 
-                    let challenge_id =
-                        keccak256(preconf_response_data.commitment.unwrap().as_bytes()).to_string();
+                    let challenge_id = keccak256(commitment.as_bytes()).to_string();
 
-                    let write_tx = preconf_db.begin_write().unwrap();
+                    let write_tx = match preconf_db.begin_write() {
+                        Ok(tx) => tx,
+                        Err(e) => {
+                            error!("Failed to begin write transaction: {}", e);
+                            continue;
+                        }
+                    };
+
                     {
-                        let mut table = write_tx.open_table(PRECONF_DATA_TABLE).unwrap();
-                        table.insert(&challenge_id, preconf_request_data).unwrap();
+                        let mut table = match write_tx.open_table(PRECONF_DATA_TABLE) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                error!("Failed to open PRECONF_DATA_TABLE: {}", e);
+                                continue;
+                            }
+                        };
+
+                        if let Err(e) = table.insert(&challenge_id, preconf_request_data) {
+                            error!("Failed to insert preconf data: {}", e);
+                            continue;
+                        };
                     }
-                    write_tx.commit().unwrap();
 
-                    let read_tx = preconf_db.begin_read().unwrap();
-                    let table = read_tx.open_table(PRECONF_TABLE).unwrap();
-                    let preconfs = table.get(&target_slot);
-
-                    if preconfs.is_err() {
-                        // Storage error
-                        error!(
-                            "[Stream Ingestor]: Storage error for slot {}. Error: {:?}",
-                            target_slot,
-                            preconfs.err()
-                        );
+                    if let Err(e) = write_tx.commit() {
+                        error!("Failed to commit write transaction: {}", e);
                         continue;
                     }
 
-                    let preconfs = preconfs.unwrap();
-                    let mut preconfs =
-                        if preconfs.is_none() { Vec::new() } else { preconfs.unwrap().value() };
+                    let read_tx = match preconf_db.begin_read() {
+                        Ok(tx) => tx,
+                        Err(e) => {
+                            error!("Failed to begin read transaction: {}", e);
+                            continue;
+                        }
+                    };
 
+                    let table = match read_tx.open_table(PRECONF_TABLE) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            error!("Failed to open PRECONF_TABLE: {}", e);
+                            continue;
+                        }
+                    };
+
+                    let preconfs = match table.get(&target_slot) {
+                        Ok(Some(p)) => p.value(),
+                        Ok(None) => Vec::new(),
+                        Err(e) => {
+                            error!("Failed to get preconfs: {}", e);
+                            continue;
+                        }
+                    };
+
+                    let mut preconfs = preconfs;
                     preconfs.push(challenge_id.clone());
 
-                    let write_tx = preconf_db.begin_write().unwrap();
+                    let write_tx = match preconf_db.begin_write() {
+                        Ok(tx) => tx,
+                        Err(e) => {
+                            error!("Failed to begin write transaction: {}", e);
+                            continue;
+                        }
+                    };
+
                     {
-                        let mut table = write_tx.open_table(PRECONF_TABLE).unwrap();
-                        table.insert(&target_slot, preconfs).unwrap();
+                        let mut table = match write_tx.open_table(PRECONF_TABLE) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                error!("Failed to open PRECONF_TABLE: {}", e);
+                                continue;
+                            }
+                        };
+
+                        if let Err(e) = table.insert(&target_slot, preconfs) {
+                            error!("Failed to insert preconfs: {}", e);
+                            continue;
+                        };
                     }
-                    write_tx.commit().unwrap();
+
+                    if let Err(e) = write_tx.commit() {
+                        error!("Failed to commit write transaction: {}", e);
+                        continue;
+                    }
 
                     debug!(
                         "[Stream Ingestor]: Stored preconfirmation for slot {} with challenge id {}",
@@ -185,15 +257,33 @@ async fn respond_to_challenges(
 ) -> eyre::Result<()> {
     // Create a ws provider
     let ws = WsConnect::new(&opts.execution_client_ws_url);
-    let provider = ProviderBuilder::new().on_ws(ws).await.unwrap();
+    let provider = match ProviderBuilder::new().on_ws(ws).await {
+        Ok(p) => p,
+        Err(e) => {
+            error!("Failed to create provider: {}", e);
+            return Ok(());
+        }
+    };
 
     // Initialize signer
-    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
-        k256::ecdsa::SigningKey::from_slice(
-            &hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key)).unwrap(),
-        )
-        .unwrap(),
-    );
+    let private_key =
+        match hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key)) {
+            Ok(key) => key,
+            Err(e) => {
+                error!("Failed to decode private key: {}", e);
+                return Ok(());
+            }
+        };
+
+    let signing_key = match k256::ecdsa::SigningKey::from_slice(&private_key) {
+        Ok(key) => key,
+        Err(e) => {
+            error!("Failed to create signing key: {}", e);
+            return Ok(());
+        }
+    };
+
+    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(signing_key);
 
     // Underwriter address
     let signer_address = private_key_signer.address();
@@ -204,12 +294,26 @@ async fn respond_to_challenges(
         .event("ChallengeOpened(bytes32 indexed, address indexed, address indexed)")
         .from_block(BlockNumberOrTag::Latest);
 
-    let subscription = provider.subscribe_logs(&filter).await.unwrap();
+    let subscription = match provider.subscribe_logs(&filter).await {
+        Ok(sub) => sub,
+        Err(e) => {
+            error!("Failed to subscribe to logs: {}", e);
+            return Ok(());
+        }
+    };
+
     let mut stream = subscription.into_stream();
 
     while let Some(log) = stream.next().await {
         let challenge_opened_event =
-            log.log_decode::<TaiyiInteractiveChallenger::ChallengeOpened>().unwrap();
+            match log.log_decode::<TaiyiInteractiveChallenger::ChallengeOpened>() {
+                Ok(event) => event,
+                Err(e) => {
+                    error!("Failed to decode challenge opened event: {}", e);
+                    continue;
+                }
+            };
+
         let challenge_opened = challenge_opened_event.data();
 
         let challenge_id = challenge_opened.id;
@@ -217,9 +321,9 @@ async fn respond_to_challenges(
         let commitment_signer = challenge_opened.commitmentSigner;
         let challenge_id_string = challenge_id.to_string();
 
-        println!("Challenge opened: {:?}", challenge_id);
-        println!("Challenger: {:?}", challenger);
-        println!("Commitment signer: {:?}", commitment_signer);
+        println!("Challenge opened: {challenge_id:?}");
+        println!("Challenger: {challenger:?}");
+        println!("Commitment signer: {commitment_signer:?}");
 
         if commitment_signer != signer_address {
             println!("Commitment signer is not underwriter, skipping");
@@ -228,62 +332,133 @@ async fn respond_to_challenges(
 
         println!("Proving challenge...");
 
-        let read_tx = preconf_db.begin_read().unwrap();
-        let table = read_tx.open_table(PRECONF_DATA_TABLE).unwrap();
-        let preconf_data = table.get(&challenge_id_string);
+        let read_tx = match preconf_db.begin_read() {
+            Ok(tx) => tx,
+            Err(e) => {
+                error!("Failed to begin read transaction: {}", e);
+                continue;
+            }
+        };
 
-        if preconf_data.is_err() {
-            println!("Failed to get preconf data for challenge id {}", challenge_id_string);
-            continue;
-        }
+        let table = match read_tx.open_table(PRECONF_DATA_TABLE) {
+            Ok(t) => t,
+            Err(e) => {
+                error!("Failed to open PRECONF_DATA_TABLE: {}", e);
+                continue;
+            }
+        };
 
-        let preconf_data = preconf_data.unwrap();
+        let preconf_data = match table.get(&challenge_id_string) {
+            Ok(Some(data)) => data,
+            Ok(None) => {
+                println!("Preconf data not found for challenge id {challenge_id_string}");
+                continue;
+            }
+            Err(e) => {
+                error!("Failed to get preconf data: {}", e);
+                continue;
+            }
+        };
 
-        if preconf_data.is_none() {
-            println!("Preconf data not found for challenge id {}", challenge_id_string);
-            continue;
-        }
+        let preconf_request_data = preconf_data.value();
 
-        let preconf_request_data = preconf_data.unwrap().value();
-
-        println!("Preconf request data: {:?}", preconf_request_data);
+        println!("Preconf request data: {preconf_request_data:?}");
 
         if preconf_request_data.preconf_type == 0 {
             // Generate proof for Type A
-            let preconf_request =
-                serde_json::from_str::<PreconfRequestTypeA>(&preconf_request_data.preconf_request)
-                    .unwrap();
+            let preconf_request = match serde_json::from_str::<PreconfRequestTypeA>(
+                &preconf_request_data.preconf_request,
+            ) {
+                Ok(req) => req,
+                Err(e) => {
+                    error!("Failed to parse TypeA request: {}", e);
+                    continue;
+                }
+            };
 
             let mut user_transactions = Vec::new();
             for tx in preconf_request.preconf_tx.iter() {
-                let user_transaction =
-                    provider.get_transaction_by_hash(*tx.tx_hash()).await?.unwrap();
+                let user_transaction = match provider.get_transaction_by_hash(*tx.tx_hash()).await {
+                    Ok(Some(tx)) => tx,
+                    Ok(None) => {
+                        error!("Transaction not found: {:?}", tx.tx_hash());
+                        continue;
+                    }
+                    Err(e) => {
+                        error!("Failed to get transaction: {}", e);
+                        continue;
+                    }
+                };
                 user_transactions.push(user_transaction);
             }
 
-            let tip_transaction = provider
+            let tip_transaction = match provider
                 .get_transaction_by_hash(*preconf_request.tip_transaction.tx_hash())
-                .await?
-                .unwrap();
+                .await
+            {
+                Ok(Some(tx)) => tx,
+                Ok(None) => {
+                    error!(
+                        "Tip transaction not found: {:?}",
+                        preconf_request.tip_transaction.tx_hash()
+                    );
+                    continue;
+                }
+                Err(e) => {
+                    error!("Failed to get tip transaction: {}", e);
+                    continue;
+                }
+            };
 
-            let block_number = tip_transaction.block_number.unwrap();
+            let block_number = match tip_transaction.block_number {
+                Some(num) => num,
+                None => {
+                    error!("Tip transaction has no block number");
+                    continue;
+                }
+            };
 
-            let inclusion_block = provider
-                .get_block_by_number(BlockNumberOrTag::Number(block_number))
-                .await?
-                .unwrap();
+            let inclusion_block =
+                match provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await {
+                    Ok(Some(block)) => block,
+                    Ok(None) => {
+                        error!("Block not found: {}", block_number);
+                        continue;
+                    }
+                    Err(e) => {
+                        error!("Failed to get block: {}", e);
+                        continue;
+                    }
+                };
 
-            let previous_block = provider
+            let previous_block = match provider
                 .get_block_by_number(BlockNumberOrTag::Number(block_number - 1))
-                .await?
-                .unwrap();
+                .await
+            {
+                Ok(Some(block)) => block,
+                Ok(None) => {
+                    error!("Previous block not found: {}", block_number - 1);
+                    continue;
+                }
+                Err(e) => {
+                    error!("Failed to get previous block: {}", e);
+                    continue;
+                }
+            };
 
             let mut account_proofs = Vec::new();
             for tx in &user_transactions {
-                let account_proof = provider
+                let account_proof = match provider
                     .get_proof(tx.inner.signer(), vec![])
                     .block_id((block_number - 1).into())
-                    .await?;
+                    .await
+                {
+                    Ok(proof) => proof,
+                    Err(e) => {
+                        error!("Failed to get account proof: {}", e);
+                        continue;
+                    }
+                };
 
                 account_proofs.push(AccountMerkleProof {
                     address: account_proof.address,
@@ -297,27 +472,48 @@ async fn respond_to_challenges(
             }
 
             // tx proof
-            let url = Url::parse(&opts.execution_client_url).unwrap();
-            let mut txs_mpt_handler = TxsMptHandler::new(url).unwrap();
-            txs_mpt_handler.build_tx_tree_from_block(block_number).await.unwrap();
+            let url = match Url::parse(&opts.execution_client_url) {
+                Ok(url) => url,
+                Err(e) => {
+                    error!("Failed to parse execution client URL: {}", e);
+                    continue;
+                }
+            };
+
+            let mut txs_mpt_handler = match TxsMptHandler::new(url) {
+                Ok(handler) => handler,
+                Err(e) => {
+                    error!("Failed to create TxsMptHandler: {}", e);
+                    continue;
+                }
+            };
+
+            if let Err(e) = txs_mpt_handler.build_tx_tree_from_block(block_number).await {
+                error!("Failed to build tx tree: {}", e);
+                continue;
+            }
 
             let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
 
-            // TODO: How to get the anchor transaction?
-            // anchor tx
-            // let tx_hash = anchor_transaction.inner.tx_hash();
-            // let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
-            // let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
-            // tx_merkle_proof.push(TxMerkleProof {
-            //     key: alloy_rlp::encode(U256::from(tx_index)),
-            //     proof,
-            //     root: inclusion_block.header.transactions_root,
-            // });
             // user txs
             for tx in &user_transactions {
                 let tx_hash = tx.inner.tx_hash();
-                let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
-                let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+                let tx_index = match txs_mpt_handler.tx_hash_to_tx_index(*tx_hash) {
+                    Ok(index) => index,
+                    Err(e) => {
+                        error!("Failed to get tx index: {}", e);
+                        continue;
+                    }
+                };
+
+                let proof = match txs_mpt_handler.get_proof(tx_index) {
+                    Ok(proof) => proof,
+                    Err(e) => {
+                        error!("Failed to get tx proof: {}", e);
+                        continue;
+                    }
+                };
+
                 tx_merkle_proof.push(TxMerkleProof {
                     key: alloy_rlp::encode(U256::from(tx_index)),
                     proof,
@@ -339,7 +535,13 @@ async fn respond_to_challenges(
 
             // inclusion block header
             let inclusion_block_header_serialized =
-                serde_json::to_string(&inclusion_block.header).unwrap();
+                match serde_json::to_string(&inclusion_block.header) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        error!("Failed to serialize inclusion block header: {}", e);
+                        continue;
+                    }
+                };
             stdin.write(&inclusion_block_header_serialized);
 
             // inclusion block hash
@@ -347,7 +549,13 @@ async fn respond_to_challenges(
 
             // previous block header
             let previous_block_header_serialized =
-                serde_json::to_string(&previous_block.header).unwrap();
+                match serde_json::to_string(&previous_block.header) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        error!("Failed to serialize previous block header: {}", e);
+                        continue;
+                    }
+                };
             stdin.write(&previous_block_header_serialized);
 
             // previous block hash
@@ -366,64 +574,100 @@ async fn respond_to_challenges(
             let client = ProverClient::builder().cpu().build();
 
             println!("Executing program...");
-            let (_, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+            let (_, report) = match client.execute(ELF_POI, &stdin).run() {
+                Ok(result) => result,
+                Err(e) => {
+                    error!("Failed to execute program: {}", e);
+                    continue;
+                }
+            };
             println!("Executed program with {} cycles", report.total_instruction_count());
 
-            // TODO: Uncomment this when we know the program execution works
-            // println!("Using the prover network.");
-            // let client =
-            //     ProverClient::builder().network().private_key(&opts.sp1_private_key).build();
-
-            // // Generate the proof for the given program and input.
-            // let (pk, vk) = client.setup(ELF_POI);
-
-            // let proof = client
-            //     .prove(&pk, &stdin)
-            //     .plonk()
-            //     .cycle_limit(100_000_000)
-            //     .strategy(FulfillmentStrategy::Hosted)
-            //     .skip_simulation(true)
-            //     .run()
-            //     .unwrap();
-
-            // // Submit proof on chain
-            // let taiyi_challenger =
-            //     TaiyiInteractiveChallenger::new(opts.taiyi_challenger_address, provider.clone());
-
-            // let proof_hex = hex::encode(proof.bytes());
-            // let public_values_hex = hex::encode(proof.public_values.as_slice());
-
-            // taiyi_challenger.prove(challenge_id, proof_hex.into(), public_values_hex.into());
             continue;
         }
 
         // Generate proof for Type B
-        let preconf_request =
-            serde_json::from_str::<PreconfRequestTypeB>(&preconf_request_data.preconf_request)
-                .unwrap();
+        let preconf_request = match serde_json::from_str::<PreconfRequestTypeB>(
+            &preconf_request_data.preconf_request,
+        ) {
+            Ok(req) => req,
+            Err(e) => {
+                error!("Failed to parse TypeB request: {}", e);
+                continue;
+            }
+        };
 
-        let user_transaction = provider
-            .get_transaction_by_hash(*preconf_request.transaction.unwrap().tx_hash())
-            .await?
-            .unwrap();
+        let user_transaction = match provider
+            .get_transaction_by_hash(
+                *preconf_request
+                    .transaction
+                    .ok_or_else(|| {
+                        error!("No transaction in TypeB request");
+                        eyre::eyre!("No transaction in TypeB request")
+                    })?
+                    .tx_hash(),
+            )
+            .await
+        {
+            Ok(Some(tx)) => tx,
+            Ok(None) => {
+                error!("Transaction not found");
+                continue;
+            }
+            Err(e) => {
+                error!("Failed to get transaction: {}", e);
+                continue;
+            }
+        };
 
-        let block_number = user_transaction.block_number.unwrap();
+        let block_number = match user_transaction.block_number {
+            Some(num) => num,
+            None => {
+                error!("Transaction has no block number");
+                continue;
+            }
+        };
 
         let inclusion_block =
-            provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await?.unwrap();
+            match provider.get_block_by_number(BlockNumberOrTag::Number(block_number)).await {
+                Ok(Some(block)) => block,
+                Ok(None) => {
+                    error!("Block not found: {}", block_number);
+                    continue;
+                }
+                Err(e) => {
+                    error!("Failed to get block: {}", e);
+                    continue;
+                }
+            };
 
-        let previous_block = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block_number - 1))
-            .await?
-            .unwrap();
+        let previous_block =
+            match provider.get_block_by_number(BlockNumberOrTag::Number(block_number - 1)).await {
+                Ok(Some(block)) => block,
+                Ok(None) => {
+                    error!("Previous block not found: {}", block_number - 1);
+                    continue;
+                }
+                Err(e) => {
+                    error!("Failed to get previous block: {}", e);
+                    continue;
+                }
+            };
 
         // account proof
-        let account_proof = provider
+        let account_proof = match provider
             .get_proof(user_transaction.inner.signer(), vec![])
             .block_id((block_number - 1).into())
-            .await?;
+            .await
+        {
+            Ok(proof) => proof,
+            Err(e) => {
+                error!("Failed to get account proof: {}", e);
+                continue;
+            }
+        };
 
-        let account_merkle_proof = AccountMerkleProof {
+        let _account_merkle_proof = AccountMerkleProof {
             address: account_proof.address,
             nonce: account_proof.nonce,
             balance: account_proof.balance,
@@ -434,33 +678,52 @@ async fn respond_to_challenges(
         };
 
         // tx proof
-        let url = Url::parse(&opts.execution_client_url).unwrap();
-        let mut txs_mpt_handler = TxsMptHandler::new(url).unwrap();
-        txs_mpt_handler.build_tx_tree_from_block(block_number).await.unwrap();
+        let url = match Url::parse(&opts.execution_client_url) {
+            Ok(url) => url,
+            Err(e) => {
+                error!("Failed to parse execution client URL: {}", e);
+                continue;
+            }
+        };
+
+        let mut txs_mpt_handler = match TxsMptHandler::new(url) {
+            Ok(handler) => handler,
+            Err(e) => {
+                error!("Failed to create TxsMptHandler: {}", e);
+                continue;
+            }
+        };
+
+        if let Err(e) = txs_mpt_handler.build_tx_tree_from_block(block_number).await {
+            error!("Failed to build tx tree: {}", e);
+            continue;
+        }
 
         let mut tx_merkle_proof: Vec<TxMerkleProof> = Vec::new();
 
         // user tx
         let tx_hash = user_transaction.inner.tx_hash();
-        let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
-        let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
+        let tx_index = match txs_mpt_handler.tx_hash_to_tx_index(*tx_hash) {
+            Ok(index) => index,
+            Err(e) => {
+                error!("Failed to get tx index: {}", e);
+                continue;
+            }
+        };
+
+        let proof = match txs_mpt_handler.get_proof(tx_index) {
+            Ok(proof) => proof,
+            Err(e) => {
+                error!("Failed to get tx proof: {}", e);
+                continue;
+            }
+        };
 
         tx_merkle_proof.push(TxMerkleProof {
             key: alloy_rlp::encode(U256::from(tx_index)),
             proof,
             root: inclusion_block.header.transactions_root,
         });
-
-        // TODO: How to get sponsorship transaction?
-        // sponsorship tx
-        // let tx_hash = sponsorship_transaction.inner.tx_hash();
-        // let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
-        // let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
-        // tx_merkle_proof.push(TxMerkleProof {
-        //     key: alloy_rlp::encode(U256::from(tx_index)),
-        //     proof,
-        //     root: inclusion_block.header.transactions_root,
-        // });
 
         // SP1 part
         let mut stdin = SP1Stdin::new();
@@ -475,15 +738,27 @@ async fn respond_to_challenges(
         stdin.write(&false);
 
         // inclusion block header
-        let inclusion_block_header_serialized =
-            serde_json::to_string(&inclusion_block.header).unwrap();
+        let inclusion_block_header_serialized = match serde_json::to_string(&inclusion_block.header)
+        {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to serialize inclusion block header: {}", e);
+                continue;
+            }
+        };
         stdin.write(&inclusion_block_header_serialized);
 
         // inclusion block hash
         stdin.write(&inclusion_block.header.hash_slow());
+
         // previous block header
-        let previous_block_header_serialized =
-            serde_json::to_string(&previous_block.header).unwrap();
+        let previous_block_header_serialized = match serde_json::to_string(&previous_block.header) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to serialize previous block header: {}", e);
+                continue;
+            }
+        };
         stdin.write(&previous_block_header_serialized);
 
         // previous block hash
@@ -502,30 +777,14 @@ async fn respond_to_challenges(
         let client = ProverClient::builder().cpu().build();
 
         println!("Executing program...");
-        let (_, report) = client.execute(ELF_POI, &stdin).run().unwrap();
+        let (_, report) = match client.execute(ELF_POI, &stdin).run() {
+            Ok(result) => result,
+            Err(e) => {
+                error!("Failed to execute program: {}", e);
+                continue;
+            }
+        };
         println!("Executed program with {} cycles", report.total_instruction_count());
-
-        // TODO: Uncomment this when we know the program execution works
-        // println!("Using the prover network.");
-        // let client =
-        //     ProverClient::builder().network().private_key(&opts.sp1_private_key).build();
-
-        // // Generate the proof for the given program and input.
-        // let (pk, vk) = client.setup(ELF_POI);
-
-        // let proof = client
-        //     .prove(&pk, &stdin)
-        //     .plonk()
-        //     .cycle_limit(100_000_000)
-        //     .strategy(FulfillmentStrategy::Hosted)
-        //     .skip_simulation(true)
-        //     .run()
-        //     .unwrap();
-
-        // let proof_hex = hex::encode(proof.bytes());
-        // let public_values_hex = hex::encode(proof.public_values.as_slice());
-
-        // taiyi_challenger.prove(challenge_id, proof_hex.into(), public_values_hex.into());
     }
 
     Ok(())
@@ -540,36 +799,84 @@ async fn main() -> eyre::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt().with_max_level(LevelFilter::DEBUG).init();
 
-    let preconf_db = Database::create("preconf.db").unwrap_or_else(|e| {
-        eprintln!("Failed to create preconf database: {}", e);
-        std::process::exit(1);
-    });
+    let preconf_db = match Database::create("preconf.db") {
+        Ok(db) => db,
+        Err(e) => {
+            error!("Failed to create preconf database: {}", e);
+            return Ok(());
+        }
+    };
 
     let preconf_db = Arc::new(preconf_db);
 
     // Create tables if they don't exist
     debug!("Creating tables...");
-    let tx = preconf_db.begin_write().unwrap();
-    tx.open_table(PRECONF_TABLE).unwrap();
-    tx.commit().unwrap();
+    let tx = match preconf_db.begin_write() {
+        Ok(tx) => tx,
+        Err(e) => {
+            error!("Failed to begin write transaction: {}", e);
+            return Ok(());
+        }
+    };
+
+    if let Err(e) = tx.open_table(PRECONF_TABLE) {
+        error!("Failed to open PRECONF_TABLE: {}", e);
+        return Ok(());
+    }
+
+    if let Err(e) = tx.commit() {
+        error!("Failed to commit write transaction: {}", e);
+        return Ok(());
+    }
+
     debug!("Tables created successfully");
 
     // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
-    let beacon_genesis_response = reqwest::Client::new()
+    let beacon_genesis_response = match reqwest::Client::new()
         .get(format!("{}/eth/v1/beacon/genesis", opts.beacon_url))
         .send()
         .await
-        .unwrap();
+    {
+        Ok(resp) => resp,
+        Err(e) => {
+            error!("Failed to send request to beacon API: {}", e);
+            return Ok(());
+        }
+    };
 
-    let beacon_genesis_response =
-        beacon_genesis_response.json::<serde_json::Value>().await.unwrap();
-    let genesis_timestamp =
-        u64::from_str(&beacon_genesis_response["data"]["genesis_time"].as_str().unwrap()).unwrap();
+    let beacon_genesis_response = match beacon_genesis_response.json::<serde_json::Value>().await {
+        Ok(resp) => resp,
+        Err(e) => {
+            error!("Failed to parse beacon API response: {}", e);
+            return Ok(());
+        }
+    };
+
+    let genesis_timestamp = match beacon_genesis_response["data"]["genesis_time"].as_str() {
+        Some(time) => match u64::from_str(time) {
+            Ok(timestamp) => timestamp,
+            Err(e) => {
+                error!("Failed to parse genesis timestamp: {}", e);
+                return Ok(());
+            }
+        },
+        None => {
+            error!("Missing genesis_time in beacon API response");
+            return Ok(());
+        }
+    };
 
     let mut handles = Vec::new();
 
     // Handles for ingesting underwriter streams
-    let underwriter_stream_url = Url::parse(&opts.underwriter_stream_url).unwrap();
+    let underwriter_stream_url = match Url::parse(&opts.underwriter_stream_url) {
+        Ok(url) => url,
+        Err(e) => {
+            error!("Failed to parse underwriter stream URL: {}", e);
+            return Ok(());
+        }
+    };
+
     let underwriter_stream_handle =
         tokio::spawn(handle_underwriter_stream(preconf_db.clone(), underwriter_stream_url));
     handles.push(underwriter_stream_handle);
