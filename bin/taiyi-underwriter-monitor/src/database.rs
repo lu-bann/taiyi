@@ -38,7 +38,6 @@ pub struct UnderwriterTradeRow {
     /// example select for row for a certain tx hash:
     ///     SELECT * FROM table_name
     ///     WHERE decode('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'hex') = ANY(tx_hash);
-    // pub tx_hash: Option<Vec<Vec<u8>>>,
     pub tx_hashes: Vec<[u8; 32]>,
     /// Set to true when inclusion has been checked on-chain
     pub settled: bool,

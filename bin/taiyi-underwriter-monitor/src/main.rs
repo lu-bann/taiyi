@@ -195,8 +195,7 @@ fn get_blob_gas_price(data: &Block) -> Option<u128> {
 struct Opts {
     #[clap(long)]
     execution_client_ws_url: String,
-    #[clap(long)]
-    beacon_url: String,
+
     #[clap(long)]
     pub network: String,
 }
