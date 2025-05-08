@@ -171,6 +171,8 @@ impl UnderwriterTradeRow {
                 ("uuid", "UUID"),
                 ("preconf_type", "SMALLINT"),
                 ("tx_hash", "BYTEA[]"),
+                ("realized_gas_price", "NUMERIC(78,0)"),
+                ("realized_blob_price", "NUMERIC(78,0)"),
             ],
             true,
         );
