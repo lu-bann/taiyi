@@ -9,9 +9,40 @@ use tracing::{debug, error};
 
 use crate::{
     get_slot_from_timestamp,
+    preconf_request_data::PreconfRequestData,
     table_definitions::{CHALLENGE_TABLE, PRECONF_TABLE},
     Opts,
 };
+
+/// Store a challenge in the database for a given slot
+fn store_challenge(
+    challenge_db: &Database,
+    submission_slot: u64,
+    preconf: PreconfRequestData,
+) -> Result<(), redb::Error> {
+    let read_tx = challenge_db.begin_read()?;
+
+    let table = read_tx.open_table(CHALLENGE_TABLE)?;
+
+    // Get existing challenges or create a new vec
+    let mut challenges_data = match table.get(&submission_slot)? {
+        Some(val) => val.value(),
+        None => Vec::new(),
+    };
+
+    // Add the new preconf
+    challenges_data.push(preconf);
+
+    // Write the updated challenges
+    let write_tx = challenge_db.begin_write()?;
+    {
+        let mut table = write_tx.open_table(CHALLENGE_TABLE)?;
+        table.insert(&submission_slot, challenges_data)?;
+    }
+    write_tx.commit()?;
+
+    Ok(())
+}
 
 pub async fn handle_challenge_creation(
     preconf_db: Arc<Database>,
@@ -116,47 +147,9 @@ pub async fn handle_challenge_creation(
                 }
 
                 if open_challenge || opts.always_open_challenges {
-                    let read_tx = match challenge_db.begin_read() {
-                        Ok(tx) => tx,
-                        Err(e) => {
-                            error!("[Challenger Creator]: Failed to begin read transaction: {}", e);
-                            continue;
-                        }
-                    };
-
-                    let table = match read_tx.open_table(CHALLENGE_TABLE) {
-                        Ok(table) => table,
-                        Err(e) => {
-                            error!("[Challenger Creator]: Failed to open challenge table: {}", e);
-                            continue;
-                        }
-                    };
-
-                    let mut challenges_data = match table.get(&challenge_submission_slot) {
-                        Ok(Some(val)) => val.value(),
-                        Ok(None) => Vec::new(),
-                        Err(e) => {
-                            error!(
-                                "[Challenger Creator]: Storage error for slot {}: {}",
-                                challenge_submission_slot, e
-                            );
-                            continue;
-                        }
-                    };
-
-                    challenges_data.push(preconf);
-
-                    let write_result = (|| -> Result<(), redb::Error> {
-                        let write_tx = challenge_db.begin_write()?;
-                        {
-                            let mut table = write_tx.open_table(CHALLENGE_TABLE)?;
-                            table.insert(&challenge_submission_slot, challenges_data)?;
-                        }
-                        write_tx.commit()?;
-                        Ok(())
-                    })();
-
-                    if let Err(e) = write_result {
+                    if let Err(e) =
+                        store_challenge(&challenge_db, challenge_submission_slot, preconf)
+                    {
                         error!("[Challenger Creator]: Failed to write challenge data: {}", e);
                         continue;
                     }
@@ -190,44 +183,7 @@ pub async fn handle_challenge_creation(
 
                 // Check if all user txs are included in the block
                 if !tx_hashes.contains(transaction.tx_hash()) || opts.always_open_challenges {
-                    let read_tx = match challenge_db.begin_read() {
-                        Ok(tx) => tx,
-                        Err(e) => {
-                            error!("[Challenger Creator]: Failed to begin read transaction: {}", e);
-                            continue;
-                        }
-                    };
-
-                    let table = match read_tx.open_table(CHALLENGE_TABLE) {
-                        Ok(table) => table,
-                        Err(e) => {
-                            error!("[Challenger Creator]: Failed to open challenge table: {}", e);
-                            continue;
-                        }
-                    };
-
-                    let mut challenges_data = match table.get(&slot) {
-                        Ok(Some(val)) => val.value(),
-                        Ok(None) => Vec::new(),
-                        Err(e) => {
-                            error!("[Challenger Creator]: Storage error for slot {}: {}", slot, e);
-                            continue;
-                        }
-                    };
-
-                    challenges_data.push(preconf);
-
-                    let write_result = (|| -> Result<(), redb::Error> {
-                        let write_tx = challenge_db.begin_write()?;
-                        {
-                            let mut table = write_tx.open_table(CHALLENGE_TABLE)?;
-                            table.insert(&slot, challenges_data)?;
-                        }
-                        write_tx.commit()?;
-                        Ok(())
-                    })();
-
-                    if let Err(e) = write_result {
+                    if let Err(e) = store_challenge(&challenge_db, slot, preconf) {
                         error!("[Challenger Creator]: Failed to write challenge data: {}", e);
                         continue;
                     }
