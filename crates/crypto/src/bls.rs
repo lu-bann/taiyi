@@ -1,45 +1,11 @@
 #![allow(unused)]
 use alloy_primitives::{keccak256, Bytes, U256};
 use alloy_sol_types::{sol, SolValue};
+use taiyi_contracts::{Fp, Fp2, G1Point, G2Point};
 
 use crate::precompile::{
     g1_msm, g2_msm as g2_mul_precompile, map_fp2_to_g2 as map_fp2_to_g2_precompile,
 };
-sol! {
-    #[derive(Debug, PartialEq, Eq)]
-    struct Fp {
-        uint256 a;
-        uint256 b;
-    }
-    #[derive(Debug, PartialEq, Eq)]
-    struct Fp2 {
-        Fp c0;
-        Fp c1;
-    }
-
-    #[derive(Debug, PartialEq, Eq)]
-    struct G1Point {
-        Fp x;
-        Fp y;
-    }
-    #[derive(Debug, PartialEq, Eq)]
-    struct G2Point {
-        Fp2 x;
-        Fp2 y;
-    }
-
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    #[derive(Debug)]
-    interface BLS {
-        function verify(
-            bytes memory message,
-            G2Point memory signature,
-            G1Point memory publicKey,
-            bytes memory domainSeparator
-        ) public view returns (bool);
-    }
-}
 
 pub fn sign(sk: U256, msg: &[u8], domain_separator: &[u8]) -> eyre::Result<G2Point> {
     let fp2 = to_message_point(msg, domain_separator);
@@ -96,40 +62,3 @@ pub fn to_public_key(sk: U256) -> eyre::Result<G1Point> {
     let output_g1 = G1Point::abi_decode_sequence(output_bytes, false)?;
     Ok(output_g1)
 }
-
-// #[cfg(test)]
-// mod test {
-//     use std::str::FromStr;
-
-//     use alloy_primitives::{Address, U256};
-//     use alloy_provider::{network::EthereumWallet, ProviderBuilder};
-//     use alloy_signer_local::PrivateKeySigner;
-//     use reqwest::Url;
-
-//     use crate::bls::{sign, to_public_key, BLS};
-
-//     #[tokio::test]
-//     async fn tt() -> eyre::Result<()> {
-//         let sk = U256::from(1032123143561346134614u128);
-//         let pk = to_public_key(sk);
-//         let message = vec![1, 2, 3];
-//         let domain_separator = vec![2, 3, 4];
-
-//         let g2 = sign(sk, &message, &domain_separator);
-//         println!("g2 {:?}", g2);
-//         let signer: PrivateKeySigner =
-//             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
-//         let operator_address = signer.address();
-//         let provider = ProviderBuilder::new()
-//             .wallet(EthereumWallet::new(signer.clone()))
-//             .on_http(Url::from_str("http://127.0.0.1:8545")?);
-
-//         let address: Address = "0x8ce361602B935680E8DeC218b820ff5056BeB7af".parse().unwrap();
-//         let bls_contract = BLS::new(address, provider.clone());
-
-//         let res =
-//             bls_contract.verify(message.into(), g2, pk, domain_separator.into()).call().await?;
-//         println!("res : {res:?}");
-//         Ok(())
-//     }
-// }

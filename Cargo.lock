@@ -8912,10 +8912,12 @@ dependencies = [
  "ethereum-consensus",
  "eyre",
  "hex",
+ "hex-literal 1.0.0",
  "prost",
  "reqwest 0.12.9",
  "serde",
  "taiyi-contracts",
+ "taiyi-crypto",
  "taiyi-underwriter",
  "thiserror 2.0.12",
  "tiny-bip39",
@@ -8945,6 +8947,7 @@ dependencies = [
  "blst",
  "eyre",
  "hex-literal 1.0.0",
+ "taiyi-contracts",
  "thiserror 2.0.12",
 ]
 

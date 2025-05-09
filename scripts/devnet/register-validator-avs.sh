@@ -25,14 +25,13 @@ cargo run --bin taiyi-cli register-for-operator-sets \
     --socket test-luban
 
 # Count the number of validator keys and create matching number of zero addresses
-# cargo run --bin taiyi-cli register-validators \
-#     --execution-rpc-url $EXECUTION_URL \
-#     --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
-#     --taiyi-validator-avs-address $TAIYI_VALIDATOR_AVS_ADDRESS \
-#     --validator-pubkeys $PRE_REGISTERED_VALIDATOR_KEYS \
-#     --pod-owners $POD_OWNERS \
-#     --delegated-underwriters "$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY,$UNDERWRITER_BLS_PUBLIC_KEY"
-
+cargo run --bin taiyi-cli register-validators \
+    --execution-rpc-url $EXECUTION_URL \
+    --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
+    --taiyi-middleware-address $TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS \
+    --bls-private-keys $PRE_REGISTERED_VALIDATOR_PRIVATE_KEYS \
+    --operator-address $VALIDATOR_OPERATOR_ADDRESS \
+    --collateral 100000000000000000 # 0.1 ether
 
 # check the stakes of the validators
 cargo run --bin taiyi-cli get-strategies-stakes \
