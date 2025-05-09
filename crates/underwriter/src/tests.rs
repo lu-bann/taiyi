@@ -372,6 +372,7 @@ async fn test_commitment_stream() -> eyre::Result<()> {
             request_id: Uuid::default(),
             commitment: Some(PrimitiveSignature::new(U256::ZERO, U256::ZERO, false)),
             sequence_num: None,
+            current_slot: network_state.get_current_slot(),
         },
     );
 
