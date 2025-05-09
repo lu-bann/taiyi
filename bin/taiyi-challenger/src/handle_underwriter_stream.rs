@@ -13,10 +13,7 @@ use crate::{preconf_request_data::PreconfRequestData, table_definitions::PRECONF
 pub async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre::Result<()> {
     let req = reqwest::Client::new().get(url);
 
-    let mut event_source = EventSource::new(req).unwrap_or_else(|err| {
-        panic!("Failed to create EventSource: {err:?}");
-    });
-
+    let mut event_source = EventSource::new(req)?;
     while let Some(event) = event_source.next().await {
         match event {
             Ok(Event::Message(message)) => {
@@ -92,28 +89,16 @@ pub async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> e
                         }
                     };
 
-                    let preconfs = table.get(&target_slot);
-                    if preconfs.is_err() {
-                        error!(
-                            "[Stream Ingestor]: Storage error for slot {}. Error: {:?}",
-                            target_slot,
-                            preconfs.err()
-                        );
-                        continue;
-                    }
-
-                    let preconfs_result = match preconfs {
-                        Ok(result) => result,
+                    let mut preconf_values = match table.get(&target_slot) {
+                        Ok(Some(val)) => val.value(),
+                        Ok(None) => Vec::new(),
                         Err(e) => {
-                            error!("[Stream Ingestor]: Failed to get preconfs: {}", e);
+                            error!(
+                                "[Stream Ingestor]: Storage error for slot {}: {}",
+                                target_slot, e
+                            );
                             continue;
                         }
-                    };
-
-                    let mut preconf_values = if let Some(values) = preconfs_result {
-                        values.value()
-                    } else {
-                        Vec::new()
                     };
 
                     preconf_values.push(preconf_request_data);

@@ -73,21 +73,9 @@ pub async fn handle_challenge_submission(
 ) -> eyre::Result<()> {
     // Initialize signer
     let private_key_bytes =
-        match hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key)) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                error!("[Challenger Submitter]: Failed to decode private key: {}", e);
-                return Err(eyre::eyre!("Failed to decode private key: {}", e));
-            }
-        };
+        hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key))?;
 
-    let signing_key = match k256::ecdsa::SigningKey::from_slice(&private_key_bytes) {
-        Ok(key) => key,
-        Err(e) => {
-            error!("[Challenger Submitter]: Failed to create signing key: {}", e);
-            return Err(eyre::eyre!("Failed to create signing key: {}", e));
-        }
-    };
+    let signing_key = k256::ecdsa::SigningKey::from_slice(&private_key_bytes)?;
 
     let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(signing_key);
     let signer_address = private_key_signer.address();
@@ -95,35 +83,12 @@ pub async fn handle_challenge_submission(
     debug!("[Challenger Submitter]: Signer address: {}", signer_address);
 
     let ws = WsConnect::new(&opts.execution_client_ws_url);
-    let provider = match ProviderBuilder::new().wallet(private_key_signer).on_ws(ws).await {
-        Ok(p) => p,
-        Err(e) => {
-            error!("[Challenger Submitter]: Failed to create provider with wallet: {}", e);
-            return Err(eyre::eyre!("Failed to create provider with wallet: {}", e));
-        }
-    };
-
-    // Check balance to verify signer is working correctly
-    match provider.get_balance(signer_address).await {
-        Ok(balance) => {
-            debug!("[Challenger Submitter]: Signer ETH balance: {}", balance);
-        }
-        Err(e) => {
-            error!("[Challenger Submitter]: Failed to get signer balance: {}", e);
-            // Continue anyway, this is not critical
-        }
-    };
+    let provider = ProviderBuilder::new().wallet(private_key_signer).on_ws(ws).await?;
 
     let taiyi_challenger =
         TaiyiInteractiveChallenger::new(opts.taiyi_challenger_address, provider.clone());
 
-    let subscription = match provider.subscribe_blocks().await {
-        Ok(sub) => sub,
-        Err(e) => {
-            error!("[Challenger Submitter]: Failed to subscribe to blocks: {}", e);
-            return Err(eyre::eyre!("Failed to subscribe to blocks: {}", e));
-        }
-    };
+    let subscription = provider.subscribe_blocks().await?;
 
     let mut stream = subscription.into_stream();
 
@@ -149,35 +114,11 @@ pub async fn handle_challenge_submission(
             }
         };
 
-        let challenges = table.get(&slot);
-
-        if challenges.is_err() {
-            error!(
-                "[Challenger Submitter]: Storage error for slot {}. Error: {:?}",
-                slot,
-                challenges.err()
-            );
-            continue;
-        }
-
-        let challenges_result = match challenges {
-            Ok(result) => result,
+        let challenges_data = match table.get(&slot) {
+            Ok(Some(val)) => val.value(),
+            Ok(None) => Vec::new(),
             Err(e) => {
-                error!("[Challenger Submitter]: Failed to get challenges: {}", e);
-                continue;
-            }
-        };
-
-        if challenges_result.is_none() {
-            // No challenges found for the slot
-            debug!("[Challenger Submitter]: No challenges found for slot {}", slot);
-            continue;
-        }
-
-        let challenges_data = match challenges_result {
-            Some(values) => values.value(),
-            None => {
-                debug!("[Challenger Submitter]: No challenges found for slot {}", slot);
+                error!("[Challenger Submitter]: Storage error for slot {}: {}", slot, e);
                 continue;
             }
         };

@@ -30,13 +30,7 @@ pub async fn handle_challenge_creation(
     };
 
     // Subscribe to block headers.
-    let subscription = match provider.subscribe_blocks().await {
-        Ok(sub) => sub,
-        Err(e) => {
-            error!("[Challenger Creator]: Failed to subscribe to blocks: {}", e);
-            return Err(eyre::eyre!("Failed to subscribe to blocks: {}", e));
-        }
-    };
+    let subscription = provider.subscribe_blocks().await?;
     let mut stream = subscription.into_stream();
 
     while let Some(header) = stream.next().await {
@@ -61,64 +55,32 @@ pub async fn handle_challenge_creation(
             }
         };
 
-        let preconfs = table.get(&slot);
-
-        if preconfs.is_err() {
-            error!(
-                "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
-                slot,
-                preconfs.err()
-            );
-            continue;
-        }
-
-        let preconfs_result = match preconfs {
-            Ok(result) => result,
-            Err(e) => {
-                error!("[Challenger Creator]: Failed to get preconfs: {}", e);
+        let preconfs = match table.get(&slot) {
+            Ok(Some(val)) => val.value(),
+            Ok(None) => {
+                debug!("[Challenger Creator]: No preconfirmations found for slot {}", slot);
                 continue;
             }
-        };
-
-        if preconfs_result.is_none() {
-            // No preconfirmation found for the slot
-            debug!("[Challenger Creator]: No preconfirmations found for slot {}", slot);
-            continue;
-        }
-
-        let preconfs = match preconfs_result {
-            Some(values) => values.value(),
-            None => {
-                debug!("[Challenger Creator]: No preconfirmations found for slot {}", slot);
+            Err(e) => {
+                error!("[Challenger Creator]: Storage error for slot {}. Error: {:?}", slot, e);
                 continue;
             }
         };
 
         debug!("[Challenger Creator]: Found {} preconfirmations for slot {}", preconfs.len(), slot);
 
-        let block = provider.get_block_by_number(BlockNumberOrTag::Number(header.number)).await;
-
-        if block.is_err() {
-            // RPC error
-            error!(
-                "[Challenger Creator]: RPC error for block {}. Error: {:?}",
-                header.number,
-                block.err()
-            );
-            continue;
-        }
-
-        let block = match block {
-            Ok(Some(b)) => b,
-            Ok(None) => {
-                error!("[Challenger Creator]: Block {} not found", header.number);
-                continue;
-            }
-            Err(e) => {
-                error!("[Challenger Creator]: Failed to get block {}: {}", header.number, e);
-                continue;
-            }
-        };
+        let block =
+            match provider.get_block_by_number(BlockNumberOrTag::Number(header.number)).await {
+                Ok(Some(b)) => b,
+                Ok(None) => {
+                    error!("[Challenger Creator]: Block {} not found", header.number);
+                    continue;
+                }
+                Err(e) => {
+                    error!("[Challenger Creator]: Failed to get block {}: {}", header.number, e);
+                    continue;
+                }
+            };
 
         let tx_hashes = block.transactions.hashes().collect::<HashSet<_>>();
 
@@ -146,13 +108,10 @@ pub async fn handle_challenge_creation(
 
                 let mut open_challenge = false;
 
-                // Check if all user txs are included in the block
-                if !preconf_request.preconf_tx.iter().all(|tx| tx_hashes.contains(tx.tx_hash())) {
-                    open_challenge = true;
-                }
-
-                // Check if tip transaction is included in the block
-                if !tx_hashes.contains(preconf_request.tip_transaction.tx_hash()) {
+                // Check if all user txs are included in the block and if the tip transaction is included in the block
+                if !preconf_request.preconf_tx.iter().all(|tx| tx_hashes.contains(tx.tx_hash()))
+                    || !tx_hashes.contains(preconf_request.tip_transaction.tx_hash())
+                {
                     open_challenge = true;
                 }
 
@@ -173,29 +132,16 @@ pub async fn handle_challenge_creation(
                         }
                     };
 
-                    let challenges = table.get(&challenge_submission_slot);
-
-                    if challenges.is_err() {
-                        error!(
-                            "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
-                            challenge_submission_slot,
-                            challenges.err()
-                        );
-                        continue;
-                    }
-
-                    let challenges_result = match challenges {
-                        Ok(result) => result,
+                    let mut challenges_data = match table.get(&challenge_submission_slot) {
+                        Ok(Some(val)) => val.value(),
+                        Ok(None) => Vec::new(),
                         Err(e) => {
-                            error!("[Challenger Creator]: Failed to get challenges: {}", e);
+                            error!(
+                                "[Challenger Creator]: Storage error for slot {}: {}",
+                                challenge_submission_slot, e
+                            );
                             continue;
                         }
-                    };
-
-                    let mut challenges_data = if let Some(values) = challenges_result {
-                        values.value()
-                    } else {
-                        Vec::new()
                     };
 
                     challenges_data.push(preconf);
@@ -260,29 +206,13 @@ pub async fn handle_challenge_creation(
                         }
                     };
 
-                    let challenges = table.get(&slot);
-
-                    if challenges.is_err() {
-                        error!(
-                            "[Challenger Creator]: Storage error for slot {}. Error: {:?}",
-                            slot,
-                            challenges.err()
-                        );
-                        continue;
-                    }
-
-                    let challenges_result = match challenges {
-                        Ok(result) => result,
+                    let mut challenges_data = match table.get(&slot) {
+                        Ok(Some(val)) => val.value(),
+                        Ok(None) => Vec::new(),
                         Err(e) => {
-                            error!("[Challenger Creator]: Failed to get challenges: {}", e);
+                            error!("[Challenger Creator]: Storage error for slot {}: {}", slot, e);
                             continue;
                         }
-                    };
-
-                    let mut challenges_data = if let Some(values) = challenges_result {
-                        values.value()
-                    } else {
-                        Vec::new()
                     };
 
                     challenges_data.push(preconf);

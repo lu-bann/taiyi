@@ -11,7 +11,7 @@ use handle_underwriter_stream::handle_underwriter_stream;
 use redb::Database;
 use reqwest::Url;
 use table_definitions::{CHALLENGE_TABLE, PRECONF_TABLE};
-use tracing::{debug, error, level_filters::LevelFilter};
+use tracing::{debug, error, info, level_filters::LevelFilter};
 
 mod handle_challenge_creation;
 mod handle_challenge_submission;
@@ -57,18 +57,10 @@ async fn main() -> eyre::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt().with_max_level(LevelFilter::DEBUG).init();
 
-    let preconf_db = Database::create("preconf.db").unwrap_or_else(|e| {
-        eprintln!("Failed to create preconf database: {e}");
-        std::process::exit(1);
-    });
-
+    let preconf_db = Database::create("preconf.db")?;
     let preconf_db = Arc::new(preconf_db);
 
-    let challenge_db = Database::create("challenge.db").unwrap_or_else(|e| {
-        eprintln!("Failed to create challenge database: {e}");
-        std::process::exit(1);
-    });
-
+    let challenge_db = Database::create("challenge.db")?;
     let challenge_db = Arc::new(challenge_db);
 
     // Create tables if they don't exist
@@ -108,8 +100,9 @@ async fn main() -> eyre::Result<()> {
     let mut handles = Vec::new();
 
     // Handles for ingesting underwriter streams
-    let underwriter_stream_urls = opts.underwriter_stream_urls.clone();
-    let underwriter_stream_urls = underwriter_stream_urls
+    let underwriter_stream_urls = opts
+        .underwriter_stream_urls
+        .clone()
         .iter()
         .filter_map(|url| match Url::parse(url) {
             Ok(parsed_url) => Some(parsed_url),
@@ -149,7 +142,12 @@ async fn main() -> eyre::Result<()> {
 
     handles.push(challenger_submitter_handle);
 
-    let _ = join_all(handles).await;
+    tokio::select! {
+        _ = join_all(handles) => {},
+        _ = tokio::signal::ctrl_c() => {
+            info!("Shutdown signal received.");
+        }
+    }
 
     Ok(())
 }
