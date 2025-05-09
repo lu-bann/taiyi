@@ -25,6 +25,7 @@ reqwest-eventsource = "0.6"
 serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
 tokio = { workspace = true }
+ethereum-consensus = { workspace = true }
 
 [[bin]]
 name = "taiyi-challenger"

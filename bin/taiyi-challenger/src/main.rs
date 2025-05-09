@@ -1,8 +1,9 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use alloy_eips::merge::SLOT_DURATION_SECS;
 use alloy_primitives::Address;
 use clap::Parser;
+use ethereum_consensus::{deneb::Context, networks::Network};
 use futures_util::future::join_all;
 use handle_challenge_creation::handle_challenge_creation;
 use handle_challenge_submission::handle_challenge_submission;
@@ -28,9 +29,9 @@ struct Opts {
     /// execution_client_ws_url
     #[clap(long = "execution-client-ws-url")]
     execution_client_ws_url: String,
-    /// beacon_url
-    #[clap(long = "beacon-url")]
-    beacon_url: String,
+    /// network
+    #[clap(long = "network")]
+    network: String,
     /// finalization_window
     #[clap(long = "finalization-window")]
     finalization_window: u64,
@@ -100,41 +101,10 @@ async fn main() -> eyre::Result<()> {
 
     debug!("Tables created successfully");
 
-    // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
-    let beacon_genesis_response = match reqwest::Client::new()
-        .get(format!("{}/eth/v1/beacon/genesis", opts.beacon_url))
-        .send()
-        .await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            error!("Failed to get beacon genesis: {}", e);
-            return Err(eyre::eyre!("Failed to get beacon genesis: {}", e));
-        }
-    };
-
-    let beacon_genesis_response = match beacon_genesis_response.json::<serde_json::Value>().await {
-        Ok(value) => value,
-        Err(e) => {
-            error!("Failed to parse beacon genesis response: {}", e);
-            return Err(eyre::eyre!("Failed to parse beacon genesis response: {}", e));
-        }
-    };
-
-    let genesis_time =
-        beacon_genesis_response["data"]["genesis_time"].as_str().ok_or_else(|| {
-            let err = "Failed to get genesis time from response";
-            error!("{}", err);
-            eyre::eyre!("{}", err)
-        })?;
-
-    let genesis_timestamp = match u64::from_str(genesis_time) {
-        Ok(timestamp) => timestamp,
-        Err(e) => {
-            error!("Failed to parse genesis time: {}", e);
-            return Err(eyre::eyre!("Failed to parse genesis time: {}", e));
-        }
-    };
+    // Genesis timestamp
+    let network: Network = opts.network.clone().into();
+    let context: Context = network.try_into()?;
+    let genesis_timestamp = context.genesis_time()?;
 
     let mut handles = Vec::new();
 

@@ -8919,6 +8919,7 @@ dependencies = [
  "alloy-sol-types",
  "bincode 2.0.1",
  "clap",
+ "ethereum-consensus",
  "eyre",
  "futures-util",
  "redb",
