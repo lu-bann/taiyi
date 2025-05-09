@@ -10,7 +10,6 @@ use handle_challenge_submission::handle_challenge_submission;
 use handle_underwriter_stream::handle_underwriter_stream;
 use redb::Database;
 use reqwest::Url;
-
 use table_definitions::{CHALLENGE_TABLE, PRECONF_TABLE};
 use tracing::{debug, error, level_filters::LevelFilter};
 

@@ -1,14 +1,13 @@
-use alloy_sol_types::sol;
 use std::sync::Arc;
 
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{hex, Bytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, WsConnect};
 use alloy_signer::k256::{self};
+use alloy_sol_types::sol;
 use futures_util::StreamExt;
 use redb::Database;
 use taiyi_primitives::{PreconfRequestTypeA, PreconfRequestTypeB};
-
 use tracing::{debug, error};
 
 use crate::{get_slot_from_timestamp, table_definitions::CHALLENGE_TABLE, Opts};
