@@ -45,10 +45,10 @@
                     "group": "Holesky Testnet",
                     "icon": "ethereum",
                     "pages": [
-                      "node_operator_setup_guide/holesky/overview",
-                      "node_operator_setup_guide/holesky/system_requirements",
-                      "node_operator_setup_guide/holesky/installation_and_configuration",
-                      "node_operator_setup_guide/holesky/onchain_registration"
+                      "node_operator_setup_guide/overview",
+                      "node_operator_setup_guide/system_requirements",
+                      "node_operator_setup_guide/installation_and_configuration",
+                      "node_operator_setup_guide/onchain_registration"
                     ]
                   }
                 ]
