@@ -1,15 +1,18 @@
 use std::str::FromStr;
 
 use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, Bytes};
-use alloy_provider::ProviderBuilder;
+use alloy_primitives::{Address, U256};
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::SolValue;
 use clap::Parser;
 use eyre::Result;
-use hex::FromHex;
 use reqwest::Url;
-use taiyi_contracts::TaiyiValidatorAVSEigenlayerMiddleware;
+use taiyi_contracts::{SignedRegistration, TaiyiMiddleware};
+use taiyi_crypto::{sign, to_public_key};
 use tracing::info;
+
+const DOMAIN_SEPARATOR: [u8; 4] = hex_literal::hex!("00555243"); // "URC" in little endian
 
 #[derive(Debug, Parser)]
 pub struct RegisterValidatorsCommand {
@@ -22,82 +25,58 @@ pub struct RegisterValidatorsCommand {
     private_key: String,
 
     /// The EigenLayer Middleware contract address
-    #[clap(long, env = "TAIYI_VALIDATOR_AVS_ADDRESS")]
-    taiyi_validator_avs_address: Address,
+    #[clap(long, env = "TAIYI_MIDDLEWARE_ADDRESS")]
+    taiyi_middleware_address: Address,
 
-    /// Comma-separated list of validator public keys in hex format
-    #[clap(long, env = "VALIDATOR_PUBKEYS", value_delimiter = ',')]
-    validator_pubkeys: Vec<String>,
+    /// Private key for signing transactions
+    #[clap(long, env = "BLS_PRIVATE_KEY", value_delimiter = ',')]
+    bls_private_keys: Vec<String>,
 
-    /// Comma-separated list of pod owner addresses
-    #[clap(long, env = "POD_OWNERS", value_delimiter = ',')]
-    pod_owners: Vec<String>,
+    /// Operator address
+    #[clap(long, env = "OPERATOR_ADDRESS")]
+    operator_address: Address,
 
-    /// Comma-separated list of delegated underwriters in hex format
-    #[clap(long, env = "DELEGATED_UNDERWRITERS", value_delimiter = ',')]
-    delegated_underwriters: Vec<String>,
+    /// Value of the transaction
+    #[clap(long, env = "COLLATERAL")]
+    collateral: U256,
 }
 
 impl RegisterValidatorsCommand {
     pub async fn execute(&self) -> Result<()> {
         // Setup provider and signer
         let signer: PrivateKeySigner = self.private_key.parse()?;
+        let wallet = EthereumWallet::new(signer.clone());
         let provider = ProviderBuilder::new()
-            .wallet(EthereumWallet::new(signer.clone()))
+            .wallet(wallet.clone())
             .on_http(Url::from_str(&self.execution_rpc_url)?);
 
-        // Parse validator pubkeys into Vec<Vec<u8>>
-        let val_pub_keys: Vec<Vec<Bytes>> = self
-            .validator_pubkeys
-            .iter()
-            .map(|key| {
-                vec![Bytes::from_hex(key.trim())
-                    .unwrap_or_else(|_| panic!("Invalid hex string {key:} for validator pubkey"))]
-            })
-            .collect();
+        let bls_signatures = self
+            .bls_private_keys
+            .clone()
+            .into_iter()
+            .map(|k| {
+                let key_bytes = hex::decode(k)?;
+                let sk = U256::from_be_slice(&key_bytes);
+                let pubkey = to_public_key(sk)?;
+                let message = self.operator_address.abi_encode();
 
-        // Parse pod owners into Vec<Address>
-        let pod_owners: Vec<Address> = self
-            .pod_owners
-            .iter()
-            .map(|addr| {
-                addr.trim()
-                    .parse::<Address>()
-                    .unwrap_or_else(|_| panic!("Invalid address {addr:} for pod owner"))
+                let sig = sign(sk, &message, &DOMAIN_SEPARATOR)?;
+                Ok(SignedRegistration { pubkey, signature: sig })
             })
-            .collect();
-
-        // Parse delegated underwriters into Vec<Bytes>
-        let delegated_underwriters: Vec<Bytes> = self
-            .delegated_underwriters
-            .iter()
-            .map(|underwriter| {
-                Bytes::from_hex(underwriter.trim()).unwrap_or_else(|_| {
-                    panic!("Invalid hex string {underwriter:} for delegated underwriter")
-                })
-            })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         // Create middleware contract interface
-        let middleware = TaiyiValidatorAVSEigenlayerMiddleware::new(
-            self.taiyi_validator_avs_address,
-            provider.clone(),
-        );
+        let middleware = TaiyiMiddleware::new(self.taiyi_middleware_address, provider.clone());
 
-        // Register validators
         let tx = middleware
-            .registerValidators(val_pub_keys, pod_owners, delegated_underwriters)
-            .send()
-            .await?;
+            .registerValidators(bls_signatures)
+            .into_transaction_request()
+            .value(self.collateral);
+        let res = provider.send_transaction(tx).await?;
 
-        info!("Registering validators with tx hash: {}", tx.tx_hash());
-
-        let receipt = tx.get_receipt().await?;
-        info!(
-            "Validators registered successfully! Transaction hash: {:?}",
-            receipt.transaction_hash
-        );
-
+        info!("Validators registered successfully! Transaction hash: {:?}", res.tx_hash());
+        let receipt = res.get_receipt().await?;
+        info!("Transaction receipt got. Confirmed in the block {:?}", receipt.block_number);
         Ok(())
     }
 }

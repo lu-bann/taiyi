@@ -108,6 +108,8 @@ impl RegisterForOperatorSetsCommand {
 
         info!("Transaction sent! Hash: {:?}", res.tx_hash());
 
+        let receipt = res.get_receipt().await?;
+        info!("Transaction receipt got. Confirmed in the block {:?}", receipt.block_number);
         Ok(())
     }
 }
