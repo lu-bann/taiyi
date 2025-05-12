@@ -1,71 +1,99 @@
 ---
-title: 'Register command'
-description: 'Taiyi-CLI register command to register as a Taiyi AVS Operator in the AVS Directory'
+title: 'Register commands'
+description: 'Taiyi-CLI registration commands for validators and operator sets'
 icon: 'user-plus'
 ---
 
 # Registration
 
-## Command Structure
+## Register Validators
+
+### Command Structure
 
 ```bash
-taiyi-cli register-validator [OPTIONS]
+taiyi-cli register-validators [OPTIONS]
 ```
 
-## Global Options
+### Options
 
 | Option | Description | Environment Variable | Default |
 |--------|-------------|---------------------|---------|
 | `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
-| `--private-key` | Operator's private key in hex format | `PRIVATE_KEY` | - |
-| `--salt` | Unique salt for registration | `SALT` | - |
-| `--avs-directory-address` | AVS Directory contract address | `AVS_DIRECTORY_ADDRESS` | - |
-| `--taiyi-avs-address` | Taiyi AVS contract address | `TAIYI_AVS_ADDRESS` | - |
+| `--private-key` | Private key in hex format | `PRIVATE_KEY` | - |
+| `--taiyi-middleware-address` | Taiyi EigenLayer Middleware contract address | `TAIYI_MIDDLEWARE_ADDRESS` | - |
+| `--bls-private-keys` | Comma-separated list of BLS private keys | `BLS_PRIVATE_KEY` | - |
+| `--operator-address` | Operator address | `OPERATOR_ADDRESS` | - |
+| `--collateral` | Collateral amount for registration | `COLLATERAL` | - |
 
-## Registration Example
+### Example
 
 ```bash
-taiyi-cli register \
+taiyi-cli register-validators \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
   --private-key 0x123... \
-  --salt 0x456... \
-  --avs-directory-address 0x789... \
-  --taiyi-avs-address 0xabc...
+  --taiyi-middleware-address 0x456... \
+  --bls-private-keys 0x789...,0xabc... \
+  --operator-address 0xdef... \
+  --collateral 1000000000000000000
 ```
 
-## Contract Addresses
+## Register For Operator Sets
 
-For Holesky testnet:
-- AVS Directory: `<AVS_DIRECTORY_ADDRESS>`
-- Taiyi AVS: `<TAIYI_AVS_ADDRESS>`
+### Command Structure
+
+```bash
+taiyi-cli register-for-operator-sets [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Environment Variable | Default |
+|--------|-------------|---------------------|---------|
+| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
+| `--private-key` | Private key in hex format | `PRIVATE_KEY` | - |
+| `--operator-bls-key` | Operator BLS public key | `OPERATOR_BLS_KEY` | - |
+| `--avs-address` | AVS contract address | - | - |
+| `--allocation-manager-address` | Allocation Manager contract address | - | - |
+| `--avs-directory-address` | AVS Directory contract address | - | - |
+| `--operator-set-ids` | Comma-separated list of operator set IDs | - | - |
+| `--socket` | Operator socket address | - | - |
+| `--salt` | Unique salt value for registration | `SALT` | - |
+
+### Example
+
+```bash
+taiyi-cli register-for-operator-sets \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --private-key 0x123... \
+  --operator-bls-key 0x456... \
+  --avs-address 0x789... \
+  --allocation-manager-address 0xabc... \
+  --avs-directory-address 0xdef... \
+  --operator-set-ids 1,2,3 \
+  --socket "example.socket.addr:8080" \
+  --salt 0xff...
+```
 
 ## Registration Process
 
-1. The command calculates a registration digest hash using:
-   - Operator address (derived from private key)
-   - Taiyi AVS address
-   - Salt
-   - Expiry time (30 minutes from current time)
+1. **For Validator Registration**:
+   - Signs validator messages with provided BLS private keys
+   - Registers validators with the Taiyi Middleware contract
+   - Includes collateral payment as specified
 
-2. Signs the digest hash with the operator's private key
-
-3. Submits the registration transaction to the Taiyi AVS contract
-
-4. Waits for transaction confirmation
+2. **For Operator Set Registration**:
+   - Creates operator signature for BLS public key verification
+   - Generates a registration digest hash and signs it
+   - Registers the operator for the specified operator sets
 
 ## Important Notes
 
 1. **Private Key Security**: 
-   - Never share your private key
-   - Preferably use environment variables instead of command line arguments
+   - Never share your private keys
+   - Preferably use environment variables for sensitive data
    - Ensure secure key management practices
 
-2. **Salt Requirements**:
-   - Must be unique for each registration
-   - Store the salt value for future reference
-   - Cannot reuse salt values
-
-3. **Transaction Costs**:
+2. **Transaction Costs**:
    - Registration requires gas fees
    - Ensure sufficient ETH balance in operator account
 
@@ -85,9 +113,5 @@ Common issues and solutions:
 3. **RPC Connection Issues**:
    - Verify RPC URL is accessible
    - Try alternative RPC endpoints
-
-4. **Salt Conflicts**:
-   - Use a new unique salt value
-   - Verify salt hasn't been used before
 
 For additional support, check the [operator documentation](/node_operator_setup_guide/operator) or join our tg support channel.
