@@ -41,7 +41,6 @@
                 "group": "Node Operator Setup Guide",
                 "icon": "computer",
                 "pages": [
-                  "node_operator_setup_guide/helder_devnet",
                   {
                     "group": "Holesky Testnet",
                     "icon": "ethereum",
