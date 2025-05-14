@@ -22,6 +22,7 @@ Prerequisites:
 - Docker engine installed and running
 - Foundry
 - [Kurtosis](https://docs.kurtosis.com/install)
+- [succinct](https://github.com/succinctlabs/sp1)
 
 We've a suite of e2e-tests which can be run by
 

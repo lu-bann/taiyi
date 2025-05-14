@@ -9,7 +9,9 @@ use alloy_sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use reqwest::Url;
 use serde::de;
-use taiyi_primitives::{PreconfRequestTypeA, PreconfResponseData, SubmitTransactionRequest};
+use taiyi_primitives::{
+    PreconfFeeResponse, PreconfRequestTypeA, PreconfResponseData, SubmitTransactionRequest,
+};
 use taiyi_underwriter::TaiyiCore;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -379,7 +381,8 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // Generate request and signature
     let (request, signature) =
-        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee).await?;
+        generate_type_a_request(signer.clone(), target_slot, &config.execution_url, fee.clone())
+            .await?;
 
     info!("Submitting request for target slot: {:?}", target_slot);
     info!("tip tx: {:?}", request.tip_transaction.tx_hash());
@@ -401,6 +404,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
         target_slot: request.target_slot,
         sequence_number: preconf_response.sequence_num,
         signer: signer.address(),
+        preconf_fee: PreconfFeeResponse::default(),
     };
     let data = type_a.digest(chain_id);
     let signer = commitment.recover_address_from_prehash(&data).unwrap();

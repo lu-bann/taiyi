@@ -360,11 +360,11 @@ pub async fn generate_reserve_blockspace_request(
     target_slot: u64,
     gas_limit: u64,
     blob_count: u64,
-    preocnf_fee: PreconfFeeResponse,
+    preconf_fee: PreconfFeeResponse,
     chain_id: u64,
 ) -> (BlockspaceAlloc, String) {
-    let fee = preocnf_fee.gas_fee * (gas_limit as u128)
-        + preocnf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
+    let fee = preconf_fee.gas_fee * (gas_limit as u128)
+        + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
     let recepient = UNDERWRITER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
     let request = BlockspaceAlloc {
@@ -375,6 +375,7 @@ pub async fn generate_reserve_blockspace_request(
         tip: fee,
         gas_limit,
         blob_count: blob_count.try_into().unwrap(),
+        preconf_fee,
     };
     info!("block space allocation request: {:?}", request);
     let signature =

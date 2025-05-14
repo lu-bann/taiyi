@@ -114,6 +114,7 @@ async fn main() -> eyre::Result<()> {
         tip: fee,
         gas_limit,
         blob_count: blob_count.try_into().unwrap(),
+        preconf_fee,
     };
     let x_luban_sig_header = format!(
         "0x{}",

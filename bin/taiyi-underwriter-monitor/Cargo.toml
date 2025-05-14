@@ -1,0 +1,26 @@
+[package]
+edition = { workspace = true }
+name = "taiyi-underwriter-monitor"
+version = { workspace = true }
+
+[dependencies]
+alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+clap = { workspace = true }
+ethereum-consensus = { workspace = true }
+eyre = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { workspace = true }
+reqwest-eventsource = "0.6"
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+taiyi-primitives = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+testcontainers-modules = { version = "0.11.6", features = ["postgres"] }

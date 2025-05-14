@@ -5,7 +5,7 @@ use alloy_provider::ProviderBuilder;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;
-use taiyi_contracts::TaiyiValidatorAVSEigenlayerMiddleware;
+use taiyi_contracts::TaiyiMiddleware;
 use tracing::info;
 
 #[derive(Debug, Parser)]
@@ -27,7 +27,7 @@ impl GetStrategiesStakesCommand {
     pub async fn execute(&self) -> Result<()> {
         let provider = ProviderBuilder::new().on_http(Url::from_str(&self.execution_rpc_url)?);
 
-        let avs = TaiyiValidatorAVSEigenlayerMiddleware::new(self.validator_avs_address, provider);
+        let avs = TaiyiMiddleware::new(self.validator_avs_address, provider);
 
         let result = avs.getStrategiesAndStakes(self.operator_address).call().await?;
 

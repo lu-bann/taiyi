@@ -1,0 +1,39 @@
+{
+    "alloc_sig": {
+        "r": "0x9ee1762169954d4543e1229477281eb7d480acc375ac6b4968336abbe9dade65",
+        "s": "0x44400c5cf98d66f888cda9f6789c2934e947d2f3297dc6831fe3302035c35c73",
+        "v": "0x0",
+        "yParity": "0x0"
+    },
+    "allocation": {
+        "blob_count": 0,
+        "deposit": "0x4aa9cb3899140",
+        "gas_limit": 210000,
+        "recipient": "0xd8f3183def51a987222d845be228e0bbb932c222",
+        "sender": "0xfdeaffaa3db651b78557fbb992360925cb91fef7",
+        "target_slot": 105,
+        "tip": "0x4aa9cb3899140",
+        "preconf_fee": {
+            "gas_fee": 123,
+            "blob_gas_fee": 456
+        }
+    },
+    "signer": "0xfdeaffaa3db651b78557fbb992360925cb91fef7",
+    "transaction": {
+        "accessList": [],
+        "chainId": "0x301824",
+        "gas": "0x5208",
+        "hash": "0xeb3ea505eb7815a55444ebc4361b8dacfcae4f8a91ad51a856ff9abc7f3b7a1d",
+        "input": "0x",
+        "maxFeePerGas": "0x2e99eb808",
+        "maxPriorityFeePerGas": "0x77359400",
+        "nonce": "0x1",
+        "r": "0x880dc0500db16027783924311a39253e49f5e5a250f9497766125d862e450080",
+        "s": "0x2cfbfeddd8b7414f20cc0d1552bc4326545a030e6ea7e7bac096595fa66720f6",
+        "to": "0xfdeaffaa3db651b78557fbb992360925cb91fef7",
+        "type": "0x2",
+        "v": "0x0",
+        "value": "0x3e8",
+        "yParity": "0x0"
+    }
+}

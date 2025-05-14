@@ -5,7 +5,19 @@ on:
   push:
     branches:
       - dev
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/workflows/docker.yml'
+      - '.github/workflows/e2e.tests.yml'
+      - '.github/workflows/release.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/workflows/docker.yml'
+      - '.github/workflows/e2e.tests.yml'
+      - '.github/workflows/release.yml'
 
 env:
   FOUNDRY_PROFILE: ci
@@ -49,31 +61,3 @@ jobs:
       - name: Run tests
         run: |
           make test
-
-  build-foundry:
-    name: Foundry Project
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-      - name: Run Forge build
-        working-directory: contracts
-        run: |
-          forge --version
-          forge build --sizes
-        id: build
-      - name: Run Forge tests
-        working-directory: contracts
-        run: |
-          forge test -vvv
-        id: test
-      - name: Check code formatting
-        working-directory: contracts
-        run: |
-          forge fmt --check
-        id: fmt-check

@@ -110,7 +110,9 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_primitives::PrimitiveSignature;
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB};
+    use taiyi_primitives::{
+        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeA, PreconfRequestTypeB,
+    };
 
     use super::*;
 
@@ -155,6 +157,7 @@ mod tests {
             target_slot: 1,
             sequence_number: None,
             signer: Address::default(),
+            preconf_fee: PreconfFeeResponse::default(),
         });
 
         let id = Uuid::new_v4();

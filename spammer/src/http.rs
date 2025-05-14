@@ -68,6 +68,7 @@ impl HttpClient {
             tip: fee,
             gas_limit,
             blob_count: blob_count.try_into().unwrap(),
+            preconf_fee,
         };
         let signature = hex::encode(
             self.signer.sign_hash(&blockspace_data.hash(self.chain_id)).await.unwrap().as_bytes(),
