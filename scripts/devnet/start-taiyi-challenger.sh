@@ -16,7 +16,7 @@ export TAIYI_CHALLENGER_ADDRESS=0x0000000000000000000000000000000000000000
 
 cargo run --bin taiyi-challenger -- \
   --execution-client-ws-url $EXECUTION_CLIENT_WS_URL \
-  --beacon-url $BEACON_URL \
+  --network $NETWORK \
   --finalization-window 32 \
   --underwriter-stream-urls http://127.0.0.1:5656/commitments/v0/commitment_stream \
   --private-key 0xbf3beef3bd999ba9f2451e06936f0423cd62b815c9233dd3bc90f7e02a1e8673 \

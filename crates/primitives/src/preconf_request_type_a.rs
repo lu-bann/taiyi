@@ -4,6 +4,8 @@ use alloy_primitives::{hex, keccak256, Address, B256, U256};
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
+use crate::PreconfFeeResponse;
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeA {
     /// ETH transfer to the underwriter
@@ -16,6 +18,8 @@ pub struct PreconfRequestTypeA {
     pub sequence_number: Option<u64>,
     /// The signer of the request
     pub signer: Address,
+    /// The quoted price by the underwriter
+    pub preconf_fee: PreconfFeeResponse,
 }
 
 impl PreconfRequestTypeA {

@@ -8,7 +8,19 @@ on:
   push:
     branches:
       - dev
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/docker.yml'
+      - '.github/workflows/release.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/docker.yml'
+      - '.github/workflows/release.yml'
 
 env:
   ENCLAVE_NAME: luban

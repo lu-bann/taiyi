@@ -61,3 +61,6 @@
 	path = contracts/lib/sp1-contracts
 	url = https://github.com/succinctlabs/sp1-contracts
 	commit = 26651fdb1c1d6513443560d42888dedc3f68bde6
+[submodule "linglong"]
+	path = linglong
+	url = https://github.com/lu-bann/linglong.git

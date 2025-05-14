@@ -83,8 +83,6 @@ where
             return Err(RpcError::SlotNotAvailable(request.target_slot));
         }
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
-
         let current_slot = self.network_state.get_current_slot();
         // Target slot must be atleast current slot + 2
         // Current + 1 slot transactions should use Type A transactions directly
@@ -95,6 +93,14 @@ where
 
         if request.gas_limit == 0 {
             return Err(RpcError::ParamsError("Gas limit cannot be zero".to_string()));
+        }
+
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+
+        if request.preconf_fee != preconf_fee {
+            return Err(RpcError::ParamsError(
+                "preconf_fee field does not match with currently quoted prices".to_string(),
+            ));
         }
 
         // Construct a preconf request
@@ -141,7 +147,7 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
+        let preconf_fee = preconf_request.allocation.preconf_fee.clone();
         match self
             .preconf_pool
             .validate_and_store(
@@ -164,6 +170,7 @@ where
                     request_id: request.request_id,
                     commitment: Some(commitment),
                     sequence_num: None,
+                    current_slot: self.network_state.get_current_slot(),
                 };
                 // Send the commitment data to the stream
                 self.commitments_handle.send_commitment((result, commitment.clone()));
@@ -195,6 +202,8 @@ where
             return Err(RpcError::ParamsError("No preconf transactions".to_string()));
         }
 
+        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+
         // Only for internal use.
         let request_id = Uuid::new_v4();
         let preconf_request = PreconfRequestTypeA {
@@ -203,9 +212,9 @@ where
             target_slot: request.target_slot,
             sequence_number: None,
             signer,
+            preconf_fee: preconf_fee.clone(),
         };
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(preconf_request.target_slot()).await?;
         match self
             .preconf_pool
             .validate_and_store(
@@ -228,6 +237,7 @@ where
                     request_id,
                     commitment: Some(commitment),
                     sequence_num: result.sequence_num(),
+                    current_slot: self.network_state.get_current_slot(),
                 };
                 // Send the commitment data to the stream
                 self.commitments_handle.send_commitment((result, commitment.clone()));

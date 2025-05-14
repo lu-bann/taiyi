@@ -1,0 +1,18 @@
+[package]
+name = "taiyi-crypto"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-contract = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+blst = { workspace = true }
+eyre = { workspace = true }
+hex-literal = { workspace = true }
+taiyi-contracts = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+
+[lib]

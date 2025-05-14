@@ -17,6 +17,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 clap = { workspace = true }
+ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 futures-util = { workspace = true }
 redb = { workspace = true }

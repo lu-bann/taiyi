@@ -64,7 +64,7 @@ mod tests {
     #[tokio::test]
     async fn test_constraints_cache() -> eyre::Result<()> {
         let raw_sk = "0x84286521b97e7c10916857c307553e30a9defd100e893e96fc8aad42336a4ab3";
-        let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(&raw_sk);
+        let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(raw_sk);
 
         let sk = SigningKey::from_slice(hex::decode(hex_sk)?.as_slice())?;
         let signer = PrivateKeySigner::from_signing_key(sk.clone());
