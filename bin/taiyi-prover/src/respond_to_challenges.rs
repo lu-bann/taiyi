@@ -52,13 +52,7 @@ pub async fn respond_to_challenges(
 
     // Initialize signer
     let private_key =
-        match hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key)) {
-            Ok(key) => key,
-            Err(e) => {
-                error!("Failed to decode private key: {}", e);
-                return Ok(());
-            }
-        };
+        hex::decode(opts.private_key.strip_prefix("0x").unwrap_or(&opts.private_key))?;
 
     let signing_key = match k256::ecdsa::SigningKey::from_slice(&private_key) {
         Ok(key) => key,

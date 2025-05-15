@@ -1,8 +1,10 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
+use tracing::info;
 
 use alloy_eips::merge::SLOT_DURATION_SECS;
 use alloy_primitives::Address;
 use clap::Parser;
+use ethereum_consensus::{deneb::Context, networks::Network};
 use futures_util::future::join_all;
 use handle_underwriter_stream::handle_underwriter_stream;
 use redb::Database;
@@ -28,9 +30,9 @@ struct Opts {
     /// execution_client_ws_url
     #[clap(long = "execution-client-ws-url")]
     execution_client_ws_url: String,
-    /// beacon_url
-    #[clap(long = "beacon-url")]
-    beacon_url: String,
+    /// network
+    #[clap(long = "network")]
+    network: String,
     /// underwriter stream url
     #[clap(long = "underwriter-stream-url")]
     underwriter_stream_url: String,
@@ -54,72 +56,30 @@ async fn main() -> eyre::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt().with_max_level(LevelFilter::DEBUG).init();
 
-    let preconf_db = match Database::create("preconf.db") {
-        Ok(db) => db,
-        Err(e) => {
-            error!("Failed to create preconf database: {}", e);
-            return Ok(());
-        }
-    };
-
+    let preconf_db = Database::create("preconf.db")?;
     let preconf_db = Arc::new(preconf_db);
 
     // Create tables if they don't exist
     debug!("Creating tables...");
-    let tx = match preconf_db.begin_write() {
-        Ok(tx) => tx,
-        Err(e) => {
-            error!("Failed to begin write transaction: {}", e);
-            return Ok(());
-        }
+
+    let create_preconf_table = || -> Result<(), redb::Error> {
+        let tx = preconf_db.begin_write()?;
+        tx.open_table(PRECONF_TABLE)?;
+        tx.commit()?;
+        Ok(())
     };
 
-    if let Err(e) = tx.open_table(PRECONF_TABLE) {
-        error!("Failed to open PRECONF_TABLE: {}", e);
-        return Ok(());
-    }
-
-    if let Err(e) = tx.commit() {
-        error!("Failed to commit write transaction: {}", e);
-        return Ok(());
+    if let Err(e) = create_preconf_table() {
+        error!("Failed to create preconf table: {}", e);
+        return Err(eyre::eyre!("Failed to create preconf table: {}", e));
     }
 
     debug!("Tables created successfully");
 
-    // Read genesis timestamp from Beacon API (/eth/v1/beacon/genesis)
-    let beacon_genesis_response = match reqwest::Client::new()
-        .get(format!("{}/eth/v1/beacon/genesis", opts.beacon_url))
-        .send()
-        .await
-    {
-        Ok(resp) => resp,
-        Err(e) => {
-            error!("Failed to send request to beacon API: {}", e);
-            return Ok(());
-        }
-    };
-
-    let beacon_genesis_response = match beacon_genesis_response.json::<serde_json::Value>().await {
-        Ok(resp) => resp,
-        Err(e) => {
-            error!("Failed to parse beacon API response: {}", e);
-            return Ok(());
-        }
-    };
-
-    let genesis_timestamp = match beacon_genesis_response["data"]["genesis_time"].as_str() {
-        Some(time) => match u64::from_str(time) {
-            Ok(timestamp) => timestamp,
-            Err(e) => {
-                error!("Failed to parse genesis timestamp: {}", e);
-                return Ok(());
-            }
-        },
-        None => {
-            error!("Missing genesis_time in beacon API response");
-            return Ok(());
-        }
-    };
+    // Genesis timestamp
+    let network: Network = opts.network.clone().into();
+    let context: Context = network.try_into()?;
+    let genesis_timestamp = context.genesis_time()?;
 
     let mut handles = Vec::new();
 
@@ -141,7 +101,12 @@ async fn main() -> eyre::Result<()> {
         tokio::spawn(respond_to_challenges(preconf_db.clone(), opts.clone(), genesis_timestamp));
     handles.push(prover_handle);
 
-    let _ = join_all(handles).await;
+    tokio::select! {
+        _ = join_all(handles) => {},
+        _ = tokio::signal::ctrl_c() => {
+            info!("Shutdown signal received.");
+        }
+    }
 
     Ok(())
 }

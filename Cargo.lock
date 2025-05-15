@@ -9577,6 +9577,7 @@ dependencies = [
  "bincode 2.0.1",
  "clap",
  "eth-trie-proofs",
+ "ethereum-consensus",
  "eyre",
  "futures-util",
  "redb",

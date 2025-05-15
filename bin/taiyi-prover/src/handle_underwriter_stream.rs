@@ -16,13 +16,7 @@ use crate::{
 pub async fn handle_underwriter_stream(preconf_db: Arc<Database>, url: Url) -> eyre::Result<()> {
     let req = reqwest::Client::new().get(url);
 
-    let mut event_source = match EventSource::new(req) {
-        Ok(source) => source,
-        Err(err) => {
-            error!("Failed to create EventSource: {:?}", err);
-            return Ok(());
-        }
-    };
+    let mut event_source = EventSource::new(req)?;
 
     while let Some(event) = event_source.next().await {
         match event {
