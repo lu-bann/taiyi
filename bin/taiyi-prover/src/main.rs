@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use tracing::info;
 
 use alloy_eips::merge::SLOT_DURATION_SECS;
 use alloy_primitives::Address;
@@ -11,7 +10,7 @@ use redb::Database;
 use reqwest::Url;
 use respond_to_challenges::respond_to_challenges;
 use table_definitions::PRECONF_TABLE;
-use tracing::{debug, error, level_filters::LevelFilter};
+use tracing::{debug, error, info, level_filters::LevelFilter};
 
 mod handle_underwriter_stream;
 mod preconf_request_data;
