@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use taiyi_cmd::{
-    initialize_tracing_log, DelegateCommand, GetStrategiesStakesCommand, OperatorInfoCommand,
-    RegisterForOperatorSetsCommand, RegisterValidatorsCommand,
+    initialize_tracing_log, DelegateCommand, DepositCommand, GetStrategiesStakesCommand,
+    OperatorInfoCommand, RegisterForOperatorSetsCommand, RegisterValidatorsCommand,
 };
 
 #[derive(Debug, Parser)]
@@ -15,6 +15,9 @@ pub struct Cli {
 /// Commands to be executed
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(name = "deposit")]
+    Deposit(DepositCommand),
+
     #[command(name = "delegate")]
     Delegate(DelegateCommand),
 
@@ -39,6 +42,7 @@ fn main() -> eyre::Result<()> {
         .build()
         .expect("tokio runtime build failed");
     match cli.command {
+        Commands::Deposit(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::Delegate(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::RegisterValidators(cmd) => runtime.block_on(async { cmd.execute().await }),
         Commands::OperatorInfo(cmd) => runtime.block_on(async { cmd.execute().await }),
