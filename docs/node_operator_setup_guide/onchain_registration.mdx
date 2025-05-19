@@ -26,21 +26,21 @@ After register as an EigenLayer operator, register yourself into the Taiyi proto
 
 *Source: [EigenLayer AVS Book - Operators](https://eigenlabs.gitbook.io/avs-book/learn/eigenlayer-a-visual-guide/actors/operators)*
 
+<CodeGroup>
 
-```bash
-taiyi-cli register-validator-avs \
-  --execution-rpc-url https://ethereum-holesky.publicnode.com \
-  --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
-  --avs-directory-address <AVS_DIRECTORY_ADDRESS> \
-  --taiyi-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS> \
-  --private-key <PRIVATE_KEY> 
+```bash Holesky
+taiyi-cli register-for-operator-sets \
+    --execution-rpc-url $EXECUTION_URL \
+    --operator-set-ids 0 \
+    --operator-bls-key $UNDERWRITER_BLS_PUBLIC_KEY \
+    --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY \
+    --allocation-manager-address 0x78469728304326CBc65f8f95FA756B0B73164462 \
+    --avs-address 0xC568b4cB806f38a5c487DE63F5C4dD600d53767E \
+    --avs-directory-address 0x055733000064333CaDDbC92763c58BF0192fFeBf \
+    --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
+    --socket $YOUR_ORGS_NAME
 ```
-
-<Note>
-You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
-- AVS Directory: `0x055733000064333CaDDbC92763c58BF0192fFeBf`
-- Taiyi Validator AVS: `0x366C3A3adcB7a6442B1A93Ddf1bAE039652A72b7`
-</Note>
+<CodeGroup>
 
 This command:
 1. Creates a registration signature with the AVS Directory
@@ -52,15 +52,19 @@ This command:
 
 After registering as an Operator, you can register your validator keys to the Taiyi service. This allows your validator to participate in the preconf game.
 
-```bash
+<CodeGroup>
+```bash Holesky
 taiyi-cli register-validators \
-  --execution-rpc-url https://ethereum-holesky.publicnode.com \
-  --private-key <YOUR_PRIVATE_KEY> \
-  --taiyi-validator-avs-address <TAIYI_VALIDATOR_AVS_ADDRESS> \
-  --validator-pubkeys 0xkey1,0xkey2,... \
-  --pod-owners 0xpodOwner1,0xpodOwner2,... \
-  --delegated-gateways b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9,b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9,... \
+    --execution-rpc-url $EXECUTION_URL \
+    --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
+    --taiyi-middleware-address 0xC568b4cB806f38a5c487DE63F5C4dD600d53767E \
+    --operator-address $VALIDATOR_OPERATOR_ADDRESS \
+    --collateral 100000000000000000 \
+    local-keystore \
+    --path /path/to/validators \
+    --password-path /path/to/secrets
 ```
+<CodeGroup>
 
 <Note>
 The validator pubkeys should be your holesky validator's pubkey.
@@ -86,8 +90,8 @@ Finally, delegate your validator keys to the Taiyi Gateway. This allows your val
 
 *Source: [Preconfirmations API Specification](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate)*
 
-
-```bash
+<CodeGroup>
+```bash Holesky
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
   --underwriter-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
@@ -96,6 +100,7 @@ taiyi-cli delegate \
   --path /path/to/validators \
   --password-path /path/to/secrets
 ```
+</CodeGroup>
 
 <Note>
 For additional key source options and detailed usage of the delegate command, see the [Taiyi CLI Delegate Command](/taiyi-cli/delegate) documentation.
@@ -127,17 +132,6 @@ You can find the Holesky deployed addresses in [Contract Addresses](/network_inf
 - Proposer Registry: `0xa76819916Aa1189c5AF70778177A932A01F948EB`
 </Note>
 
-2. Verify your validatos are registered in the Taiyi Validator AVS protocol:
-```bash
-taiyi-cli get-validators-for-operators \
-    --execution-rpc-url <EXECUTION_URL> \
-    --operator-address <VALIDATOR_OPERATOR_ADDRESS> \
-    --proposer-registry-address <TAIYI_PROPOSER_REGISTRY_ADDRESS>
-```
-<Note>
-You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
-- Proposer Registry: `0xa76819916Aa1189c5AF70778177A932A01F948EB`
-</Note>
 
 ## 5. Deposit WETH to EigenLayer Strategy
 
@@ -167,23 +161,23 @@ First, you need to deposit WETH into the EigenLayer strategy contract. This stak
 
 *Source: [EigenLayer AVS Book - Stakers](https://eigenlabs.gitbook.io/avs-book/learn/eigenlayer-a-visual-guide/actors/stakers)*
 
-```bash
+<CodeGroup>
+```bash Holesky
 # Convert ETH to WETH first if needed
-# Then approve and deposit WETH
+# Then approve and deposit WETH to allocation manager
+# allocation manager address modify distribution
 taiyi-cli deposit \
   --execution-rpc-url https://ethereum-holesky.publicnode.com \
-  --strategy-address <WETH_STRATEGY_ADDRESS> \
+  --strategy-address 0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9 \
   --amount <AMOUNT> \
   --private-key <YOUR_PRIVATE_KEY> \
-  --strategy-manager-address <STRATEGY_MANAGER_ADDRESS>
+  --strategy-manager-address 0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6 \
+  --allocation-manager-address 0x78469728304326CBc65f8f95FA756B0B73164462 \
+  --operator-set-id 0 \
+  --linglong-eigenlayer-middleware-address 0xC568b4cB806f38a5c487DE63F5C4dD600d53767E \
+  --wad 1000000000000000000
 ```
-
-<Note>
-You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
-- WETH Strategy: `0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9`
-- Strategy Manager: `0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6`
-</Note>
-
+</CodeGroup>
 
 This command:
 1. Approves the Strategy Manager to spend your WETH
