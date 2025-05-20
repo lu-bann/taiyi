@@ -100,6 +100,7 @@ mod test {
             .with_gas_limit(30_000)
             .with_max_fee_per_gas(1)
             .with_max_priority_fee_per_gas(1)
+            .with_chain_id(anvil.chain_id())
             .build(&wallet)
             .await?;
 

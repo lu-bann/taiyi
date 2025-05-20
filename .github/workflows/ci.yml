@@ -29,11 +29,10 @@ jobs:
     runs-on: ubuntu-latest-m
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Rust toolchain (stable)
+      - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: clippy,rustfmt
-          toolchain: 1.85.0
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-sort,cargo-machete

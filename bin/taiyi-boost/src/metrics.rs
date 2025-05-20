@@ -26,7 +26,7 @@ lazy_static! {
         &["epoch_id"],
         TAIYI_BOOST_METRICS
     )
-    .unwrap();
+    .expect("fail to register underwriter slot metric");
 
     pub static ref BEACON_NODE_LATEST_SLOT: IntGaugeVec = register_int_gauge_vec_with_registry!(
         "beacon_node_latest_slot",
@@ -34,7 +34,7 @@ lazy_static! {
         &["beacon_node"],
         TAIYI_BOOST_METRICS
     )
-    .unwrap();
+    .expect("fail to register beacon node latest slot metric");
 
     pub static ref DELEGATION_FAIL_SLOT: IntGaugeVec = register_int_gauge_vec_with_registry!(
         "delegation_fail_slot",
@@ -42,7 +42,7 @@ lazy_static! {
         &["epoch_id"],
         TAIYI_BOOST_METRICS
     )
-    .unwrap();
+    .expect("fail to register delegation fail slot metric");
 
     pub static ref DELEGATION_SUCCESS_VALIDATORS: IntCounterVec = register_int_counter_vec_with_registry!(
         "delegation_success_validators",
@@ -50,5 +50,5 @@ lazy_static! {
         &["validator_pubkey", "validator_index"],
         TAIYI_BOOST_METRICS
     )
-    .unwrap();
+    .expect("fail to register delegation success validators metric");
 }

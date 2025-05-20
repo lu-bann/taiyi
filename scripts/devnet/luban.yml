@@ -14,9 +14,9 @@ participants:
     cl_image: sigp/lighthouse:v7.0.0
     count: 1
 mev_type: helix
-additional_services:
-  - spamoor
-  - spamoor_blob
+# additional_services:
+#   - spamoor
+#   - spamoor_blob
   # - rbuilder
   # - blockscout
 mev_params:
