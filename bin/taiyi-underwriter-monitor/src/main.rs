@@ -199,17 +199,25 @@ struct Opts {
 
     #[clap(long)]
     pub network: String,
+
+    /// URL of PostgreSQL server, example: postgres:///user:password@127.0.0.1:5432/database_name
+    #[clap(long)]
+    pub db_url: String,
+
+    /// URL of taiyi's API URL, example: http://127.0.0.1:5656/
+    #[clap(long)]
+    pub taiyi_url: String,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> eyre::Result<()> {
     let opts = Opts::parse();
 
-    let db_conn = get_db_connection("postgres:///admin:password@127.0.0.1:5432/test_db").await?;
+    let db_conn = get_db_connection(&opts.db_url).await?;
     sqlx::migrate!("./migrations").run(&db_conn).await?;
     let commitment_handle = commitment_stream_listener(
         db_conn.clone(),
-        Url::parse("http://127.0.0.1:5656/commitments/v0/commitment_stream")?,
+        Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.db_url))?,
     );
     let genesis_time = {
         let network: Network = opts.network.clone().into();
