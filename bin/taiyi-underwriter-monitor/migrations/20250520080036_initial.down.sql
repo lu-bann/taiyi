@@ -1,0 +1,1 @@
+DROP TABLE underwriter_trades;

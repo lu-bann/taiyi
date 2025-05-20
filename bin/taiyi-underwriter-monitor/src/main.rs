@@ -206,7 +206,7 @@ async fn main() -> eyre::Result<()> {
     let opts = Opts::parse();
 
     let db_conn = get_db_connection("postgres:///admin:password@127.0.0.1:5432/test_db").await?;
-    UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+    sqlx::migrate!("./migrations").run(&db_conn).await?;
     let commitment_handle = commitment_stream_listener(
         db_conn.clone(),
         Url::parse("http://127.0.0.1:5656/commitments/v0/commitment_stream")?,
