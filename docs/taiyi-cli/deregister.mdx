@@ -1,95 +1,34 @@
 ---
 title: 'Deregister command'
-description: 'Taiyi-CLI deregister command to remove operator registration from Taiyi AVS'
+description: 'Information about operator deregistration from Taiyi AVS'
 icon: 'user-minus'
 ---
 
 # Deregistration
 
-## Command Structure
+## Current Status
 
-```bash
-taiyi-cli deregister-validator [OPTIONS]
-```
+The `deregister` command is not currently implemented in the Taiyi CLI tool. To deregister as an operator, you will need to interact directly with the smart contracts.
 
-## Global Options
+## Planned Implementation
 
-| Option | Description | Environment Variable | Default |
-|--------|-------------|---------------------|---------|
-| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
-| `--private-key` | Operator's private key in hex format | `PRIVATE_KEY` | - |
-| `--taiyi-eigenlayer-middleware-address` | Taiyi EigenLayer Middleware contract address | `TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS` | - |
+A dedicated deregister command is planned for future releases of the Taiyi CLI. This command will provide a convenient way to:
 
-## Deregistration Example
+- Deregister validators from the Taiyi Middleware
+- Remove operator registration from operator sets
+- Complete the necessary cleanup operations
 
-```bash
-taiyi-cli deregister \
-  --execution-rpc-url https://ethereum-holesky.publicnode.com \
-  --private-key 0x123... \
-  --taiyi-eigenlayer-middleware-address 0x456...
-```
+## Manual Deregistration
 
-## Contract Addresses
+In the meantime, if you need to deregister from the Taiyi AVS:
 
-For Holesky testnet:
-- Taiyi EigenLayer Middleware: `<TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS>`
+1. Use standard Ethereum tools to interact with the relevant contracts:
+   - Use ethers.js, web3.js, or other Ethereum libraries
+   - Interact directly with the Taiyi EigenLayer Middleware contract
 
-## Deregistration Process
-
-1. **Transaction Submission**:
-   - Submits deregistration transaction to the Taiyi EigenLayer Middleware contract
-   - Transaction is signed with operator's private key
-
-2. **Confirmation**:
-   - Waits for transaction confirmation
-   - Verifies transaction inclusion in a block
-
-## Important Notes
-
-1. **Before Deregistering**:
+2. Important considerations:
    - Ensure all active duties are completed
    - Withdraw any pending rewards
-   - Complete any ongoing validations
+   - Complete any ongoing validations before deregistering
 
-2. **Effects of Deregistration**:
-   - Removes operator from active validator set
-   - Stops receiving new validation duties
-   - May affect staking rewards
-
-3. **Security Considerations**:
-   - Only the registered operator can deregister
-   - Cannot be undone without re-registration
-   - Verify you're using the correct network
-
-## Cooldown Period
-
-After deregistration:
-- May have a cooldown period before funds can be withdrawn
-- Check contract specifications for exact timing
-- Monitor transaction status for completion
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. **Transaction Failures**:
-   - Verify operator is currently registered
-   - Ensure sufficient ETH for gas
-   - Check contract permissions
-
-2. **Authorization Issues**:
-   - Confirm private key matches registered operator
-   - Verify contract address is correct
-   - Check network connection
-
-3. **RPC Connection**:
-   - Verify RPC endpoint is accessible
-   - Try alternative RPC providers
-   - Check network status
-
-4. **Post-Deregistration**:
-   - Confirm deregistration status
-   - Verify all duties are completed
-   - Check withdrawal availability
-
-For additional support, check the [operator documentation](/node_operator_setup_guide/holesky/operator) or join our tg support channel.
+For detailed instructions on manual deregistration, please refer to the [operator documentation](/node_operator_setup_guide/operator) or join our support channel.

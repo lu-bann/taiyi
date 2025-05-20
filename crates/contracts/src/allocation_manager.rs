@@ -8,6 +8,18 @@ sol! {
         bytes32 salt;
         uint256 expiry;
     }
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    struct AllocateParams {
+        OperatorSet operatorSet;
+        address[] strategies;
+        uint64[] newMagnitudes;
+    }
+
+    struct OperatorSet {
+        address avs;
+        uint32 id;
+    }
     #[sol(rpc)]
     interface AllocationManager {
         struct RegisterParams {
@@ -24,6 +36,11 @@ sol! {
         function registerForOperatorSets(
             address operator,
             RegisterParams calldata params
+        ) external;
+
+        function modifyAllocations(
+            address operator,
+            AllocateParams[] memory params
         ) external;
     }
 }

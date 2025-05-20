@@ -1,0 +1,92 @@
+---
+title: 'Operator Info Commands'
+description: 'Taiyi-CLI commands for retrieving operator information'
+icon: 'info-circle'
+---
+
+# Operator Information Commands
+
+## Operator Info
+
+The `operator-info` command retrieves information about a specific operator from the ProposerRegistry contract.
+
+### Command Structure
+
+```bash
+taiyi-cli operator-info [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Environment Variable | Default |
+|--------|-------------|---------------------|---------|
+| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
+| `--operator-address` | Address of the operator to query | - | - |
+| `--proposer-registry-address` | ProposerRegistry contract address | - | - |
+| `--avs-type` | AVS type (validator/underwriter) | - | - |
+
+### Example
+
+```bash
+taiyi-cli operator-info \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --operator-address 0x123... \
+  --proposer-registry-address 0x456... \
+  --avs-type validator
+```
+
+### Output
+
+The command outputs:
+- Operator address
+- Operator's BLS public key
+- Operator active status
+
+## Get Strategies Stakes
+
+The `get-strategies-stakes` command retrieves information about an operator's stakes across different strategies.
+
+### Command Structure
+
+```bash
+taiyi-cli get-strategies-stakes [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Environment Variable | Default |
+|--------|-------------|---------------------|---------|
+| `--execution-rpc-url` | Ethereum RPC endpoint URL | `EXECUTION_RPC_URL` | - |
+| `--operator-address` | Address of the operator to query | - | - |
+| `--validator-avs-address` | Validator AVS contract address | - | - |
+
+### Example
+
+```bash
+taiyi-cli get-strategies-stakes \
+  --execution-rpc-url https://ethereum-holesky.publicnode.com \
+  --operator-address 0x123... \
+  --validator-avs-address 0x456...
+```
+
+### Output
+
+The command outputs:
+- Operator address
+- List of strategies and the operator's stake amount in each strategy
+
+## Usage Notes
+
+1. **Contract Addresses**:
+   - Ensure you have the correct contract addresses for your target network
+   - Verify addresses with the project documentation
+
+2. **RPC Connections**:
+   - Use a reliable RPC endpoint
+   - Consider using your own node for more reliable results
+
+3. **Permissions**:
+   - These commands are read-only and do not require any private keys
+   - They can be run safely without transaction signing
+
+For additional support, check the [operator documentation](/node_operator_setup_guide/operator) or join our support channel. 

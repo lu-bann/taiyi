@@ -1,3 +1,4 @@
+pub mod deposit;
 pub mod get_strategies_stakes;
 pub mod offchain_delegate;
 pub mod operator_info;

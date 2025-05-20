@@ -29,9 +29,11 @@ cargo run --bin taiyi-cli register-validators \
     --execution-rpc-url $EXECUTION_URL \
     --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
     --taiyi-middleware-address $TAIYI_EIGENLAYER_MIDDLEWARE_ADDRESS \
-    --bls-private-keys $PRE_REGISTERED_VALIDATOR_PRIVATE_KEYS \
     --operator-address $VALIDATOR_OPERATOR_ADDRESS \
-    --collateral 100000000000000000 # 0.1 ether
+    --collateral 100000000000000000 \
+    local-keystore \
+    --path $WORKING_DIR/1-lighthouse-geth-0-63/keys \
+    --password-path $WORKING_DIR/1-lighthouse-geth-0-63/secrets
 
 # check the stakes of the validators
 cargo run --bin taiyi-cli get-strategies-stakes \
