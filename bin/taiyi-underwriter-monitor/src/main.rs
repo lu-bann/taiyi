@@ -9,6 +9,7 @@ use alloy_rpc_types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
 use ethereum_consensus::{deneb::Context, networks::Network};
+use eyre::{eyre, OptionExt};
 use futures_util::StreamExt as _;
 use reqwest::Url;
 use reqwest_eventsource::{Event, EventSource};
@@ -168,17 +169,23 @@ async fn tx_settlement_listener(
                     .reduce(|acc, e| {
                         (acc.0, acc.1 + e.1, Some(acc.2.unwrap_or(0) + e.2.unwrap_or(0)))
                     })
-                    .expect("bug, should have at least one hash");
+                    .ok_or_eyre(eyre!(
+                        "bug: should have at least one transaction matching hash or hashes: {:?}",
+                        preconf.tx_hashes
+                    ))?;
 
                 if preconf_type == 0 {
                     // Type A
-                    assert!(
-                        prices.iter().all(|(price, _, _)| *price == realized_gas_price),
-                        "type a bug: all transactions should have same gas price"
-                    );
+                    if prices.iter().all(|(price, _, _)| *price == realized_gas_price) {
+                        return Err(eyre!(
+                            "type a bug: all transactions should have same gas price"
+                        ));
+                    }
                 } else {
                     // Type B
-                    assert!(prices.len() == 1, "type b bug: there shouldn't be more than one tx");
+                    if prices.len() == 1 {
+                        return Err(eyre!("type b bug: there shouldn't be more than one tx"));
+                    }
                 }
                 (realized_gas_price, block_gas_used, blob_gas_used)
             };
