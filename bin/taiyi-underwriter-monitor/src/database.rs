@@ -45,6 +45,10 @@ pub struct UnderwriterTradeRow {
     pub realized_gas_price: Option<BigDecimal>,
     /// Realized gas price at settlement time. Null before settlement
     pub realized_blob_price: Option<BigDecimal>,
+    /// Block gas used: known after settlement
+    pub block_gas_used: Option<i64>,
+    /// Blob gas used: known after settlement
+    pub blob_gas_used: Option<i64>,
 }
 
 impl UnderwriterTradeRow {
@@ -68,6 +72,8 @@ impl UnderwriterTradeRow {
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
+                    block_gas_used: None,
+                    blob_gas_used: None,
                 })
             }
             PreconfRequest::TypeB(request) => {
@@ -93,6 +99,8 @@ impl UnderwriterTradeRow {
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
+                    block_gas_used: None,
+                    blob_gas_used: None,
                 })
             }
         }
@@ -131,6 +139,8 @@ impl UnderwriterTradeRow {
         uuid: Uuid,
         realized_gas_price: BigDecimal,
         realized_blob_price: Option<BigDecimal>,
+        block_gas_used: i64,
+        blob_gas_used: Option<i64>,
         db_conn: &Pool<Postgres>,
     ) -> Result<u64> {
         let query_string: String;
@@ -138,24 +148,31 @@ impl UnderwriterTradeRow {
             Some(realized_blob_price) => {
                 query_string = format!(
                     "UPDATE {TABLE_NAME}
-                    SET settled = TRUE,
-                    realized_gas_price = $1,
-                    realized_blob_price = $2
-                    WHERE uuid = $3"
+                    SET 
+                        settled = TRUE,
+                        realized_gas_price = $1,
+                        realized_blob_price = $2,
+                        block_gas_used = $3,
+                        blob_gas_used = $4
+                    WHERE uuid = $5"
                 );
                 sqlx::query(&query_string)
                     .bind(realized_gas_price)
                     .bind(realized_blob_price)
+                    .bind(block_gas_used)
+                    .bind(blob_gas_used)
                     .bind(uuid)
             }
             None => {
                 query_string = format!(
                     "UPDATE {TABLE_NAME}
-                    SET settled = TRUE,
-                    realized_gas_price = $1,
+                    SET 
+                        settled = TRUE,
+                        realized_gas_price = $1,
+                        block_gas_used = $2
                     WHERE uuid = $3",
                 );
-                sqlx::query(&query_string).bind(realized_gas_price).bind(uuid)
+                sqlx::query(&query_string).bind(realized_gas_price).bind(block_gas_used).bind(uuid)
             }
         };
         Ok(query.execute(db_conn).await?.rows_affected())
@@ -333,6 +350,8 @@ mod test {
             uuid,
             BigDecimal::from(234),
             Some(BigDecimal::from(567)),
+            300,
+            Some(100),
             &db_conn,
         )
         .await?;
@@ -342,6 +361,8 @@ mod test {
             settled: true,
             realized_gas_price: Some(BigDecimal::from(234)),
             realized_blob_price: Some(BigDecimal::from(567)),
+            block_gas_used: Some(300),
+            blob_gas_used: Some(100),
             ..row
         };
 

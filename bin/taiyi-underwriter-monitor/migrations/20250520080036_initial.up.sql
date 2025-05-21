@@ -9,5 +9,7 @@ CREATE TABLE IF NOT EXISTS underwriter_trades (
     "tx_hashes" BYTEA[],
     "settled" BOOLEAN NOT NULL DEFAULT false,
     "realized_gas_price" NUMERIC(78,0),
-    "realized_blob_price" NUMERIC(78,0)
+    "realized_blob_price" NUMERIC(78,0),
+    "block_gas_used" BIGINT,
+    "blob_gas_used" BIGINT
 );

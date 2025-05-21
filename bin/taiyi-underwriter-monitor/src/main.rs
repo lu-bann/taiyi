@@ -146,18 +146,24 @@ async fn tx_settlement_listener(
                 );
                 continue;
             }
-            let realized_gas_price = {
+            let (realized_gas_price, block_gas_used, blob_gas_used) = {
                 let prices = receipts
                     .iter()
                     .filter_map(|receipt| {
                         if preconf.tx_hashes.iter().all(|y| y != receipt.transaction_hash) {
                             None
                         } else {
-                            Some(receipt.effective_gas_price)
+                            Some((
+                                receipt.effective_gas_price,
+                                receipt.gas_used,
+                                receipt.blob_gas_used.map(|x| x as i64),
+                            ))
                         }
                     })
                     .collect::<Vec<_>>();
+
                 let first_elem = prices.first().expect("bug, should have at least one hash");
+
                 if preconf_type == 0 {
                     // Type A
                     assert!(
@@ -175,6 +181,8 @@ async fn tx_settlement_listener(
                 preconf.uuid,
                 u128_to_big_decimal(realized_gas_price)?,
                 realized_blob_price.and_then(|x| u128_to_big_decimal(x).ok()),
+                block_gas_used as i64,
+                blob_gas_used,
                 &db_conn,
             )
             .await?;
