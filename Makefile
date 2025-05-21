@@ -32,7 +32,7 @@ make e2e:
 	make e2e-test
 
 lint:
-	cargo fmt --all -- --check
-	cargo clippy --all -- -D warnings -A clippy::derive_partial_eq_without_eq -D clippy::unwrap_used
+	cargo +nightly fmt --all -- --check
+	cargo +nightly clippy --all -- -D warnings -A clippy::derive_partial_eq_without_eq -D clippy::unwrap_used -A clippy::uninlined-format-args
 	cargo sort --check --workspace --grouped
 	cargo machete

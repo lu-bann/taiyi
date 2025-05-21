@@ -17,28 +17,28 @@ lazy_static! {
         &["endpoint"],
         &TAIYI_UNDERWRITER_METRICS
     )
-    .unwrap();
+    .expect("fail to register request count metric");
     static ref REQUEST_STATUS: IntCounterVec = register_int_counter_vec_with_registry!(
         "request_status_total",
         "Count of status codes",
         &["endpoint", "http_status_code"],
         &TAIYI_UNDERWRITER_METRICS
     )
-    .unwrap();
+    .expect("fail to register request status metric");
     static ref REQUEST_LATENCY: HistogramVec = register_histogram_vec_with_registry!(
         "request_latency_sec",
         "Latency of requests",
         &["endpoint"],
         &TAIYI_UNDERWRITER_METRICS
     )
-    .unwrap();
+    .expect("fail to register request latency metric");
     static ref REQUEST_SIZE: IntCounterVec = register_int_counter_vec_with_registry!(
         "request_size_bytes",
         "Size of requests",
         &["endpoint"],
         &TAIYI_UNDERWRITER_METRICS
     )
-    .unwrap();
+    .expect("fail to register request size metric");
 }
 
 pub struct APIMetrics;
