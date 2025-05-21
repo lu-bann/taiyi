@@ -217,7 +217,7 @@ async fn main() -> eyre::Result<()> {
     sqlx::migrate!("./migrations").run(&db_conn).await?;
     let commitment_handle = commitment_stream_listener(
         db_conn.clone(),
-        Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.db_url))?,
+        Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.taiyi_url))?,
     );
     let genesis_time = {
         let network: Network = opts.network.clone().into();
