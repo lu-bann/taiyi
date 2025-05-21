@@ -1,6 +1,6 @@
 mod database;
 
-use std::process::exit;
+use std::{process::exit, str::FromStr as _};
 
 use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
 use alloy_primitives::map::HashSet;
@@ -13,7 +13,7 @@ use futures_util::StreamExt as _;
 use reqwest::Url;
 use reqwest_eventsource::{Event, EventSource};
 use taiyi_primitives::{PreconfRequest, PreconfResponseData};
-use tracing::{debug, error};
+use tracing::{debug, error, info, Level};
 
 const MIN_BASE_FEE_PER_BLOB_GAS: u64 = 1;
 const BLOB_BASE_FEE_UPDATE_FRACTION: u64 = 3338477;
@@ -31,6 +31,7 @@ async fn commitment_stream_listener(db_conn: TaiyiDBConnection, url: Url) -> eyr
         panic!("Failed to create EventSource: {err:?}");
     });
 
+    info!("subscribing to commitment stream...");
     while let Some(event) = event_source.next().await {
         match event {
             Ok(Event::Message(message)) => {
@@ -70,6 +71,7 @@ async fn tx_settlement_listener(
     db_conn: TaiyiDBConnection,
 ) -> eyre::Result<()> {
     // Create a ws provider
+    info!("connecting to WS...");
     let ws = WsConnect::new(execution_client_ws_url);
     let provider = match ProviderBuilder::new().on_ws(ws).await {
         Ok(provider) => provider,
@@ -211,10 +213,29 @@ struct Opts {
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> eyre::Result<()> {
+    let level = match std::env::var("RUST_LOG").map(|x| Level::from_str(&x)) {
+        Ok(Ok(x)) => x,
+        Ok(Err(e)) => {
+            error!("could not parse log level, defaulting to INFO: {e}");
+            Level::INFO
+        }
+        // case where RUST_LOG is undefined in the env
+        Err(_) => Level::INFO,
+    };
+    tracing_subscriber::fmt()
+        .compact()
+        .with_max_level(level)
+        .with_target(true)
+        .with_file(true)
+        .init();
+
     let opts = Opts::parse();
 
+    info!("connecting to db");
     let db_conn = get_db_connection(&opts.db_url).await?;
+    info!("running migrations");
     sqlx::migrate!("./migrations").run(&db_conn).await?;
+
     let commitment_handle = commitment_stream_listener(
         db_conn.clone(),
         Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.taiyi_url))?,
