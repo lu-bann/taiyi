@@ -147,7 +147,8 @@ async fn tx_settlement_listener(
                 continue;
             }
             let (realized_gas_price, block_gas_used, blob_gas_used) = {
-                let prices = receipts
+                // (effective gas price, gas used, blob gas used)
+                let prices: Vec<(u128, u64, Option<i64>)> = receipts
                     .iter()
                     .filter_map(|receipt| {
                         if preconf.tx_hashes.iter().all(|y| y != receipt.transaction_hash) {
@@ -160,21 +161,26 @@ async fn tx_settlement_listener(
                             ))
                         }
                     })
-                    .collect::<Vec<_>>();
-
-                let first_elem = prices.first().expect("bug, should have at least one hash");
+                    .collect();
+                let (realized_gas_price, block_gas_used, blob_gas_used) = prices
+                    .iter()
+                    .cloned()
+                    .reduce(|acc, e| {
+                        (acc.0, acc.1 + e.1, Some(acc.2.unwrap_or(0) + e.2.unwrap_or(0)))
+                    })
+                    .expect("bug, should have at least one hash");
 
                 if preconf_type == 0 {
                     // Type A
                     assert!(
-                        prices.iter().all(|x| x == first_elem),
+                        prices.iter().all(|(price, _, _)| *price == realized_gas_price),
                         "type a bug: all transactions should have same gas price"
                     );
                 } else {
                     // Type B
                     assert!(prices.len() == 1, "type b bug: there shouldn't be more than one tx");
                 }
-                *first_elem
+                (realized_gas_price, block_gas_used, blob_gas_used)
             };
 
             UnderwriterTradeRow::update_with_settlement(
