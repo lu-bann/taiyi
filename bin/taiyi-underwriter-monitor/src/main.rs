@@ -1,6 +1,6 @@
 mod database;
 
-use std::process::exit;
+use std::{process::exit, str::FromStr as _};
 
 use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
 use alloy_primitives::map::HashSet;
@@ -9,11 +9,12 @@ use alloy_rpc_types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
 use ethereum_consensus::{deneb::Context, networks::Network};
+use eyre::{eyre, OptionExt};
 use futures_util::StreamExt as _;
 use reqwest::Url;
 use reqwest_eventsource::{Event, EventSource};
 use taiyi_primitives::{PreconfRequest, PreconfResponseData};
-use tracing::{debug, error};
+use tracing::{debug, error, info, Level};
 
 const MIN_BASE_FEE_PER_BLOB_GAS: u64 = 1;
 const BLOB_BASE_FEE_UPDATE_FRACTION: u64 = 3338477;
@@ -31,6 +32,7 @@ async fn commitment_stream_listener(db_conn: TaiyiDBConnection, url: Url) -> eyr
         panic!("Failed to create EventSource: {err:?}");
     });
 
+    info!("subscribing to commitment stream...");
     while let Some(event) = event_source.next().await {
         match event {
             Ok(Event::Message(message)) => {
@@ -70,6 +72,7 @@ async fn tx_settlement_listener(
     db_conn: TaiyiDBConnection,
 ) -> eyre::Result<()> {
     // Create a ws provider
+    info!("connecting to WS...");
     let ws = WsConnect::new(execution_client_ws_url);
     let provider = match ProviderBuilder::new().on_ws(ws).await {
         Ok(provider) => provider,
@@ -144,35 +147,55 @@ async fn tx_settlement_listener(
                 );
                 continue;
             }
-            let realized_gas_price = {
-                let prices = receipts
+            let (realized_gas_price, block_gas_used, blob_gas_used) = {
+                // (effective gas price, gas used, blob gas used)
+                let prices: Vec<(u128, u64, Option<i64>)> = receipts
                     .iter()
                     .filter_map(|receipt| {
                         if preconf.tx_hashes.iter().all(|y| y != receipt.transaction_hash) {
                             None
                         } else {
-                            Some(receipt.effective_gas_price)
+                            Some((
+                                receipt.effective_gas_price,
+                                receipt.gas_used,
+                                receipt.blob_gas_used.map(|x| x as i64),
+                            ))
                         }
                     })
-                    .collect::<Vec<_>>();
-                let first_elem = prices.first().expect("bug, should have at least one hash");
+                    .collect();
+                let (realized_gas_price, block_gas_used, blob_gas_used) = prices
+                    .iter()
+                    .cloned()
+                    .reduce(|acc, e| {
+                        (acc.0, acc.1 + e.1, Some(acc.2.unwrap_or(0) + e.2.unwrap_or(0)))
+                    })
+                    .ok_or_eyre(eyre!(
+                        "bug: should have at least one transaction matching hash or hashes: {:?}",
+                        preconf.tx_hashes
+                    ))?;
+
                 if preconf_type == 0 {
                     // Type A
-                    assert!(
-                        prices.iter().all(|x| x == first_elem),
-                        "type a bug: all transactions should have same gas price"
-                    );
+                    if prices.iter().all(|(price, _, _)| *price == realized_gas_price) {
+                        return Err(eyre!(
+                            "type a bug: all transactions should have same gas price"
+                        ));
+                    }
                 } else {
                     // Type B
-                    assert!(prices.len() == 1, "type b bug: there shouldn't be more than one tx");
+                    if prices.len() == 1 {
+                        return Err(eyre!("type b bug: there shouldn't be more than one tx"));
+                    }
                 }
-                *first_elem
+                (realized_gas_price, block_gas_used, blob_gas_used)
             };
 
             UnderwriterTradeRow::update_with_settlement(
                 preconf.uuid,
                 u128_to_big_decimal(realized_gas_price)?,
                 realized_blob_price.and_then(|x| u128_to_big_decimal(x).ok()),
+                block_gas_used as i64,
+                blob_gas_used,
                 &db_conn,
             )
             .await?;
@@ -199,17 +222,44 @@ struct Opts {
 
     #[clap(long)]
     pub network: String,
+
+    /// URL of PostgreSQL server, example: postgres:///user:password@127.0.0.1:5432/database_name
+    #[clap(long)]
+    pub db_url: String,
+
+    /// URL of taiyi's API URL, example: http://127.0.0.1:5656/
+    #[clap(long)]
+    pub taiyi_url: String,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> eyre::Result<()> {
+    let level = match std::env::var("RUST_LOG").map(|x| Level::from_str(&x)) {
+        Ok(Ok(x)) => x,
+        Ok(Err(e)) => {
+            error!("could not parse log level, defaulting to INFO: {e}");
+            Level::INFO
+        }
+        // case where RUST_LOG is undefined in the env
+        Err(_) => Level::INFO,
+    };
+    tracing_subscriber::fmt()
+        .compact()
+        .with_max_level(level)
+        .with_target(true)
+        .with_file(true)
+        .init();
+
     let opts = Opts::parse();
 
-    let db_conn = get_db_connection("postgres:///admin:password@127.0.0.1:5432/test_db").await?;
-    UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+    info!("connecting to db");
+    let db_conn = get_db_connection(&opts.db_url).await?;
+    info!("running migrations");
+    sqlx::migrate!("./migrations").run(&db_conn).await?;
+
     let commitment_handle = commitment_stream_listener(
         db_conn.clone(),
-        Url::parse("http://127.0.0.1:5656/commitments/v0/commitment_stream")?,
+        Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.taiyi_url))?,
     );
     let genesis_time = {
         let network: Network = opts.network.clone().into();

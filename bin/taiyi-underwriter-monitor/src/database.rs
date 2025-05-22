@@ -45,6 +45,10 @@ pub struct UnderwriterTradeRow {
     pub realized_gas_price: Option<BigDecimal>,
     /// Realized gas price at settlement time. Null before settlement
     pub realized_blob_price: Option<BigDecimal>,
+    /// Block gas used: known after settlement
+    pub block_gas_used: Option<i64>,
+    /// Blob gas used: known after settlement
+    pub blob_gas_used: Option<i64>,
 }
 
 impl UnderwriterTradeRow {
@@ -68,6 +72,8 @@ impl UnderwriterTradeRow {
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
+                    block_gas_used: None,
+                    blob_gas_used: None,
                 })
             }
             PreconfRequest::TypeB(request) => {
@@ -93,6 +99,8 @@ impl UnderwriterTradeRow {
                     settled: false,
                     realized_gas_price: None,
                     realized_blob_price: None,
+                    block_gas_used: None,
+                    blob_gas_used: None,
                 })
             }
         }
@@ -131,6 +139,8 @@ impl UnderwriterTradeRow {
         uuid: Uuid,
         realized_gas_price: BigDecimal,
         realized_blob_price: Option<BigDecimal>,
+        block_gas_used: i64,
+        blob_gas_used: Option<i64>,
         db_conn: &Pool<Postgres>,
     ) -> Result<u64> {
         let query_string: String;
@@ -138,63 +148,35 @@ impl UnderwriterTradeRow {
             Some(realized_blob_price) => {
                 query_string = format!(
                     "UPDATE {TABLE_NAME}
-                    SET settled = TRUE,
-                    realized_gas_price = $1,
-                    realized_blob_price = $2
-                    WHERE uuid = $3"
+                    SET 
+                        settled = TRUE,
+                        realized_gas_price = $1,
+                        realized_blob_price = $2,
+                        block_gas_used = $3,
+                        blob_gas_used = $4
+                    WHERE uuid = $5"
                 );
                 sqlx::query(&query_string)
                     .bind(realized_gas_price)
                     .bind(realized_blob_price)
+                    .bind(block_gas_used)
+                    .bind(blob_gas_used)
                     .bind(uuid)
             }
             None => {
                 query_string = format!(
                     "UPDATE {TABLE_NAME}
-                    SET settled = TRUE,
-                    realized_gas_price = $1,
+                    SET 
+                        settled = TRUE,
+                        realized_gas_price = $1,
+                        block_gas_used = $2
                     WHERE uuid = $3",
                 );
-                sqlx::query(&query_string).bind(realized_gas_price).bind(uuid)
+                sqlx::query(&query_string).bind(realized_gas_price).bind(block_gas_used).bind(uuid)
             }
         };
         Ok(query.execute(db_conn).await?.rows_affected())
     }
-
-    pub async fn init_db_schema(db_conn: &Pool<sqlx::Postgres>) -> Result<()> {
-        let create_table_str = generate_create_table(
-            TABLE_NAME,
-            vec![
-                ("current_slot", "BIGINT NOT NULL"),
-                ("target_slot", "BIGINT NOT NULL"),
-                ("total_tip", "NUMERIC(78,0) NOT NULL"),
-                ("quoted_gas_price", "NUMERIC(78,0) NOT NULL"),
-                ("quoted_blob_price", "NUMERIC(78,0) NOT NULL"),
-                ("uuid", "UUID NOT NULL"),
-                ("preconf_type", "SMALLINT NOT NULL"),
-                ("tx_hashes", "BYTEA[]"),
-                ("settled", "BOOLEAN NOT NULL DEFAULT false"),
-                ("realized_gas_price", "NUMERIC(78,0)"),
-                ("realized_blob_price", "NUMERIC(78,0)"),
-            ],
-            true,
-        );
-
-        let _ = sqlx::query(&create_table_str).execute(db_conn).await?;
-        Ok(())
-    }
-}
-
-pub fn generate_create_table(
-    table_name: &str,
-    fields: Vec<(&str, &str)>,
-    if_not_exists: bool,
-) -> String {
-    let columns: Vec<_> =
-        fields.iter().map(|(name, value)| format!("\"{name}\" {value}")).collect();
-
-    let if_not_exists = if if_not_exists { "IF NOT EXISTS" } else { "" };
-    format!("CREATE TABLE {} {} (\n{}\n);", if_not_exists, table_name, columns.join(",\n"))
 }
 
 pub fn u128_to_big_decimal(x: u128) -> eyre::Result<BigDecimal> {
@@ -216,6 +198,21 @@ mod test {
 
     use super::*;
 
+    const POSTGRES_USER: &str = "postgres";
+    const POSTGRES_PASSWORD: &str = "postgres";
+    const POSTGRES_DBNAME: &str = "postgres";
+
+    /// Connects & runs migrations on the test DB
+    async fn init_db(conn_string: &str) -> Result<Pool<Postgres>> {
+        let db_conn = PgPoolOptions::new().max_connections(5).connect(conn_string).await?;
+        sqlx::migrate!("./migrations").run(&db_conn).await?;
+        Ok(db_conn)
+    }
+
+    fn get_conn_string(host_ip: String, host_port: String) -> String {
+        format!("postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{host_ip}:{host_port}/{POSTGRES_DBNAME}")
+    }
+
     #[tokio::test]
     async fn test_init_db() -> eyre::Result<()> {
         // start test postgresql server container
@@ -223,11 +220,7 @@ mod test {
         let host_ip = container.get_host().await?;
         let host_port = container.get_host_port_ipv4(5432).await?;
 
-        let db_conn = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
-            .await?;
-        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+        let db_conn = init_db(&get_conn_string(host_ip.to_string(), host_port.to_string())).await?;
 
         let empty_table_result = UnderwriterTradeRow::find_all_by_slot(123, &db_conn).await?;
 
@@ -237,18 +230,6 @@ mod test {
 
     #[tokio::test]
     async fn test_from_preconf_type_a_request() -> eyre::Result<()> {
-        // start test postgresql server container
-        let container = postgres::Postgres::default().start().await?;
-        let host_ip = container.get_host().await?;
-        let host_port = container.get_host_port_ipv4(5432).await?;
-
-        let db_conn = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
-            .await?;
-
-        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
-
         // Read json data
         let request = {
             let request: PreconfRequestTypeA =
@@ -279,18 +260,6 @@ mod test {
 
     #[tokio::test]
     async fn test_from_preconf_type_b_request() -> eyre::Result<()> {
-        // start test postgresql server container
-        let container = postgres::Postgres::default().start().await?;
-        let host_ip = container.get_host().await?;
-        let host_port = container.get_host_port_ipv4(5432).await?;
-
-        let db_conn = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
-            .await?;
-
-        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
-
         // Read json data
         let request = {
             let request: PreconfRequestTypeB =
@@ -332,12 +301,7 @@ mod test {
         let host_ip = container.get_host().await?;
         let host_port = container.get_host_port_ipv4(5432).await?;
 
-        let db_conn = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
-            .await?;
-
-        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+        let db_conn = init_db(&get_conn_string(host_ip.to_string(), host_port.to_string())).await?;
 
         // Read json data
         let request = {
@@ -368,12 +332,7 @@ mod test {
         let host_ip = container.get_host().await?;
         let host_port = container.get_host_port_ipv4(5432).await?;
 
-        let db_conn = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&format!("postgres://postgres:postgres@{host_ip}:{host_port}/postgres"))
-            .await?;
-
-        UnderwriterTradeRow::init_db_schema(&db_conn).await?;
+        let db_conn = init_db(&get_conn_string(host_ip.to_string(), host_port.to_string())).await?;
 
         // Read json data
         let request = {
@@ -391,6 +350,8 @@ mod test {
             uuid,
             BigDecimal::from(234),
             Some(BigDecimal::from(567)),
+            300,
+            Some(100),
             &db_conn,
         )
         .await?;
@@ -400,6 +361,8 @@ mod test {
             settled: true,
             realized_gas_price: Some(BigDecimal::from(234)),
             realized_blob_price: Some(BigDecimal::from(567)),
+            block_gas_used: Some(300),
+            blob_gas_used: Some(100),
             ..row
         };
 

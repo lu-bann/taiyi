@@ -158,6 +158,7 @@ sqlx = { default-features = true, version = "*", features = [
     "postgres",
     "uuid",
     "bigdecimal",
+    "migrate"
 ] }
 
 [patch.crates-io]
