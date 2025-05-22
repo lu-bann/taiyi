@@ -535,6 +535,7 @@ fn validate_header(
 
     Ok(())
 }
+
 pub fn verify_signed_message(
     chain: Chain,
     pubkey: &AlloyBlsPublicKey,
