@@ -35,7 +35,9 @@ use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 use tree_hash::TreeHash;
 
 /// A hash tree root.
-pub type AlloyHashTreeRoot = tree_hash::Hash256;
+pub type HashTreeRootType = tree_hash::Hash256;
+/// List of transaction hashes and the corresponding hash tree roots of the raw transactions.
+pub type ConstraintsProofData = Vec<(TxHash, HashTreeRootType)>;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
@@ -98,7 +100,7 @@ impl ConstraintsMessage {
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct ConstraintsData {
     pub transactions: Vec<TxEnvelope>,
-    pub proof_data: Vec<(TxHash, AlloyHashTreeRoot)>,
+    pub proof_data: ConstraintsProofData,
 }
 
 impl TryFrom<ConstraintsMessage> for ConstraintsData {
@@ -124,7 +126,7 @@ impl TryFrom<ConstraintsMessage> for ConstraintsData {
 /// Takes a raw EIP-2718 RLP-encoded transaction and calculates its proof data, consisting of its
 /// hash and the hash tree root of the transaction. For type 3 transactions, the hash tree root of
 /// the inner transaction is computed without blob sidecar.
-fn calculate_tx_proof_data(raw_tx: &Bytes) -> Result<(TxHash, AlloyHashTreeRoot), Eip2718Error> {
+fn calculate_tx_proof_data(raw_tx: &Bytes) -> Result<(TxHash, HashTreeRootType), Eip2718Error> {
     let Some(is_type_3) = raw_tx.first().map(|type_id| type_id == &0x03) else {
         return Err(Eip2718Error::RlpError(alloy_rlp::Error::Custom("empty RLP bytes")));
     };
@@ -159,15 +161,13 @@ fn calculate_tx_proof_data(raw_tx: &Bytes) -> Result<(TxHash, AlloyHashTreeRoot)
     }
 }
 
-fn hash_tree_root_raw_tx(raw_tx: Vec<u8>) -> AlloyHashTreeRoot {
+fn hash_tree_root_raw_tx(raw_tx: Vec<u8>) -> HashTreeRootType {
     let tx = cbTransaction::<<DenebSpec as EthSpec>::MaxBytesPerTransaction>::from(raw_tx);
     TreeHash::tree_hash_root(&tx)
 }
 
-/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
 pub type GetHeaderWithProofsResponse = SignedExecutionPayloadHeaderWithProofs;
 
-/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SignedExecutionPayloadHeaderWithProofs {
     #[serde(flatten)]
@@ -176,7 +176,6 @@ pub struct SignedExecutionPayloadHeaderWithProofs {
     pub proofs: InclusionProofs,
 }
 
-/// Reference: https://docs.boltprotocol.xyz/technical-docs/api/builder#get_header_with_proofs
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct InclusionProofs {
     /// The transaction hashes these inclusion proofs are for. The hash tree roots of

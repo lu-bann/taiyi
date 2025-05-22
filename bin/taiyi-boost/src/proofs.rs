@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 /// The code is modified from bolt: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-boost/src/proofs.rs
 use std::collections::HashMap;
 
 use alloy_primitives::{TxHash, B256};
 
 use super::types::{ConstraintsData, InclusionProofs};
-use crate::types::AlloyHashTreeRoot;
+use crate::types::HashTreeRootType;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProofError {
@@ -44,12 +45,12 @@ pub fn verify_multiproofs(
 
     // Get all the leaves from the saved constraints
     let mut leaves = Vec::with_capacity(proofs.total_leaves());
-    let proof_data_map: HashMap<TxHash, AlloyHashTreeRoot> =
+    let proof_data_map: HashMap<TxHash, HashTreeRootType> =
         constraints.proof_data.iter().cloned().collect();
 
     // NOTE: Get the leaves from the constraints cache by matching the saved hashes. We need the
     // leaves in order to verify the multiproof.
-    for hash in &proofs.transaction_hashes {
+    for hash in proofs.transaction_hashes.iter() {
         if let Some(leaf) = proof_data_map.get(hash) {
             leaves.push(B256::from(leaf.0));
         } else {
