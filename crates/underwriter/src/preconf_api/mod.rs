@@ -36,7 +36,7 @@ impl CommitmentsHandle {
     pub fn send_commitment(&self, commitment: (PreconfRequest, PreconfResponseData)) {
         match self.commitments_tx.send(commitment) {
             Ok(res) => info!("Sent constraint: {:?}", res),
-            Err(_) => debug!("Failed to send constraint"),
+            Err(_) => debug!("Failed to send constraints, no receivers available"),
         }
     }
 }

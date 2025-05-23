@@ -4,7 +4,7 @@ use std::{
 };
 
 use alloy_consensus::Transaction;
-use alloy_primitives::{Address, PrimitiveSignature};
+use alloy_primitives::{hex, Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use reqwest::Url;
 use taiyi_primitives::{
@@ -168,7 +168,7 @@ where
 
                 let commitment = PreconfResponseData {
                     request_id: request.request_id,
-                    commitment: Some(commitment),
+                    commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
                     sequence_num: None,
                     current_slot: self.network_state.get_current_slot(),
                 };
@@ -235,7 +235,7 @@ where
 
                 let commitment = PreconfResponseData {
                     request_id,
-                    commitment: Some(commitment),
+                    commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
                     sequence_num: result.sequence_num(),
                     current_slot: self.network_state.get_current_slot(),
                 };

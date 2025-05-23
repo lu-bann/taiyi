@@ -308,7 +308,13 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     stdin.write(&preconf_a_serialized);
 
     // hex-encoded preconfirmation signature
-    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    let preconf_signature = hex::encode(
+        PrimitiveSignature::from_str(
+            &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+        )
+        .unwrap()
+        .as_bytes(),
+    );
     stdin.write(&preconf_signature);
 
     // is type a
@@ -373,7 +379,13 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Check signature is correct
     assert_eq!(
         hex::encode(public_values_struct.proofSignature),
-        hex::encode(preconf_response.commitment.unwrap().as_bytes())
+        hex::encode(
+            PrimitiveSignature::from_str(
+                &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+            )
+            .unwrap()
+            .as_bytes()
+        )
     );
 
     // Check genesis timestamp is correct
@@ -610,7 +622,13 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     stdin.write(&preconf_a_serialized);
 
     // hex-encoded preconfirmation signature
-    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    let preconf_signature = hex::encode(
+        PrimitiveSignature::from_str(
+            &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+        )
+        .unwrap()
+        .as_bytes(),
+    );
     stdin.write(&preconf_signature);
 
     // is type a
@@ -675,7 +693,13 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Check signature is correct
     assert_eq!(
         hex::encode(public_values_struct.proofSignature),
-        hex::encode(preconf_response.commitment.unwrap().as_bytes())
+        hex::encode(
+            PrimitiveSignature::from_str(
+                &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+            )
+            .unwrap()
+            .as_bytes()
+        )
     );
 
     // Check genesis timestamp is correct
@@ -987,7 +1011,13 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     stdin.write(&preconf_type_b_serialized);
 
     // hex-encoded preconfirmation signature
-    let preconf_signature = hex::encode(preconf_response.commitment.unwrap().as_bytes());
+    let preconf_signature = hex::encode(
+        PrimitiveSignature::from_str(
+            &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+        )
+        .unwrap()
+        .as_bytes(),
+    );
     stdin.write(&preconf_signature);
 
     // is type a
@@ -1045,7 +1075,13 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Check signature is correct
     assert_eq!(
         hex::encode(public_values_struct.proofSignature),
-        hex::encode(preconf_response.commitment.unwrap().as_bytes())
+        hex::encode(
+            PrimitiveSignature::from_str(
+                &preconf_response.commitment.clone().unwrap().strip_prefix("0x").unwrap(),
+            )
+            .unwrap()
+            .as_bytes()
+        )
     );
 
     // Check genesis timestamp is correct
