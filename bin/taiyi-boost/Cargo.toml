@@ -50,6 +50,8 @@ tracing = { workspace = true }
 tree_hash = { workspace = true }
 tree_hash_derive = { workspace = true }
 
+reqwest-eventsource = "0.6"
+
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
 ethereum-consensus = { workspace = true }

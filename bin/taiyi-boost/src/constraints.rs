@@ -1,52 +1,89 @@
-use std::collections::HashSet;
+use std::sync::Arc;
 
+use cb_common::pbs::RelayClient;
 use eyre::Result;
+use futures::StreamExt;
+use parking_lot::RwLock;
+use reqwest_eventsource::{Event, EventSource};
 use scc::HashMap;
+use tracing::{error, info};
 
-use crate::types::{ConstraintsData, ConstraintsMessage};
+use crate::{
+    traits_ext::RelayExt,
+    types::{ConstraintsData, ConstraintsMessage, SignedConstraints},
+};
 
 #[derive(Clone, Default, Debug)]
 pub struct ConstraintsCache {
-    pub constraints: HashMap<u64, ConstraintsData>,
+    pub constraints: Arc<RwLock<HashMap<u64, ConstraintsData>>>,
 }
 
 impl ConstraintsCache {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn remove_duplicate(&self, constraints: ConstraintsMessage) -> ConstraintsMessage {
-        let mut seen = HashSet::new();
-        let mut unique = Vec::new();
-
-        for tx in constraints.transactions.clone() {
-            if seen.insert(tx.to_string()) {
-                unique.push(tx);
-            }
-        }
-        let mut constraints = constraints.clone();
-        constraints.transactions = unique;
-        constraints
-    }
-
-    pub fn insert(&self, constraints: ConstraintsMessage) -> Result<()> {
-        let constraints = self.remove_duplicate(constraints);
-        let constraints_data = ConstraintsData::try_from(constraints.clone())?;
+    pub fn insert(&self, messgae: ConstraintsMessage) -> Result<()> {
+        let constraints_data = ConstraintsData::try_from(messgae.clone())?;
         self.constraints
-            .insert(constraints.slot, constraints_data)
+            .write()
+            .insert(messgae.slot, constraints_data)
             .map_err(|_| eyre::eyre!("Failed to insert"))?;
         Ok(())
     }
 
     // remove all constraints for the given slot.
     pub fn remove(&self, slot: u64) -> Option<(u64, ConstraintsData)> {
-        self.constraints.remove(&slot)
+        self.constraints.write().remove(&slot)
     }
 
     // Get total constraints for the given slot.
     pub fn get(&self, slot: u64) -> Option<ConstraintsData> {
-        self.constraints.get(&slot).map(|x| x.get().clone())
+        self.constraints.read().get(&slot).map(|x| x.get().clone())
     }
+}
+
+pub async fn subscribe_to_constraints_stream(
+    constraints_cache: ConstraintsCache,
+    relays: &[RelayClient],
+) -> eyre::Result<()> {
+    info!("Starting constraint subscriber");
+    let request =
+        relays.first().expect("Atleast one relay configured").constraint_stream_request()?;
+    let event_source = EventSource::new(request).unwrap_or_else(|err| {
+        panic!("Failed to create EventSource: {:?}", err);
+    });
+
+    tokio::spawn(async move {
+        let mut event_source = event_source;
+        while let Some(event) = event_source.next().await {
+            match event {
+                Ok(Event::Message(message)) => {
+                    if message.event == "signed_constraint" {
+                        let data = &message.data;
+                        let received_constraints =
+                            serde_json::from_str::<Vec<SignedConstraints>>(data)
+                                .expect("at least one constraint");
+
+                        info!("Received constraints: {:?}", received_constraints);
+
+                        // Insert the constraints into the cache
+                        for signed_constraint in received_constraints.into_iter() {
+                            if let Err(err) = constraints_cache.insert(signed_constraint.message) {
+                                error!("Failed to insert constraints into cache: {:?}", err);
+                            }
+                        }
+                    }
+                }
+                Ok(Event::Open) => {
+                    info!("SSE connection opened");
+                }
+                Err(err) => {
+                    error!("Error receiving SSE event: {:?}", err);
+                }
+            }
+        }
+
+        info!("Stopping constraint subscriber");
+    });
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -74,13 +111,13 @@ mod tests {
         let tx_signed = tx.build(&wallet).await?;
         let raw_encoded = tx_signed.encoded_2718();
         let tx_bytes: Bytes = Bytes::from(raw_encoded.as_slice().to_vec());
-        let cache = ConstraintsCache::new();
-        let dup_txs = vec![tx_bytes.clone(), tx_bytes];
+        let cache = ConstraintsCache::default();
+        let txs = vec![tx_bytes];
         let constraints = ConstraintsMessage {
             pubkey: BlsPublicKey::default(),
             slot: 1,
             top: false,
-            transactions: dup_txs,
+            transactions: txs,
         };
         cache.insert(constraints.clone()).ok();
         assert_eq!(cache.get(1).unwrap().transactions.len(), 1);
