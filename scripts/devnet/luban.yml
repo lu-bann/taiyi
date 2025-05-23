@@ -27,8 +27,8 @@ network_params:
   electra_fork_epoch: 1
   seconds_per_slot: 12
 helix_params:
-  helix_image: "0xstrider/helix:electra_with_proofs"
+  helix_image: "lubann/helix:electra_with_proofs"
 rbuilder_params:
-  rbuilder_image: "0xstrider/reth-rbuilder:latest"
+  rbuilder_image: "lubann/reth-rbuilder:constraints-api"
 taiyi_boost_params:
   taiyi_boost_image: "lubann/taiyi:latest"
