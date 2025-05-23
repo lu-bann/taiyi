@@ -199,7 +199,7 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         let slot = signed_blinded_block.slot();
         if let Some(local_payload) = state.data.local_payload.lock().get(&slot) {
             // todo: do some checks
-            info!("submit block with local payload {:?}", local_payload.payload.execution_payload);
+            info!("submit block with local payload {:?}", local_payload.payload.block_hash());
             let res = cb_common::pbs::VersionedResponse::Electra(local_payload.payload.clone());
             debug!("local payload: {:?}", serde_json::to_string(&res));
             return Ok(res);
