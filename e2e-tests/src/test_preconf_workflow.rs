@@ -116,7 +116,8 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     assert_eq!(preconf_response.request_id, request_id);
 
-    let commitment = preconf_response.commitment.unwrap();
+    let commitment_string = preconf_response.commitment.unwrap();
+    let commitment = alloy_primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
     let mut tx_bytes = Vec::new();
     transaction.clone().encode_2718(&mut tx_bytes);
     let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
@@ -397,7 +398,8 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     info!("preconf_response: {:?}", preconf_response);
 
-    let commitment = preconf_response.commitment.unwrap();
+    let commitment_string = preconf_response.commitment.unwrap();
+    let commitment = alloy_primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
     let type_a = PreconfRequestTypeA {
         tip_transaction: request.tip_transaction.clone(),
         preconf_tx: request.preconf_transaction.clone(),

@@ -1,11 +1,10 @@
-use alloy_primitives::PrimitiveSignature;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfResponseData {
     pub request_id: Uuid,
-    pub commitment: Option<PrimitiveSignature>,
+    pub commitment: Option<String>,
     pub sequence_num: Option<u64>,
     /// current slot at the time of response
     pub current_slot: u64,
@@ -14,7 +13,7 @@ pub struct PreconfResponseData {
 impl PreconfResponseData {
     pub fn success(
         request_id: Uuid,
-        commitment: Option<PrimitiveSignature>,
+        commitment: Option<String>,
         sequence_num: Option<u64>,
         current_slot: u64,
     ) -> Self {

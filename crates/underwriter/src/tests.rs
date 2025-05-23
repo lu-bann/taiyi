@@ -366,11 +366,12 @@ async fn test_commitment_stream() -> eyre::Result<()> {
         transaction: Some(transaction),
         signer: Address::default(),
     };
+    let commitment = PrimitiveSignature::new(U256::ZERO, U256::ZERO, false);
     let test_data = (
         PreconfRequest::TypeB(preconf),
         PreconfResponseData {
             request_id: Uuid::default(),
-            commitment: Some(PrimitiveSignature::new(U256::ZERO, U256::ZERO, false)),
+            commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
             sequence_num: None,
             current_slot: network_state.get_current_slot(),
         },
