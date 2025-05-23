@@ -16,5 +16,5 @@ fi
 
 cat scripts/devnet/luban.yml
 pushd $WORKING_DIR
-kurtosis run --enclave $ENCLAVE_NAME github.com/lu-bann/ethereum-package@rbuilder --args-file scripts/devnet/luban.yml
+kurtosis run --enclave $ENCLAVE_NAME github.com/lu-bann/ethereum-package@taiyi --args-file scripts/devnet/luban.yml
 popd
