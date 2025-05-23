@@ -7,7 +7,7 @@ use alloy_consensus::Header;
 use alloy_eips::{eip1559::BaseFeeParams, eip2718::Encodable2718, eip7840::BlobParams, BlockId};
 use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, keccak256, private::alloy_rlp::Decodable, Bytes, U256};
-use alloy_provider::{ext::DebugApi, utils::EIP1559_MIN_PRIORITY_FEE, Provider};
+use alloy_provider::{ext::DebugApi, Provider};
 use alloy_rpc_types::TransactionRequest;
 use ethereum_consensus::{
     clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
@@ -64,23 +64,24 @@ where
             // wait unit the deadline to submit constraints
             tokio::time::sleep(Duration::from_secs(submit_constraint_deadline_duration)).await;
 
-            // calculate base fee for next slot based on parent header
-            // Its fine to use latest block as we are submitting constraints for next block
+            // An estimate of the gas fees used to submit the constraints
+            let estimate = state.provider.estimate_eip1559_fees().await?;
+            let max_fee_per_gas = estimate.max_fee_per_gas;
+            let max_priority_fee_per_gas = estimate.max_priority_fee_per_gas;
+
+            // Calculate base fee for next slot based on parent header
+            // Note: Its fine to use latest block as we are submitting constraints for next block
             let rlp_encoded_header = state.provider.debug_get_raw_header(BlockId::latest()).await?;
             let header = Header::decode(&mut rlp_encoded_header.as_ref())?;
-            let (base_fee, priority_fee) =
-                match header.next_block_base_fee(BaseFeeParams::ethereum()) {
-                    Some(base_fee) => (base_fee.into(), EIP1559_MIN_PRIORITY_FEE),
-                    None => {
-                        let estimate = state.provider.estimate_eip1559_fees().await?;
-                        (estimate.max_fee_per_gas, estimate.max_priority_fee_per_gas)
-                    }
-                };
+            let base_fee = header
+                .next_block_base_fee(BaseFeeParams::ethereum())
+                .unwrap_or(max_fee_per_gas as u64);
+
             let blob_fee = header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
             let blob_excess_fee =
                 header.next_block_excess_blob_gas(BlobParams::prague()).unwrap_or_default();
 
-            info!(base_fee=?base_fee, priority_fee=?priority_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
+            info!(base_fee=?base_fee, blob_fee=?blob_fee, blob_excess_fee=?blob_excess_fee);
 
             let mut constraints = Vec::new();
             let mut sponsoring_tx = Vec::new();
@@ -120,7 +121,7 @@ where
 
                                 accounts.push(request.signer());
                                 amounts.push(U256::from(
-                                    (tip_tx_gas_uesd + preconf_tx_gas_used) as u128 * base_fee,
+                                    (tip_tx_gas_uesd + preconf_tx_gas_used) * base_fee,
                                 ));
 
                                 let tx_bytes = request.tip_transaction.to_ssz_bytes();
@@ -138,7 +139,7 @@ where
                                         state.preconf_pool.calculate_gas_used(tx.clone()).await?;
 
                                     accounts.push(preconf_req.signer());
-                                    amounts.push(U256::from(gas_used as u128 * base_fee));
+                                    amounts.push(U256::from(gas_used * base_fee));
 
                                     // preconf tx
                                     let mut tx_encoded = Vec::new();
@@ -182,8 +183,8 @@ where
                                         .with_chain_id(chain_id)
                                         .with_nonce(nonce)
                                         .with_gas_limit(1_000_000)
-                                        .with_max_fee_per_gas(base_fee)
-                                        .with_max_priority_fee_per_gas(priority_fee)
+                                        .with_max_fee_per_gas(max_fee_per_gas)
+                                        .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
                                         .build(&wallet)
                                         .await?;
                                     // increment nonce
@@ -202,8 +203,8 @@ where
                         .with_nonce(sponsor_nonce)
                         .with_chain_id(chain_id)
                         .with_gas_limit(1_000_000)
-                        .with_max_fee_per_gas(base_fee)
-                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_max_fee_per_gas(max_fee_per_gas)
+                        .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
                         .build(&wallet)
                         .await?;
                     let tx_bytes = sponsor_tx.to_ssz_bytes();
@@ -215,8 +216,8 @@ where
                         .with_nonce(nonce)
                         .with_chain_id(chain_id)
                         .with_gas_limit(21_000)
-                        .with_max_fee_per_gas(base_fee)
-                        .with_max_priority_fee_per_gas(priority_fee)
+                        .with_max_fee_per_gas(max_fee_per_gas)
+                        .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
                         .with_to(fee_reciepient)
                         .with_value(value)
                         .build(&wallet)
@@ -269,8 +270,8 @@ where
                             .with_chain_id(chain_id)
                             .with_nonce(nonce)
                             .with_gas_limit(1_000_000)
-                            .with_max_fee_per_gas(base_fee)
-                            .with_max_priority_fee_per_gas(priority_fee)
+                            .with_max_fee_per_gas(max_fee_per_gas)
+                            .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
                             .build(&wallet)
                             .await?;
                         // increment nonce

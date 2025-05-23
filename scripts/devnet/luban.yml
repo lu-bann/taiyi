@@ -2,31 +2,33 @@ participants:
   - el_type: geth
     cl_type: lighthouse
     vc_extra_params: ["--prefer-builder-proposals"]
-    cl_extra_params: [
-      "--always-prepare-payload", 
-      "--prepare-payload-lookahead=8000",
-      "--target-peers=1",
+    cl_extra_params:
+      [
+        "--always-prepare-payload",
+        "--prepare-payload-lookahead=8000",
+        "--target-peers=1",
       ]
-    el_extra_params: [
-      "--rpc.txfeecap=0",
-    ]
+    el_extra_params: ["--rpc.txfeecap=0"]
     el_image: ethereum/client-go:v1.15.9
     cl_image: sigp/lighthouse:v7.0.0
     count: 1
+  - el_type: reth
+    cl_type: lighthouse
+    el_image: ghcr.io/paradigmxyz/reth:v1.3.12
+    cl_image: sigp/lighthouse:v7.0.0
+    count: 1
+    validator_count: 0
 mev_type: helix
-# additional_services:
-#   - spamoor
-#   - spamoor_blob
-  # - rbuilder
-  # - blockscout
+additional_services:
+  - rbuilder
 mev_params:
   mev_boost_image: ghcr.io/commit-boost/pbs:v0.7.0
 network_params:
   electra_fork_epoch: 1
   seconds_per_slot: 12
 helix_params:
-  helix_image: "lubann/helix:latest"
+  helix_image: "lubann/helix:electra_with_proofs"
 rbuilder_params:
-  rbuilder_image: "lubann/reth-rbuilder:latest"
+  rbuilder_image: "lubann/reth-rbuilder:constraints-api"
 taiyi_boost_params:
   taiyi_boost_image: "lubann/taiyi:latest"

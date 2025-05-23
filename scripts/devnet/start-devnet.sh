@@ -6,7 +6,13 @@ if [ -z "$TAIYI_BOOST_IMAGE" ]; then
   export TAIYI_BOOST_IMAGE="lubann/taiyi:latest"
 fi
 
-sed -i "s|lubann/taiyi:latest|${TAIYI_BOOST_IMAGE}|g" scripts/devnet/luban.yml
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS (Darwin)
+  sed -i '' "s|lubann/taiyi:latest|${TAIYI_BOOST_IMAGE}|g" scripts/devnet/luban.yml
+else
+  # Linux and others
+  sed -i "s|lubann/taiyi:latest|${TAIYI_BOOST_IMAGE}|g" scripts/devnet/luban.yml
+fi
 
 cat scripts/devnet/luban.yml
 pushd $WORKING_DIR

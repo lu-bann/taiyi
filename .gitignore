@@ -6,9 +6,12 @@
 /node_modules
 /package-lock.json
 /package.json
-/contracts/script/output/
+/contracts
 crates/cli/src/pb
 crates/sp1-interactive-fraud-proof/*.bin
+
+# macos
+.DS_Store
 
 # e2e
 1-lighthouse-geth-0-63
