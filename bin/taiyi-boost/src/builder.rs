@@ -42,8 +42,8 @@ use tracing::{debug, error, info, warn};
 use crate::{
     block_builder::{LocalBlockBuilder, SignedPayloadResponse},
     constraints::ConstraintsCache,
+    ext::header::GetHeaderResponseExt,
     proofs::verify_multiproofs,
-    traits_ext::GetHeaderResponseExt,
     types::{ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints},
 };
 

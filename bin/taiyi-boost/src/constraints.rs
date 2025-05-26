@@ -9,7 +9,7 @@ use scc::HashMap;
 use tracing::{error, info};
 
 use crate::{
-    traits_ext::RelayExt,
+    ext::relay::RelayExt,
     types::{ConstraintsData, ConstraintsMessage, SignedConstraints},
 };
 

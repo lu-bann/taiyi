@@ -12,9 +12,9 @@ mod engine;
 mod engine_hinter;
 mod error;
 mod execution;
+mod ext;
 mod metrics;
 mod proofs;
-mod traits_ext;
 mod types;
 mod utils;
 
