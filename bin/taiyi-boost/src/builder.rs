@@ -42,17 +42,14 @@ use tracing::{debug, error, info, warn};
 use crate::{
     block_builder::{LocalBlockBuilder, SignedPayloadResponse},
     constraints::ConstraintsCache,
-    get_header_response_ext::GetHeaderResponseExt,
+    ext::header::GetHeaderResponseExt,
     proofs::verify_multiproofs,
     types::{ExtraConfig, GetHeaderWithProofsResponse, RequestConfig, SignedConstraints},
 };
 
-pub const PATH_BUILDER_CONSTRAINTS: &str = "/constraints";
-pub const PATH_BUILDER_API: &str = "/relay/v1/builder";
-
 #[derive(Clone)]
 pub struct SidecarBuilderState {
-    constraints: ConstraintsCache,
+    pub constraints: ConstraintsCache,
     local_block_builder: LocalBlockBuilder,
     local_payload: Arc<Mutex<HashMap<u64, SignedPayloadResponse>>>,
 }
@@ -76,7 +73,7 @@ impl SidecarBuilderState {
         )
         .await;
         Self {
-            constraints: ConstraintsCache::new(),
+            constraints: ConstraintsCache::default(),
             local_block_builder,
             local_payload: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -92,68 +89,6 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
         req_headers: HeaderMap,
         state: PbsState<SidecarBuilderState>,
     ) -> Result<Option<GetHeaderResponse>> {
-        for relay in state.all_relays() {
-            let builder_constraints_url = relay
-                .get_url(&format!("{PATH_BUILDER_API}{PATH_BUILDER_CONSTRAINTS}"))
-                .expect("failed to build builder_constraints url");
-            let client = reqwest::Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .expect("Build reqwest client failed");
-            match client
-                .get(builder_constraints_url.clone())
-                .query(&[("slot", params.slot)])
-                .header("accept", "application/json")
-                .send()
-                .await
-            {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        match resp.json::<Vec<SignedConstraints>>().await {
-                            Ok(constraints) => {
-                                if constraints.is_empty() {
-                                    warn!(
-                                        "constraints is empty, url: {}, slot: {}",
-                                        builder_constraints_url.to_string(),
-                                        params.slot
-                                    );
-                                    continue;
-                                }
-                                if let Err(err) =
-                                    state.data.constraints.insert(constraints[0].message.clone())
-                                {
-                                    warn!(
-                                        "failed to insert constraints, slot: {}, error: {}",
-                                        params.slot, err
-                                    );
-                                    continue;
-                                }
-                            }
-                            Err(err) => {
-                                warn!("failed to parse constraints from response, url: {}, slot: {}, error: {}", builder_constraints_url.to_string(), params.slot, err);
-                                continue;
-                            }
-                        }
-                        break;
-                    }
-                    warn!(
-                        "failed to get constraints from relay , url: {}, slot: {}, status: {}",
-                        builder_constraints_url.to_string(),
-                        params.slot,
-                        resp.status()
-                    );
-                }
-                Err(err) => {
-                    warn!(
-                        "get constraints from relay failed, url: {}, slot: {}, error: {}",
-                        builder_constraints_url.to_string(),
-                        params.slot,
-                        err
-                    );
-                }
-            }
-        }
-
         match get_header_with_proofs(
             State::<PbsState<SidecarBuilderState>>(state.clone()),
             Path::<GetHeaderParams>(params),
@@ -168,11 +103,11 @@ impl BuilderApi<SidecarBuilderState> for SidecarBuilderApi {
                 warn!("No bids received from relay, slot: {}", params.slot);
             }
             Err(err) => {
-                error!("get header with proofs failed, slot: {}, error: {:?}", params.slot, err);
+                error!("get_header_with_proofs failed, slot: {}, error: {:?}", params.slot, err);
             }
         }
 
-        if let Some(transactions) = state.data.constraints.get(params.slot) {
+        if let Some((_, transactions)) = state.data.constraints.remove(params.slot) {
             info!("Constraints found, starting local block building");
             let resp = state
                 .data
@@ -261,8 +196,8 @@ async fn get_header_with_proofs(
     let mut relay_bids = Vec::with_capacity(relays.len());
     let mut hash_to_proofs = HashMap::new();
 
-    // Get and remove the constraints for this slot
-    let maybe_constraints = state.data.constraints.remove(params.slot);
+    // Get the constraints for this slot
+    let maybe_constraints = state.data.constraints.get(params.slot);
 
     for (i, res) in results.into_iter().enumerate() {
         let relay_id = relays[i].id.as_ref();

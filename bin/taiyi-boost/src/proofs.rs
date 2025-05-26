@@ -172,7 +172,7 @@ mod tests {
         )
         .is_ok());
 
-        let constraints_cache = ConstraintsCache::new();
+        let constraints_cache = ConstraintsCache::default();
 
         // We know the inclusion proof is valid, now we start from scratch from a signed constraint
         // message

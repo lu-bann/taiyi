@@ -253,8 +253,6 @@ mod test {
         let extra_data_bytes = extra_data.as_bytes();
         assert_eq!(extra_data_bytes.len(), 20);
         assert_eq!(extra_data_bytes, DEFAULT_EXTRA_DATA);
-        // 0x4c6f63616c206275696c74206279205461697969
-        // println!("Local extra data: 0x{}", hex::encode(extra_data_bytes));
     }
 
     #[tokio::test]
