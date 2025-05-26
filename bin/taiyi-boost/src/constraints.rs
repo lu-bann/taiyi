@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use cb_common::pbs::RelayClient;
 use eyre::Result;
@@ -6,7 +6,7 @@ use futures::StreamExt;
 use parking_lot::RwLock;
 use reqwest_eventsource::{Event, EventSource};
 use scc::HashMap;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     ext::relay::RelayExt,
@@ -44,43 +44,68 @@ pub async fn subscribe_to_constraints_stream(
     relays: &[RelayClient],
 ) -> eyre::Result<()> {
     info!("Starting constraint subscriber");
-    let request =
-        relays.first().expect("Atleast one relay configured").constraint_stream_request()?;
-    let event_source = EventSource::new(request).unwrap_or_else(|err| {
-        panic!("Failed to create EventSource: {:?}", err);
-    });
+
+    let relay = relays.first().expect("At least one relay must be configured").clone();
 
     tokio::spawn(async move {
-        let mut event_source = event_source;
-        while let Some(event) = event_source.next().await {
-            match event {
-                Ok(Event::Message(message)) => {
-                    if message.event == "signed_constraint" {
-                        let data = &message.data;
-                        let received_constraints =
-                            serde_json::from_str::<Vec<SignedConstraints>>(data)
-                                .expect("at least one constraint");
+        let backoff = Duration::from_secs(4);
 
-                        info!("Received constraints: {:?}", received_constraints);
-
-                        // Insert the constraints into the cache
-                        for signed_constraint in received_constraints.into_iter() {
-                            if let Err(err) = constraints_cache.insert(signed_constraint.message) {
-                                error!("Failed to insert constraints into cache: {:?}", err);
+        loop {
+            match relay.constraint_stream_request() {
+                Ok(request) => {
+                    match EventSource::new(request) {
+                        Ok(mut event_source) => {
+                            while let Some(event_result) = event_source.next().await {
+                                match event_result {
+                                    Ok(Event::Message(message)) => {
+                                        if message.event == "signed_constraint" {
+                                            match serde_json::from_str::<Vec<SignedConstraints>>(
+                                                &message.data,
+                                            ) {
+                                                Ok(received_constraints) => {
+                                                    debug!(
+                                                        "Received constraints: {:?}",
+                                                        received_constraints
+                                                    );
+                                                    for signed_constraint in received_constraints {
+                                                        if let Err(err) = constraints_cache
+                                                            .insert(signed_constraint.message)
+                                                        {
+                                                            error!("constraints_cache insert error: {:?}", err);
+                                                        }
+                                                    }
+                                                }
+                                                Err(err) => {
+                                                    error!("Deserialization error: {:?}", err);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Ok(Event::Open) => {
+                                        debug!("SSE stream open");
+                                    }
+                                    Err(err) => {
+                                        error!("SSE stream error: {:?}", err);
+                                        // break the loop and reconnect after backoff
+                                        break;
+                                    }
+                                }
                             }
+
+                            info!("SSE stream ended. Reconnecting in {}s...", backoff.as_secs());
+                        }
+                        Err(err) => {
+                            error!("Failed to connect to SSE source: {:?}", err);
                         }
                     }
                 }
-                Ok(Event::Open) => {
-                    info!("SSE connection opened");
-                }
                 Err(err) => {
-                    error!("Error receiving SSE event: {:?}", err);
+                    error!("Failed to build constraint stream request: {:?}", err);
                 }
             }
-        }
 
-        info!("Stopping constraint subscriber");
+            tokio::time::sleep(backoff).await;
+        }
     });
 
     Ok(())
