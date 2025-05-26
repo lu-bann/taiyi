@@ -3,8 +3,6 @@ name = "taiyi-underwriter"
 version = { workspace = true }
 edition = { workspace = true }
 
-[lib]
-
 [dependencies]
 alloy-consensus = { workspace = true, features = ["kzg"] }
 alloy-contract = { workspace = true }

@@ -3,8 +3,6 @@ name = "taiyi-primitives"
 version = { workspace = true }
 edition = { workspace = true }
 
-[lib]
-
 [dependencies]
 alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }

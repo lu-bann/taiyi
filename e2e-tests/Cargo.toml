@@ -3,8 +3,6 @@ name = "taiyi-e2e-tests"
 version = { workspace = true }
 edition = { workspace = true }
 
-[lib]
-
 [features]
 generate-proof = []
 fraud-test = []
