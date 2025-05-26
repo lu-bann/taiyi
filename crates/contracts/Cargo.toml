@@ -3,11 +3,11 @@ name = "taiyi-contracts"
 version = { workspace = true }
 edition = { workspace = true }
 
+[lib]
+
 [dependencies]
 alloy-contract = { workspace = true }
 alloy-rpc-client = { workspace = true }
 alloy-sol-types = { workspace = true }
 
 [dev-dependencies]
-
-[lib]
