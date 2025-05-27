@@ -13,5 +13,6 @@ alloy-rlp = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-trie = { workspace = true }
 eth_trie = { workspace = true }
+eyre = { workspace = true }
 serde_json = { workspace = true }
 sp1-zkvm = { workspace = true }
