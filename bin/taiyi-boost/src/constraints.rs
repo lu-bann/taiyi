@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use cb_common::pbs::RelayClient;
 use eyre::Result;
@@ -48,8 +48,6 @@ pub async fn subscribe_to_constraints_stream(
     let relay = relays.first().expect("At least one relay must be configured").clone();
 
     tokio::spawn(async move {
-        let backoff = Duration::from_secs(4);
-
         loop {
             match relay.constraint_stream_request() {
                 Ok(request) => {
@@ -92,7 +90,7 @@ pub async fn subscribe_to_constraints_stream(
                                 }
                             }
 
-                            info!("SSE stream ended. Reconnecting in {}s...", backoff.as_secs());
+                            info!("SSE stream ended. Reconnecting instantly");
                         }
                         Err(err) => {
                             error!("Failed to connect to SSE source: {:?}", err);
@@ -103,8 +101,6 @@ pub async fn subscribe_to_constraints_stream(
                     error!("Failed to build constraint stream request: {:?}", err);
                 }
             }
-
-            tokio::time::sleep(backoff).await;
         }
     });
 
