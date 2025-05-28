@@ -112,22 +112,12 @@ async fn main() -> eyre::Result<()> {
     let beacon_url_head_event =
         format!("{}eth/v1/events?topics=head", beacon_client.endpoint.as_str());
 
-    let mut request_store = HashMap::new();
-
     // Query available slots and filter out the past slots
     let mut slots = http_client.slots().await?.iter().map(|slot| slot.slot).collect::<Vec<_>>();
     let head_slot = beacon_client.get_sync_status().await?.head_slot;
     info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
     slots.retain(|slot| *slot > head_slot);
     info!("Available slots: {:?}", slots.len());
-
-    // Send reserve blockspace requests for the slots
-    for slot in slots {
-        // info!("Reserving blockspace for slot: {:?}", slot);
-        // let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
-        // info!("Request ID: {:?}", request_id);
-        request_store.insert(slot, Uuid::new_v4());
-    }
 
     info!("Starts to subscribe to {}", beacon_url_head_event);
     let mut stream: mev_share_sse::client::EventStream<HeadEvent> =
@@ -136,49 +126,24 @@ async fn main() -> eyre::Result<()> {
     while let Some(event) = stream.try_next().await? {
         let slot = event.slot;
         info!("Head Slot: {:?}", slot);
-        let epoch = slot / EPOCH_SLOTS;
         let next_slot = slot + 1;
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        if slots.is_empty() {
+            info!("No more slots to process, exiting.");
+            break;
+        }
 
-        let account_nonce = provider.get_transaction_count(signer.address()).await?;
-        info!("Submitting transactions for next slot: {:?}", next_slot);
+        if slots.contains(&next_slot) {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
-        if request_store.contains_key(&next_slot) {
-            if opts.preconf_type == 0 {
-                let data = http_client
-                    .submit_transaction_type_b(
-                        *request_store.get(&next_slot).unwrap(),
-                        account_nonce,
-                        chain_id,
-                    )
-                    .await?;
-                let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-                info!("Commitment type b: {:?}", format!("0x{}", commitment));
-            }
+            let account_nonce = provider.get_transaction_count(signer.address()).await?;
+            info!("Submitting transactions for next slot: {:?}", next_slot);
 
             let data =
                 http_client.submit_type_a_request(next_slot, account_nonce, chain_id).await?;
             let commitment = hex::encode(data.commitment.unwrap().as_bytes());
             info!("Commitment type a: {:?}", format!("0x{}", commitment));
             info!("Sequence Number: {:?}", data.sequence_num.unwrap());
-        }
-
-        if event.epoch_transition {
-            info!("Epoch changed to: {:?}, querying underwriter for available slots..", epoch);
-            let mut slots = http_client.slots().await?;
-            let head_slot = beacon_client.get_sync_status().await?.head_slot;
-            info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
-            slots.retain(|slot| slot.slot > head_slot);
-            info!("Available slots: {:?}", slots.len());
-
-            for slot in slots {
-                // info!("Reserving blockspace for slot: {:?}", slot.slot);
-                // let request_id =
-                //     http_client.reserve_blockspace(slot.slot, opts.taiyi_core_address).await?;
-                // info!("Request ID: {:?}", request_id);
-                request_store.insert(slot.slot, Uuid::new_v4());
-            }
         }
     }
 
