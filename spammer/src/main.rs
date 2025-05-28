@@ -158,7 +158,7 @@ async fn main() -> eyre::Result<()> {
             }
 
             let data =
-                http_client.submit_type_a_request(next_slot, account_nonce + 1, chain_id).await?;
+                http_client.submit_type_a_request(next_slot, account_nonce, chain_id).await?;
             let commitment = hex::encode(data.commitment.unwrap().as_bytes());
             info!("Commitment type a: {:?}", format!("0x{}", commitment));
             info!("Sequence Number: {:?}", data.sequence_num.unwrap());
