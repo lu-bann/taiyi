@@ -67,6 +67,7 @@ async fn main() -> eyre::Result<()> {
 
     let opts = Opts::parse();
     let signer: PrivateKeySigner = opts.private_key.parse()?;
+    info!("Using signer: {:?}", signer.address());
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
         .on_http(opts.execution_client_url.parse()?);
