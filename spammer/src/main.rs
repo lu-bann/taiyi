@@ -18,6 +18,7 @@ use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::http::HttpClient;
 
@@ -43,6 +44,10 @@ struct Opts {
     /// Taiyi core contract address
     #[clap(long = "taiyi_core_address")]
     taiyi_core_address: Address,
+
+    /// 0 => both, 1 => type a
+    #[clap(long = "preconf_type")]
+    preconf_type: u8,
 }
 
 sol! {
@@ -67,25 +72,38 @@ async fn main() -> eyre::Result<()> {
         .on_http(opts.execution_client_url.parse()?);
     let chain_id = provider.get_chain_id().await?;
 
-    // Deposit into TaiyiCore
-    // let contract_address = opts.taiyi_core_address;
-    // let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
-    // let account_nonce = provider.get_transaction_count(signer.address()).await?;
-    // info!("Account Nonce: {:?}", account_nonce);
+    if opts.preconf_type == 0 {
+        // Fund the escrow contract if low on balance
+        let taiyi_core_address = opts.taiyi_core_address;
+        let taiyi_core = TaiyiEscrow::new(taiyi_core_address, provider.clone());
+        let balance = taiyi_core.balanceOf(signer.address()).call().await?._0;
+        info!("Taiyi Core balance: {:?}", balance);
 
-    // let tx = taiyi_escrow
-    //     .deposit()
-    //     .value(U256::from(1_000_000_000_000_000_000u128))
-    //     .into_transaction_request()
-    //     .with_chain_id(chain_id)
-    //     .with_gas_limit(100_000)
-    //     .with_max_fee_per_gas(1000000010)
-    //     .with_max_priority_fee_per_gas(1000000000)
-    //     .with_nonce(account_nonce);
-    // let pending_tx = provider.send_transaction(tx).await?;
-    // info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
-    // let receipt = pending_tx.get_receipt().await?;
-    // info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+        if balance < U256::from(1_000_000_000_000_000_000u128) {
+            info!("Funding escrow contract with 1 ETH");
+            // Deposit into TaiyiCore
+            let contract_address = opts.taiyi_core_address;
+            let taiyi_escrow = TaiyiEscrow::new(contract_address, provider.clone());
+            let account_nonce = provider.get_transaction_count(signer.address()).await?;
+            info!("Account Nonce: {:?}", account_nonce);
+
+            let tx = taiyi_escrow
+                .deposit()
+                .value(U256::from(1_000_000_000_000_000_000u128))
+                .into_transaction_request()
+                .with_chain_id(chain_id)
+                .with_gas_limit(100_000)
+                .with_max_fee_per_gas(1000000010)
+                .with_max_priority_fee_per_gas(1000000000)
+                .with_nonce(account_nonce);
+            let pending_tx = provider.send_transaction(tx).await?;
+            info!("Deposit Transaction sent: {:?}", pending_tx.tx_hash());
+            let receipt = pending_tx.get_receipt().await?;
+            info!("Deposit Transaction mined in block: {:?}", receipt.block_number.unwrap());
+        } else {
+            info!("Escrow contract has sufficient balance");
+        }
+    }
 
     let http_client = HttpClient::new(opts.underwriter_url.parse()?, signer.clone(), chain_id);
     let beacon_client = BeaconClient::new(opts.beacon_client_url.parse::<Url>()?);
@@ -105,10 +123,10 @@ async fn main() -> eyre::Result<()> {
 
     // Send reserve blockspace requests for the slots
     for slot in slots {
-        info!("Reserving blockspace for slot: {:?}", slot);
-        let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
-        info!("Request ID: {:?}", request_id);
-        request_store.insert(slot, request_id);
+        // info!("Reserving blockspace for slot: {:?}", slot);
+        // let request_id = http_client.reserve_blockspace(slot, opts.taiyi_core_address).await?;
+        // info!("Request ID: {:?}", request_id);
+        request_store.insert(slot, Uuid::new_v4());
     }
 
     info!("Starts to subscribe to {}", beacon_url_head_event);
@@ -127,15 +145,17 @@ async fn main() -> eyre::Result<()> {
         info!("Submitting transactions for next slot: {:?}", next_slot);
 
         if request_store.contains_key(&next_slot) {
-            let data = http_client
-                .submit_transaction_type_b(
-                    *request_store.get(&next_slot).unwrap(),
-                    account_nonce,
-                    chain_id,
-                )
-                .await?;
-            let commitment = hex::encode(data.commitment.unwrap().as_bytes());
-            info!("Commitment type b: {:?}", format!("0x{}", commitment));
+            if opts.preconf_type == 0 {
+                let data = http_client
+                    .submit_transaction_type_b(
+                        *request_store.get(&next_slot).unwrap(),
+                        account_nonce,
+                        chain_id,
+                    )
+                    .await?;
+                let commitment = hex::encode(data.commitment.unwrap().as_bytes());
+                info!("Commitment type b: {:?}", format!("0x{}", commitment));
+            }
 
             let data =
                 http_client.submit_type_a_request(next_slot, account_nonce + 1, chain_id).await?;
@@ -153,11 +173,11 @@ async fn main() -> eyre::Result<()> {
             info!("Available slots: {:?}", slots.len());
 
             for slot in slots {
-                info!("Reserving blockspace for slot: {:?}", slot.slot);
-                let request_id =
-                    http_client.reserve_blockspace(slot.slot, opts.taiyi_core_address).await?;
-                info!("Request ID: {:?}", request_id);
-                request_store.insert(slot.slot, request_id);
+                // info!("Reserving blockspace for slot: {:?}", slot.slot);
+                // let request_id =
+                //     http_client.reserve_blockspace(slot.slot, opts.taiyi_core_address).await?;
+                // info!("Request ID: {:?}", request_id);
+                request_store.insert(slot.slot, Uuid::new_v4());
             }
         }
     }
