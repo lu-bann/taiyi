@@ -211,11 +211,10 @@ async fn get_header_with_proofs(
                 // If we have constraints to verify, do that here in order to validate the bid
                 if let Some(ref constraints) = maybe_constraints {
                     // Verify the multiproofs and continue if not valid
-                    // TODO: Uncomment this later after fixing the verify_multiproofs function in rbuilder and helix
-                    // if let Err(e) = verify_multiproofs(&constraints.1, &res.proofs, root) {
-                    //     error!(?e, relay_id, "Failed to verify multiproof, skipping bid");
-                    //     continue;
-                    // }
+                    if let Err(e) = verify_multiproofs(constraints, &res.proofs, root) {
+                        error!(?e, relay_id, "Failed to verify multiproof, skipping bid");
+                        continue;
+                    }
 
                     tracing::debug!("Verified multiproof in {:?}", start.elapsed());
 
