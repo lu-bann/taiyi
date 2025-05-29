@@ -3,13 +3,16 @@ name = "taiyi-primitives"
 version = { workspace = true }
 edition = { workspace = true }
 
+[features]
+ethereum-consensus = ["dep:ethereum-consensus"]
+
 [dependencies]
 alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 derive_more = { workspace = true }
-ethereum-consensus = { workspace = true }
+ethereum-consensus = { workspace = true, optional = true }
 serde = { workspace = true }
 sha2 = { workspace = true }
 ssz_rs = { workspace = true }

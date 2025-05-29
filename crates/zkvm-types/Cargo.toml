@@ -5,11 +5,11 @@ edition = { workspace = true }
 
 [dependencies]
 alloy-consensus = { workspace = true }
-alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 serde = { workspace = true }
 ssz_rs = { workspace = true }
 thiserror = { workspace = true }
+taiyi-primitives = { workspace = true }
 
 [lib]

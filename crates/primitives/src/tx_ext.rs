@@ -1,6 +1,7 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use ethereum_consensus::{deneb::mainnet::MAX_BYTES_PER_TRANSACTION, ssz::prelude::ByteList};
+
 pub trait TxExt {
     fn to_ssz_bytes(&self) -> ByteList<MAX_BYTES_PER_TRANSACTION>;
 }

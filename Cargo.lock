@@ -9586,11 +9586,11 @@ name = "taiyi-zkvm-types"
 version = "0.1.6"
 dependencies = [
  "alloy-consensus 0.12.6",
- "alloy-eips 0.12.6",
  "alloy-primitives 0.8.25",
  "alloy-sol-types",
  "serde",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
+ "taiyi-primitives",
  "thiserror 2.0.12",
 ]
 
