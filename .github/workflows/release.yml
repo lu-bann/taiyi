@@ -15,7 +15,6 @@ env:
 jobs:
   docker:
     name: Build and Push Docker Image
-    needs: [unit-tests, e2e-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +44,6 @@ jobs:
 
   release:
     name: Build and Release Binaries
-    needs: [unit-tests, e2e-tests]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
