@@ -13,12 +13,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  unit-tests:
-    uses: lu-bann/taiyi/.github/workflows/ci.yml@dev
-
-  e2e-tests:
-    uses: lu-bann/taiyi/.github/workflows/e2e-tests.yml@dev
-
   docker:
     name: Build and Push Docker Image
     needs: [unit-tests, e2e-tests]
