@@ -14,5 +14,3 @@ serde = { workspace = true }
 sha2 = { workspace = true }
 ssz_rs = { workspace = true }
 uuid = { workspace = true }
-
-[lib]

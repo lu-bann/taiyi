@@ -7,7 +7,3 @@ edition = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-rpc-client = { workspace = true }
 alloy-sol-types = { workspace = true }
-
-[dev-dependencies]
-
-[lib]

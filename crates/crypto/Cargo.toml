@@ -12,7 +12,3 @@ eyre = { workspace = true }
 hex-literal = { workspace = true }
 taiyi-contracts = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-
-[lib]
