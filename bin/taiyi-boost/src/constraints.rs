@@ -44,7 +44,7 @@ impl ConstraintsCache {
         cache
     }
 
-    /// Insert if not already seen. Returns true if inserted.
+    /// Insert if not already seen
     pub fn insert(&self, message: ConstraintsMessage) -> Result<(), ConstraintCacheError> {
         let hash = message.hash();
         let now = Instant::now();
