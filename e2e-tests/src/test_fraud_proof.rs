@@ -15,13 +15,12 @@ use sp1_sdk::{
     include_elf, network::FulfillmentStrategy, HashableKey, Prover, ProverClient, SP1Proof,
     SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
-use taiyi_primitives::PreconfResponseData;
+use taiyi_primitives::{
+    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData,
+};
 use taiyi_underwriter::{context_ext::ContextExt, TaiyiCore};
 use taiyi_zkvm_types::{
-    types::{
-        AccountMerkleProof, BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB,
-        PreconfTypeA, PreconfTypeB, TxMerkleProof,
-    },
+    types::{AccountMerkleProof, PreconfTypeA, PreconfTypeB, TxMerkleProof},
     utils::PublicValuesStruct,
 };
 use tracing::info;
@@ -290,10 +289,11 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // preconf type a
     let preconf_a = PreconfRequestTypeA {
         tip_transaction: tip_transaction.clone().into(),
-        transactions: vec![user_transaction.clone().into()],
+        preconf_tx: vec![user_transaction.clone().into()],
         target_slot,
         sequence_number: Some(1),
         signer: signer.address(),
+        preconf_fee: fee.clone(),
     };
 
     let preconf_type_a = PreconfTypeA {
@@ -604,10 +604,11 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // preconf type a
     let preconf_a = PreconfRequestTypeA {
         tip_transaction: tip_transaction.clone().into(),
-        transactions: user_transactions.iter().map(|tx| tx.clone().into()).collect(),
+        preconf_tx: user_transactions.iter().map(|tx| tx.clone().into()).collect(),
         target_slot,
         sequence_number: Some(1),
         signer: signer.address(),
+        preconf_fee: fee.clone(),
     };
 
     let preconf_type_a = PreconfTypeA {
@@ -814,9 +815,15 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
 
     // Generate request and signature
-    let (request, signature) =
-        generate_reserve_blockspace_request(signer.clone(), target_slot, 21_0000, 0, fee, chain_id)
-            .await;
+    let (request, signature) = generate_reserve_blockspace_request(
+        signer.clone(),
+        target_slot,
+        21_0000,
+        0,
+        fee.clone(),
+        chain_id,
+    )
+    .await;
 
     info!("Submitting request for target slot: {:?}", target_slot);
 
@@ -990,6 +997,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
                 .blobCount
                 .try_into()
                 .unwrap(),
+            preconf_fee: fee.clone(),
         },
         alloc_sig: PrimitiveSignature::from_str(
             &get_tip_call.preconfRequestBType.blockspaceAllocationSignature.to_string(),

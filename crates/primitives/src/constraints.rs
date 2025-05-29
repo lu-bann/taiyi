@@ -6,7 +6,9 @@ use ethereum_consensus::{
     ssz::prelude::List,
 };
 use sha2::{Digest, Sha256};
+
 pub const MAX_CONSTRAINTS_PER_SLOT: usize = 256;
+
 /// Trait for any types that can be signed and verified with BLS.
 /// This trait is used to abstract over the signing and verification of different types.
 pub trait SignableBLS {

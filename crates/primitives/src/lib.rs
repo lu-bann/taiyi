@@ -1,11 +1,14 @@
+#[cfg(feature = "ethereum-consensus")]
 mod constraints;
 mod preconf_fee;
 mod preconf_request;
 mod preconf_request_type_a;
 mod preconf_request_type_b;
 mod preconf_response;
+#[cfg(feature = "ethereum-consensus")]
 mod tx_ext;
 
+#[cfg(feature = "ethereum-consensus")]
 pub use constraints::{ConstraintsMessage, SignableBLS, SignedConstraints};
 pub use preconf_fee::PreconfFeeResponse;
 pub use preconf_request::PreconfRequest;
@@ -23,4 +26,5 @@ pub struct SlotInfo {
     pub blobs_available: usize,
     pub constraints_available: u32,
 }
+#[cfg(feature = "ethereum-consensus")]
 pub use tx_ext::TxExt;
