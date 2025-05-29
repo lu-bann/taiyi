@@ -13,12 +13,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  unit-tests:
-    uses: lu-bann/taiyi/.github/workflows/ci.yml@dev
-
-  e2e-tests:
-    uses: lu-bann/taiyi/.github/workflows/e2e-tests.yml@dev
-
   docker:
     name: Build and Push Docker Image
     needs: [unit-tests, e2e-tests]
@@ -88,7 +82,7 @@ jobs:
             cp target/${{ matrix.target }}/release/taiyi-cli release/taiyi-cli-${{ matrix.target }}
           fi
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: taiyi-${{ github.sha }}
           path: release/*
@@ -101,7 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: taiyi-${{ github.sha }}
           path: artifacts
