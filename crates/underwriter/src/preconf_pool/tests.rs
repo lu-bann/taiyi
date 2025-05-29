@@ -105,9 +105,7 @@ mod tests {
             signer: *sender,
         };
 
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -170,9 +168,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: *sender,
         };
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_ok());
@@ -234,9 +230,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: *sender,
         };
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         info!("Validation result: {:?}", validation_result);
 
         assert!(validation_result.is_err());
@@ -287,9 +281,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: *sender,
         };
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -340,9 +332,7 @@ mod tests {
             signer: *sender,
         };
 
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         assert!(validation_result.is_err());
         Ok(())
     }
@@ -413,9 +403,7 @@ mod tests {
             transaction: Some(transaction.clone()),
             signer: *sender,
         };
-        let account_state =
-            preconf_pool.validator.execution_client.get_account_state(*sender).await?;
-        let validation_result = preconf_pool.validate_typeb(&preconf_request, &account_state).await;
+        let validation_result = preconf_pool.validate_typeb(&preconf_request);
         assert!(validation_result.is_err());
         Ok(())
     }

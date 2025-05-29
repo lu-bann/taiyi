@@ -168,9 +168,7 @@ impl PreconfPool {
         request_id: Uuid,
         preconf_fee: PreconfFeeResponse,
     ) -> Result<PreconfRequest, PoolError> {
-        let mut account_state = self.state_cache.read().get(&preconf_request.signer()).cloned();
-
-        if account_state.is_none() {
+        if self.state_cache.read().get(&preconf_request.signer()).is_none() {
             let state = self
                 .validator
                 .execution_client
@@ -179,23 +177,16 @@ impl PreconfPool {
                 .map_err(|_| ValidationError::AccountStateNotFound(preconf_request.signer()))?;
 
             self.state_cache.write().insert(preconf_request.signer(), state.clone());
-            account_state = Some(state);
         }
 
         match preconf_request {
             PreconfRequest::TypeA(preconf_request) => {
-                self.validate_typea(
-                    &preconf_request,
-                    &account_state.expect("can't be none"),
-                    preconf_fee,
-                )
-                .await?;
+                self.validate_typea(&preconf_request, preconf_fee)?;
                 Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
             }
             PreconfRequest::TypeB(preconf_request) => {
                 if preconf_request.transaction.is_some() {
-                    self.validate_typeb(&preconf_request, &account_state.expect("can't be none"))
-                        .await?;
+                    self.validate_typeb(&preconf_request)?;
                     // Move the request from pending to ready pool
                     self.delete_pending(request_id);
                     Ok(self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request)))
@@ -229,10 +220,9 @@ impl PreconfPool {
         }
     }
 
-    async fn validate_typea(
+    fn validate_typea(
         &self,
         preconf_request: &PreconfRequestTypeA,
-        account_state: &AccountState,
         preconf_fee: PreconfFeeResponse,
     ) -> eyre::Result<(), ValidationError> {
         // Tip transaction must be an ETH transfer
@@ -257,7 +247,7 @@ impl PreconfPool {
         }
 
         {
-            let pool_inner = self.pool_inner.write();
+            let pool_inner = self.pool_inner.read();
 
             let blockspace_avail =
                 match pool_inner.blockspace_issued.get(&preconf_request.target_slot()) {
@@ -291,6 +281,10 @@ impl PreconfPool {
             ));
         }
 
+        let mut cache = self.state_cache.write();
+        let account_state = cache
+            .get(&preconf_request.signer())
+            .expect("account state should be cached before validation");
         // State validation
         let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
@@ -332,29 +326,28 @@ impl PreconfPool {
             }
         }
 
+        let balance = account_balance - total_value;
+        let nonce = account_nonce + preconf_request.preconf_tx.len() as u64 + 1;
         // Update state cache
-        self.state_cache.write().insert(
-            preconf_request.signer(),
-            AccountState {
-                balance: account_balance - total_value,
-                nonce: account_nonce + preconf_request.preconf_tx.len() as u64 + 1,
-            },
-        );
+        cache.insert(preconf_request.signer(), AccountState { balance, nonce });
 
         Ok(())
     }
 
     // NOTE: only checks account balance and nonce
-    async fn validate_typeb(
+    fn validate_typeb(
         &self,
         preconf_request: &PreconfRequestTypeB,
-        account_state: &AccountState,
     ) -> eyre::Result<(), ValidationError> {
         let transaction = match preconf_request.transaction.clone() {
             Some(transaction) => transaction,
             None => return Err(ValidationError::TransactionNotFound),
         };
 
+        let mut cache = self.state_cache.write();
+        let account_state = cache
+            .get(&preconf_request.signer())
+            .expect("account state should be cached before validation in typeb");
         let account_balance = account_state.balance;
         let account_nonce = account_state.nonce;
 
@@ -401,7 +394,7 @@ impl PreconfPool {
         }
 
         // Update state cache
-        self.state_cache.write().insert(
+        cache.insert(
             preconf_request.signer(),
             AccountState { balance: account_balance - cost, nonce: account_nonce + 1 },
         );
