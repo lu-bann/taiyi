@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use builder::{SidecarBuilderApi, SidecarBuilderState};
 use commit_boost::prelude::{load_pbs_custom_config, PbsService, PbsState};
 use constraints::subscribe_to_constraints_stream;
@@ -18,6 +20,8 @@ mod proofs;
 mod types;
 mod utils;
 
+pub use types::ConstraintsMessage;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>().await?;
@@ -26,8 +30,8 @@ async fn main() -> Result<()> {
     let sidecar_state = SidecarBuilderState::new(&extra).await;
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state.clone());
 
-    subscribe_to_constraints_stream(sidecar_state.constraints.clone(), pbs_state.all_relays())
-        .await?;
+    let constraints_cache = Arc::new(sidecar_state.constraints.clone());
+    subscribe_to_constraints_stream(constraints_cache, pbs_state.all_relays().to_vec()).await?;
 
     metrics::init_metrics(pbs_config.chain)?;
 

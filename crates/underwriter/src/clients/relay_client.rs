@@ -11,12 +11,6 @@ use tracing::{debug, error};
 
 use crate::{PATH_BUILDER_API, PATH_BUILDER_DELEGATIONS};
 
-#[derive(Clone)]
-pub struct RelayClient {
-    client: reqwest::Client,
-    urls: Vec<Url>,
-}
-
 /// The action type for a delegation message.
 pub const DELEGATION_ACTION: u8 = 0;
 
@@ -36,6 +30,12 @@ pub struct DelegationMessage {
     pub action: u8,
     pub validator_pubkey: BlsPublicKey,
     pub delegatee_pubkey: BlsPublicKey,
+}
+
+#[derive(Clone)]
+pub struct RelayClient {
+    client: reqwest::Client,
+    urls: Vec<Url>,
 }
 
 impl RelayClient {

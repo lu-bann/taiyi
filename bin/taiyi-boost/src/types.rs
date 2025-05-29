@@ -1,5 +1,10 @@
-use std::{fmt::Debug, ops::Deref};
+use std::{
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    ops::Deref,
+};
 
+use ahash::AHasher;
 use alloy_consensus::{
     Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
 };
@@ -79,7 +84,6 @@ pub struct ConstraintsMessage {
     pub transactions: Vec<Bytes>,
 }
 
-#[allow(unused)]
 impl ConstraintsMessage {
     /// Returns the digest of this message.
     pub fn digest(&self) -> Eip2718Result<[u8; 32]> {
@@ -94,6 +98,20 @@ impl ConstraintsMessage {
         }
 
         Ok(hasher.finalize().into())
+    }
+
+    pub fn hash(&self) -> u64 {
+        let mut hasher = AHasher::default();
+
+        self.pubkey.hash(&mut hasher);
+        self.slot.hash(&mut hasher);
+        self.top.hash(&mut hasher);
+
+        for tx in &self.transactions {
+            tx.hash(&mut hasher);
+        }
+
+        hasher.finish()
     }
 }
 
