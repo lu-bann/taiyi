@@ -35,20 +35,21 @@ pub struct DelegationMessage {
 #[derive(Clone)]
 pub struct RelayClient {
     client: reqwest::Client,
-    urls: Vec<Url>,
+    url: Url,
 }
 
 impl RelayClient {
-    pub fn new(relay_urls: Vec<Url>) -> Self {
-        Self { client: reqwest::Client::new(), urls: relay_urls }
+    pub fn new(relay_url: Url) -> Self {
+        Self { client: reqwest::Client::new(), url: relay_url }
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.url
     }
 
     pub async fn get_delegations(&self, slot: u64) -> eyre::Result<Vec<SignedDelegation>> {
-        let url = self
-            .urls
-            .first()
-            .expect("relay")
-            .join(format!("{PATH_BUILDER_API}{PATH_BUILDER_DELEGATIONS}").as_str())?;
+        let url =
+            self.url.join(format!("{PATH_BUILDER_API}{PATH_BUILDER_DELEGATIONS}").as_str())?;
         let response = self.client.get(url).query(&[("slot", slot)]).send().await?;
         let body = response.text().await?;
         let delegation = serde_json::from_str::<Vec<SignedDelegation>>(&body)?;
@@ -56,7 +57,7 @@ impl RelayClient {
     }
 
     pub async fn set_constraints(&self, constraints: Vec<SignedConstraints>) -> eyre::Result<()> {
-        let url = self.urls.first().expect("relay").join("/constraints/v1/builder/constraints")?;
+        let url = self.url.join("/constraints/v1/builder/constraints")?;
 
         let response = self.client.post(url.clone()).json(&constraints).send().await?;
         let code = response.status();
@@ -76,7 +77,7 @@ impl RelayClient {
     /// Calls /relay/v1/builder/validators to get "validator registrations for validators scheduled to propose in the current and next epoch."
     /// The result will contain the validators for each slot.
     pub async fn get_current_epoch_validators(&self) -> eyre::Result<Vec<ValidatorSlotData>> {
-        let url = self.urls.first().expect("relay").join("/relay/v1/builder/validators")?;
+        let url = self.url.join("/relay/v1/builder/validators")?;
         let req = self.client.get(url);
         let validators = req.send().await?.json::<Vec<ValidatorSlotData>>().await?;
         Ok(validators)
@@ -130,17 +131,5 @@ mod tests {
             },
             "signature": "0xb067c33c6b8018086ba0b294e069063d185a01116475caa6e4cf36d08d62422ad68ef83ec0b01b4e13dfd95a914f2ed50301e1bfd945d0339b11a0330b06bd532a8bb9cd8017452e1f44f7c64c1ab4888266e87f99c916c90d5fd95614b0dfc4"
         }]"#
-    }
-
-    #[tokio::test]
-    #[ignore = "devnet is down"]
-    async fn test_get_current_epoch_validators() -> eyre::Result<()> {
-        let relay_clinet = RelayClient::new(vec![reqwest::Url::parse(
-            "https://relay.taiyi-devnet-0.preconfs.org",
-        )
-        .unwrap()]);
-        let res = relay_clinet.get_current_epoch_validators().await;
-        assert!(res.is_ok());
-        Ok(())
     }
 }

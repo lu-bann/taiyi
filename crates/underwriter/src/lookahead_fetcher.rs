@@ -4,6 +4,7 @@ use alloy_eips::merge::EPOCH_SLOTS;
 use alloy_rpc_types_beacon::events::HeadEvent;
 use blst::min_pk::PublicKey;
 use ethereum_consensus::primitives::BlsPublicKey;
+use eyre::Result;
 use futures::TryStreamExt;
 use mev_share_sse::EventClient;
 use reqwest::Url;
@@ -11,7 +12,8 @@ use taiyi_beacon_client::BeaconClient;
 use tracing::{debug, info};
 
 use crate::{
-    clients::relay_client::{RelayClient, DELEGATION_ACTION},
+    clients::relay_client::{self, RelayClient, ValidatorSlotData, DELEGATION_ACTION},
+    error,
     network_state::NetworkState,
 };
 
@@ -19,7 +21,7 @@ pub struct LookaheadFetcher {
     beacon_client: BeaconClient,
     network_state: NetworkState,
     underwriter_pubkey: BlsPublicKey,
-    relay_client: RelayClient,
+    relay_clients: Vec<RelayClient>,
 }
 
 impl LookaheadFetcher {
@@ -31,6 +33,8 @@ impl LookaheadFetcher {
     ) -> Self {
         let underwriter_pubkey = BlsPublicKey::try_from(underwriter_pubkey.to_bytes().as_ref())
             .expect("Invalid public key");
+        let relay_clients = relay_urls.into_iter().map(RelayClient::new).collect::<Vec<_>>();
+
         Self {
             beacon_client: BeaconClient::new(
                 Url::parse(&beacon_rpc_url).expect("Invalid URL"),
@@ -38,11 +42,11 @@ impl LookaheadFetcher {
             ),
             network_state,
             underwriter_pubkey,
-            relay_client: RelayClient::new(relay_urls),
+            relay_clients,
         }
     }
 
-    pub async fn initialze(&mut self) -> eyre::Result<()> {
+    pub async fn initialze(&mut self) -> Result<()> {
         let slot = self.beacon_client.get_head_slot().await?;
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
@@ -53,37 +57,60 @@ impl LookaheadFetcher {
         self.network_state.update_slot(slot);
 
         // Update the fee recipients for the current epoch
-        let fee_recipients = self.relay_client.get_current_epoch_validators().await?;
+        let fee_recipients = self.get_current_epoch_validators().await?;
         self.network_state.update_fee_recipients(fee_recipients);
         Ok(())
     }
 
-    /// Fetch delegation for slots from the present epoch
-    /// Note: Only called once on initialization
-    async fn get_delegation_for_current_epoch(
-        &mut self,
-        epoch: u64,
-        head_slot: u64,
-    ) -> eyre::Result<()> {
-        // Fetch delegations for remaining slots in the given epoch
-        for slot in head_slot + 1..((epoch + 1) * self.network_state.context.slots_per_epoch) {
-            let res = self.relay_client.get_delegations(slot).await;
-            match res {
-                Ok(signed_delegations) => {
-                    'delegation_loop: for signed_delegation in signed_delegations {
-                        let delegation_message = signed_delegation.message;
-                        if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
-                        {
-                            info!("Delegation to underwriter found for slot: {}", slot);
-                            self.network_state.add_slot(slot);
-                            break 'delegation_loop;
+    pub async fn get_current_epoch_validators(&self) -> Result<Vec<ValidatorSlotData>> {
+        let mut validator_data = Vec::new();
+        let mut known_slots = Vec::new();
+        for relay_client in self.relay_clients.iter() {
+            match relay_client.get_current_epoch_validators().await {
+                Ok(validators) => {
+                    for validator in validators {
+                        let slot = validator.slot;
+                        if !known_slots.contains(&slot) {
+                            validator_data.push(validator);
+                            known_slots.push(slot);
                         }
                     }
                 }
                 Err(e) => {
-                    // when there is no delegations for the slot, relay would return error
-                    debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
+                    debug!(
+                        relay_url = relay_client.url().as_str(),
+                        err = %e,
+                        "Failed to fetch current epoch validators from relay"
+                    )
+                }
+            }
+        }
+        Ok(validator_data)
+    }
+
+    /// Fetch delegation for slots from the present epoch
+    /// Note: Only called once on initialization
+    async fn get_delegation_for_current_epoch(&mut self, epoch: u64, head_slot: u64) -> Result<()> {
+        // Fetch delegations for remaining slots in the given epoch
+        for slot in head_slot + 1..((epoch + 1) * self.network_state.context.slots_per_epoch) {
+            'relay_loop: for relay_client in self.relay_clients.iter() {
+                match relay_client.get_delegations(slot).await {
+                    Ok(signed_delegations) => {
+                        for signed_delegation in signed_delegations {
+                            let delegation_message = signed_delegation.message;
+                            if delegation_message.action == DELEGATION_ACTION
+                                && delegation_message.delegatee_pubkey == self.underwriter_pubkey
+                            {
+                                info!("Delegation to underwriter found for slot: {}", slot);
+                                self.network_state.add_slot(slot);
+                                break 'relay_loop;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // when there is no delegations for the slot, relay would return error
+                        debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
+                    }
                 }
             }
         }
@@ -97,23 +124,24 @@ impl LookaheadFetcher {
         for slot in (epoch * self.network_state.context.slots_per_epoch)
             ..((epoch + 1) * self.network_state.context.slots_per_epoch)
         {
-            let res = self.relay_client.get_delegations(slot).await;
-            match res {
-                Ok(signed_delegations) => {
-                    'delegation_loop: for signed_delegation in signed_delegations {
-                        let delegation_message = signed_delegation.message;
-                        if delegation_message.action == DELEGATION_ACTION
-                            && delegation_message.delegatee_pubkey == self.underwriter_pubkey
-                        {
-                            info!("Delegation to underwriter found for slot: {}", slot);
-                            self.network_state.add_slot(slot);
-                            break 'delegation_loop;
+            'relay_loop: for relay_client in self.relay_clients.iter() {
+                match relay_client.get_delegations(slot).await {
+                    Ok(signed_delegations) => {
+                        for signed_delegation in signed_delegations {
+                            let delegation_message = signed_delegation.message;
+                            if delegation_message.action == DELEGATION_ACTION
+                                && delegation_message.delegatee_pubkey == self.underwriter_pubkey
+                            {
+                                info!("Delegation to underwriter found for slot: {}", slot);
+                                self.network_state.add_slot(slot);
+                                break 'relay_loop;
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    // when there is no delegations for the slot, relay would return error
-                    debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
+                    Err(e) => {
+                        // when there is no delegations for the slot, relay would return error
+                        debug!("Could not fetch delegations for slot: {}, error: {}", slot, e);
+                    }
                 }
             }
         }
@@ -146,7 +174,7 @@ impl LookaheadFetcher {
                 self.get_delegation_for(new_epoch + 1).await?;
 
                 // Update the fee recipients for the new epoch
-                let fee_recipients = self.relay_client.get_current_epoch_validators().await?;
+                let fee_recipients = self.get_current_epoch_validators().await?;
                 self.network_state.update_fee_recipients(fee_recipients);
             }
             self.network_state.update_slot(new_slot);
