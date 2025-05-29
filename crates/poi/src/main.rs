@@ -44,7 +44,7 @@ pub fn main() {
     let preconf_signature = PrimitiveSignature::from_str(&preconf_signature).unwrap();
     if is_type_a {
         let preconf_req_a = serde_json::from_str::<PreconfTypeA>(&preconf).unwrap();
-        let txs = preconf_req_a.preconf.clone().transactions;
+        let txs = preconf_req_a.preconf.clone().preconf_tx;
 
         let chain_id = txs.first().unwrap().chain_id().unwrap();
 
