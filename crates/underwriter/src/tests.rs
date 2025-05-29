@@ -31,7 +31,6 @@ use uuid::Uuid;
 use crate::{
     clients::{
         pricer::{ExecutionClientPricer, Pricer},
-        relay_client::RelayClient,
         signer_client::SignerClient,
     },
     network_state::NetworkState,
@@ -70,8 +69,6 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
         network_state.add_slot(slot);
     }
 
-    let relay_client = RelayClient::new(vec![]);
-
     let bls_sk = "4bd1960f5721d636400cb9dff7d17d5cfcc155f113280b8b9158596e2c0084ce".to_string();
     let ecdsa_sk = "0xa37e56991c7e88b7a4d80010a729fecce48fb2da505f3dccab7c2fa89bb69c4f".to_string();
     let ecdsa_pubkey =
@@ -107,7 +104,6 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
     // spawn api server
     let state = PreconfState::new(
         network_state.clone(),
-        relay_client,
         signer_client.clone(),
         rpc_url.parse().unwrap(),
         *escrow.address(),
@@ -284,8 +280,6 @@ async fn test_commitment_stream() -> eyre::Result<()> {
         network_state.add_slot(slot);
     }
 
-    let relay_client = RelayClient::new(vec![]);
-
     let bls_sk = "4bd1960f5721d636400cb9dff7d17d5cfcc155f113280b8b9158596e2c0084ce".to_string();
     let ecdsa_sk = "0xa37e56991c7e88b7a4d80010a729fecce48fb2da505f3dccab7c2fa89bb69c4f".to_string();
     let ecdsa_pubkey =
@@ -303,7 +297,6 @@ async fn test_commitment_stream() -> eyre::Result<()> {
     // spawn api server
     let state = PreconfState::new(
         network_state.clone(),
-        relay_client,
         signer_client.clone(),
         rpc_url.parse().unwrap(),
         Address::default(),

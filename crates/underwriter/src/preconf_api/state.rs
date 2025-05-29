@@ -17,7 +17,6 @@ use uuid::Uuid;
 use crate::{
     clients::{
         pricer::{PreconfPricer, Pricer},
-        relay_client::RelayClient,
         signer_client::SignerClient,
     },
     context_ext::ContextExt,
@@ -31,7 +30,6 @@ use crate::{
 pub struct PreconfState<P, F> {
     pub network_state: NetworkState,
     pub preconf_pool: Arc<PreconfPool>,
-    pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
     pub pricer: Pricer<F>,
@@ -43,10 +41,8 @@ where
     P: Provider + Clone + Send + Sync + 'static,
     F: PreconfPricer + Sync + Send + 'static,
 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network_state: NetworkState,
-        relay_client: RelayClient,
         signer_client: SignerClient,
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
@@ -57,15 +53,7 @@ where
 
         let commitments_tx = broadcast::channel(128).0;
         let commitments_handle = CommitmentsHandle { commitments_tx };
-        Self {
-            relay_client,
-            network_state,
-            preconf_pool,
-            signer_client,
-            provider,
-            pricer,
-            commitments_handle,
-        }
+        Self { network_state, preconf_pool, signer_client, provider, pricer, commitments_handle }
     }
 
     /// reserve blockspace for a slot

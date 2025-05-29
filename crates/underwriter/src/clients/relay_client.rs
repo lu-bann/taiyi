@@ -98,7 +98,7 @@ pub struct ValidatorSlotData {
 #[cfg(test)]
 mod tests {
 
-    use crate::clients::relay_client::{RelayClient, SignedDelegation};
+    use crate::clients::relay_client::SignedDelegation;
 
     #[ignore = "Fix this test"]
     #[test]

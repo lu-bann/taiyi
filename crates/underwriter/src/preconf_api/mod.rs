@@ -50,7 +50,7 @@ pub async fn spawn_service(
     underwriter_port: u16,
     bls_sk: String,
     ecdsa_sk: String,
-    relay_url: Vec<Url>,
+    relay_urls: Vec<Url>,
     taiyi_escrow_address: Address,
     taiyi_service_url: Option<String>,
 ) -> eyre::Result<()> {
@@ -60,7 +60,7 @@ pub async fn spawn_service(
     let network_state = NetworkState::new(context.clone());
     let network_state_cl = network_state.clone();
 
-    let relay_client = RelayClient::new(relay_url.clone());
+    let relay_clients = relay_urls.iter().cloned().map(RelayClient::new).collect::<Vec<_>>();
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
@@ -72,7 +72,6 @@ pub async fn spawn_service(
             let pricer = Pricer::new(TaiyiPricer::new(url));
             let state = PreconfState::new(
                 network_state,
-                relay_client,
                 signer_client,
                 Url::parse(&execution_rpc_url)?,
                 taiyi_escrow_address,
@@ -87,10 +86,10 @@ pub async fn spawn_service(
             let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {
-                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
+                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_urls).await => {
                         error!("Error in cl process: {:?}", res);
                     }
-                    res = spawn_constraint_submitter(state) => {
+                    res = spawn_constraint_submitter(state, relay_clients) => {
                         error!("Constraint submitter task exited. {:?}", res);
                     },
                     res = preconf_pool_clone.state_cache_cleanup(context).await => {
@@ -106,7 +105,6 @@ pub async fn spawn_service(
             let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
             let state = PreconfState::new(
                 network_state,
-                relay_client,
                 signer_client,
                 Url::parse(&execution_rpc_url)?,
                 taiyi_escrow_address,
@@ -121,10 +119,10 @@ pub async fn spawn_service(
             let _ = preconfapiserver.run(state.clone()).await;
 
             tokio::select! {
-                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
+                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_urls).await => {
                         error!("Error in cl process: {:?}", res);
                     }
-                    res = spawn_constraint_submitter(state) => {
+                    res = spawn_constraint_submitter(state, relay_clients) => {
                         error!("Constraint submitter task exited. {:?}", res);
                     },
                     res = preconf_pool_clone.state_cache_cleanup(context).await => {

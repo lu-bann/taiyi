@@ -12,8 +12,7 @@ use taiyi_beacon_client::BeaconClient;
 use tracing::{debug, info};
 
 use crate::{
-    clients::relay_client::{self, RelayClient, ValidatorSlotData, DELEGATION_ACTION},
-    error,
+    clients::relay_client::{RelayClient, ValidatorSlotData, DELEGATION_ACTION},
     network_state::NetworkState,
 };
 

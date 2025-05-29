@@ -18,6 +18,7 @@ use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedCo
 use tracing::{debug, error, info};
 
 use crate::{
+    clients::relay_client::RelayClient,
     context_ext::ContextExt,
     contract::{core::TaiyiCore, to_solidity_type},
     error::RpcError,
@@ -26,14 +27,14 @@ use crate::{
 
 pub fn spawn_constraint_submitter<P, F>(
     state: PreconfState<P, F>,
+    relay_clients: Vec<RelayClient>,
 ) -> impl Future<Output = eyre::Result<()>>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
-    let relay_client = state.relay_client.clone();
     let context = state.network_state.context();
     let chain_id = state.network_state.chain_id();
-    info!("Starting constraint submitter, chain_id: {chain_id}");
+    info!("Starting constraint submitter");
 
     async move {
         let clock = from_system_time(
@@ -308,16 +309,18 @@ where
                     let mut i = 0;
 
                     info!("Submitting {txs_len} constraints to relay on  slot {next_slot}");
-                    'submit: while let Err(e) =
-                        relay_client.set_constraints(signed_constraints_message.clone()).await
-                    {
-                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                        i += 1;
-                        if i >= max_retries {
-                            error!("Max retries reached while submitting to relay");
-                            break 'submit;
+                    for relay in relay_clients.iter() {
+                        'submit: while let Err(e) =
+                            relay.set_constraints(signed_constraints_message.clone()).await
+                        {
+                            error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                            i += 1;
+                            if i >= max_retries {
+                                error!("Max retries reached while submitting to relay");
+                                break 'submit;
+                            }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                         }
-                        tokio::time::sleep(Duration::from_millis(100)).await;
                     }
                 }
             }
