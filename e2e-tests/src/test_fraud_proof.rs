@@ -187,7 +187,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-    let target_slot = available_slot.first().unwrap().slot;
+    let target_slot = available_slot[1].slot; // use the second slot to avoid the first slot is not outdated
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
@@ -484,7 +484,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
-    let target_slot = available_slot.first().unwrap().slot;
+    let target_slot = available_slot[1].slot; // use the second slot to avoid the first slot is not outdated
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
@@ -529,7 +529,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
     let anchor_tx = txs.get(0).unwrap();
     let tip_tx = txs.get(1).unwrap();
-    let user_txs = txs.iter().skip(2).take(txs.len() - 3).collect::<Vec<_>>();
+    let user_txs = request.preconf_transaction.clone();
     let _payout_tx = txs.last().unwrap();
 
     wait_until_deadline_of_slot(&config, target_slot + 2).await?;
@@ -809,7 +809,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
     info!("available_slot: {:?}", available_slot);
-    let target_slot = available_slot.first().unwrap().slot;
+    let target_slot = available_slot[1].slot; // use the second slot to avoid the first slot is not outdated
 
     // Fetch preconf fee for the target slot
     let fee = get_preconf_fee(&config.taiyi_url(), target_slot).await?;
