@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - v*
 
 permissions:
   contents: write
@@ -13,8 +13,18 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  extract-version:
+    name: extract version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        run: echo "VERSION=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_OUTPUT
+        id: extract_version
+    outputs:
+      VERSION: ${{ steps.extract_version.outputs.VERSION }}
   docker:
     name: Build and Push Docker Image
+    needs: extract-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,19 +55,16 @@ jobs:
   release:
     name: Build and Release Binaries
     runs-on: ${{ matrix.os }}
+    needs: extract-version
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@1.83.0
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: ${{ matrix.target }}
       - name: Install Protoc
@@ -70,15 +77,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/${{ matrix.target }}/release/taiyi.exe release/taiyi-${{ matrix.target }}.exe
-            cp target/${{ matrix.target }}/release/taiyi-boost.exe release/taiyi-boost-${{ matrix.target }}.exe
-            cp target/${{ matrix.target }}/release/taiyi-cli.exe release/taiyi-cli-${{ matrix.target }}.exe
-          else
-            cp target/${{ matrix.target }}/release/taiyi release/taiyi-${{ matrix.target }}
-            cp target/${{ matrix.target }}/release/taiyi-boost release/taiyi-boost-${{ matrix.target }}
-            cp target/${{ matrix.target }}/release/taiyi-cli release/taiyi-cli-${{ matrix.target }}
-          fi
+          cp target/${{ matrix.target }}/release/taiyi release/taiyi-${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/taiyi-boost release/taiyi-boost-${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/taiyi-cli release/taiyi-cli-${{ matrix.target }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
