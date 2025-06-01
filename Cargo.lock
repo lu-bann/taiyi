@@ -9295,7 +9295,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-boost"
-version = "0.1.0"
+version = "0.1.7"
 dependencies = [
  "alloy-consensus 0.12.6",
  "alloy-eips 0.12.6",
@@ -9349,7 +9349,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-cli"
-version = "0.1.0"
+version = "0.1.7"
 dependencies = [
  "clap",
  "eyre",
@@ -9454,7 +9454,7 @@ dependencies = [
 
 [[package]]
 name = "taiyi-fraud-proof-cli"
-version = "0.1.0"
+version = "0.1.7"
 dependencies = [
  "clap",
  "eyre",
