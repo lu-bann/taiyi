@@ -35,7 +35,7 @@ jobs:
           components: clippy,rustfmt
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-sort@2.0.1,cargo-machete
+          tool: cargo-sort@2.0.1,cargo-machete,cargo-llvm-cov
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -61,3 +61,12 @@ jobs:
       - name: Run tests
         run: |
           make test
+      - name: Run coverage
+        run: |
+          make coverage-codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./codecov.json
+          fail_ci_if_error: false
+          verbose: true
