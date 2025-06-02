@@ -63,7 +63,7 @@ impl HttpClient {
         let blockspace_data = BlockspaceAllocation {
             target_slot: slot,
             sender: self.signer.address(),
-            recipient: recipient,
+            recipient,
             deposit: fee,
             tip: fee,
             gas_limit,
