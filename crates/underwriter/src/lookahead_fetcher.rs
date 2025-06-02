@@ -142,7 +142,7 @@ impl LookaheadFetcher {
             if event.epoch_transition {
                 let new_epoch = new_slot / EPOCH_SLOTS;
                 let past_epoch = self.network_state.get_current_epoch();
-                info!("Epoch transition occured, current: {new_epoch} previous: {past_epoch}");
+                info!("Epoch transition occurred, current: {new_epoch} previous: {past_epoch}");
                 self.get_delegation_for(new_epoch + 1).await?;
 
                 // Update the fee recipients for the new epoch
