@@ -366,11 +366,11 @@ pub async fn generate_reserve_blockspace_request(
     let fee = preconf_fee.gas_fee * (gas_limit as u128)
         + preconf_fee.blob_gas_fee * ((blob_count * DATA_GAS_PER_BLOB) as u128);
     let fee = U256::from(fee / 2);
-    let recepient = UNDERWRITER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
+    let recipient = UNDERWRITER_ECDSA_SK.parse::<PrivateKeySigner>().unwrap();
     let request = BlockspaceAlloc {
         target_slot,
         sender: signer_private.address(),
-        recipient: recepient.address(),
+        recipient: recipient.address(),
         deposit: fee,
         tip: fee,
         gas_limit,
