@@ -42,7 +42,7 @@ impl LookaheadFetcher {
         }
     }
 
-    pub async fn initialze(&mut self) -> eyre::Result<()> {
+    pub async fn initialize(&mut self) -> eyre::Result<()> {
         let slot = self.beacon_client.get_head_slot().await?;
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
@@ -123,7 +123,7 @@ impl LookaheadFetcher {
 
     pub async fn run(mut self) -> eyre::Result<()> {
         info!("Initializing lookahead fetcher");
-        self.initialze().await?;
+        self.initialize().await?;
         let client = EventClient::new(reqwest::Client::new());
         let beacon_url_head_event =
             format!("{}eth/v1/events?topics=head", self.beacon_client.endpoint().as_str());
