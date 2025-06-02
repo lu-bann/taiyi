@@ -1,0 +1,32 @@
+[package]
+name = "taiyi-challenger"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true }
+bincode = { workspace = true }
+
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+clap = { workspace = true }
+ethereum-consensus = { workspace = true }
+eyre = { workspace = true }
+futures-util = { workspace = true }
+redb = { workspace = true }
+reqwest = { workspace = true }
+reqwest-eventsource = "0.6"
+serde_json = { workspace = true }
+taiyi-primitives = { workspace = true }
+tokio = { workspace = true }
+
+[[bin]]
+name = "taiyi-challenger"
+path = "src/main.rs"
