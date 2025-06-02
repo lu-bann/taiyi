@@ -63,6 +63,7 @@ pub(crate) mod tests {
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
             network: network.clone().into(),
             auth_token,
+            timeout: None,
         }))
     }
 

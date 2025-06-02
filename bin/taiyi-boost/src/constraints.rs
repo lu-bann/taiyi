@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 use reqwest_eventsource::{Event, EventSource};
 use scc::HashMap;
 use thiserror::Error;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     ext::relay::RelayExt,
@@ -101,6 +101,7 @@ impl ConstraintsCache {
 pub async fn subscribe_to_constraints_stream(
     constraints_cache: Arc<ConstraintsCache>,
     relays: Vec<RelayClient>,
+    timeout: Option<u64>,
 ) -> Result<()> {
     info!("Starting constraint subscriber with {} relay(s)", relays.len());
 
@@ -110,7 +111,7 @@ pub async fn subscribe_to_constraints_stream(
         tokio::spawn({
             async move {
                 loop {
-                    let request = match relay.constraint_stream_request() {
+                    let request = match relay.constraint_stream_request(timeout) {
                         Ok(req) => req,
                         Err(err) => {
                             error!("Failed to build constraint stream request: {:?}", err);
@@ -160,13 +161,13 @@ pub async fn subscribe_to_constraints_stream(
                                 debug!("SSE stream open")
                             }
                             Err(err) => {
-                                error!("SSE stream error: {:?}", err);
+                                warn!("SSE stream error: {:?}", err);
                                 break;
                             }
                         }
                     }
 
-                    info!("SSE stream ended. Reconnecting instantly");
+                    warn!("SSE stream ended. Reconnecting instantly");
                 }
             }
         });

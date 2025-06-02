@@ -54,6 +54,7 @@ pub struct ExtraConfig {
     pub engine_jwt: JwtSecretWrapper,
     pub network: Network,
     pub auth_token: Option<String>,
+    pub timeout: Option<u64>,
 }
 
 /// Minimal account state needed for commitment validation.

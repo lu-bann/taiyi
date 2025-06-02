@@ -31,7 +31,12 @@ async fn main() -> Result<()> {
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state.clone());
 
     let constraints_cache = Arc::new(sidecar_state.constraints.clone());
-    subscribe_to_constraints_stream(constraints_cache, pbs_state.all_relays().to_vec()).await?;
+    subscribe_to_constraints_stream(
+        constraints_cache,
+        pbs_state.all_relays().to_vec(),
+        extra.timeout,
+    )
+    .await?;
 
     metrics::init_metrics(pbs_config.chain)?;
 
