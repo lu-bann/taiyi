@@ -120,22 +120,21 @@ This step follows the `/constraints/v0/builder/delegate` endpoint specification 
 Verify whether your operator is registered in the Taiyi Validator AVS protocol:
 
 1. Check your stake:
-```bash
+
+<CodeGroup>
+```bash holesky
 taiyi-cli operator-info \
     --execution-rpc-url <EXECUTION_URL> \
     --operator-address <VALIDATOR_OPERATOR_ADDRESS> \
-    --proposer-registry-address <TAIYI_PROPOSER_REGISTRY_ADDRESS> \
-    --avs-type validator
+    --linglong-coordinator-address 0x4778517B371D996476D0a0Fc240fa754391ad5e7
 ```
-<Note>
-You can find the Holesky deployed addresses in [Contract Addresses](/network_info/contract_addresses):
-- Proposer Registry: `0xa76819916Aa1189c5AF70778177A932A01F948EB`
-</Note>
+</CodeGroup>
 
 
-## 5. Deposit WETH to EigenLayer Strategy
+## 5. Deposit WETH to EigenLayer Strategy(Optional)
 
 Before depositing into the EigenLayer strategy contract, ensure you have sufficient WETH tokens in your account. You can check your WETH balance on Holesky testnet at [Etherscan](https://holesky.etherscan.io/address/0x94373a4919B3240D86eA41593D5eBa789FEF3848#readContract).
+If you already stake in eigenlayer, you can skip this step.
 
 To check your balance:
 1. Go to the WETH contract on Etherscan

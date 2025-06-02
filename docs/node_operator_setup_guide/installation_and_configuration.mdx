@@ -41,10 +41,10 @@ Before proceeding, ensure you have:
 First, install Rust using rustup
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ```
 
-> **Tips**- During installation, when prompted, enter `1` for the default installation.
+> **Tips**- The `-y` flag accepts default installation options for non-interactive installation.
 >
 > - After Rust installation completes, try running `cargo version` . If it cannot
 >   be found, run `source $HOME/.cargo/env`. After that, running `cargo version` should return the version, for example `cargo 1.68.2`.
@@ -54,11 +54,11 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 With Rust installed, follow the instructions below to install dependencies relevant to your
 operating system:
 
-* **Ubuntu**: `apt-get install libclang-dev pkg-config build-essential`
+* **Ubuntu**: `apt-get install libclang-dev pkg-config build-essential libssl-dev protobuf-compiler`
 
-* **macOS**: `brew install llvm pkg-config`
+* **macOS**: `brew install llvm pkg-config openssl protobuf`
 
-* **Windows**: `choco install llvm` or `winget install LLVM.LLVM`
+* **Windows**: `choco install llvm openssl protobuf` or `winget install LLVM.LLVM`
 
 The Minimum Supported Rust Version (MSRV) of this project is 1.82.0. If you already have a version of Rust installed,
 you can check your version by running `rustc --version`. To update your version of Rust, run `rustup update`.
@@ -76,9 +76,10 @@ cargo build --release # target binary: ./target/release/commit-boost-signer
 ### Build taiyi-boost
 
 ```bash
-git clone git@github.com:lu-bann/taiyi.git
+git clone https://github.com/lu-bann/taiyi.git
 cd taiyi
-cargo build --release # target binary: ./target/release/taiyi-boost
+git checkout dev
+cargo build --release --bin taiyi-boost # target binary: ./target/release/taiyi-boost
 ```
 
 ### Configure commit-boost signer
@@ -170,6 +171,8 @@ Now the signer module is up in port 20000
 Create `taiyi-boost-config.toml`, the example is as follows:
 
 ```toml
+chain = "Holesky"
+
 # Configuration for the PBS module
 [pbs]
 docker_image = "ghcr.io/commit-boost/pbs:latest"
@@ -314,6 +317,7 @@ Build from source:
 ```bash
 git clone https://github.com/lu-bann/taiyi.git
 cd taiyi
+git checkout dev
 cargo build --release --bin taiyi-cli
 ```
  

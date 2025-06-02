@@ -1,20 +1,26 @@
 use alloy_sol_types::sol;
 
 sol! {
-    #[allow(missing_docs)]
     #[sol(rpc)]
-    enum AVSType {
-        UNDERWRITER,
-        VALIDATOR
+    #[derive(Debug)]
+    enum OperatorStatus {
+        NEVER_REGISTERED,
+        REGISTERED,
+        DEREGISTERED
+    }
+
+
+    struct OperatorInfo {
+        bytes32 operatorId;
+        OperatorStatus status;
     }
     #[sol(rpc)]
-    interface ProposerRegistry {
-        function operatorInfo(
+    interface TaiyiCoordinator {
+        function getOperator(
             address operator,
-            AVSType avsType
         )
             external
             view
-            returns (bytes memory pubKey, bool isActive);
+            returns (OperatorInfo memory);
     }
 }
