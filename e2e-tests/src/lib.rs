@@ -1,14 +1,11 @@
-#![allow(unused_imports, dead_code)]
 #![cfg(test)]
-
 use alloy_provider::{
     fillers::{
         BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller,
     },
-    network::{Ethereum, EthereumWallet},
-    Identity, RootProvider,
+    network::EthereumWallet,
+    RootProvider,
 };
-use alloy_transport::BoxTransport;
 
 mod constant;
 mod contract_call;

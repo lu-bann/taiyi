@@ -1,27 +1,24 @@
-#![cfg(test)]
-
+#![allow(dead_code)]
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy_consensus::{constants::ETH_TO_WEI, TxEnvelope};
-use alloy_eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
+use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::{
-    network::{Ethereum, EthereumWallet, TransactionBuilder},
+    network::{EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
-use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
+use alloy_rpc_types::TransactionRequest;
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
-use clap::Parser;
 use ethereum_consensus::deneb::Context;
-use reqwest::{Response, StatusCode, Url};
+use reqwest::{Response, Url};
 use serde::{Deserialize, Serialize};
-use taiyi_cmd::{initialize_tracing_log, UnderwriterCommand};
+use taiyi_cmd::initialize_tracing_log;
 use taiyi_primitives::{
-    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest,
-    PreconfResponseData, SignedConstraints, SlotInfo, SubmitTransactionRequest,
-    SubmitTypeATransactionRequest,
+    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, SignedConstraints, SlotInfo,
+    SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use taiyi_underwriter::{
     context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
@@ -32,10 +29,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    constant::{
-        FUNDING_SIGNER_PRIVATE, SLOT_CHECK_INTERVAL_SECONDS, UNDERWRITER_BLS_SK,
-        UNDERWRITER_ECDSA_SK,
-    },
+    constant::{FUNDING_SIGNER_PRIVATE, SLOT_CHECK_INTERVAL_SECONDS, UNDERWRITER_ECDSA_SK},
     taiyi_process::{ResourceHandle, ResourceManager},
 };
 

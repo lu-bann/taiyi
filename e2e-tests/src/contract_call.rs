@@ -1,13 +1,9 @@
-use std::ops::Add;
-
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{
     network::{EthereumWallet, TransactionBuilder},
-    Provider, ProviderBuilder,
+    Provider,
 };
-use alloy_rpc_types::TransactionRequest;
-use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use tracing::info;
 

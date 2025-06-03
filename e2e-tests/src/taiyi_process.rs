@@ -2,12 +2,7 @@ use std::{
     path::Path,
     process::{Child, Command},
     sync::{Arc, Mutex},
-    thread,
 };
-
-use clap::Parser;
-use taiyi_cmd::UnderwriterCommand;
-use tracing::{error, info};
 
 use crate::{
     constant::{UNDERWRITER_BLS_SK, UNDERWRITER_ECDSA_SK},
