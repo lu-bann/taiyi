@@ -48,7 +48,7 @@ impl HttpClient {
         Ok(preconf_fee)
     }
 
-    pub async fn reserve_blockspace(&self, slot: u64, recepient: Address) -> eyre::Result<Uuid> {
+    pub async fn reserve_blockspace(&self, slot: u64, recipient: Address) -> eyre::Result<Uuid> {
         let preconf_fee = self.preconf_fee(slot).await?;
 
         let gas_limit = 21_000;
@@ -63,7 +63,7 @@ impl HttpClient {
         let blockspace_data = BlockspaceAllocation {
             target_slot: slot,
             sender: self.signer.address(),
-            recipient: recepient,
+            recipient,
             deposit: fee,
             tip: fee,
             gas_limit,

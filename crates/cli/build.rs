@@ -4,7 +4,7 @@ use std::io;
 
 // Perform the code generation for the protobuf files.
 fn main() -> io::Result<()> {
-    // comments out becasue we put these files in the git already
+    // comments out because we put these files in the git already
     // if !Path::new(PB_OUT_DIR).exists() {
     //     fs::create_dir(PB_OUT_DIR)?;
     // }

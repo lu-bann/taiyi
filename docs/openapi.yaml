@@ -35,7 +35,7 @@ paths:
       summary: Preconf Fee
       description: |
         * Fetch preconf fees/tip for a slot.
-        * Return fees requried per gas in WEI.
+        * Return fees required per gas in WEI.
       requestBody:
         description: Slot
         required: true
@@ -85,7 +85,7 @@ paths:
             example: "0x8a726dc1d89dc0b10a27130c562cce2d346f2bbac1af683d9b55632825e4abc0480bcf25276452a3c076f2a5d756c6deedd552cfc343dd34a5953835f4d7c8a71c"
           in: header
           name: x-luban-signature
-          description: An ECDSA signature from the user over the hash of request body. See [here](https://github.com/lu-bann/taiyi/blob/dev/crates/primitives/src/preconf_request_type_b.rs#L105) for signature constrution.
+          description: An ECDSA signature from the user over the hash of request body. See [here](https://github.com/lu-bann/taiyi/blob/dev/crates/primitives/src/preconf_request_type_b.rs#L105) for signature construction.
           required: true
       requestBody:
         description: Reserve blockspace request
