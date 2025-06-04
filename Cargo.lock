@@ -9316,6 +9316,7 @@ dependencies = [
  "axum 0.7.9",
  "cb-common",
  "cb-pbs",
+ "clap",
  "commit-boost",
  "ethereum-consensus",
  "ethereum_ssz 0.7.1",

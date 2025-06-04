@@ -25,6 +25,7 @@ async-trait = { workspace = true }
 axum = { workspace = true }
 cb-common = { workspace = true }
 cb-pbs = { workspace = true }
+clap = { workspace = true }
 commit-boost = { workspace = true }
 ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
