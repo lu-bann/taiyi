@@ -151,6 +151,7 @@ mod test {
 
     use alloy_provider::network::{EthereumWallet, TransactionBuilder};
     use alloy_rpc_types::TransactionRequest;
+    use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
 
     #[tokio::test]
@@ -179,6 +180,12 @@ mod test {
             let new_signer = PrivateKeySigner::random();
             request.set_signer(new_signer.address());
             assert_eq!(request.signer(), new_signer.address());
+        }
+        {
+            let new_signer = PrivateKeySigner::random();
+            let alloc_sig = new_signer.sign_message("hey there".as_bytes()).await?;
+            request.set_alloc_sig(alloc_sig);
+            assert_eq!(request.alloc_sig, alloc_sig);
         }
 
         Ok(())
