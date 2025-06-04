@@ -90,7 +90,7 @@ impl ConstraintsCache {
                         seen.write().retain(|_, &mut ts| now.duration_since(ts) <= interval);
                     }
                     _ = cancel_token.cancelled() => {
-                        info!("CStopping constraint cache cleanup task");
+                        info!("Stopping constraint cache cleanup task");
                         break;
                     }
                 }
@@ -176,7 +176,7 @@ pub async fn subscribe_to_constraints_stream(
                                     debug!("SSE stream open for {}", relay_url)
                                 }
                                 Err(err) => {
-                                    error!("SSE stream error for {}: {:?}", relay_url, err);
+                                    warn!("SSE stream error for {}: {:?}", relay_url, err);
                                     break;
                                 }
                             }
