@@ -144,3 +144,71 @@ impl SubmitTransactionRequest {
         keccak256(&digest)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use alloy_provider::network::{EthereumWallet, TransactionBuilder};
+    use alloy_rpc_types::TransactionRequest;
+    use alloy_signer_local::PrivateKeySigner;
+
+    #[tokio::test]
+    async fn test_set_signer() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::random();
+        let mut request = PreconfRequestTypeB {
+            allocation: BlockspaceAllocation {
+                sender: signer.address(),
+                recipient: signer.address(), // dont care about recipient in this test
+                gas_limit: 21_000,
+                deposit: U256::from(1000),
+                tip: U256::from(1000),
+                target_slot: 1234,
+                blob_count: 0,
+                preconf_fee: PreconfFeeResponse { gas_fee: 2, blob_gas_fee: 3 },
+            },
+            alloc_sig: PrimitiveSignature::from_raw(
+                // random 65 bytes
+                &hex::decode("0x".to_owned() + &"a".repeat(130))?,
+            )
+            .unwrap(),
+            transaction: None,
+            signer: signer.address(),
+        };
+        {
+            let new_signer = PrivateKeySigner::random();
+            request.set_signer(new_signer.address());
+            assert_eq!(request.signer(), new_signer.address());
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_transaction_request() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::random();
+        let tx = {
+            let signer = signer.clone();
+
+            let chain_id = 123;
+            let sender = signer.address();
+            let wallet = EthereumWallet::from(signer);
+            let nonce = 1234;
+            TransactionRequest::default()
+                .with_from(sender)
+                .with_value(U256::from(1000))
+                .with_nonce(nonce)
+                .with_gas_limit(21_000)
+                .with_to(sender)
+                .with_max_fee_per_gas(2)
+                .with_max_priority_fee_per_gas(3)
+                .with_chain_id(chain_id)
+                .build(&wallet)
+                .await?
+        };
+        let tx_uuid = Uuid::new_v4();
+        let request = SubmitTransactionRequest { transaction: tx.clone(), request_id: tx_uuid };
+        assert_eq!(SubmitTransactionRequest::new(tx_uuid, tx), request);
+        Ok(())
+    }
+}

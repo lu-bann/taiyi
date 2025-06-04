@@ -1,11 +1,11 @@
 [package]
+edition = { workspace = true }
 name = "taiyi-e2e-tests"
 version = { workspace = true }
-edition = { workspace = true }
 
 [features]
-generate-proof = []
 fraud-test = []
+generate-proof = []
 
 [build-dependencies]
 sp1-build = { workspace = true }

@@ -108,3 +108,76 @@ impl SubmitTypeATransactionRequest {
         keccak256(&digest)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use alloy_provider::network::{EthereumWallet, TransactionBuilder};
+    use alloy_rpc_types::TransactionRequest;
+    use alloy_signer_local::PrivateKeySigner;
+
+    #[tokio::test]
+    async fn test_preconf_type_a_trivial_properties() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::random();
+        let mut preconf_a = {
+            let signer = signer.clone();
+            let request = {
+                let signer = signer.clone();
+
+                let chain_id = 123;
+                let sender = signer.address();
+                let wallet = EthereumWallet::from(signer.clone());
+                let nonce = 1234;
+                let tip_transaction = TransactionRequest::default()
+                    .with_from(sender)
+                    .with_value(U256::from(10000))
+                    .with_nonce(nonce)
+                    .with_gas_limit(21_000)
+                    .with_to(sender)
+                    .with_max_fee_per_gas(3)
+                    .with_max_priority_fee_per_gas(7)
+                    .with_chain_id(chain_id)
+                    .build(&wallet)
+                    .await?;
+                let mut preconf_transactions = Vec::new();
+                for i in 0..10 {
+                    let preconf_transaction = TransactionRequest::default()
+                        .with_from(sender)
+                        .with_value(U256::from(1000))
+                        .with_nonce(nonce + i + 1)
+                        .with_gas_limit(21_000)
+                        .with_to(sender)
+                        .with_max_fee_per_gas((11 * i).into())
+                        .with_max_priority_fee_per_gas((5 * i).into())
+                        .with_chain_id(chain_id)
+                        .build(&wallet)
+                        .await?;
+
+                    preconf_transactions.push(TxEnvelope::from(preconf_transaction));
+                }
+                SubmitTypeATransactionRequest::new(
+                    preconf_transactions,
+                    TxEnvelope::from(tip_transaction),
+                    127,
+                )
+            };
+            PreconfRequestTypeA {
+                tip_transaction: request.tip_transaction,
+                preconf_tx: request.preconf_transaction,
+                target_slot: request.target_slot,
+                sequence_number: None,
+                signer: signer.address(),
+                preconf_fee: PreconfFeeResponse::default(),
+            }
+        };
+
+        assert_eq!(preconf_a.signer(), signer.address());
+
+        let new_signer = PrivateKeySigner::random();
+        preconf_a.set_signer(new_signer.address());
+        assert_eq!(preconf_a.signer(), new_signer.address());
+        assert_eq!(preconf_a.value(), U256::from(20000));
+        Ok(())
+    }
+}
