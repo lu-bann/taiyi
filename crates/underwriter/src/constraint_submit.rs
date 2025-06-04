@@ -13,7 +13,7 @@ use ethereum_consensus::{
     clock::from_system_time, deneb::mainnet::MAX_BYTES_PER_TRANSACTION, primitives::BlsPublicKey,
     ssz::prelude::ByteList,
 };
-use futures::StreamExt;
+use futures::{future::join_all, StreamExt};
 use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedConstraints, TxExt};
 use tracing::{debug, error, info};
 
@@ -306,22 +306,40 @@ where
                     let signed_constraints_message = vec![SignedConstraints { message, signature }];
 
                     let max_retries = 5;
-                    let mut i = 0;
+                    info!(
+                        "Submitting {txs_len} constraints to {} relay(s) on  slot {next_slot}",
+                        relay_clients.len()
+                    );
 
-                    info!("Submitting {txs_len} constraints to relay on  slot {next_slot}");
+                    let mut handles = Vec::with_capacity(relay_clients.len());
                     for relay in relay_clients.iter() {
-                        'submit: while let Err(e) =
-                            relay.set_constraints(signed_constraints_message.clone()).await
-                        {
-                            error!(err = ?e, "Error submitting constraints to relay, retrying...");
-                            i += 1;
-                            if i >= max_retries {
-                                error!("Max retries reached while submitting to relay");
-                                break 'submit;
+                        let relay = relay.clone();
+                        let signed_constraints_message = signed_constraints_message.clone();
+
+                        let handle = tokio::spawn(async move {
+                            let mut i = 0;
+                            loop {
+                                match relay
+                                    .set_constraints(signed_constraints_message.clone())
+                                    .await
+                                {
+                                    Ok(_) => break,
+                                    Err(e) => {
+                                        error!(err = ?e, "Error submitting constraints to relay, retrying...");
+                                        i += 1;
+                                        if i >= max_retries {
+                                            error!("Max retries reached while submitting to relay");
+                                            break;
+                                        }
+                                        tokio::time::sleep(Duration::from_millis(100)).await;
+                                    }
+                                }
                             }
-                            tokio::time::sleep(Duration::from_millis(100)).await;
-                        }
+                        });
+                        handles.push(handle);
                     }
+
+                    join_all(handles).await;
                 }
             }
         }

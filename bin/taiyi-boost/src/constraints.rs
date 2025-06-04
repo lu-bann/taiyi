@@ -11,7 +11,9 @@ use parking_lot::RwLock;
 use reqwest_eventsource::{Event, EventSource};
 use scc::HashMap;
 use thiserror::Error;
-use tracing::{debug, error, info};
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, warn};
 
 use crate::{
     ext::relay::RelayExt,
@@ -32,18 +34,11 @@ pub enum ConstraintCacheError {
 
 #[derive(Clone, Default, Debug)]
 pub struct ConstraintsCache {
-    pub constraints: Arc<RwLock<HashMap<u64, ConstraintsData>>>,
-    pub seen_hashes: Arc<RwLock<HashMap<u64, Instant>>>,
+    constraints: Arc<RwLock<HashMap<u64, ConstraintsData>>>,
+    seen_hashes: Arc<RwLock<HashMap<u64, Instant>>>,
 }
 
 impl ConstraintsCache {
-    /// Creates a new ConstraintsCache and spawns the deduplication cleanup task.
-    pub fn new_with_cleanup() -> Self {
-        let cache = Self::default();
-        cache.spawn_cleanup_task();
-        cache
-    }
-
     /// Insert if not already seen
     pub fn insert(&self, message: ConstraintsMessage) -> Result<(), ConstraintCacheError> {
         let hash = message.hash();
@@ -83,96 +78,120 @@ impl ConstraintsCache {
     }
 
     /// Spawns a background task to periodically clean old entries from `seen_hashes`.
-    fn spawn_cleanup_task(&self) {
+    pub fn spawn_cleanup_task(&self, cancel_token: CancellationToken) -> JoinHandle<()> {
         let seen = self.seen_hashes.clone();
         tokio::spawn(async move {
             let interval = Duration::from_secs(EPOCH_DURATION_SECS * 2); // 64 slots
 
             loop {
-                let now = Instant::now();
-                seen.write().retain(|_, &mut ts| now.duration_since(ts) <= interval);
-
-                tokio::time::sleep(interval).await;
+                tokio::select! {
+                    _ = tokio::time::sleep(interval) => {
+                        let now = Instant::now();
+                        seen.write().retain(|_, &mut ts| now.duration_since(ts) <= interval);
+                    }
+                    _ = cancel_token.cancelled() => {
+                        info!("CStopping constraint cache cleanup task");
+                        break;
+                    }
+                }
             }
-        });
+        })
     }
 }
 
 pub async fn subscribe_to_constraints_stream(
     constraints_cache: Arc<ConstraintsCache>,
     relays: Vec<RelayClient>,
-) -> Result<()> {
-    info!("Starting constraint subscriber with {} relay(s)", relays.len());
+    cancel_token: CancellationToken,
+) -> Result<Vec<JoinHandle<()>>> {
+    let mut handles = Vec::new();
 
     for relay in relays {
         let cache = constraints_cache.clone();
+        let cancel_token = cancel_token.clone();
 
-        tokio::spawn({
-            async move {
-                loop {
-                    let request = match relay.constraint_stream_request() {
-                        Ok(req) => req,
-                        Err(err) => {
-                            error!("Failed to build constraint stream request: {:?}", err);
-                            continue;
-                        }
-                    };
+        let handle = tokio::spawn(async move {
+            let relay_url = relay.get_url("/").expect("Failed to get relay URL");
+            info!("Starting relay subscription for: {}", relay_url);
 
-                    let mut event_source = match EventSource::new(request) {
-                        Ok(src) => src,
-                        Err(err) => {
-                            error!("Failed to connect to SSE source: {:?}", err);
-                            continue;
-                        }
-                    };
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        info!("Relay subscription for {} cancelled", relay_url);
+                        break;
+                    }
+                    _ = async {
+                        let request = match relay.constraint_stream_request() {
+                            Ok(req) => req,
+                            Err(err) => {
+                                error!("Failed to build constraint stream request for {}: {:?}", relay_url, err);
+                                return;
+                            }
+                        };
 
-                    while let Some(event_result) = event_source.next().await {
-                        match event_result {
-                            Ok(Event::Message(message)) => {
-                                if message.event == "signed_constraint" {
-                                    let received_constraints =
-                                        match serde_json::from_str::<Vec<SignedConstraints>>(
-                                            &message.data,
-                                        ) {
-                                            Ok(constraints) => constraints,
-                                            Err(err) => {
-                                                error!("Deserialization error: {:?}", err);
-                                                continue;
-                                            }
-                                        };
+                        let mut event_source = match EventSource::new(request) {
+                            Ok(src) => src,
+                            Err(err) => {
+                                error!("Failed to connect to SSE source for {}: {:?}", relay_url, err);
+                                return;
+                            }
+                        };
 
-                                    debug!("Received constraints: {:?}", received_constraints);
+                        while let Some(event_result) = event_source.next().await {
+                            if cancel_token.is_cancelled() {
+                                info!("Cancellation detected during event processing for {}", relay_url);
+                                return;
+                            }
 
-                                    for signed_constraint in received_constraints {
-                                        match cache.insert(signed_constraint.message) {
-                                            Ok(_) => debug!("Inserted constraints"),
-                                            Err(ConstraintCacheError::Duplicate) => {
-                                                debug!("Skipping duplicate constraints")
-                                            }
-                                            Err(err) => {
-                                                error!("Failed to insert constraints: {:?}", err)
+                            match event_result {
+                                Ok(Event::Message(message)) => {
+                                    if message.event == "signed_constraint" {
+                                        let received_constraints =
+                                            match serde_json::from_str::<Vec<SignedConstraints>>(
+                                                &message.data,
+                                            ) {
+                                                Ok(constraints) => constraints,
+                                                Err(err) => {
+                                                    error!("Deserialization error for {}: {:?}", relay_url, err);
+                                                    continue;
+                                                }
+                                            };
+
+                                        debug!("Received {} constraints from {}", received_constraints.len(), relay_url);
+
+                                        for signed_constraint in received_constraints {
+                                            match cache.insert(signed_constraint.message) {
+                                                Ok(_) => debug!("Inserted constraints from {}", relay_url),
+                                                Err(ConstraintCacheError::Duplicate) => {
+                                                    debug!("Skipping duplicate constraints from {}", relay_url)
+                                                }
+                                                Err(err) => {
+                                                    error!("Failed to insert constraints from {}: {:?}", relay_url, err)
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                            Ok(Event::Open) => {
-                                debug!("SSE stream open")
-                            }
-                            Err(err) => {
-                                error!("SSE stream error: {:?}", err);
-                                break;
+                                Ok(Event::Open) => {
+                                    debug!("SSE stream open for {}", relay_url)
+                                }
+                                Err(err) => {
+                                    error!("SSE stream error for {}: {:?}", relay_url, err);
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    info!("SSE stream ended. Reconnecting instantly");
+                        warn!("SSE stream ended for {}. Reconnecting instantly", relay_url);
+                    } => {}
                 }
             }
         });
+
+        handles.push(handle);
     }
 
-    Ok(())
+    Ok(handles)
 }
 
 #[cfg(test)]

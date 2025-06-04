@@ -52,6 +52,7 @@ tree_hash = { workspace = true }
 tree_hash_derive = { workspace = true }
 
 reqwest-eventsource = "0.6"
+tokio-util = "0.7.15"
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }

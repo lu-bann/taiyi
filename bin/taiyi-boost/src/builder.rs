@@ -73,7 +73,7 @@ impl SidecarBuilderState {
         )
         .await;
         Self {
-            constraints: ConstraintsCache::new_with_cleanup(),
+            constraints: ConstraintsCache::default(),
             local_block_builder,
             local_payload: Arc::new(Mutex::new(HashMap::new())),
         }

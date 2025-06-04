@@ -45,7 +45,7 @@ impl LookaheadFetcher {
         }
     }
 
-    pub async fn initialze(&mut self) -> Result<()> {
+    pub async fn initialze(&mut self) -> eyre::Result<()> {
         let slot = self.beacon_client.get_head_slot().await?;
         let epoch = slot / self.network_state.context.slots_per_epoch;
 
