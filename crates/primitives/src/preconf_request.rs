@@ -51,9 +51,9 @@ impl PreconfRequest {
 mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_primitives::{hex, PrimitiveSignature, B256, U256};
-    use alloy_provider::network::{Ethereum, EthereumWallet, TransactionBuilder};
+    use alloy_provider::network::{EthereumWallet, TransactionBuilder};
     use alloy_rpc_types::TransactionRequest;
-    use alloy_signer::{Signature, Signer as _};
+    use alloy_signer::Signer as _;
     use alloy_signer_local::PrivateKeySigner;
     use uuid::Uuid;
 
@@ -63,41 +63,51 @@ mod tests {
         SubmitTypeATransactionRequest,
     };
 
+    const DUMMY_CHAIN_ID: u64 = 123;
+    const DUMMY_NONCE: u64 = 1234;
     const DUMMY_SIGNER_KEY: [u8; 32] =
         hex!("89142DEEB76CEFDCA29BE54970EABE5EAE4392096B148283BA3E684C93950941");
+    const DUMMY_RECIPIENT: [u8; 20] = hex!("0x0478479B6891D746176d76d30126479bBF3d1669");
+    const DUMMY_TX_VALUE: u64 = 10000;
+    const DUMMY_MAX_FEE_PER_GAS: u64 = 3;
+    const DUMMY_MAX_PRIORITY_FEE_PER_GAS: u64 = 7;
+    const DUMMY_SEQUENCE_NUMBER: Option<u64> = Some(321);
+    const DUMMY_GAS_LIMIT: u64 = 21000;
+    const DUMMY_TARGET_SLOT: u64 = 127;
 
     #[tokio::test]
     async fn test_preconf_request_type_a() -> eyre::Result<()> {
+        const NUM_PRECONF_TX: u64 = 10;
+
         let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
-        let chain_id = 123;
+
         let preconf_a = {
             let signer = signer.clone();
             let request = {
                 let sender = signer.address();
                 let wallet = EthereumWallet::from(signer.clone());
-                let nonce = 1234;
                 let tip_transaction = TransactionRequest::default()
                     .with_from(sender)
-                    .with_value(U256::from(10000))
-                    .with_nonce(nonce)
-                    .with_gas_limit(21_000)
+                    .with_value(U256::from(DUMMY_TX_VALUE))
+                    .with_nonce(DUMMY_NONCE)
+                    .with_gas_limit(DUMMY_GAS_LIMIT)
                     .with_to(sender)
-                    .with_max_fee_per_gas(3)
-                    .with_max_priority_fee_per_gas(7)
-                    .with_chain_id(chain_id)
+                    .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
+                    .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
+                    .with_chain_id(DUMMY_CHAIN_ID)
                     .build(&wallet)
                     .await?;
                 let mut preconf_transactions = Vec::new();
-                for i in 0..10 {
+                for i in 0..NUM_PRECONF_TX {
                     let preconf_transaction = TransactionRequest::default()
                         .with_from(sender)
-                        .with_value(U256::from(1000))
-                        .with_nonce(nonce + i + 1)
-                        .with_gas_limit(21_000)
+                        .with_value(U256::from(DUMMY_TX_VALUE / NUM_PRECONF_TX))
+                        .with_nonce(DUMMY_NONCE + i + 1)
+                        .with_gas_limit(DUMMY_GAS_LIMIT)
                         .with_to(sender)
-                        .with_max_fee_per_gas((11 * i).into())
-                        .with_max_priority_fee_per_gas((5 * i).into())
-                        .with_chain_id(chain_id)
+                        .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
+                        .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
+                        .with_chain_id(DUMMY_CHAIN_ID)
                         .build(&wallet)
                         .await?;
 
@@ -106,20 +116,20 @@ mod tests {
                 SubmitTypeATransactionRequest::new(
                     preconf_transactions,
                     TxEnvelope::from(tip_transaction),
-                    127,
+                    DUMMY_TARGET_SLOT,
                 )
             };
             assert_eq!(
                 request.digest(),
                 B256::from(hex!(
-                    "0x9cec0d01380d0f4396225099e9a1bcd9634e64d18dcafe306801fda852e4a302"
+                    "0x8fb9701b2cd0ba70bb2ec821affc0401f7e738a5f9c9e40f1485e3c0a64d0934"
                 ))
             );
             PreconfRequestTypeA {
                 tip_transaction: request.tip_transaction,
                 preconf_tx: request.preconf_transaction,
                 target_slot: request.target_slot,
-                sequence_number: Some(321),
+                sequence_number: DUMMY_SEQUENCE_NUMBER,
                 signer: signer.address(),
                 preconf_fee: PreconfFeeResponse::default(),
             }
@@ -135,15 +145,15 @@ mod tests {
             assert_eq!(preconf_a.value(), U256::from(20000));
         }
 
-        let digest = preconf_a.digest(chain_id);
+        let digest = preconf_a.digest(DUMMY_CHAIN_ID);
         assert_eq!(
             digest,
-            B256::from(hex!("0xa0441c1498b1c6ec409e2279ac00862e16637ec907218c2fd273350aea56ad9b"))
+            B256::from(hex!("0xf1386c6cc909a1b04d6d1a4cbd85b055b4223f2844675a7f8d25b5f77409d0bf"))
         );
         let preconf_request = PreconfRequest::TypeA(preconf_a.clone());
-        assert_eq!(preconf_request.digest(chain_id), digest);
+        assert_eq!(preconf_request.digest(DUMMY_CHAIN_ID), digest);
         assert_eq!(preconf_request.signer(), signer.address());
-        assert_eq!(preconf_request.sequence_num(), Some(321));
+        assert_eq!(preconf_request.sequence_num(), DUMMY_SEQUENCE_NUMBER);
         assert_eq!(preconf_request.preconf_tip(), preconf_a.preconf_tip());
         Ok(())
     }
@@ -151,46 +161,39 @@ mod tests {
     #[tokio::test]
     async fn test_preconf_request_type_b() -> eyre::Result<()> {
         let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
-        let chain_id = 123;
         let request = PreconfRequestTypeB {
             allocation: BlockspaceAllocation {
                 sender: signer.address(),
-                recipient: signer.address(), // dont care about recipient in this test
-                gas_limit: 21_000,
+                recipient: DUMMY_RECIPIENT.into(),
+                gas_limit: DUMMY_GAS_LIMIT,
                 deposit: U256::from(1000),
                 tip: U256::from(1000),
                 target_slot: 1234,
                 blob_count: 0,
                 preconf_fee: PreconfFeeResponse { gas_fee: 2, blob_gas_fee: 3 },
             },
-            alloc_sig: PrimitiveSignature::from_raw(
-                // random 65 bytes
-                &hex::decode("0x".to_owned() + &"a".repeat(130))?,
-            )
-            .unwrap(),
+            alloc_sig: PrimitiveSignature::from_raw([0u8; 65].as_slice()).unwrap(),
             transaction: Some(
                 TransactionRequest::default()
                     .with_from(signer.address())
-                    .with_to(signer.address())
-                    .with_value(U256::from(10000))
-                    .with_nonce(777)
-                    .with_gas_limit(21_000)
-                    .with_max_fee_per_gas(3)
-                    .with_max_priority_fee_per_gas(7)
-                    .with_chain_id(chain_id)
+                    .with_to(DUMMY_RECIPIENT.into())
+                    .with_value(U256::from(DUMMY_TX_VALUE))
+                    .with_nonce(DUMMY_NONCE)
+                    .with_gas_limit(DUMMY_GAS_LIMIT)
+                    .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
+                    .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
+                    .with_chain_id(DUMMY_CHAIN_ID)
                     .build(&EthereumWallet::from(signer.clone()))
                     .await?,
             ),
             signer: signer.address(),
         };
 
-        let digest = request.digest(chain_id);
-        assert_eq!(
-            digest,
-            B256::from(hex!("0x45fa702bb7df4114636cb44e1a81bb9fed2c79012e4f652cd42fd53fff2fd406"))
-        );
         let preconf_request = PreconfRequest::TypeB(request.clone());
-        assert_eq!(preconf_request.digest(123), digest);
+        assert_eq!(
+            preconf_request.digest(DUMMY_CHAIN_ID),
+            B256::from(hex!("0xb70fcd98ec7d0f5c209cd107af2d04342724c44f66431648e3e49479a83ca7cd"))
+        );
         assert_eq!(preconf_request.signer(), signer.address());
         // type B will panic on .sequence_num()
         assert_eq!(preconf_request.sequence_num(), None);
@@ -219,19 +222,18 @@ mod tests {
         let tx = {
             let signer = signer.clone();
 
-            let chain_id = 123;
             let sender = signer.address();
             let wallet = EthereumWallet::from(signer);
             let nonce = 1234;
             TransactionRequest::default()
                 .with_from(sender)
-                .with_value(U256::from(1000))
+                .with_value(U256::from(DUMMY_TX_VALUE))
                 .with_nonce(nonce)
-                .with_gas_limit(21_000)
+                .with_gas_limit(DUMMY_GAS_LIMIT)
                 .with_to(sender)
-                .with_max_fee_per_gas(2)
-                .with_max_priority_fee_per_gas(3)
-                .with_chain_id(chain_id)
+                .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
+                .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
+                .with_chain_id(DUMMY_CHAIN_ID)
                 .build(&wallet)
                 .await?
         };
