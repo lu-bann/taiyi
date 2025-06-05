@@ -77,21 +77,31 @@ mod tests {
     const DUMMY_TIP: u64 = 1000;
     const DUMMY_TARGET_SLOT: u64 = 127;
 
-    #[tokio::test]
-    async fn test_preconf_request_type_a() -> eyre::Result<()> {
+    async fn dummy_preconf_request_type_a(
+        signer: &PrivateKeySigner,
+    ) -> eyre::Result<PreconfRequestTypeA> {
         const NUM_PRECONF_TX: u64 = 10;
 
-        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
-
-        let preconf_a = {
-            let signer = signer.clone();
-            let request = {
-                let sender = signer.address();
-                let wallet = EthereumWallet::from(signer.clone());
-                let tip_transaction = TransactionRequest::default()
+        let request = {
+            let sender = signer.address();
+            let wallet = EthereumWallet::from(signer.clone());
+            let tip_transaction = TransactionRequest::default()
+                .with_from(sender)
+                .with_value(U256::from(DUMMY_TX_VALUE))
+                .with_nonce(DUMMY_NONCE)
+                .with_gas_limit(DUMMY_GAS_LIMIT)
+                .with_to(sender)
+                .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
+                .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
+                .with_chain_id(DUMMY_CHAIN_ID)
+                .build(&wallet)
+                .await?;
+            let mut preconf_transactions = Vec::new();
+            for i in 0..NUM_PRECONF_TX {
+                let preconf_transaction = TransactionRequest::default()
                     .with_from(sender)
-                    .with_value(U256::from(DUMMY_TX_VALUE))
-                    .with_nonce(DUMMY_NONCE)
+                    .with_value(U256::from(DUMMY_TX_VALUE / NUM_PRECONF_TX))
+                    .with_nonce(DUMMY_NONCE + i + 1)
                     .with_gas_limit(DUMMY_GAS_LIMIT)
                     .with_to(sender)
                     .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
@@ -99,71 +109,33 @@ mod tests {
                     .with_chain_id(DUMMY_CHAIN_ID)
                     .build(&wallet)
                     .await?;
-                let mut preconf_transactions = Vec::new();
-                for i in 0..NUM_PRECONF_TX {
-                    let preconf_transaction = TransactionRequest::default()
-                        .with_from(sender)
-                        .with_value(U256::from(DUMMY_TX_VALUE / NUM_PRECONF_TX))
-                        .with_nonce(DUMMY_NONCE + i + 1)
-                        .with_gas_limit(DUMMY_GAS_LIMIT)
-                        .with_to(sender)
-                        .with_max_fee_per_gas(DUMMY_MAX_FEE_PER_GAS.into())
-                        .with_max_priority_fee_per_gas(DUMMY_MAX_PRIORITY_FEE_PER_GAS.into())
-                        .with_chain_id(DUMMY_CHAIN_ID)
-                        .build(&wallet)
-                        .await?;
 
-                    preconf_transactions.push(TxEnvelope::from(preconf_transaction));
-                }
-                SubmitTypeATransactionRequest::new(
-                    preconf_transactions,
-                    TxEnvelope::from(tip_transaction),
-                    DUMMY_TARGET_SLOT,
-                )
-            };
-            assert_eq!(
-                request.digest(),
-                B256::from(hex!(
-                    "0x8fb9701b2cd0ba70bb2ec821affc0401f7e738a5f9c9e40f1485e3c0a64d0934"
-                ))
-            );
-            PreconfRequestTypeA {
-                tip_transaction: request.tip_transaction,
-                preconf_tx: request.preconf_transaction,
-                target_slot: request.target_slot,
-                sequence_number: DUMMY_SEQUENCE_NUMBER,
-                signer: signer.address(),
-                preconf_fee: PreconfFeeResponse::default(),
+                preconf_transactions.push(TxEnvelope::from(preconf_transaction));
             }
+            SubmitTypeATransactionRequest::new(
+                preconf_transactions,
+                TxEnvelope::from(tip_transaction),
+                DUMMY_TARGET_SLOT,
+            )
         };
-
-        assert_eq!(preconf_a.signer(), signer.address());
-
-        {
-            let mut preconf_a = preconf_a.clone();
-            let new_signer = PrivateKeySigner::random();
-            preconf_a.set_signer(new_signer.address());
-            assert_eq!(preconf_a.signer(), new_signer.address());
-            assert_eq!(preconf_a.value(), U256::from(20000));
-        }
-
-        let digest = preconf_a.digest(DUMMY_CHAIN_ID);
         assert_eq!(
-            digest,
-            B256::from(hex!("0xf1386c6cc909a1b04d6d1a4cbd85b055b4223f2844675a7f8d25b5f77409d0bf"))
+            request.digest(),
+            B256::from(hex!("0x8fb9701b2cd0ba70bb2ec821affc0401f7e738a5f9c9e40f1485e3c0a64d0934"))
         );
-        let preconf_request = PreconfRequest::TypeA(preconf_a.clone());
-        assert_eq!(preconf_request.digest(DUMMY_CHAIN_ID), digest);
-        assert_eq!(preconf_request.signer(), signer.address());
-        assert_eq!(preconf_request.sequence_num(), DUMMY_SEQUENCE_NUMBER);
-        assert_eq!(preconf_request.preconf_tip(), preconf_a.preconf_tip());
-        Ok(())
+        Ok(PreconfRequestTypeA {
+            tip_transaction: request.tip_transaction,
+            preconf_tx: request.preconf_transaction,
+            target_slot: request.target_slot,
+            sequence_number: DUMMY_SEQUENCE_NUMBER,
+            signer: signer.address(),
+            preconf_fee: PreconfFeeResponse::default(),
+        })
     }
 
-    #[tokio::test]
-    async fn test_preconf_request_type_b() -> eyre::Result<()> {
-        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
-        let request = PreconfRequestTypeB {
+    pub async fn dummy_preconf_request_type_b(
+        signer: &PrivateKeySigner,
+    ) -> eyre::Result<PreconfRequestTypeB> {
+        Ok(PreconfRequestTypeB {
             allocation: BlockspaceAllocation {
                 sender: signer.address(),
                 recipient: DUMMY_RECIPIENT.into(),
@@ -189,7 +161,46 @@ mod tests {
                     .await?,
             ),
             signer: signer.address(),
-        };
+        })
+    }
+
+    #[tokio::test]
+    async fn test_preconf_request_type_a_digest() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
+
+        let preconf_a = dummy_preconf_request_type_a(&signer).await?;
+
+        assert_eq!(preconf_a.signer(), signer.address());
+
+        let digest = preconf_a.digest(DUMMY_CHAIN_ID);
+        assert_eq!(
+            digest,
+            B256::from(hex!("0xf1386c6cc909a1b04d6d1a4cbd85b055b4223f2844675a7f8d25b5f77409d0bf"))
+        );
+        let preconf_request = PreconfRequest::TypeA(preconf_a.clone());
+        assert_eq!(preconf_request.digest(DUMMY_CHAIN_ID), digest);
+        assert_eq!(preconf_request.signer(), signer.address());
+        assert_eq!(preconf_request.sequence_num(), DUMMY_SEQUENCE_NUMBER);
+        assert_eq!(preconf_request.preconf_tip(), preconf_a.preconf_tip());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_preconf_request_type_a_set_signer() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
+
+        let mut preconf_a = dummy_preconf_request_type_a(&signer).await?;
+
+        let new_signer = PrivateKeySigner::random();
+        preconf_a.set_signer(new_signer.address());
+        assert_eq!(preconf_a.signer(), new_signer.address());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_preconf_request_type_b_digest() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
+        let request = dummy_preconf_request_type_b(&signer).await?;
 
         let preconf_request = PreconfRequest::TypeB(request.clone());
         assert_eq!(
@@ -197,23 +208,25 @@ mod tests {
             B256::from(hex!("0x27d1a4b4d48c9dbea4a94cd75e8cc9b1c0ce645d55df95615087be7ebda27e2d"))
         );
         assert_eq!(preconf_request.signer(), signer.address());
-        // type B will panic on .sequence_num()
         assert_eq!(preconf_request.sequence_num(), None);
         assert_eq!(preconf_request.preconf_tip(), request.preconf_tip());
 
-        {
-            let mut request = request.clone();
-            let new_signer = PrivateKeySigner::random();
-            request.set_signer(new_signer.address());
-            assert_eq!(request.signer(), new_signer.address());
-        }
-        {
-            let mut request = request.clone();
-            let new_signer = PrivateKeySigner::random();
-            let alloc_sig = new_signer.sign_message("hey there".as_bytes()).await?;
-            request.set_alloc_sig(alloc_sig);
-            assert_eq!(request.alloc_sig, alloc_sig);
-        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_preconf_request_type_b_setters() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::from_slice(&DUMMY_SIGNER_KEY)?;
+        let mut request = dummy_preconf_request_type_b(&signer).await?;
+
+        let new_signer = PrivateKeySigner::random();
+        request.set_signer(new_signer.address());
+        assert_eq!(request.signer(), new_signer.address());
+
+        let new_signer = PrivateKeySigner::random();
+        let alloc_sig = new_signer.sign_message("hey there".as_bytes()).await?;
+        request.set_alloc_sig(alloc_sig);
+        assert_eq!(request.alloc_sig, alloc_sig);
 
         Ok(())
     }
