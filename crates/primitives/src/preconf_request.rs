@@ -73,6 +73,8 @@ mod tests {
     const DUMMY_MAX_PRIORITY_FEE_PER_GAS: u64 = 7;
     const DUMMY_SEQUENCE_NUMBER: Option<u64> = Some(321);
     const DUMMY_GAS_LIMIT: u64 = 21000;
+    const DUMMY_DEPOSIT: u64 = 1000;
+    const DUMMY_TIP: u64 = 1000;
     const DUMMY_TARGET_SLOT: u64 = 127;
 
     #[tokio::test]
@@ -166,11 +168,11 @@ mod tests {
                 sender: signer.address(),
                 recipient: DUMMY_RECIPIENT.into(),
                 gas_limit: DUMMY_GAS_LIMIT,
-                deposit: U256::from(1000),
-                tip: U256::from(1000),
-                target_slot: 1234,
+                deposit: U256::from(DUMMY_DEPOSIT),
+                tip: U256::from(DUMMY_TIP),
+                target_slot: DUMMY_TARGET_SLOT,
                 blob_count: 0,
-                preconf_fee: PreconfFeeResponse { gas_fee: 2, blob_gas_fee: 3 },
+                preconf_fee: PreconfFeeResponse::default(),
             },
             alloc_sig: PrimitiveSignature::from_raw([0u8; 65].as_slice()).unwrap(),
             transaction: Some(
@@ -192,7 +194,7 @@ mod tests {
         let preconf_request = PreconfRequest::TypeB(request.clone());
         assert_eq!(
             preconf_request.digest(DUMMY_CHAIN_ID),
-            B256::from(hex!("0xb70fcd98ec7d0f5c209cd107af2d04342724c44f66431648e3e49479a83ca7cd"))
+            B256::from(hex!("0x27d1a4b4d48c9dbea4a94cd75e8cc9b1c0ce645d55df95615087be7ebda27e2d"))
         );
         assert_eq!(preconf_request.signer(), signer.address());
         // type B will panic on .sequence_num()
