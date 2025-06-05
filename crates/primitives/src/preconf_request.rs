@@ -27,7 +27,7 @@ impl PreconfRequest {
     pub fn sequence_num(&self) -> Option<u64> {
         match self {
             PreconfRequest::TypeA(req) => req.sequence_number,
-            PreconfRequest::TypeB(_) => panic!("Type B does not have sequence number"),
+            PreconfRequest::TypeB(_) => None,
         }
     }
 
@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(preconf_request.digest(123), digest);
         assert_eq!(preconf_request.signer(), signer.address());
         // type B will panic on .sequence_num()
-        assert!(std::panic::catch_unwind(|| preconf_request.sequence_num()).is_err());
+        assert_eq!(preconf_request.sequence_num(), None);
         assert_eq!(preconf_request.preconf_tip(), request.preconf_tip());
 
         {
