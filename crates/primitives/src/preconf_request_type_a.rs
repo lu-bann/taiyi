@@ -111,6 +111,7 @@ impl SubmitTypeATransactionRequest {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     use alloy_provider::network::{EthereumWallet, TransactionBuilder};
@@ -118,14 +119,14 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
 
     #[tokio::test]
-    async fn test_preconf_type_a_trivial_properties() -> eyre::Result<()> {
-        let signer = PrivateKeySigner::random();
-        let mut preconf_a = {
+    async fn test_preconf_type_a() -> eyre::Result<()> {
+        let signer = PrivateKeySigner::from_slice(&hex!(
+            "89142DEEB76CEFDCA29BE54970EABE5EAE4392096B148283BA3E684C93950941"
+        ))?;
+        let chain_id = 123;
+        let preconf_a = {
             let signer = signer.clone();
             let request = {
-                let signer = signer.clone();
-
-                let chain_id = 123;
                 let sender = signer.address();
                 let wallet = EthereumWallet::from(signer.clone());
                 let nonce = 1234;
@@ -162,11 +163,17 @@ mod tests {
                     127,
                 )
             };
+            assert_eq!(
+                request.digest(),
+                B256::from(hex!(
+                    "0x9cec0d01380d0f4396225099e9a1bcd9634e64d18dcafe306801fda852e4a302"
+                ))
+            );
             PreconfRequestTypeA {
                 tip_transaction: request.tip_transaction,
                 preconf_tx: request.preconf_transaction,
                 target_slot: request.target_slot,
-                sequence_number: None,
+                sequence_number: Some(321),
                 signer: signer.address(),
                 preconf_fee: PreconfFeeResponse::default(),
             }
@@ -174,10 +181,19 @@ mod tests {
 
         assert_eq!(preconf_a.signer(), signer.address());
 
-        let new_signer = PrivateKeySigner::random();
-        preconf_a.set_signer(new_signer.address());
-        assert_eq!(preconf_a.signer(), new_signer.address());
-        assert_eq!(preconf_a.value(), U256::from(20000));
+        {
+            let mut preconf_a = preconf_a.clone();
+            let new_signer = PrivateKeySigner::random();
+            preconf_a.set_signer(new_signer.address());
+            assert_eq!(preconf_a.signer(), new_signer.address());
+            assert_eq!(preconf_a.value(), U256::from(20000));
+        }
+
+        let digest = preconf_a.digest(chain_id);
+        assert_eq!(
+            digest,
+            B256::from(hex!("0xa0441c1498b1c6ec409e2279ac00862e16637ec907218c2fd273350aea56ad9b"))
+        );
         Ok(())
     }
 }
