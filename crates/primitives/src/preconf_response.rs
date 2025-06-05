@@ -11,7 +11,7 @@ pub struct PreconfResponseData {
 }
 
 impl PreconfResponseData {
-    pub fn success(
+    pub fn new(
         request_id: Uuid,
         commitment: Option<String>,
         sequence_num: Option<u64>,
@@ -32,12 +32,8 @@ mod test {
         let sequence_num = Some(42);
         let current_slot = 100;
 
-        let data = PreconfResponseData::success(
-            request_id,
-            commitment.clone(),
-            sequence_num,
-            current_slot,
-        );
+        let data =
+            PreconfResponseData::new(request_id, commitment.clone(), sequence_num, current_slot);
 
         assert_eq!(
             data,
