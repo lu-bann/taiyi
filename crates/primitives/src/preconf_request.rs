@@ -49,21 +49,19 @@ impl PreconfRequest {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        BlockspaceAllocation, PreconfFeeResponse, SubmitTransactionRequest,
-        SubmitTypeATransactionRequest,
-    };
-
-    use super::*;
-
     use alloy_consensus::TxEnvelope;
-    use alloy_primitives::PrimitiveSignature;
-    use alloy_primitives::{hex, B256, U256};
+    use alloy_primitives::{hex, PrimitiveSignature, B256, U256};
     use alloy_provider::network::{Ethereum, EthereumWallet, TransactionBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::{Signature, Signer as _};
     use alloy_signer_local::PrivateKeySigner;
     use uuid::Uuid;
+
+    use super::*;
+    use crate::{
+        BlockspaceAllocation, PreconfFeeResponse, SubmitTransactionRequest,
+        SubmitTypeATransactionRequest,
+    };
 
     const DUMMY_SIGNER_KEY: [u8; 32] =
         hex!("89142DEEB76CEFDCA29BE54970EABE5EAE4392096B148283BA3E684C93950941");
