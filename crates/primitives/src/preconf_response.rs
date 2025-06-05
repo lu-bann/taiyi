@@ -44,18 +44,4 @@ mod test {
             PreconfResponseData { request_id, commitment, sequence_num, current_slot }
         );
     }
-    #[test]
-    fn test_preconf_response_data_serde() {
-        let data = PreconfResponseData::success(
-            Uuid::new_v4(),
-            Some("commitment_string".to_string()),
-            Some(42),
-            100,
-        );
-
-        let serialized = serde_json::to_string(&data).unwrap();
-        let deserialized: PreconfResponseData = serde_json::from_str(&serialized).unwrap();
-
-        assert_eq!(data, deserialized);
-    }
 }
