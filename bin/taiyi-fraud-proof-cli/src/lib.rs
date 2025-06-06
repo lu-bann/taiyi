@@ -1,5 +1,4 @@
-pub mod prove_poi;
-pub mod prove_poni;
+pub mod prove;
 pub mod tracing_util;
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -7,8 +6,8 @@ pub mod tracing_util;
 #[command(bin_name = "taiyi-fraud-proof-cli")]
 #[command(author, version, about, long_about = None)]
 pub enum Cli {
-    ProvePOI(prove_poi::ProveArgs),
-    ProvePONI(prove_poni::ProveArgs),
+    ProvePOI(prove::ProveArgs),
+    ProvePONI(prove::ProveArgs),
 }
 
 impl Cli {

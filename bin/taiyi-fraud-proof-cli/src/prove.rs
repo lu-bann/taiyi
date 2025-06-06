@@ -2,7 +2,7 @@ use std::{fs::File, path::PathBuf};
 
 use eyre::format_err;
 use serde::Deserialize;
-use sp1_sdk::{include_elf, network::FulfillmentStrategy, Prover, ProverClient, SP1Stdin};
+use sp1_sdk::{network::FulfillmentStrategy, Prover, ProverClient, SP1Stdin};
 use tracing::info;
 
 #[derive(clap::ValueEnum, Debug, Clone, PartialEq, Eq)]
@@ -30,9 +30,7 @@ pub struct InputData {
     pub n: u32,
 }
 
-const ELF: &[u8] = include_elf!("taiyi-poi");
-
-pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
+pub async fn prove(args: ProveArgs, elf: &[u8]) -> eyre::Result<()> {
     // 1. Read input data
     info!("Reading input data from {}", args.input_data_path);
     let path = PathBuf::from(&args.input_data_path);
@@ -52,7 +50,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
 
         info!("Executing program");
         let (mut public_values, report) =
-            client.execute(ELF, &stdin).run().map_err(|err| format_err!(err))?;
+            client.execute(elf, &stdin).run().map_err(|err| format_err!(err))?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -64,7 +62,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
         // Proof generation
         info!("Generating proof of execution");
 
-        let (pk, vk) = client.setup(ELF);
+        let (pk, vk) = client.setup(elf);
         info!("Generated setup keys");
 
         let proof = client.prove(&pk, &stdin).core().run().map_err(|err| format_err!(err))?;
@@ -79,7 +77,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
 
         info!("Executing program");
         let (mut public_values, report) =
-            client.execute(ELF, &stdin).run().map_err(|err| format_err!(err))?;
+            client.execute(elf, &stdin).run().map_err(|err| format_err!(err))?;
         info!("Executed program with {} cycles", report.total_instruction_count());
 
         // Log public values
@@ -91,7 +89,7 @@ pub async fn prove(args: ProveArgs) -> eyre::Result<()> {
         // Proof generation
         info!("Generating proof of execution");
 
-        let (pk, vk) = client.setup(ELF);
+        let (pk, vk) = client.setup(elf);
         info!("Generated setup keys");
 
         let proof = client

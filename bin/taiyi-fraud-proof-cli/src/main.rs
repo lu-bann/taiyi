@@ -1,5 +1,9 @@
 use clap::Parser;
-use taiyi_fraud_proof_cli::{tracing_util::init_tracing_subscriber, Cli};
+use sp1_sdk::include_elf;
+use taiyi_fraud_proof_cli::{prove::prove, tracing_util::init_tracing_subscriber, Cli};
+
+const ELF_PONI: &[u8] = include_elf!("taiyi-poni");
+const ELF_POI: &[u8] = include_elf!("taiyi-poi");
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -7,8 +11,8 @@ async fn main() -> eyre::Result<()> {
     init_tracing_subscriber(cli.verbosity())?;
 
     match cli {
-        Cli::ProvePOI(args) => taiyi_fraud_proof_cli::prove_poi::prove(args).await?,
-        Cli::ProvePONI(args) => taiyi_fraud_proof_cli::prove_poni::prove(args).await?,
+        Cli::ProvePOI(args) => prove(args, ELF_POI).await?,
+        Cli::ProvePONI(args) => prove(args, ELF_PONI).await?,
     }
 
     Ok(())
