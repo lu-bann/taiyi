@@ -31,7 +31,7 @@ pub enum RpcError {
     #[error("Underwriter isn't delegated for the slot: {0}")]
     SlotNotAvailable(u64),
     #[error("Pricer error: {0:?}")]
-    PricerError(#[from] PricerError),
+    PricerError(#[from] crate::clients::pricer::PricerError),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -104,20 +104,6 @@ pub enum ProposerError {
     ProxyKeyNotFound,
     #[error("Proposer duty not found")]
     ProposerDutyNotFound,
-}
-
-#[derive(Debug, Error)]
-pub enum PricerError {
-    #[error("reqwest error: {0}")]
-    ReqwestError(#[from] reqwest::Error),
-    #[error("alloy transport error: {0}")]
-    TransportError(#[from] alloy_transport::TransportError),
-    #[error("Parse error: {0}")]
-    ParseError(String),
-    #[error("custom error: {0}")]
-    Custom(String),
-    #[error("Insufficient tip, expected: {0}, got: {1}")]
-    InsufficientTip(U256, U256),
 }
 
 #[derive(Debug, Error)]

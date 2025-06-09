@@ -1,8 +1,22 @@
+use alloy_primitives::U256;
 use alloy_provider::Provider;
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::PreconfFeeResponse;
+use thiserror::Error;
 
-use crate::error::PricerError;
+#[derive(Debug, Error)]
+pub enum PricerError {
+    #[error("reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("alloy transport error: {0}")]
+    TransportError(#[from] alloy_transport::TransportError),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    #[error("custom error: {0}")]
+    Custom(String),
+    #[error("Insufficient tip, expected: {0}, got: {1}")]
+    InsufficientTip(U256, U256),
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EstimateBaseFeeResponse {
