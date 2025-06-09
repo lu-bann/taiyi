@@ -3,7 +3,7 @@ use commit_boost::prelude::{load_pbs_custom_config, PbsService, PbsState};
 use constraints::subscribe_to_constraints_stream;
 use eyre::Result;
 use taiyi_cmd::initialize_tracing_log;
-use tokio::join;
+use tokio::select;
 use tracing::error;
 use types::ExtraConfig;
 
@@ -20,17 +20,9 @@ mod proofs;
 mod types;
 mod utils;
 
-use crate::constraints::ConstraintsCache;
-
-fn log_error<E: ToString>(result: Result<(),E>, msg: &str) {
+fn log_error<E: ToString>(result: Result<(), E>, msg: &str) {
     if let Err(err) = result {
-        error!("{msg}: {}", err.to_string())
-    }
-}
-
-async fn run_constraints_stream(constraints: ConstraintsCache, pbs_state: PbsState<SidecarBuilderState>) {
-    loop {
-        log_error(subscribe_to_constraints_stream(constraints.clone(), pbs_state.all_relays()).await, "Error in constraints stream");
+        error!("{msg}: {}", err.to_string());
     }
 }
 
@@ -44,10 +36,11 @@ async fn main() -> Result<()> {
 
     metrics::init_metrics(pbs_config.chain)?;
 
-    let _ = join!(
-        run_constraints_stream(sidecar_state.constraints, pbs_state.clone()),
-        PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state)
-    );
-
-    Ok(())
+    loop {
+        let result: Result<()> = select!(
+            v = subscribe_to_constraints_stream(sidecar_state.constraints.clone(), pbs_state.all_relays()) => v,
+            v = PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state.clone()) => v
+        );
+        log_error(result, "Taiyi Boost");
+    }
 }
