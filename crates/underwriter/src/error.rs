@@ -99,14 +99,6 @@ pub enum ValidationError {
 }
 
 #[derive(Debug, Error)]
-pub enum ProposerError {
-    #[error("proxy key not found")]
-    ProxyKeyNotFound,
-    #[error("Proposer duty not found")]
-    ProposerDutyNotFound,
-}
-
-#[derive(Debug, Error)]
 pub enum PoolError {
     /// Request validation failed.
     #[error("Validation failed: {0}")]
