@@ -63,11 +63,4 @@ jobs:
           make test
       - name: Run coverage
         run: |
-          make coverage-codecov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./codecov.json
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          verbose: true
+          make coverage
