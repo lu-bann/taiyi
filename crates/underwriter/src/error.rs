@@ -99,14 +99,6 @@ pub enum ValidationError {
 }
 
 #[derive(Debug, Error)]
-pub enum ProposerError {
-    #[error("proxy key not found")]
-    ProxyKeyNotFound,
-    #[error("Proposer duty not found")]
-    ProposerDutyNotFound,
-}
-
-#[derive(Debug, Error)]
 pub enum PricerError {
     #[error("reqwest error: {0}")]
     ReqwestError(#[from] reqwest::Error),
