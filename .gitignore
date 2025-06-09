@@ -18,3 +18,4 @@ crates/sp1-interactive-fraud-proof/*.bin
 el_cl_genesis_data
 
 lcov.info
+.devcontainer
