@@ -1,15 +1,13 @@
-mod clients;
+pub mod clients;
 mod constraint_submit;
 pub mod context_ext;
 mod contract;
 mod error;
 mod lookahead_fetcher;
 pub mod metrics;
-mod network_state;
-mod preconf_api;
-mod preconf_pool;
-#[cfg(test)]
-mod tests;
+pub mod network_state;
+pub mod preconf_api;
+pub mod preconf_pool;
 
 pub use preconf_api::spawn_service;
 

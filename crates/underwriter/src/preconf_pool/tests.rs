@@ -19,14 +19,13 @@ mod tests {
     use tracing::info;
     use uuid::Uuid;
 
-    use crate::preconf_pool::{PoolType, PreconfPoolBuilder};
+    use crate::preconf_pool::{create_preconf_pool, PoolType};
 
     #[tokio::test]
     async fn test_add_remove_request() {
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let rpc_url = anvil.endpoint();
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender_pk = anvil.keys().first().unwrap();
         let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
@@ -67,8 +66,7 @@ mod tests {
         let rpc_url = anvil.endpoint();
         let url = Url::from_str(&rpc_url)?;
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -121,8 +119,7 @@ mod tests {
         let url = Url::from_str(&rpc_url)?;
 
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -185,8 +182,7 @@ mod tests {
         let rpc_url = anvil.endpoint();
         let url = Url::from_str(&rpc_url)?;
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -249,8 +245,7 @@ mod tests {
         let rpc_url = anvil.endpoint();
         let url = Url::from_str(&rpc_url)?;
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -301,8 +296,7 @@ mod tests {
 
         let url = Url::from_str(&rpc_url)?;
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();
@@ -353,8 +347,7 @@ mod tests {
         let rpc_url = anvil.endpoint();
         let url = Url::from_str(&rpc_url)?;
         let provider = ProviderBuilder::new().on_http(url);
-        let preconf_pool =
-            PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), Address::default());
+        let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), Address::default());
 
         let sender = anvil.addresses().first().unwrap();
         let receiver = anvil.addresses().last().unwrap();

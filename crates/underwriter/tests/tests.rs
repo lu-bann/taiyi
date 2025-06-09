@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     str::FromStr,
@@ -25,10 +23,7 @@ use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfRequest, PreconfRequestTypeB,
     PreconfResponseData, SubmitTransactionRequest,
 };
-use tracing::{error, info};
-use uuid::Uuid;
-
-use crate::{
+use taiyi_underwriter::{
     clients::{
         pricer::{ExecutionClientPricer, Pricer},
         relay_client::RelayClient,
@@ -42,8 +37,10 @@ use crate::{
         },
         state::PreconfState,
     },
-    preconf_pool::PreconfPoolBuilder,
+    preconf_pool::create_preconf_pool,
 };
+use tracing::{error, info};
+use uuid::Uuid;
 
 sol! {
     #[sol(rpc, bytecode="6080604052348015600e575f80fd5b506101c38061001c5f395ff3fe608060405260043610610033575f3560e01c806327e235e31461003757806370a0823114610074578063d0e30db0146100a8575b5f80fd5b348015610042575f80fd5b5061006261005136600461013b565b5f6020819052908152604090205481565b60405190815260200160405180910390f35b34801561007f575f80fd5b5061006261008e36600461013b565b6001600160a01b03165f9081526020819052604090205490565b6100b06100b2565b005b5f34116101165760405162461bcd60e51b815260206004820152602860248201527f4465706f73697420616d6f756e74206d7573742062652067726561746572207460448201526768616e207a65726f60c01b606482015260840160405180910390fd5b335f9081526020819052604081208054349290610134908490610168565b9091555050565b5f6020828403121561014b575f80fd5b81356001600160a01b0381168114610161575f80fd5b9392505050565b8082018082111561018757634e487b7160e01b5f52601160045260245ffd5b9291505056fea26469706673582212205b3ebf660e7dcdb2d674f60a0229e4677c14be1e78d91ba988f92f12ade8038264736f6c63430008190033")]
@@ -65,7 +62,6 @@ sol! {
 async fn test_preconf_api_server() -> eyre::Result<()> {
     let context = Context::for_mainnet();
     let network_state = NetworkState::new(context.clone());
-    let slots = vec![20_000_000];
     for slot in 20_000_000..20_000_000 + 10 {
         network_state.add_slot(slot);
     }
@@ -74,15 +70,12 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
 
     let bls_sk = "4bd1960f5721d636400cb9dff7d17d5cfcc155f113280b8b9158596e2c0084ce".to_string();
     let ecdsa_sk = "0xa37e56991c7e88b7a4d80010a729fecce48fb2da505f3dccab7c2fa89bb69c4f".to_string();
-    let ecdsa_pubkey =
-        "03643b2c19f03891a7d103f50fab07ad0dbe7cb19477074d42488a28e345b07145".to_string();
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
 
     let anvil = Anvil::new().block_time(12).chain_id(1).spawn();
     let rpc_url = anvil.endpoint();
 
     let sender = anvil.addresses().first().unwrap();
-    let receiver = anvil.addresses().last().unwrap();
     let sender_pk = anvil.keys().first().unwrap();
     let signer = PrivateKeySigner::from_signing_key(sender_pk.into());
     let wallet = EthereumWallet::from(signer.clone());
@@ -90,16 +83,17 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(url);
     let chain_id = provider.get_chain_id().await?;
 
-    // Deploy escrow contract
     let escrow = TaiyiEscrow::deploy(&provider).await?;
-    info!("Deployed contract at address: {}", escrow.address());
 
-    // Deposit into the escrow contract
-    let builder = escrow.deposit().value(U256::from(1_000_000_000_000_000_000_u128));
-    let tx_hash = builder.send().await?.watch().await?;
+    let _ = escrow
+        .deposit()
+        .value(U256::from(1_000_000_000_000_000_000_u128))
+        .send()
+        .await?
+        .watch()
+        .await?;
 
-    let builder = escrow.balanceOf(*sender);
-    let balance = builder.call().await?._0;
+    let balance = escrow.balanceOf(*sender).call().await?._0;
     assert_eq!(balance, U256::from(1_000_000_000_000_000_000_u128));
 
     let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
@@ -189,7 +183,7 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
     let body = response.text().await?;
     println!("{:?}", body);
     println!("Current block number: {:?}", provider.get_block_number().await?);
-    let response: PreconfResponseData = serde_json::from_str(&body)?;
+    let _: PreconfResponseData = serde_json::from_str(&body)?;
     assert_eq!(status, 200);
 
     Ok(())
@@ -230,19 +224,14 @@ async fn test_has_enough_balance() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().wallet(wallet.clone()).on_http(url);
     let chain_id = provider.get_chain_id().await?;
 
-    // Deploy escrow contract
     let escrow = TaiyiEscrow::deploy(&provider).await?;
-    println!("Deployed contract at address: {}", escrow.address());
 
-    // Deposit into the escrow contract
-    let builder = escrow.deposit().value(U256::from(500_000));
-    let tx_hash = builder.send().await?.watch().await?;
+    let _ = escrow.deposit().value(U256::from(500_000)).send().await?.watch().await?;
 
-    let builder = escrow.balanceOf(*sender);
-    let balance = builder.call().await?._0;
+    let balance = escrow.balanceOf(*sender).call().await?._0;
     assert_eq!(balance, U256::from(500_000));
 
-    let preconf_pool = PreconfPoolBuilder::new().build(rpc_url.parse().unwrap(), *escrow.address());
+    let preconf_pool = create_preconf_pool(rpc_url.parse().unwrap(), *escrow.address());
 
     let blockspace_request = BlockspaceAllocation {
         deposit: U256::from(100_000),
@@ -279,7 +268,6 @@ async fn test_has_enough_balance() -> eyre::Result<()> {
 async fn test_commitment_stream() -> eyre::Result<()> {
     let context = Context::for_mainnet();
     let network_state = NetworkState::new(context.clone());
-    let slots = vec![20_000_000];
     for slot in 20_000_000..20_000_000 + 10 {
         network_state.add_slot(slot);
     }
@@ -288,15 +276,12 @@ async fn test_commitment_stream() -> eyre::Result<()> {
 
     let bls_sk = "4bd1960f5721d636400cb9dff7d17d5cfcc155f113280b8b9158596e2c0084ce".to_string();
     let ecdsa_sk = "0xa37e56991c7e88b7a4d80010a729fecce48fb2da505f3dccab7c2fa89bb69c4f".to_string();
-    let ecdsa_pubkey =
-        "03643b2c19f03891a7d103f50fab07ad0dbe7cb19477074d42488a28e345b07145".to_string();
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
 
     let anvil = Anvil::new().block_time(12).chain_id(1).spawn();
     let rpc_url = anvil.endpoint();
     let url = Url::from_str(&rpc_url)?;
     let provider = ProviderBuilder::new().on_http(url);
-    let chain_id = provider.get_chain_id().await?;
 
     let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
 
