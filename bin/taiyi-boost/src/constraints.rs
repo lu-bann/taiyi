@@ -6,7 +6,7 @@ use futures::StreamExt;
 use parking_lot::RwLock;
 use reqwest_eventsource::{Event, EventSource};
 use scc::HashMap;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     ext::relay::RelayExt,
@@ -42,62 +42,30 @@ impl ConstraintsCache {
 pub async fn subscribe_to_constraints_stream(
     constraints_cache: ConstraintsCache,
     relays: &[RelayClient],
-) -> eyre::Result<()> 
-{
+) -> eyre::Result<()> {
     info!("Starting constraint subscriber");
 
     let relay = relays.first().expect("At least one relay must be configured").clone();
 
     loop {
-        let request = relay.constraint_stream_request()?;
-        match EventSource::new(request) {
-            Ok(mut event_source) => {
-                while let Some(event_result) = event_source.next().await {
-                    match event_result {
-                        Ok(Event::Message(message)) => {
-                            if message.event == "signed_constraint" {
-                                match serde_json::from_str::<Vec<SignedConstraints>>(
-                                    &message.data,
-                                ) {
-                                    Ok(received_constraints) => {
-                                        debug!(
-                                            "Received constraints: {:?}",
-                                            received_constraints
-                                        );
-                                        for signed_constraint in received_constraints {
-                                            if let Err(err) = constraints_cache
-                                                .insert(signed_constraint.message)
-                                            {
-                                                error!("constraints_cache insert error: {:?}", err);
-                                            }
-                                        }
-                                    }
-                                    Err(err) => {
-                                        error!("Deserialization error: {:?}", err);
-                                    }
-                                }
-                            }
-                        }
-                        Ok(Event::Open) => {
-                            debug!("SSE stream open");
-                        }
-                        Err(err) => {
-                            error!("SSE stream error: {:?}", err);
-                            // break the loop and reconnect after backoff
-                            break;
+        match relay.constraint_stream_request() {
+            Ok(request) => {
+                let mut event_source = EventSource::new(request)?;
+                while let Some(Ok(Event::Message(message))) = event_source.next().await {
+                    if message.event == "signed_constraint" {
+                        let received_constraints: Vec<SignedConstraints> =
+                            serde_json::from_str(&message.data)?;
+                        for constraint in received_constraints {
+                            constraints_cache.insert(constraint.message)?;
                         }
                     }
                 }
-
-                info!("SSE stream ended. Reconnecting instantly");
             }
             Err(err) => {
                 error!("Failed to connect to SSE source: {:?}", err);
             }
         }
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
