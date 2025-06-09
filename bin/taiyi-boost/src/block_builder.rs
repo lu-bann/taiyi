@@ -49,16 +49,12 @@ pub struct LocalBlockBuilder {
     bls_secret_key: BlsSecretKey,
 }
 
-const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
-
-fn calc_excess_blob_gas(parent_excess_blob_gas: u64, parent_blob_gas_used: u64) -> u64 {
-    let parant_blob_gas_info = parent_excess_blob_gas.saturating_add(parent_blob_gas_used);
-    if parant_blob_gas_info < TARGET_BLOB_GAS_PER_BLOCK {
-        0
-    } else {
-        parant_blob_gas_info.saturating_sub(TARGET_BLOB_GAS_PER_BLOCK)
-    }
+fn calc_excess_blob_gas(excess_blob_gas: u64, blob_gas_used: u64, max_blob_gas: u64) -> u64 {
+    let blob_gas_info = excess_blob_gas.saturating_add(blob_gas_used);
+    blob_gas_info - std::cmp::min(blob_gas_info, max_blob_gas)
 }
+
+const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
 
 // The local block builder was based on bolt's implementation.
 // See: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-sidecar/src/builder/payload_builder.rs
@@ -144,6 +140,7 @@ impl LocalBlockBuilder {
         let excess_blob_gas = calc_excess_blob_gas(
             head_block.header.excess_blob_gas.unwrap_or_default(),
             head_block.header.blob_gas_used.unwrap_or_default(),
+            TARGET_BLOB_GAS_PER_BLOCK,
         );
 
         let blob_gas_used =
@@ -234,7 +231,7 @@ impl LocalBlockBuilder {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_primitives::Address;
@@ -301,5 +298,25 @@ mod test {
         let block = local_builder.build_local_payload(slot, &[tx_signed_reth]).await?;
         assert_eq!(block.body.transactions.len(), 1);
         Ok(())
+    }
+
+    #[test]
+    fn if_parent_gas_used_plus_parent_excess_gas_is_below_upper_bound_then_calc_excess_blob_gas_returns_zero(
+    ) {
+        let parent_excess_gas = 100u64;
+        let parent_gas_used = 50u64;
+        let max_gas = 200u64;
+        let excess_gas = calc_excess_blob_gas(parent_excess_gas, parent_gas_used, max_gas);
+        assert_eq!(excess_gas, 0u64);
+    }
+
+    #[test]
+    fn if_parent_gas_used_plus_parent_excess_gas_is_above_upper_bound_then_calc_excess_blob_gas_returns_difference(
+    ) {
+        let parent_excess_gas = 100u64;
+        let parent_gas_used = 150u64;
+        let max_gas = 200u64;
+        let excess_gas = calc_excess_blob_gas(parent_excess_gas, parent_gas_used, max_gas);
+        assert_eq!(excess_gas, 50u64);
     }
 }
