@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use alloy_consensus::{constants::ETH_TO_WEI, Transaction};
 use alloy_eips::{eip2718::Encodable2718, BlockNumberOrTag};
-use alloy_primitives::{keccak256, Address, PrimitiveSignature, U256};
+use alloy_primitives::{keccak256, Address, PrimitiveSignature, B256, U256};
 use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
 use alloy_sol_types::{SolCall, SolValue};
 use eth_trie_proofs::tx_trie::TxsMptHandler;
@@ -62,7 +62,7 @@ async fn test_health_check() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
@@ -98,7 +98,7 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
@@ -154,7 +154,7 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -233,7 +233,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_type_a_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -307,8 +307,8 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     );
 
     let anchor_tx = txs.get(0).unwrap();
-    let tip_tx = txs.get(1).unwrap();
-    let user_tx = txs.get(2).unwrap();
+    let tip_tx = request.tip_transaction.clone();
+    let user_tx = request.preconf_transaction.first().unwrap();
 
     wait_until_deadline_of_slot(&config, target_slot + 1).await?;
     let block_number = get_block_from_slot(&config.beacon_url, target_slot).await?;
@@ -389,8 +389,6 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
         root: inclusion_block.header.transactions_root,
     });
 
-    let mut stdin = SP1Stdin::new();
-
     // preconf type a
     let preconf_a = PreconfRequestTypeA {
         tip_transaction: tip_transaction.clone().into(),
@@ -410,7 +408,6 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // serde serialized preconf request type a
     let preconf_a_serialized = serde_json::to_string(&preconf_type_a).unwrap();
-    stdin.write(&preconf_a_serialized);
 
     // hex-encoded preconfirmation signature
     let preconf_signature = hex::encode(
@@ -420,36 +417,24 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
         .unwrap()
         .as_bytes(),
     );
-    stdin.write(&preconf_signature);
-
-    // is type a
-    stdin.write(&true);
-
-    // inclusion block header
     let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
-    stdin.write(&inclusion_block_header_serialized);
-
-    // inclusion block hash
-    stdin.write(&inclusion_block.header.hash_slow());
-
-    // previous block header
     let previous_block_header_serialized = serde_json::to_string(&previous_block.header).unwrap();
-    stdin.write(&previous_block_header_serialized);
-
-    // previous block hash
-    stdin.write(&previous_block.header.hash_slow());
-
-    // underwriter address
     let underwriter_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
-    stdin.write(&underwriter_address);
-
-    // genesis time
     let genesis_time = config.context.actual_genesis_time();
-    stdin.write(&genesis_time);
-
-    // taiyi core address
     let taiyi_core = config.taiyi_core;
-    stdin.write(&taiyi_core);
+
+    let stdin = std_in(
+        true,
+        preconf_a_serialized,
+        preconf_signature,
+        inclusion_block_header_serialized,
+        inclusion_block.header.hash_slow(),
+        previous_block_header_serialized,
+        previous_block.header.hash_slow(),
+        underwriter_address,
+        genesis_time,
+        taiyi_core,
+    );
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -497,7 +482,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_type_b_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -692,9 +677,6 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
         root: inclusion_block.header.transactions_root,
     });
 
-    // SP1 part
-    let mut stdin = SP1Stdin::new();
-
     // preconf type b
     let preconf_b = PreconfRequestTypeB {
         allocation: BlockspaceAllocation {
@@ -744,7 +726,6 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 
     // serde serialized preconf request type b
     let preconf_type_b_serialized = serde_json::to_string(&preconf_type_b).unwrap();
-    stdin.write(&preconf_type_b_serialized);
 
     // hex-encoded preconfirmation signature
     let preconf_signature = hex::encode(
@@ -754,36 +735,25 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
         .unwrap()
         .as_bytes(),
     );
-    stdin.write(&preconf_signature);
 
-    // is type a
-    stdin.write(&false);
-
-    // inclusion block header
     let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
-    stdin.write(&inclusion_block_header_serialized);
-
-    // inclusion block hash
-    stdin.write(&inclusion_block.header.hash_slow());
-
-    // previous block header
     let previous_block_header_serialized = serde_json::to_string(&previous_block.header).unwrap();
-    stdin.write(&previous_block_header_serialized);
-
-    // previous block hash
-    stdin.write(&previous_block.header.hash_slow());
-
-    // underwriter address
     let underwriter_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
-    stdin.write(&underwriter_address);
-
-    // genesis time
     let genesis_time = config.context.actual_genesis_time();
-    stdin.write(&genesis_time);
-
-    // taiyi core address
     let taiyi_core = config.taiyi_core;
-    stdin.write(&taiyi_core);
+
+    let stdin = std_in(
+        false,
+        preconf_type_b_serialized,
+        preconf_signature,
+        inclusion_block_header_serialized,
+        inclusion_block.header.hash_slow(),
+        previous_block_header_serialized,
+        previous_block.header.hash_slow(),
+        underwriter_address,
+        genesis_time,
+        taiyi_core,
+    );
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -831,7 +801,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -890,7 +860,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     assert!(txs.contains(&request.tip_transaction));
 
     let anchor_tx = txs.get(0).unwrap();
-    let tip_tx = txs.get(1).unwrap();
+    let tip_tx = request.tip_transaction.clone();
     let user_txs = request.preconf_transaction.clone();
     let _payout_tx = txs.last().unwrap();
 
@@ -960,9 +930,6 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         });
     }
 
-    // SP1 part
-    let mut stdin = SP1Stdin::new();
-
     // preconf type a
     let preconf_a = PreconfRequestTypeA {
         tip_transaction: tip_transaction.clone().into(),
@@ -982,7 +949,6 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
 
     // serde serialized preconf request type a
     let preconf_a_serialized = serde_json::to_string(&preconf_type_a).unwrap();
-    stdin.write(&preconf_a_serialized);
 
     // hex-encoded preconfirmation signature
     let preconf_signature = hex::encode(
@@ -992,36 +958,25 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         .unwrap()
         .as_bytes(),
     );
-    stdin.write(&preconf_signature);
 
-    // is type a
-    stdin.write(&true);
-
-    // inclusion block header
     let inclusion_block_header_serialized = serde_json::to_string(&inclusion_block.header).unwrap();
-    stdin.write(&inclusion_block_header_serialized);
-
-    // inclusion block hash
-    stdin.write(&inclusion_block.header.hash_slow());
-
-    // previous block header
     let previous_block_header_serialized = serde_json::to_string(&previous_block.header).unwrap();
-    stdin.write(&previous_block_header_serialized);
-
-    // previous block hash
-    stdin.write(&previous_block.header.hash_slow());
-
-    // underwriter address
     let underwriter_address = Address::from_str(UNDERWRITER_ADDRESS).unwrap();
-    stdin.write(&underwriter_address);
-
-    // genesis time
     let genesis_time = config.context.actual_genesis_time();
-    stdin.write(&genesis_time);
-
-    // taiyi core address
     let taiyi_core = config.taiyi_core;
-    stdin.write(&taiyi_core);
+
+    let stdin = std_in(
+        true,
+        preconf_a_serialized,
+        preconf_signature,
+        inclusion_block_header_serialized,
+        inclusion_block.header.hash_slow(),
+        previous_block_header_serialized,
+        previous_block.header.hash_slow(),
+        underwriter_address,
+        genesis_time,
+        taiyi_core,
+    );
 
     println!("Using the local/cpu SP1 prover.");
     let client = ProverClient::builder().cpu().build();
@@ -1069,7 +1024,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -1202,7 +1157,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
@@ -1302,4 +1257,30 @@ async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
 
     drop(taiyi_handle);
     Ok(())
+}
+
+fn std_in(
+    type_a: bool,
+    preconf_serialised: String,
+    preconf_signature: String,
+    inclusion_block_header_serialized: String,
+    inclusion_block_hash: B256,
+    previous_block_header_serialized: String,
+    previous_block_hash: B256,
+    underwriter_address: Address,
+    genesis_time: u64,
+    taiyi_core: Address,
+) -> SP1Stdin {
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&preconf_serialised);
+    stdin.write(&preconf_signature);
+    stdin.write(&type_a);
+    stdin.write(&inclusion_block_header_serialized);
+    stdin.write(&inclusion_block_hash);
+    stdin.write(&previous_block_header_serialized);
+    stdin.write(&previous_block_hash);
+    stdin.write(&underwriter_address);
+    stdin.write(&genesis_time);
+    stdin.write(&taiyi_core);
+    stdin
 }
