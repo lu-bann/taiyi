@@ -24,7 +24,7 @@ use crate::{
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_api::CommitmentsHandle,
-    preconf_pool::{PreconfPool, PreconfPoolBuilder},
+    preconf_pool::{create_preconf_pool, PreconfPool},
 };
 
 #[derive(Clone)]
@@ -53,7 +53,7 @@ where
         provider: P,
         pricer: Pricer<F>,
     ) -> Self {
-        let preconf_pool = PreconfPoolBuilder::new().build(execution_rpc_url, taiyi_escrow_address);
+        let preconf_pool = create_preconf_pool(execution_rpc_url, taiyi_escrow_address);
 
         let commitments_tx = broadcast::channel(128).0;
         let commitments_handle = CommitmentsHandle { commitments_tx };

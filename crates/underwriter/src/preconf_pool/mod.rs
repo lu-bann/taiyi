@@ -31,18 +31,9 @@ mod ready;
 mod tests;
 mod validator;
 
-#[derive(Debug)]
-pub struct PreconfPoolBuilder;
-
-impl PreconfPoolBuilder {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn build(self, rpc_url: Url, taiyi_escrow_address: Address) -> Arc<PreconfPool> {
-        let validator = PreconfValidator::new(rpc_url);
-        Arc::new(PreconfPool::new(validator, taiyi_escrow_address))
-    }
+pub fn create_preconf_pool(rpc_url: Url, taiyi_escrow_address: Address) -> Arc<PreconfPool> {
+    let validator = PreconfValidator::new(rpc_url);
+    Arc::new(PreconfPool::new(validator, taiyi_escrow_address))
 }
 
 /// A pool that manages preconf requests.
