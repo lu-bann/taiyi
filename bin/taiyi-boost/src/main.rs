@@ -3,6 +3,8 @@ use commit_boost::prelude::{load_pbs_custom_config, PbsService, PbsState};
 use constraints::subscribe_to_constraints_stream;
 use eyre::Result;
 use taiyi_cmd::initialize_tracing_log;
+use tokio::select;
+use tracing::error;
 use types::ExtraConfig;
 
 mod block_builder;
@@ -18,6 +20,12 @@ mod proofs;
 mod types;
 mod utils;
 
+fn log_error<E: ToString>(result: Result<(), E>, msg: &str) {
+    if let Err(err) = result {
+        error!("{msg}: {}", err.to_string());
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>().await?;
@@ -26,12 +34,13 @@ async fn main() -> Result<()> {
     let sidecar_state = SidecarBuilderState::new(&extra).await;
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state.clone());
 
-    subscribe_to_constraints_stream(sidecar_state.constraints.clone(), pbs_state.all_relays())
-        .await?;
-
     metrics::init_metrics(pbs_config.chain)?;
 
-    PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state).await?;
-
-    Ok(())
+    loop {
+        let result: Result<()> = select!(
+            v = subscribe_to_constraints_stream(sidecar_state.constraints.clone(), pbs_state.all_relays()) => v,
+            v = PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state.clone()) => v
+        );
+        log_error(result, "Taiyi Boost");
+    }
 }
