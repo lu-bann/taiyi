@@ -25,7 +25,7 @@ pub struct EstimateBaseFeeResponse {
     pub blob_base_fee: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct EstimateBaseFeeQuery {
     pub block_number: i64,
 }
