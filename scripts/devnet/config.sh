@@ -25,12 +25,12 @@ if kurtosis enclave inspect $ENCLAVE_NAME >/dev/null 2>&1; then
   export RELAY_URL="http://$(kurtosis port print $ENCLAVE_NAME helix-relay api)"
 
   # For mac replace 127.0.0.1 (localhost) with host.docker.internal
-  if [ "$TAIYI_E2E_FOR_MAC" = "1" ]; then
-    REPLACE_URL_FOR_MAC_REGEX="s@http://127.0.0.1:\([0-9]*\)@http://host.docker.internal:\1@g"
+  if [ "$TAIYI_E2E_USE_DOCKER_INTERNAL_HOST" = "1" ]; then
+    REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX="s@http://127.0.0.1:\([0-9]*\)@http://host.docker.internal:\1@g"
 
-    export EXECUTION_URL=$(echo $EXECUTION_URL | sed "$REPLACE_URL_FOR_MAC_REGEX")
-    export BEACON_URL=$(echo $BEACON_URL | sed "$REPLACE_URL_FOR_MAC_REGEX")
-    export RELAY_URL=$(echo $RELAY_URL | sed "$REPLACE_URL_FOR_MAC_REGEX")
+    export EXECUTION_URL=$(echo $EXECUTION_URL | sed "$REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX")
+    export BEACON_URL=$(echo $BEACON_URL | sed "$REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX")
+    export RELAY_URL=$(echo $RELAY_URL | sed "$REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX")
   fi
 fi
 
