@@ -18,7 +18,7 @@ pub enum PricerError {
     InsufficientTip(U256, U256),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct EstimateBaseFeeResponse {
     pub block_number: i64,
     pub base_fee: f64,
