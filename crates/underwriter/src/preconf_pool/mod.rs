@@ -20,12 +20,13 @@ use crate::{
     clients::execution_client::{AccountState, ExecutionClient},
     context_ext::ContextExt,
     error::{PoolError, ValidationError},
-    preconf_pool::inner::PreconfPoolInner,
+    preconf_pool::{inner::PreconfPoolInner, sequence_number::SequenceNumberPerSlot},
 };
 
 mod inner;
 mod pending;
 mod ready;
+mod sequence_number;
 #[cfg(test)]
 mod tests;
 
@@ -45,6 +46,7 @@ pub struct PreconfPool {
     pub taiyi_escrow_address: Address,
     /// Account state cache
     state_cache: RwLock<HashMap<Address, AccountState>>,
+    sequence_number_per_slot: Arc<RwLock<SequenceNumberPerSlot>>,
 }
 
 impl PreconfPool {
@@ -59,6 +61,7 @@ impl PreconfPool {
             kzg_settings: EnvKzgSettings::default(),
             taiyi_escrow_address,
             state_cache: RwLock::new(HashMap::new()),
+            sequence_number_per_slot: Arc::new(RwLock::new(SequenceNumberPerSlot::new())),
         }
     }
 
@@ -171,14 +174,22 @@ impl PreconfPool {
         }
 
         match preconf_request {
-            PreconfRequest::TypeA(preconf_request) => {
+            PreconfRequest::TypeA(mut preconf_request) => {
                 self.validate_typea(
                     &preconf_request,
                     &account_state.expect("can't be none"),
                     preconf_fee,
                 )
                 .await?;
-                Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
+                let sequence_number_per_slot = self.sequence_number_per_slot.clone();
+                preconf_request.sequence_number =
+                    Some(sequence_number_per_slot.write().get_next_and_add(
+                        preconf_request.target_slot(),
+                        preconf_request.preconf_tx.len() as u64,
+                    ));
+                let request = PreconfRequest::TypeA(preconf_request);
+                self.insert_ready(request_id, request.clone());
+                Ok(request)
             }
             PreconfRequest::TypeB(preconf_request) => {
                 if preconf_request.transaction.is_some() {

@@ -25,9 +25,7 @@ use taiyi_primitives::{
 };
 use taiyi_underwriter::{
     clients::{
-        pricer::ExecutionClientPricer,
-        relay_client::RelayClient,
-        signer_client::SignerClient,
+        pricer::ExecutionClientPricer, relay_client::RelayClient, signer_client::SignerClient,
     },
     network_state::NetworkState,
     preconf_api::{

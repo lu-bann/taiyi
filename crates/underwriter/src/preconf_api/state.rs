@@ -16,11 +16,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::{
-    clients::{
-        pricer::PreconfPricer,
-        relay_client::RelayClient,
-        signer_client::SignerClient,
-    },
+    clients::{pricer::PreconfPricer, relay_client::RelayClient, signer_client::SignerClient},
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
