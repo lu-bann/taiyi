@@ -13,7 +13,7 @@ use tracing::{error, info};
 
 use crate::{
     clients::{
-        pricer::{ExecutionClientPricer, Pricer, TaiyiPricer},
+        pricer::{ExecutionClientPricer, TaiyiPricer},
         relay_client::RelayClient,
         signer_client::SignerClient,
     },
@@ -53,7 +53,7 @@ pub async fn spawn_service(
     match taiyi_service_url {
         Some(url) => {
             info!("Using Taiyi service at {}", url);
-            let pricer = Pricer::new(TaiyiPricer::new(url));
+            let pricer = TaiyiPricer::new(url);
             let state = PreconfState::new(
                 network_state,
                 relay_client,
@@ -87,7 +87,7 @@ pub async fn spawn_service(
         }
         None => {
             info!("Using execution client pricer at {}", execution_rpc_url);
-            let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+            let pricer = ExecutionClientPricer::new(provider.clone());
             let state = PreconfState::new(
                 network_state,
                 relay_client,

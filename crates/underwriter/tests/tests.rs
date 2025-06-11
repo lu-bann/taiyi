@@ -25,7 +25,7 @@ use taiyi_primitives::{
 };
 use taiyi_underwriter::{
     clients::{
-        pricer::{ExecutionClientPricer, Pricer},
+        pricer::ExecutionClientPricer,
         relay_client::RelayClient,
         signer_client::SignerClient,
     },
@@ -96,7 +96,7 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
     let balance = escrow.balanceOf(*sender).call().await?._0;
     assert_eq!(balance, U256::from(1_000_000_000_000_000_000_u128));
 
-    let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+    let pricer = ExecutionClientPricer::new(provider.clone());
 
     // spawn api server
     let state = PreconfState::new(
@@ -283,7 +283,7 @@ async fn test_commitment_stream() -> eyre::Result<()> {
     let url = Url::from_str(&rpc_url)?;
     let provider = ProviderBuilder::new().on_http(url);
 
-    let pricer = Pricer::new(ExecutionClientPricer::new(provider.clone()));
+    let pricer = ExecutionClientPricer::new(provider.clone());
 
     // spawn api server
     let state = PreconfState::new(
