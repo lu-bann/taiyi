@@ -18,16 +18,10 @@ pub struct PreconfPoolInner {
 }
 
 impl PreconfPoolInner {
-    pub fn escrow_balance_diffs(&self, account: Address) -> Option<U256> {
+    pub fn escrow_balance_diffs(&self, account: Address) -> U256 {
         let pending_diff = self.pending.get_balance_diffs_for_account(account);
         let ready_diff = self.ready.get_balance_diffs_for_account(account);
-
-        match (pending_diff, ready_diff) {
-            (Some(pending_diff), Some(ready_diff)) => Some(pending_diff + ready_diff),
-            (Some(pending_diff), None) => Some(pending_diff),
-            (None, Some(ready_diff)) => Some(ready_diff),
-            (None, None) => None,
-        }
+        pending_diff.unwrap_or_default() + ready_diff.unwrap_or_default()
     }
 
     pub fn update_blockspace(&mut self, slot: u64, blockspace: BlockspaceAvailable) {
