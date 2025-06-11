@@ -161,7 +161,7 @@ where
     P: Provider + Clone + Send + Sync + 'static,
     F: PreconfPricer + Sync + Send + 'static,
 {
-    Ok(Json(state.pricer.pricer.get_preconf_fee(request).await?))
+    Ok(Json(state.pricer.get_preconf_fee(request).await?))
 }
 
 pub async fn handle_submit_typea_transaction<P, F>(

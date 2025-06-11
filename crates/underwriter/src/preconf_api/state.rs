@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use crate::{
     clients::{
-        pricer::{PreconfPricer, Pricer},
+        pricer::PreconfPricer,
         relay_client::RelayClient,
         signer_client::SignerClient,
     },
@@ -44,7 +44,7 @@ pub struct PreconfState<P, F> {
     pub relay_client: RelayClient,
     pub signer_client: SignerClient,
     pub provider: P,
-    pub pricer: Pricer<F>,
+    pub pricer: F,
     pub broadcast_sender: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
 }
 
@@ -61,7 +61,7 @@ where
         execution_rpc_url: Url,
         taiyi_escrow_address: Address,
         provider: P,
-        pricer: Pricer<F>,
+        pricer: F,
     ) -> Self {
         let preconf_pool = create_preconf_pool(execution_rpc_url, taiyi_escrow_address);
 
@@ -104,7 +104,7 @@ where
             return Err(RpcError::ParamsError("Gas limit cannot be zero".to_string()));
         }
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+        let preconf_fee = self.pricer.get_preconf_fee(request.target_slot).await?;
 
         if request.preconf_fee != preconf_fee {
             return Err(RpcError::ParamsError(
@@ -211,7 +211,7 @@ where
             return Err(RpcError::ParamsError("No preconf transactions".to_string()));
         }
 
-        let preconf_fee = self.pricer.pricer.get_preconf_fee(request.target_slot).await?;
+        let preconf_fee = self.pricer.get_preconf_fee(request.target_slot).await?;
 
         // Only for internal use.
         let request_id = Uuid::new_v4();

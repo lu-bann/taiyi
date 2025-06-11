@@ -30,20 +30,6 @@ pub struct EstimateBaseFeeQuery {
     pub block_number: i64,
 }
 
-#[derive(Debug, Clone)]
-pub struct Pricer<F> {
-    pub pricer: F,
-}
-
-impl<F> Pricer<F>
-where
-    F: PreconfPricer + Sync,
-{
-    pub fn new(pricer: F) -> Self {
-        Self { pricer }
-    }
-}
-
 pub trait PreconfPricer {
     fn get_preconf_fee(
         &self,
