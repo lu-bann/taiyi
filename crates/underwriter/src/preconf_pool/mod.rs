@@ -200,20 +200,17 @@ impl PreconfPool {
         preconf_tip: U256,
     ) -> Result<(), PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
-        let escrow_balance =
-            self.execution_client.balance_of(account, self.taiyi_escrow_address).await;
+        let escrow_balance = self
+            .execution_client
+            .balance_of(account, self.taiyi_escrow_address)
+            .await
+            .map_err(|_| PoolError::EscrowBalanceNotFoundForAccount(account))?;
 
-        match escrow_balance {
-            Ok(balance) => {
-                let effective_balance =
-                    balance - U256::from(pending_diffs_for_account.unwrap_or_default());
-                if effective_balance < preconf_tip {
-                    Err(PoolError::InsufficientEscrowBalance(effective_balance, preconf_tip))
-                } else {
-                    Ok(())
-                }
-            }
-            Err(_) => Err(PoolError::EscrowBalanceNotFoundForAccount(account)),
+        let effective_balance = escrow_balance - pending_diffs_for_account;
+        if effective_balance < preconf_tip {
+            Err(PoolError::InsufficientEscrowBalance(effective_balance, preconf_tip))
+        } else {
+            Ok(())
         }
     }
 
