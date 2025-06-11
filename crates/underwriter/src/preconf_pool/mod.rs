@@ -1,7 +1,7 @@
 use std::{collections::HashMap, future::Future, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
+use alloy_eips::eip4844::{env_settings::EnvKzgSettings, DATA_GAS_PER_BLOB};
 use alloy_primitives::{Address, U256};
 use ethereum_consensus::{clock::from_system_time, deneb::Context};
 use futures::StreamExt;
@@ -15,10 +15,9 @@ use taiyi_primitives::{
 };
 use tracing::info;
 use uuid::Uuid;
-use validator::PreconfValidator;
 
 use crate::{
-    clients::execution_client::AccountState,
+    clients::execution_client::{AccountState, ExecutionClient},
     context_ext::ContextExt,
     error::{PoolError, ValidationError},
     preconf_pool::inner::PreconfPoolInner,
@@ -29,11 +28,10 @@ mod pending;
 mod ready;
 #[cfg(test)]
 mod tests;
-mod validator;
 
 pub fn create_preconf_pool(rpc_url: Url, taiyi_escrow_address: Address) -> Arc<PreconfPool> {
-    let validator = PreconfValidator::new(rpc_url);
-    Arc::new(PreconfPool::new(validator, taiyi_escrow_address))
+    let execution_client = ExecutionClient::new(rpc_url);
+    Arc::new(PreconfPool::new(execution_client, taiyi_escrow_address))
 }
 
 /// A pool that manages preconf requests.
@@ -42,23 +40,23 @@ pub fn create_preconf_pool(rpc_url: Url, taiyi_escrow_address: Address) -> Arc<P
 pub struct PreconfPool {
     /// Inner type containing all sub-pools
     pool_inner: RwLock<PreconfPoolInner>,
-    /// Validator to validate preconf requests.
-    validator: PreconfValidator,
-    /// escrow contract
+    execution_client: ExecutionClient,
+    kzg_settings: EnvKzgSettings,
     pub taiyi_escrow_address: Address,
     /// Account state cache
     state_cache: RwLock<HashMap<Address, AccountState>>,
 }
 
 impl PreconfPool {
-    pub fn new(validator: PreconfValidator, taiyi_escrow_address: Address) -> Self {
+    pub fn new(execution_client: ExecutionClient, taiyi_escrow_address: Address) -> Self {
         Self {
             pool_inner: RwLock::new(PreconfPoolInner {
                 pending: Pending::new(),
                 ready: Ready::default(),
                 blockspace_issued: HashMap::new(),
             }),
-            validator,
+            execution_client,
+            kzg_settings: EnvKzgSettings::default(),
             taiyi_escrow_address,
             state_cache: RwLock::new(HashMap::new()),
         }
@@ -163,7 +161,6 @@ impl PreconfPool {
 
         if account_state.is_none() {
             let state = self
-                .validator
                 .execution_client
                 .get_account_state(preconf_request.signer())
                 .await
@@ -204,7 +201,7 @@ impl PreconfPool {
     ) -> Result<(), PoolError> {
         let pending_diffs_for_account = self.pool_inner.read().escrow_balance_diffs(account);
         let escrow_balance =
-            self.validator.execution_client.balance_of(account, self.taiyi_escrow_address).await;
+            self.execution_client.balance_of(account, self.taiyi_escrow_address).await;
 
         match escrow_balance {
             Ok(balance) => {
@@ -319,7 +316,7 @@ impl PreconfPool {
                     })?;
 
                 // validate the blob
-                transaction.validate_blob(self.validator.kzg_settings.get())?;
+                transaction.validate_blob(self.kzg_settings.get())?;
             }
         }
 
@@ -388,7 +385,7 @@ impl PreconfPool {
             }
 
             // validate the blob
-            transaction.validate_blob(self.validator.kzg_settings.get())?;
+            transaction.validate_blob(self.kzg_settings.get())?;
         }
 
         // Update state cache
@@ -494,7 +491,7 @@ impl PreconfPool {
     }
 
     pub async fn calculate_gas_used(&self, tx: TxEnvelope) -> eyre::Result<u64> {
-        self.validator.execution_client.gas_used(tx).await
+        self.execution_client.gas_used(tx).await
     }
 }
 
