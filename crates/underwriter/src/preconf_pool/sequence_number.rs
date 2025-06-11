@@ -25,8 +25,8 @@ impl SequenceNumberPerSlot {
     }
 
     #[allow(dead_code)]
-    pub fn remove_until(&mut self, last_slot_to_remove: u64) {
-        self.sequence_numbers.retain(|k, _| *k > last_slot_to_remove)
+    pub fn remove_before(&mut self, first_slot_to_keep: u64) {
+        self.sequence_numbers.retain(|k, _| *k >= first_slot_to_keep)
     }
 }
 
@@ -95,8 +95,8 @@ mod tests {
         assert_eq!(sequence_number.get_next(slot1), 3u64);
         assert_eq!(sequence_number.get_next(slot2), 5u64);
 
-        let last_slot_to_remove = 10u64;
-        sequence_number.remove_until(last_slot_to_remove);
+        let first_slot_to_keep = 11u64;
+        sequence_number.remove_before(first_slot_to_keep);
 
         assert_eq!(sequence_number.get_next(slot1), 1u64);
         assert_eq!(sequence_number.get_next(slot2), 6u64);

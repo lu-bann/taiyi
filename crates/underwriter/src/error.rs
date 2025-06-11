@@ -32,6 +32,9 @@ pub enum RpcError {
     SlotNotAvailable(u64),
     #[error("Pricer error: {0:?}")]
     PricerError(#[from] crate::clients::pricer::PricerError),
+
+    #[error("{0}")]
+    Validation(#[from] ValidationError),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -119,8 +122,6 @@ pub enum PoolError {
     InsufficientEscrowBalance(U256, U256),
     #[error("Blockspace not available")]
     BlockspaceNotAvailable,
-    #[error("Transaction not found")]
-    TransactionNotFound,
     #[error("Escrow balance not found for account {0}")]
     EscrowBalanceNotFoundForAccount(Address),
 }

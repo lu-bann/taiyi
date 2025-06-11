@@ -11,7 +11,7 @@ use taiyi_primitives::{
     BlockspaceAllocation, PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB,
     PreconfResponseData, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, RwLock};
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -20,7 +20,7 @@ use crate::{
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_pool::{create_preconf_pool, PreconfPool},
+    preconf_pool::{create_preconf_pool, sequence_number::SequenceNumberPerSlot, PreconfPool},
 };
 
 pub fn send_commitment(
@@ -42,6 +42,7 @@ pub struct PreconfState<P, F> {
     pub provider: P,
     pub pricer: F,
     pub broadcast_sender: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
+    sequence_number_per_slot: Arc<RwLock<SequenceNumberPerSlot>>,
 }
 
 impl<P, F> PreconfState<P, F>
@@ -70,6 +71,7 @@ where
             provider,
             pricer,
             broadcast_sender,
+            sequence_number_per_slot: Arc::new(RwLock::new(SequenceNumberPerSlot::new())),
         }
     }
 
@@ -152,37 +154,26 @@ where
 
         preconf_request.transaction = Some(request.transaction.clone());
 
-        let preconf_fee = preconf_request.allocation.preconf_fee.clone();
-        match self
-            .preconf_pool
-            .validate_and_store(
-                taiyi_primitives::PreconfRequest::TypeB(preconf_request.clone()),
-                request.request_id,
-                preconf_fee,
-            )
-            .await
-        {
-            Ok(result) => {
-                let commitment = self
-                    .signer_client
-                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
-                    .await
-                    .map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
-                    })?;
+        self.preconf_pool.validate_typeb(&preconf_request).await?;
+        self.preconf_pool.delete_pending(request.request_id);
+        let typeb_request = taiyi_primitives::PreconfRequest::TypeB(preconf_request);
+        self.preconf_pool.insert_ready(request.request_id, typeb_request.clone());
 
-                let commitment = PreconfResponseData {
-                    request_id: request.request_id,
-                    commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
-                    sequence_num: None,
-                    current_slot: self.network_state.get_current_slot(),
-                };
-                // Send the commitment data to the stream
-                send_commitment(&self.broadcast_sender, (result, commitment.clone()));
-                Ok(commitment)
-            }
-            Err(e) => Err(RpcError::PoolError(e)),
-        }
+        let commitment = self
+            .signer_client
+            .sign_with_ecdsa(typeb_request.digest(self.network_state.chain_id()))
+            .await
+            .map_err(|e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")))?;
+
+        let preconf_response = PreconfResponseData {
+            request_id: request.request_id,
+            commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
+            sequence_num: None,
+            current_slot: self.network_state.get_current_slot(),
+        };
+        // Send the commitment data to the stream
+        send_commitment(&self.broadcast_sender, (typeb_request, preconf_response.clone()));
+        Ok(preconf_response)
     }
 
     pub async fn submit_typea_transaction(
@@ -211,7 +202,7 @@ where
 
         // Only for internal use.
         let request_id = Uuid::new_v4();
-        let preconf_request = PreconfRequestTypeA {
+        let mut preconf_request = PreconfRequestTypeA {
             preconf_tx: request.clone().preconf_transaction,
             tip_transaction: request.clone().tip_transaction,
             target_slot: request.target_slot,
@@ -219,37 +210,34 @@ where
             signer,
             preconf_fee: preconf_fee.clone(),
         };
+        self.preconf_pool.validate_typea(&preconf_request, &preconf_fee).await?;
 
-        match self
-            .preconf_pool
-            .validate_and_store(
-                taiyi_primitives::PreconfRequest::TypeA(preconf_request.clone()),
-                request_id,
-                preconf_fee,
-            )
+        let sequence_number = Some(
+            self.sequence_number_per_slot
+                .write()
+                .await
+                .get_next_and_add(request.target_slot, request.preconf_transaction.len() as u64),
+        );
+        preconf_request.sequence_number = sequence_number;
+        let typea_request = taiyi_primitives::PreconfRequest::TypeA(preconf_request.clone());
+        self.preconf_pool.insert_ready(request_id, typea_request.clone());
+        let commitment = self
+            .signer_client
+            .sign_with_ecdsa(typea_request.digest(self.network_state.chain_id()))
             .await
-        {
-            Ok(result) => {
-                let commitment = self
-                    .signer_client
-                    .sign_with_ecdsa(result.digest(self.network_state.chain_id()))
-                    .await
-                    .map_err(|e| {
-                        RpcError::InternalError(format!("Failed to issue commitment: {e:?}"))
-                    })?;
+            .map_err(|e| RpcError::InternalError(format!("Failed to issue commitment: {e:?}")))?;
 
-                let commitment = PreconfResponseData {
-                    request_id,
-                    commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
-                    sequence_num: result.sequence_num(),
-                    current_slot: self.network_state.get_current_slot(),
-                };
-                // Send the commitment data to the stream
-                send_commitment(&self.broadcast_sender, (result, commitment.clone()));
-                Ok(commitment)
-            }
-            Err(e) => Err(RpcError::PoolError(e)),
-        }
+        let current_slot = self.network_state.get_current_slot();
+        let commitment = PreconfResponseData {
+            request_id,
+            commitment: Some(format!("0x{}", hex::encode(commitment.as_bytes()))),
+            sequence_num: sequence_number,
+            current_slot,
+        };
+        // Send the commitment data to the stream
+        send_commitment(&self.broadcast_sender, (typea_request, commitment.clone()));
+        self.sequence_number_per_slot.write().await.remove_before(current_slot);
+        Ok(commitment)
     }
 
     /// Returns the slots for which there is a opted in validator for current epoch and next epoch
