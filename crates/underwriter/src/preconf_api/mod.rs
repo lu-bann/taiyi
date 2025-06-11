@@ -9,9 +9,7 @@ use api::PreconfApiServer;
 use ethereum_consensus::deneb::Context;
 use reqwest::Url;
 use state::PreconfState;
-use taiyi_primitives::{PreconfRequest, PreconfResponseData};
-use tokio::sync::broadcast;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     clients::{
@@ -26,16 +24,6 @@ use crate::{
 
 pub mod api;
 pub mod state;
-
-pub fn send_commitment(
-    sender: &broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
-    data: (PreconfRequest, PreconfResponseData),
-) {
-    match sender.send(data) {
-        Ok(res) => info!("Sent data: {:?}", res),
-        Err(_) => debug!("Failed to send data, no receivers available"),
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_service(

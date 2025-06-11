@@ -35,8 +35,7 @@ use taiyi_underwriter::{
             PreconfApiServer, COMMITMENT_STREAM_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
             SUBMIT_TRANSACTION_PATH,
         },
-        send_commitment,
-        state::PreconfState,
+        state::{send_commitment, PreconfState},
     },
     preconf_pool::create_preconf_pool,
 };

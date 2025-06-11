@@ -8,10 +8,11 @@ use alloy_primitives::{hex, Address, PrimitiveSignature};
 use alloy_provider::Provider;
 use reqwest::Url;
 use taiyi_primitives::{
-    BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData, SlotInfo,
-    SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    BlockspaceAllocation, PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB,
+    PreconfResponseData, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use tokio::sync::broadcast;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::{
@@ -23,9 +24,18 @@ use crate::{
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_api::{send_commitment, PreconfRequest},
     preconf_pool::{create_preconf_pool, PreconfPool},
 };
+
+pub fn send_commitment(
+    sender: &broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
+    data: (PreconfRequest, PreconfResponseData),
+) {
+    match sender.send(data) {
+        Ok(res) => info!("Sent data: {:?}", res),
+        Err(_) => debug!("Failed to send data, no receivers available"),
+    }
+}
 
 #[derive(Clone)]
 pub struct PreconfState<P, F> {
