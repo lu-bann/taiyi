@@ -195,9 +195,8 @@ where
 pub async fn commitments_stream<P, F>(
     State(state): State<PreconfState<P, F>>,
 ) -> axum::response::Sse<impl futures::Stream<Item = eyre::Result<axum::response::sse::Event>>> {
-    let commitments_handle = state.commitments_handle;
-    let commitmetns_rx = commitments_handle.commitments_tx.subscribe();
-    let stream = tokio_stream::wrappers::BroadcastStream::new(commitmetns_rx);
+    let commitments_rx = state.broadcast_sender.subscribe();
+    let stream = tokio_stream::wrappers::BroadcastStream::new(commitments_rx);
 
     let filtered = stream.map(|result| match result {
         Ok(data) => match serde_json::to_string(&vec![data]) {

@@ -27,17 +27,13 @@ use crate::{
 pub mod api;
 pub mod state;
 
-#[derive(Clone, Debug)]
-pub struct CommitmentsHandle {
-    pub commitments_tx: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
-}
-
-impl CommitmentsHandle {
-    pub fn send_commitment(&self, commitment: (PreconfRequest, PreconfResponseData)) {
-        match self.commitments_tx.send(commitment) {
-            Ok(res) => info!("Sent constraint: {:?}", res),
-            Err(_) => debug!("Failed to send constraints, no receivers available"),
-        }
+pub fn send_commitment(
+    sender: &broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
+    data: (PreconfRequest, PreconfResponseData),
+) {
+    match sender.send(data) {
+        Ok(res) => info!("Sent data: {:?}", res),
+        Err(_) => debug!("Failed to send data, no receivers available"),
     }
 }
 

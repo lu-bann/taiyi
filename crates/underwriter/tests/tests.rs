@@ -35,6 +35,7 @@ use taiyi_underwriter::{
             PreconfApiServer, COMMITMENT_STREAM_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
             SUBMIT_TRANSACTION_PATH,
         },
+        send_commitment,
         state::PreconfState,
     },
     preconf_pool::create_preconf_pool,
@@ -362,7 +363,7 @@ async fn test_commitment_stream() -> eyre::Result<()> {
         },
     );
 
-    state.commitments_handle.send_commitment(test_data.clone());
+    send_commitment(&state.broadcast_sender, test_data.clone());
 
     // Wait for the constraints to be received
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
