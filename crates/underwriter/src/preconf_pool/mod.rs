@@ -470,19 +470,6 @@ impl PreconfPool {
         self.pool_inner.write().ready.fetch_preconf_requests_for_slot(slot)
     }
 
-    #[cfg(test)]
-    /// Returns the pool where the preconf request is currently in.
-    pub fn get_pool(&self, request_id: Uuid) -> Result<PoolType, PoolError> {
-        let pool_inner = self.pool_inner.read();
-        if pool_inner.pending.contains(request_id) {
-            Ok(PoolType::Pending)
-        } else if pool_inner.ready.contains(request_id) {
-            Ok(PoolType::Ready)
-        } else {
-            Err(PoolError::PreconfRequestNotFound(request_id))
-        }
-    }
-
     pub fn blockspace_available(&self, slot: u64) -> BlockspaceAvailable {
         self.pool_inner.read().blockspace_issued.get(&slot).cloned().unwrap_or_default()
     }

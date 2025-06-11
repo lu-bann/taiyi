@@ -14,12 +14,12 @@ mod tests {
     use alloy_signer::Signer;
     use alloy_signer_local::PrivateKeySigner;
     use reqwest::Url;
-    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequest, PreconfRequestTypeB};
     use tokio::time::sleep;
     use tracing::info;
     use uuid::Uuid;
 
-    use crate::preconf_pool::{create_preconf_pool, PoolType};
+    use crate::preconf_pool::create_preconf_pool;
 
     #[tokio::test]
     async fn test_add_remove_request() {
@@ -42,20 +42,17 @@ mod tests {
 
         let request_id = Uuid::new_v4();
         preconf_pool.insert_pending(request_id, preconf.clone());
-        assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Pending);
+        assert_eq!(preconf_pool.get_pending(request_id), Some(preconf.clone()));
 
-        // set transaction
         let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
         let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
         preconf.transaction = Some(transaction);
         preconf_pool.delete_pending(request_id);
         assert_eq!(preconf_pool.get_pending(request_id), None);
 
-        // insert into ready pool
-        preconf_pool
-            .insert_ready(request_id, taiyi_primitives::PreconfRequest::TypeB(preconf.clone()));
-        assert!(preconf_pool.get_pool(request_id).is_ok());
-        assert_eq!(preconf_pool.get_pool(request_id).unwrap(), PoolType::Ready);
+        preconf_pool.insert_ready(request_id, PreconfRequest::TypeB(preconf.clone()));
+        let slot = 0u64;
+        assert!(preconf_pool.fetch_ready(slot).unwrap().contains(&PreconfRequest::TypeB(preconf)));
     }
 
     #[tokio::test]
