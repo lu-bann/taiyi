@@ -20,7 +20,7 @@ pub struct Ready {
 }
 
 impl Ready {
-    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
+    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) {
         let slot = preconf_request.target_slot();
 
         let preconf_request = match preconf_request {
@@ -36,7 +36,6 @@ impl Ready {
 
         self.by_id.insert(request_id, preconf_request.clone());
         self.reqs_by_slot.entry(slot).or_default().push(request_id);
-        preconf_request
     }
 
     /// Removes the requests for the given slot and return them.
@@ -110,9 +109,7 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_primitives::PrimitiveSignature;
-    use taiyi_primitives::{
-        BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeA, PreconfRequestTypeB,
-    };
+    use taiyi_primitives::{BlockspaceAllocation, PreconfRequestTypeB};
 
     use super::*;
 
@@ -142,31 +139,5 @@ mod tests {
         let preconfs = ready.fetch_preconf_requests_for_slot(1).unwrap();
         assert_eq!(preconfs.len(), 1);
         assert_eq!(preconfs[0], taiyi_primitives::PreconfRequest::TypeB(preconf));
-    }
-
-    #[test]
-    fn test_type_a_request() {
-        let mut ready = Ready::default();
-
-        let raw_tx = alloy_primitives::hex::decode("02f86f0102843b9aca0085029e7822d68298f094d9e1459a7a482635700cbc20bbaf52d495ab9c9680841b55ba3ac080a0c199674fcb29f353693dd779c017823b954b3c69dffa3cd6b2a6ff7888798039a028ca912de909e7e6cdef9cdcaf24c54dd8c1032946dfa1d85c206b32a9064fe8").unwrap();
-        let transaction = TxEnvelope::decode_2718(&mut raw_tx.as_slice()).unwrap();
-
-        let type_a = PreconfRequest::TypeA(PreconfRequestTypeA {
-            tip_transaction: transaction.clone(),
-            preconf_tx: vec![transaction.clone()],
-            target_slot: 1,
-            sequence_number: None,
-            signer: Address::default(),
-            preconf_fee: PreconfFeeResponse::default(),
-        });
-
-        let id = Uuid::new_v4();
-        let result = ready.insert(id, type_a.clone());
-        if let PreconfRequest::TypeA(inner) = result {
-            assert_eq!(inner.sequence_number, Some(1));
-            assert_eq!(*ready.sequence_number.get(&1).unwrap(), 2);
-        } else {
-            panic!("Expected TypeA request");
-        }
     }
 }

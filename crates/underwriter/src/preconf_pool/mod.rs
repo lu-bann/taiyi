@@ -156,7 +156,7 @@ impl PreconfPool {
         preconf_request: PreconfRequest,
         request_id: Uuid,
         preconf_fee: PreconfFeeResponse,
-    ) -> Result<PreconfRequest, PoolError> {
+    ) -> Result<(), PoolError> {
         let mut account_state = self.state_cache.read().get(&preconf_request.signer()).cloned();
 
         if account_state.is_none() {
@@ -178,7 +178,7 @@ impl PreconfPool {
                     preconf_fee,
                 )
                 .await?;
-                Ok(self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request)))
+                self.insert_ready(request_id, PreconfRequest::TypeA(preconf_request));
             }
             PreconfRequest::TypeB(preconf_request) => {
                 if preconf_request.transaction.is_some() {
@@ -186,12 +186,13 @@ impl PreconfPool {
                         .await?;
                     // Move the request from pending to ready pool
                     self.delete_pending(request_id);
-                    Ok(self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request)))
+                    self.insert_ready(request_id, PreconfRequest::TypeB(preconf_request));
                 } else {
-                    Err(PoolError::TransactionNotFound)
+                    return Err(PoolError::TransactionNotFound);
                 }
             }
         }
+        Ok(())
     }
 
     pub async fn has_enough_balance(
@@ -460,7 +461,7 @@ impl PreconfPool {
     }
 
     /// Inserts a preconf request into the ready sub-pool.
-    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
+    fn insert_ready(&self, request_id: Uuid, preconf_request: PreconfRequest) {
         self.pool_inner.write().ready.insert(request_id, preconf_request)
     }
 
