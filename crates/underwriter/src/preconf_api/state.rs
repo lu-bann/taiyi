@@ -23,7 +23,7 @@ use crate::{
     context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
-    preconf_api::CommitmentsHandle,
+    preconf_api::{send_commitment, PreconfRequest},
     preconf_pool::{create_preconf_pool, PreconfPool},
 };
 
@@ -35,7 +35,7 @@ pub struct PreconfState<P, F> {
     pub signer_client: SignerClient,
     pub provider: P,
     pub pricer: Pricer<F>,
-    pub commitments_handle: CommitmentsHandle,
+    pub broadcast_sender: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
 }
 
 impl<P, F> PreconfState<P, F>
@@ -55,8 +55,7 @@ where
     ) -> Self {
         let preconf_pool = create_preconf_pool(execution_rpc_url, taiyi_escrow_address);
 
-        let commitments_tx = broadcast::channel(128).0;
-        let commitments_handle = CommitmentsHandle { commitments_tx };
+        let broadcast_sender = broadcast::channel(128).0;
         Self {
             relay_client,
             network_state,
@@ -64,7 +63,7 @@ where
             signer_client,
             provider,
             pricer,
-            commitments_handle,
+            broadcast_sender,
         }
     }
 
@@ -173,7 +172,7 @@ where
                     current_slot: self.network_state.get_current_slot(),
                 };
                 // Send the commitment data to the stream
-                self.commitments_handle.send_commitment((result, commitment.clone()));
+                send_commitment(&self.broadcast_sender, (result, commitment.clone()));
                 Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),
@@ -240,7 +239,7 @@ where
                     current_slot: self.network_state.get_current_slot(),
                 };
                 // Send the commitment data to the stream
-                self.commitments_handle.send_commitment((result, commitment.clone()));
+                send_commitment(&self.broadcast_sender, (result, commitment.clone()));
                 Ok(commitment)
             }
             Err(e) => Err(RpcError::PoolError(e)),

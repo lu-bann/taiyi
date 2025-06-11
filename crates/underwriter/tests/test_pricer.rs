@@ -1,8 +1,8 @@
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
-use alloy_provider::{Provider, ProviderBuilder};
+use alloy_provider::ProviderBuilder;
 use reqwest::Url;
-use taiyi_underwriter::clients::pricer::{ExecutionClientPricer, PreconfPricer, TaiyiPricer};
+use taiyi_underwriter::clients::pricer::{ExecutionClientPricer, PreconfPricer};
 
 #[tokio::test]
 async fn test_execution_client_pricer() -> eyre::Result<()> {
