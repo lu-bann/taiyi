@@ -107,10 +107,13 @@ async fn test_preconf_api_server() -> eyre::Result<()> {
         pricer,
     );
 
-    let preconfapiserver =
-        PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
-    let server_endpoint = preconfapiserver.endpoint();
-    let _ = preconfapiserver.run(state.clone()).await;
+    let socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656);
+    let server_endpoint = format!("http://{}", socket_addr);
+    let _ = tokio::spawn(async move {
+        let preconfapiserver = PreconfApiServer::new(socket_addr);
+        preconfapiserver.run(state.clone()).await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
     // Estimate fee
     let request_endpoint = Url::parse(&server_endpoint).unwrap().join(PRECONF_FEE_PATH).unwrap();
@@ -294,10 +297,11 @@ async fn test_commitment_stream() -> eyre::Result<()> {
         pricer,
     );
 
-    let preconfapiserver =
-        PreconfApiServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656));
-    let server_endpoint = preconfapiserver.endpoint();
-    let _ = preconfapiserver.run(state.clone()).await;
+    let socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 5656);
+    let preconfapiserver = PreconfApiServer::new(socket_addr);
+    let server_endpoint = format!("http://{}", socket_addr);
+    let shared_state = state.clone();
+    let _ = tokio::spawn(async move { preconfapiserver.run(shared_state).await });
 
     let request_endpoint =
         Url::parse(&server_endpoint).unwrap().join(COMMITMENT_STREAM_PATH).unwrap();

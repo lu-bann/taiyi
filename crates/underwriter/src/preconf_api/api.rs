@@ -67,19 +67,12 @@ impl PreconfApiServer {
             }
         };
 
-        tokio::spawn(async move {
-            if let Err(err) = axum::serve(listener, app).await {
-                error!(?err, "preconf API Server error");
-            }
-        });
+        info!("Starting rpc server on http://{} ", self.addr);
+        if let Err(err) = axum::serve(listener, app).await {
+            error!(?err, "preconf API Server error");
+        }
 
-        info!("Started rpc server on http://{} ", self.addr);
         Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn endpoint(&self) -> String {
-        format!("http://{}", self.addr)
     }
 }
 

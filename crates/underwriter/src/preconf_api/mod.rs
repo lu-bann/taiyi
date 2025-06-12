@@ -56,12 +56,12 @@ pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static
         pricer,
     );
     let preconf_pool_clone = state.preconf_pool.clone();
-
-    // spawn preconfapi server
     let preconfapiserver = PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
-    let _ = preconfapiserver.run(state.clone()).await;
 
     tokio::select! {
+        res = preconfapiserver.run(state.clone()) => {
+            error!("Error in api process: {:?}", res);
+        }
         res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
             error!("Error in cl process: {:?}", res);
         }
