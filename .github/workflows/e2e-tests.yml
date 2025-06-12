@@ -7,7 +7,10 @@ on:
   workflow_call:
   push:
     branches:
-      - dev
+      - 'pre-releases/**'
+      - 'releases/**'
+    tag:
+      - 'v*'
     paths-ignore:
       - 'docs/**'
       - 'examples/**'
@@ -15,12 +18,9 @@ on:
       - '.github/workflows/docker.yml'
       - '.github/workflows/release.yml'
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - 'examples/**'
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/docker.yml'
-      - '.github/workflows/release.yml'
+    branches:
+      - 'pre-releases/**'
+      - 'releases/**'
 
 env:
   ENCLAVE_NAME: luban
