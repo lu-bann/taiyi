@@ -12,11 +12,7 @@ use state::PreconfState;
 use tracing::{error, info};
 
 use crate::{
-    clients::{
-        pricer::{ExecutionClientPricer, TaiyiPricer},
-        relay_client::RelayClient,
-        signer_client::SignerClient,
-    },
+    clients::{pricer::PreconfPricer, relay_client::RelayClient, signer_client::SignerClient},
     constraint_submit::spawn_constraint_submitter,
     lookahead_fetcher::run_cl_process,
     network_state::NetworkState,
@@ -26,7 +22,7 @@ pub mod api;
 pub mod state;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn spawn_service(
+pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static>(
     execution_rpc_url: String,
     beacon_rpc_url: String,
     context: Context,
@@ -36,7 +32,7 @@ pub async fn spawn_service(
     ecdsa_sk: String,
     relay_url: Vec<Url>,
     taiyi_escrow_address: Address,
-    taiyi_service_url: Option<String>,
+    pricer: Pricer,
 ) -> eyre::Result<()> {
     let provider = ProviderBuilder::new().on_http(Url::from_str(&execution_rpc_url)?);
     let chain_id = provider.get_chain_id().await?;
@@ -50,75 +46,34 @@ pub async fn spawn_service(
 
     info!("underwriter is on chain_id: {:?}", chain_id);
 
-    match taiyi_service_url {
-        Some(url) => {
-            info!("Using Taiyi service at {}", url);
-            let pricer = TaiyiPricer::new(url);
-            let state = PreconfState::new(
-                network_state,
-                relay_client,
-                signer_client,
-                Url::parse(&execution_rpc_url)?,
-                taiyi_escrow_address,
-                provider,
-                pricer,
-            );
-            let preconf_pool_clone = state.preconf_pool.clone();
+    let state = PreconfState::new(
+        network_state,
+        relay_client,
+        signer_client,
+        Url::parse(&execution_rpc_url)?,
+        taiyi_escrow_address,
+        provider,
+        pricer,
+    );
+    let preconf_pool_clone = state.preconf_pool.clone();
 
-            // spawn preconfapi server
-            let preconfapiserver =
-                PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
-            let _ = preconfapiserver.run(state.clone()).await;
+    // spawn preconfapi server
+    let preconfapiserver = PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
+    let _ = preconfapiserver.run(state.clone()).await;
 
-            tokio::select! {
-                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
-                        error!("Error in cl process: {:?}", res);
-                    }
-                    res = spawn_constraint_submitter(state) => {
-                        error!("Constraint submitter task exited. {:?}", res);
-                    },
-                    res = preconf_pool_clone.state_cache_cleanup(context).await => {
-                        error!("Error in state cache cleanup: {:#?}", res);
-                    },
-                    _ = tokio::signal::ctrl_c() => {
-                        info!("Ctrl-C received, shutting down...");
-                    },
-            }
+    tokio::select! {
+        res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
+            error!("Error in cl process: {:?}", res);
         }
-        None => {
-            info!("Using execution client pricer at {}", execution_rpc_url);
-            let pricer = ExecutionClientPricer::new(provider.clone());
-            let state = PreconfState::new(
-                network_state,
-                relay_client,
-                signer_client,
-                Url::parse(&execution_rpc_url)?,
-                taiyi_escrow_address,
-                provider,
-                pricer,
-            );
-            let preconf_pool_clone = state.preconf_pool.clone();
-
-            // spawn preconfapi server
-            let preconfapiserver =
-                PreconfApiServer::new(SocketAddr::new(underwriter_ip, underwriter_port));
-            let _ = preconfapiserver.run(state.clone()).await;
-
-            tokio::select! {
-                    res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
-                        error!("Error in cl process: {:?}", res);
-                    }
-                    res = spawn_constraint_submitter(state) => {
-                        error!("Constraint submitter task exited. {:?}", res);
-                    },
-                    res = preconf_pool_clone.state_cache_cleanup(context).await => {
-                        error!("Error in state cache cleanup: {:#?}", res);
-                    },
-                    _ = tokio::signal::ctrl_c() => {
-                        info!("Ctrl-C received, shutting down...");
-                    },
-            }
-        }
+        res = spawn_constraint_submitter(state) => {
+            error!("Constraint submitter task exited. {:?}", res);
+        },
+        res = preconf_pool_clone.state_cache_cleanup(context).await => {
+            error!("Error in state cache cleanup: {:#?}", res);
+        },
+        _ = tokio::signal::ctrl_c() => {
+            info!("Ctrl-C received, shutting down...");
+        },
     }
 
     Ok(())

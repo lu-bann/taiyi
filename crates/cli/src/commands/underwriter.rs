@@ -1,8 +1,17 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::str::FromStr;
 
+use alloy_provider::ProviderBuilder;
 use clap::Parser;
 use ethereum_consensus::{deneb::Context, networks::Network};
-use taiyi_underwriter::{metrics::models::init_metrics, spawn_service};
+use reqwest::Url;
+use taiyi_underwriter::{
+    clients::pricer::{ExecutionClientPricer, TaiyiPricer},
+    metrics::models::init_metrics,
+    spawn_service,
+};
+use tracing::info;
+
 #[derive(Debug, Parser)]
 pub struct UnderwriterCommand {
     /// jsonrpc service address to listen on.
@@ -61,19 +70,41 @@ impl UnderwriterCommand {
 
         let relay_url = self.relay_url.iter().map(|url| url.parse().expect("relay urls")).collect();
 
-        spawn_service(
-            self.execution_rpc_url.clone(),
-            self.beacon_rpc_url.clone(),
-            context,
-            self.taiyi_rpc_addr,
-            self.taiyi_rpc_port,
-            self.bls_sk.clone(),
-            self.ecdsa_sk.clone(),
-            relay_url,
-            self.taiyi_escrow_address.parse()?,
-            self.taiyi_service_url.clone(),
-        )
-        .await?;
+        if let Some(url) = self.taiyi_service_url.clone() {
+            info!("Using Taiyi service at {}", url);
+            let pricer = TaiyiPricer::new(url);
+
+            spawn_service(
+                self.execution_rpc_url.clone(),
+                self.beacon_rpc_url.clone(),
+                context,
+                self.taiyi_rpc_addr,
+                self.taiyi_rpc_port,
+                self.bls_sk.clone(),
+                self.ecdsa_sk.clone(),
+                relay_url,
+                self.taiyi_escrow_address.parse()?,
+                pricer,
+            )
+            .await?;
+        } else {
+            let provider = ProviderBuilder::new().on_http(Url::from_str(&self.execution_rpc_url)?);
+            let pricer = ExecutionClientPricer::new(provider.clone());
+
+            spawn_service(
+                self.execution_rpc_url.clone(),
+                self.beacon_rpc_url.clone(),
+                context,
+                self.taiyi_rpc_addr,
+                self.taiyi_rpc_port,
+                self.bls_sk.clone(),
+                self.ecdsa_sk.clone(),
+                relay_url,
+                self.taiyi_escrow_address.parse()?,
+                pricer,
+            )
+            .await?;
+        };
 
         Ok(())
     }
