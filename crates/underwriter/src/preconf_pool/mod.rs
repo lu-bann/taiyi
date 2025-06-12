@@ -1,10 +1,8 @@
-use std::{collections::HashMap, future::Future, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::eip4844::{env_settings::EnvKzgSettings, DATA_GAS_PER_BLOB};
 use alloy_primitives::{Address, U256};
-use ethereum_consensus::{clock::from_system_time, deneb::Context};
-use futures::StreamExt;
 use inner::BlockspaceAvailable;
 use parking_lot::RwLock;
 use pending::Pending;
@@ -13,12 +11,10 @@ use reqwest::Url;
 use taiyi_primitives::{
     PreconfFeeResponse, PreconfRequest, PreconfRequestTypeA, PreconfRequestTypeB,
 };
-use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     clients::execution_client::{AccountState, ExecutionClient},
-    context_ext::ContextExt,
     error::{PoolError, ValidationError},
     preconf_pool::inner::PreconfPoolInner,
 };
@@ -44,8 +40,6 @@ pub struct PreconfPool {
     execution_client: ExecutionClient,
     kzg_settings: EnvKzgSettings,
     pub taiyi_escrow_address: Address,
-    /// Account state cache
-    state_cache: RwLock<HashMap<Address, AccountState>>,
 }
 
 impl PreconfPool {
@@ -59,44 +53,6 @@ impl PreconfPool {
             execution_client,
             kzg_settings: EnvKzgSettings::default(),
             taiyi_escrow_address,
-            state_cache: RwLock::new(HashMap::new()),
-        }
-    }
-
-    pub async fn state_cache_cleanup(
-        self: Arc<Self>,
-        context: Context,
-    ) -> impl Future<Output = eyre::Result<()>> {
-        let clock = from_system_time(
-            context.actual_genesis_time(),
-            context.seconds_per_slot,
-            context.slots_per_epoch,
-        );
-        let mut slot_stream = clock.into_stream();
-
-        async move {
-            while (slot_stream.next().await).is_some() {
-                let accounts_to_check = {
-                    let cache = self.state_cache.read();
-                    cache.keys().cloned().collect::<Vec<Address>>()
-                };
-
-                // Accounts which don't have any preconf requests in the pool
-                let accounts_to_remove: Vec<Address> = accounts_to_check
-                    .into_iter()
-                    .filter(|&address| !self.has_preconf_requests(address))
-                    .collect();
-
-                if !accounts_to_remove.is_empty() {
-                    let mut cache = self.state_cache.write();
-                    for address in accounts_to_remove {
-                        cache.remove(&address);
-                    }
-                }
-            }
-
-            info!("Shutting down state cache cleanup task");
-            Ok(())
         }
     }
 
@@ -172,20 +128,10 @@ impl PreconfPool {
     }
 
     async fn get_account_state(&self, signer: Address) -> Result<AccountState, ValidationError> {
-        let account_state = self.state_cache.read().get(&signer).cloned();
-
-        if let Some(account_state) = account_state {
-            Ok(account_state)
-        } else {
-            let state = self
-                .execution_client
-                .get_account_state(signer)
-                .await
-                .map_err(|_| ValidationError::AccountStateNotFound(signer))?;
-
-            self.state_cache.write().insert(signer, state.clone());
-            Ok(state)
-        }
+        self.execution_client
+            .get_account_state(signer)
+            .await
+            .map_err(|_| ValidationError::AccountStateNotFound(signer))
     }
 
     pub async fn validate_typea(
@@ -291,15 +237,6 @@ impl PreconfPool {
             }
         }
 
-        // Update state cache
-        self.state_cache.write().insert(
-            preconf_request.signer(),
-            AccountState {
-                balance: account_balance - total_value,
-                nonce: account_nonce + preconf_request.preconf_tx.len() as u64 + 1,
-            },
-        );
-
         Ok(())
     }
 
@@ -358,12 +295,6 @@ impl PreconfPool {
             // validate the blob
             transaction.validate_blob(self.kzg_settings.get())?;
         }
-
-        // Update state cache
-        self.state_cache.write().insert(
-            preconf_request.signer(),
-            AccountState { balance: account_balance - cost, nonce: account_nonce + 1 },
-        );
 
         Ok(())
     }
