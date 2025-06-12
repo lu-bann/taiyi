@@ -30,9 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: clippy,rustfmt
+        uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-sort@2.0.1,cargo-machete,cargo-llvm-cov
