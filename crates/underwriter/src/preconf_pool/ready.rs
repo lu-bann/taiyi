@@ -17,11 +17,10 @@ pub struct Ready {
 }
 
 impl Ready {
-    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) -> PreconfRequest {
+    pub fn insert(&mut self, request_id: Uuid, preconf_request: PreconfRequest) {
         let slot = preconf_request.target_slot();
         self.by_id.insert(request_id, preconf_request.clone());
         self.reqs_by_slot.entry(slot).or_default().push(request_id);
-        preconf_request
     }
 
     /// Removes the requests for the given slot and return them.
