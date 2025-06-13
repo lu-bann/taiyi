@@ -17,7 +17,6 @@ use uuid::Uuid;
 
 use crate::{
     clients::{pricer::PreconfPricer, relay_client::RelayClient, signer_client::SignerClient},
-    context_ext::ContextExt,
     error::{PoolError, RpcError},
     network_state::NetworkState,
     preconf_pool::{create_preconf_pool, sequence_number::SequenceNumberPerSlot, PreconfPool},
@@ -268,7 +267,7 @@ where
     fn is_exceed_deadline(&self, slot: u64) -> bool {
         let utc_timestamp =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("after `UNIX_EPOCH`").as_secs();
-        let deadline = self.network_state.context().get_deadline_of_slot(slot);
+        let deadline = self.network_state.get_deadline_of_slot(slot);
         utc_timestamp > deadline
     }
 }

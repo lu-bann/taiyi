@@ -18,7 +18,6 @@ use uuid::Uuid;
 
 use crate::{
     clients::execution_client::{AccountState, ExecutionClient},
-    context_ext::ContextExt,
     error::{PoolError, ValidationError},
     preconf_pool::inner::PreconfPoolInner,
 };
@@ -65,10 +64,11 @@ impl PreconfPool {
 
     pub async fn state_cache_cleanup(
         self: Arc<Self>,
+        actual_genesis_time: u64,
         context: Context,
     ) -> impl Future<Output = eyre::Result<()>> {
         let clock = from_system_time(
-            context.actual_genesis_time(),
+            actual_genesis_time,
             context.seconds_per_slot,
             context.slots_per_epoch,
         );

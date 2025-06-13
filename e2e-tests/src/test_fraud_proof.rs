@@ -346,7 +346,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     stdin.write(&underwriter_address);
 
     // genesis time
-    let genesis_time = config.context.actual_genesis_time();
+    let genesis_time = config.actual_genesis_time();
     stdin.write(&genesis_time);
 
     // taiyi core address
@@ -661,7 +661,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     stdin.write(&underwriter_address);
 
     // genesis time
-    let genesis_time = config.context.actual_genesis_time();
+    let genesis_time = config.actual_genesis_time();
     stdin.write(&genesis_time);
 
     // taiyi core address
@@ -1050,7 +1050,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     stdin.write(&underwriter_address);
 
     // genesis time
-    let genesis_time = config.context.actual_genesis_time();
+    let genesis_time = config.actual_genesis_time();
     stdin.write(&genesis_time);
 
     // taiyi core address

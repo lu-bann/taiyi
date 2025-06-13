@@ -24,8 +24,9 @@ use taiyi_primitives::{
     SubmitTypeATransactionRequest,
 };
 use taiyi_underwriter::{
-    context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
-    SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
+    network_state::{SET_CONSTRAINTS_CUTOFF_DELTA_S, SET_CONSTRAINTS_CUTOFF_S},
+    AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH, SUBMIT_TRANSACTION_PATH,
+    SUBMIT_TYPEA_TRANSACTION_PATH,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -132,6 +133,19 @@ impl TestConfig {
 
     pub fn taiyi_url(&self) -> String {
         format!("http://localhost:{}", self.taiyi_port)
+    }
+
+    pub fn get_deadline_of_slot(&self, slot: u64) -> u64 {
+        let genesis_time = self.actual_genesis_time();
+        genesis_time + ((slot - 1) * self.context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
+            - SET_CONSTRAINTS_CUTOFF_DELTA_S
+    }
+
+    pub fn actual_genesis_time(&self) -> u64 {
+        match self.context.genesis_time() {
+            Ok(genesis_time) => genesis_time,
+            Err(_) => sel.context.min_genesis_time + self.context.genesis_delay,
+        }
     }
 }
 
@@ -252,7 +266,7 @@ pub async fn wait_until_deadline_of_slot(
     config: &TestConfig,
     target_slot: u64,
 ) -> eyre::Result<()> {
-    let deadline = config.context.get_deadline_of_slot(target_slot);
+    let deadline = config.get_deadline_of_slot(target_slot);
     let time_diff = deadline.saturating_sub(
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
     );

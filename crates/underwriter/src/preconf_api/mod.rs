@@ -45,7 +45,7 @@ pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static
     let bls_pk = signer_client.bls_pubkey();
 
     info!("underwriter is on chain_id: {:?}", chain_id);
-
+    let genesis_time = network_state.actual_genesis_time();
     let state = PreconfState::new(
         network_state,
         relay_client,
@@ -68,7 +68,7 @@ pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static
         res = spawn_constraint_submitter(state) => {
             error!("Constraint submitter task exited. {:?}", res);
         },
-        res = preconf_pool_clone.state_cache_cleanup(context).await => {
+        res = preconf_pool_clone.state_cache_cleanup(genesis_time, context).await => {
             error!("Error in state cache cleanup: {:#?}", res);
         },
         _ = tokio::signal::ctrl_c() => {

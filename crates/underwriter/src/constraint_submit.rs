@@ -18,7 +18,6 @@ use taiyi_primitives::{ConstraintsMessage, PreconfRequest, SignableBLS, SignedCo
 use tracing::{debug, error, info};
 
 use crate::{
-    context_ext::ContextExt,
     contract::{core::TaiyiCore, to_solidity_type},
     error::RpcError,
     preconf_api::state::PreconfState,
@@ -37,7 +36,7 @@ where
 
     async move {
         let clock = from_system_time(
-            context.actual_genesis_time(),
+            state.network_state.actual_genesis_time(),
             context.seconds_per_slot,
             context.slots_per_epoch,
         );
@@ -54,7 +53,7 @@ where
             let next_slot = slot + 1;
 
             let submit_constraint_deadline_duration =
-                context.get_deadline_of_slot(next_slot).saturating_sub(
+                state.network_state.get_deadline_of_slot(next_slot).saturating_sub(
                     SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .expect("Time went backwards")

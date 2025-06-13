@@ -12,6 +12,9 @@ use parking_lot::RwLock;
 
 use crate::clients::relay_client::ValidatorSlotData;
 
+pub const SET_CONSTRAINTS_CUTOFF_S: u64 = 8;
+pub const SET_CONSTRAINTS_CUTOFF_DELTA_S: u64 = 1;
+
 #[derive(Clone)]
 pub struct NetworkState {
     pub context: Context,
@@ -82,5 +85,18 @@ impl NetworkState {
                 fee_receipients.insert(slot, Address::from_slice(recipient.as_slice()));
             },
         );
+    }
+
+    pub fn get_deadline_of_slot(&self, slot: u64) -> u64 {
+        let genesis_time = self.actual_genesis_time();
+        genesis_time + ((slot - 1) * self.context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
+            - SET_CONSTRAINTS_CUTOFF_DELTA_S
+    }
+
+    pub fn actual_genesis_time(&self) -> u64 {
+        match self.context.genesis_time() {
+            Ok(genesis_time) => genesis_time,
+            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
+        }
     }
 }
