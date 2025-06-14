@@ -3,7 +3,7 @@ use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use blst::min_pk::{PublicKey, SecretKey};
-use ethereum_consensus::{deneb::Context, primitives::BlsSignature};
+use ethereum_consensus::primitives::BlsSignature;
 use eyre::eyre;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
@@ -36,8 +36,12 @@ impl SignerClient {
         Ok(self.ecdsa.sign_hash(&hash).await?)
     }
 
-    pub fn sign_with_bls(&self, context: Context, digest: [u8; 32]) -> eyre::Result<BlsSignature> {
-        let domain = compute_domain_custom(&context, COMMIT_BOOST_DOMAIN);
+    pub fn sign_with_bls(
+        &self,
+        fork_version: [u8; 4],
+        digest: [u8; 32],
+    ) -> eyre::Result<BlsSignature> {
+        let domain = compute_domain_custom(fork_version, COMMIT_BOOST_DOMAIN);
         let root = compute_signing_root_custom(digest.tree_hash_root().0, domain);
         let signature = self.bls.sign(root.as_ref(), BLS_DST_SIG, &[]).to_bytes();
         let signature = BlsSignature::try_from(signature.as_ref()).expect("signature error");
@@ -57,7 +61,7 @@ impl SignerClient {
     }
 }
 
-pub fn compute_domain_custom(chain: &Context, domain_mask: [u8; 4]) -> [u8; 32] {
+pub fn compute_domain_custom(fork_version: [u8; 4], domain_mask: [u8; 4]) -> [u8; 32] {
     #[derive(Debug, TreeHash)]
     struct ForkData {
         fork_version: [u8; 4],
@@ -67,7 +71,6 @@ pub fn compute_domain_custom(chain: &Context, domain_mask: [u8; 4]) -> [u8; 32] 
     let mut domain = [0u8; 32];
     domain[..4].copy_from_slice(&domain_mask);
 
-    let fork_version = chain.genesis_fork_version;
     let fd = ForkData { fork_version, genesis_validators_root: GENESIS_VALIDATORS_ROOT };
     let fork_data_root = fd.tree_hash_root().0;
 

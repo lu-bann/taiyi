@@ -59,7 +59,12 @@ sol! {
 #[tokio::test]
 async fn test_preconf_api_server() -> eyre::Result<()> {
     let context = Context::for_mainnet();
-    let network_state = NetworkState::new(context.clone());
+    let network_state = NetworkState::new(
+        context.seconds_per_slot,
+        context.slots_per_epoch,
+        context.deposit_chain_id as u64,
+        context.genesis_time()?,
+    );
     for slot in 20_000_000..20_000_000 + 10 {
         network_state.add_slot(slot);
     }
@@ -265,7 +270,12 @@ async fn test_has_enough_balance() -> eyre::Result<()> {
 #[tokio::test]
 async fn test_commitment_stream() -> eyre::Result<()> {
     let context = Context::for_mainnet();
-    let network_state = NetworkState::new(context.clone());
+    let network_state = NetworkState::new(
+        context.seconds_per_slot,
+        context.slots_per_epoch,
+        context.deposit_chain_id as u64,
+        context.genesis_time()?,
+    );
     for slot in 20_000_000..20_000_000 + 10 {
         network_state.add_slot(slot);
     }

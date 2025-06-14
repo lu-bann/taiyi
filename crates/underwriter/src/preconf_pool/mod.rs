@@ -3,7 +3,7 @@ use std::{collections::HashMap, future::Future, sync::Arc};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::eip4844::{env_settings::EnvKzgSettings, DATA_GAS_PER_BLOB};
 use alloy_primitives::{Address, U256};
-use ethereum_consensus::{clock::from_system_time, deneb::Context};
+use ethereum_consensus::clock::from_system_time;
 use futures::StreamExt;
 use inner::BlockspaceAvailable;
 use parking_lot::RwLock;
@@ -19,6 +19,7 @@ use uuid::Uuid;
 use crate::{
     clients::execution_client::{AccountState, ExecutionClient},
     error::{PoolError, ValidationError},
+    network_state::NetworkState,
     preconf_pool::inner::PreconfPoolInner,
 };
 
@@ -64,13 +65,13 @@ impl PreconfPool {
 
     pub async fn state_cache_cleanup(
         self: Arc<Self>,
-        actual_genesis_time: u64,
-        context: Context,
+        genesis_time: u64,
+        network_state: NetworkState,
     ) -> impl Future<Output = eyre::Result<()>> {
         let clock = from_system_time(
-            actual_genesis_time,
-            context.seconds_per_slot,
-            context.slots_per_epoch,
+            genesis_time,
+            network_state.seconds_per_slot(),
+            network_state.slots_per_epoch(),
         );
         let mut slot_stream = clock.into_stream();
 

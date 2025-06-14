@@ -25,20 +25,20 @@ use crate::{
 
 pub fn spawn_constraint_submitter<P, F>(
     state: PreconfState<P, F>,
+    genesis_fork_version: [u8; 4],
 ) -> impl Future<Output = eyre::Result<()>>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
     let relay_client = state.relay_client.clone();
-    let context = state.network_state.context();
     let chain_id = state.network_state.chain_id();
     info!("Starting constraint submitter, chain_id: {chain_id}");
 
     async move {
         let clock = from_system_time(
-            state.network_state.actual_genesis_time(),
-            context.seconds_per_slot,
-            context.slots_per_epoch,
+            state.network_state.genesis_time(),
+            state.network_state.seconds_per_slot(),
+            state.network_state.slots_per_epoch(),
         );
         let mut slot_stream = clock.into_stream();
 
@@ -300,7 +300,9 @@ where
                     transactions: constraints.try_into().expect("tx too big"),
                 };
                 let digest = message.digest();
-                if let Ok(signature) = state.signer_client.sign_with_bls(context.clone(), digest) {
+                if let Ok(signature) =
+                    state.signer_client.sign_with_bls(genesis_fork_version, digest)
+                {
                     let signed_constraints_message = vec![SignedConstraints { message, signature }];
 
                     let max_retries = 5;

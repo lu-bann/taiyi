@@ -7,7 +7,6 @@ use std::{
 };
 
 use alloy_primitives::Address;
-use ethereum_consensus::deneb::Context;
 use parking_lot::RwLock;
 
 use crate::clients::relay_client::ValidatorSlotData;
@@ -17,7 +16,10 @@ pub const SET_CONSTRAINTS_CUTOFF_DELTA_S: u64 = 1;
 
 #[derive(Clone)]
 pub struct NetworkState {
-    pub context: Context,
+    seconds_per_slot: u64,
+    slots_per_epoch: u64,
+    chain_id: u64,
+    genesis_time: u64,
     /// Head slot
     current_slot: Arc<AtomicU64>,
     /// Available slots in current and next epochs
@@ -27,9 +29,17 @@ pub struct NetworkState {
 }
 
 impl NetworkState {
-    pub fn new(context: Context) -> Self {
+    pub fn new(
+        seconds_per_slot: u64,
+        slots_per_epoch: u64,
+        chain_id: u64,
+        genesis_time: u64,
+    ) -> Self {
         Self {
-            context,
+            seconds_per_slot,
+            slots_per_epoch,
+            chain_id,
+            genesis_time,
             current_slot: Arc::new(AtomicU64::default()),
             available_slots: Arc::new(RwLock::new(vec![])),
             fee_receipients: Arc::new(RwLock::new(HashMap::new())),
@@ -37,15 +47,19 @@ impl NetworkState {
     }
 
     pub fn chain_id(&self) -> u64 {
-        self.context.deposit_chain_id as u64
+        self.chain_id
     }
 
-    pub fn context(&self) -> Context {
-        self.context.clone()
+    pub fn seconds_per_slot(&self) -> u64 {
+        self.seconds_per_slot
+    }
+
+    pub fn slots_per_epoch(&self) -> u64 {
+        self.slots_per_epoch
     }
 
     pub fn get_current_epoch(&self) -> u64 {
-        self.current_slot.load(Ordering::Relaxed) / self.context.slots_per_epoch
+        self.current_slot.load(Ordering::Relaxed) / self.slots_per_epoch
     }
 
     pub fn get_current_slot(&self) -> u64 {
@@ -76,7 +90,6 @@ impl NetworkState {
         self.fee_receipients.read().get(&slot).cloned()
     }
 
-    /// Update the fee recipients for the current & next epoch
     pub fn update_fee_recipients(&self, data: Vec<ValidatorSlotData>) {
         let mut fee_receipients = self.fee_receipients.write();
         fee_receipients.clear();
@@ -88,15 +101,12 @@ impl NetworkState {
     }
 
     pub fn get_deadline_of_slot(&self, slot: u64) -> u64 {
-        let genesis_time = self.actual_genesis_time();
-        genesis_time + ((slot - 1) * self.context.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
+        let genesis_time = self.genesis_time();
+        genesis_time + ((slot - 1) * self.seconds_per_slot) + SET_CONSTRAINTS_CUTOFF_S
             - SET_CONSTRAINTS_CUTOFF_DELTA_S
     }
 
-    pub fn actual_genesis_time(&self) -> u64 {
-        match self.context.genesis_time() {
-            Ok(genesis_time) => genesis_time,
-            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
-        }
+    pub fn genesis_time(&self) -> u64 {
+        self.genesis_time
     }
 }

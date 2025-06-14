@@ -18,7 +18,7 @@ use sp1_sdk::{
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfRequestTypeA, PreconfRequestTypeB, PreconfResponseData,
 };
-use taiyi_underwriter::{context_ext::ContextExt, TaiyiCore};
+use taiyi_underwriter::TaiyiCore;
 use taiyi_zkvm_types::{
     types::{AccountMerkleProof, PreconfTypeA, PreconfTypeB, TxMerkleProof},
     utils::PublicValuesStruct,

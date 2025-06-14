@@ -36,16 +36,22 @@ pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static
 ) -> eyre::Result<()> {
     let provider = ProviderBuilder::new().on_http(Url::from_str(&execution_rpc_url)?);
     let chain_id = provider.get_chain_id().await?;
-
-    let network_state = NetworkState::new(context.clone());
+    let genesis_fork_version = context.genesis_fork_version;
+    let network_state = NetworkState::new(
+        context.seconds_per_slot,
+        context.slots_per_epoch,
+        context.deposit_chain_id as u64,
+        context.genesis_time()?,
+    );
     let network_state_cl = network_state.clone();
+    let network_state_cleanup = network_state.clone();
 
     let relay_client = RelayClient::new(relay_url.clone());
     let signer_client = SignerClient::new(bls_sk, ecdsa_sk)?;
     let bls_pk = signer_client.bls_pubkey();
 
     info!("underwriter is on chain_id: {:?}", chain_id);
-    let genesis_time = network_state.actual_genesis_time();
+    let genesis_time = network_state.genesis_time();
     let state = PreconfState::new(
         network_state,
         relay_client,
@@ -65,10 +71,10 @@ pub async fn spawn_service<Pricer: PreconfPricer + Clone + Sync + Send + 'static
         res = run_cl_process(beacon_rpc_url, network_state_cl, bls_pk, relay_url).await => {
             error!("Error in cl process: {:?}", res);
         }
-        res = spawn_constraint_submitter(state) => {
+        res = spawn_constraint_submitter(state, genesis_fork_version) => {
             error!("Constraint submitter task exited. {:?}", res);
         },
-        res = preconf_pool_clone.state_cache_cleanup(genesis_time, context).await => {
+        res = preconf_pool_clone.state_cache_cleanup(genesis_time, network_state_cleanup).await => {
             error!("Error in state cache cleanup: {:#?}", res);
         },
         _ = tokio::signal::ctrl_c() => {

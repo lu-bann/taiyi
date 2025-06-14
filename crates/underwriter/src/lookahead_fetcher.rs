@@ -44,7 +44,7 @@ impl LookaheadFetcher {
 
     pub async fn initialize(&mut self) -> eyre::Result<()> {
         let slot = self.beacon_client.get_head_slot().await?;
-        let epoch = slot / self.network_state.context.slots_per_epoch;
+        let epoch = slot / self.network_state.slots_per_epoch();
 
         // Fetch underwriter delegations for the current epoch
         self.get_delegation_for_current_epoch(epoch, slot).await?;
@@ -66,7 +66,7 @@ impl LookaheadFetcher {
         head_slot: u64,
     ) -> eyre::Result<()> {
         // Fetch delegations for remaining slots in the given epoch
-        for slot in head_slot + 1..((epoch + 1) * self.network_state.context.slots_per_epoch) {
+        for slot in head_slot + 1..((epoch + 1) * self.network_state.slots_per_epoch()) {
             let res = self.relay_client.get_delegations(slot).await;
             match res {
                 Ok(signed_delegations) => {
@@ -94,8 +94,8 @@ impl LookaheadFetcher {
     /// Fetch delegation for slots from the epoch
     async fn get_delegation_for(&mut self, epoch: u64) -> eyre::Result<()> {
         // Fetch delegations for every slot in the given epoch
-        for slot in (epoch * self.network_state.context.slots_per_epoch)
-            ..((epoch + 1) * self.network_state.context.slots_per_epoch)
+        for slot in (epoch * self.network_state.slots_per_epoch())
+            ..((epoch + 1) * self.network_state.slots_per_epoch())
         {
             let res = self.relay_client.get_delegations(slot).await;
             match res {
