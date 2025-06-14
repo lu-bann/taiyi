@@ -15,8 +15,6 @@ alloy-sol-types = { workspace = true }
 beacon-api-client = { workspace = true }
 taiyi-primitives = { workspace = true }
 
-taiyi-underwriter = { workspace = true }
-
 eyre = { workspace = true }
 hex = { workspace = true }
 reqwest = { workspace = true }

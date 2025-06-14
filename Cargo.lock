@@ -1671,16 +1671,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assert-json-diff"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e4f2b81832e72834d7518d8487a0396a28cc408186a2e8854c0f98011faf12"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2011,7 +2001,7 @@ dependencies = [
  "ethereum-consensus",
  "http 0.2.12",
  "itertools 0.10.5",
- "mev-share-sse 0.1.6",
+ "mev-share-sse",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
@@ -2161,7 +2151,7 @@ dependencies = [
  "alloy-primitives 0.8.25",
  "arbitrary",
  "blst",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
  "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
@@ -2181,7 +2171,7 @@ dependencies = [
  "alloy-primitives 0.8.25",
  "arbitrary",
  "blst",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
  "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?rev=8d058e4040b765a96aa4968f4167af7571292be2)",
@@ -2778,16 +2768,6 @@ name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
-
-[[package]]
-name = "colored"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
-dependencies = [
- "lazy_static",
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "commit-boost"
@@ -3756,7 +3736,7 @@ version = "0.2.0"
 source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "bls 0.2.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "hex",
  "num-bigint 0.4.6",
  "serde",
@@ -3929,18 +3909,6 @@ dependencies = [
  "primitive-types",
  "scale-info",
  "uint",
-]
-
-[[package]]
-name = "ethereum_hashing"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ea7b408432c13f71af01197b1d3d0069c48a27bfcfbe72a81fc346e47f6defb"
-dependencies = [
- "cpufeatures",
- "lazy_static",
- "ring 0.17.8",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -5379,7 +5347,7 @@ dependencies = [
  "arbitrary",
  "c-kzg",
  "derivative",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
@@ -5567,7 +5535,7 @@ version = "0.2.0"
 source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
  "safe_arith 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
 ]
@@ -5627,25 +5595,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mev-share-sse"
-version = "0.4.0"
-source = "git+https://github.com/paradigmxyz/mev-share-rs?rev=a75c5959e98a79031a89f8893c97528e8f726826#a75c5959e98a79031a89f8893c97528e8f726826"
-dependencies = [
- "alloy-primitives 0.8.25",
- "async-sse",
- "bytes",
- "futures-util",
- "http-types",
- "pin-project-lite",
- "reqwest 0.12.9",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "milhouse"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5654,7 +5603,7 @@ dependencies = [
  "alloy-primitives 0.8.25",
  "arbitrary",
  "derivative",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
  "itertools 0.13.0",
@@ -5698,30 +5647,6 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "mockito"
-version = "1.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "652cd6d169a36eaf9d1e6bce1a221130439a966d7f27858af66a33a66e9c4ee2"
-dependencies = [
- "assert-json-diff",
- "bytes",
- "colored",
- "futures-util",
- "http 1.2.0",
- "http-body 1.0.1",
- "http-body-util",
- "hyper 1.5.2",
- "hyper-util",
- "log",
- "rand 0.8.5",
- "regex",
- "serde_json",
- "serde_urlencoded",
- "similar",
- "tokio",
 ]
 
 [[package]]
@@ -8179,12 +8104,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "similar"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
-
-[[package]]
 name = "simple_asn1"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8730,35 +8649,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spammer"
-version = "0.1.8"
-dependencies = [
- "alloy-contract",
- "alloy-eips 0.12.6",
- "alloy-primitives 0.8.25",
- "alloy-provider 0.12.6",
- "alloy-rpc-types 0.12.6",
- "alloy-rpc-types-beacon 0.8.1",
- "alloy-signer 0.12.6",
- "alloy-signer-local 0.12.6",
- "alloy-sol-types",
- "beacon-api-client",
- "clap",
- "eyre",
- "futures",
- "hex",
- "mev-share-sse 0.4.0",
- "reqwest 0.12.9",
- "serde_json",
- "taiyi-primitives",
- "taiyi-underwriter",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid 1.11.0",
-]
-
-[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9131,7 +9021,7 @@ version = "0.2.0"
 source = "git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5#6d5a2be7f99e877dafc46c7ad5d8b89c37780656"
 dependencies = [
  "alloy-primitives 0.8.25",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "fixed_bytes 0.1.0 (git+https://github.com/sigp/lighthouse?tag=v7.0.0-beta.5)",
 ]
 
@@ -9265,16 +9155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "taiyi"
-version = "0.1.8"
-dependencies = [
- "clap",
- "eyre",
- "taiyi-cmd",
- "tokio",
-]
-
-[[package]]
 name = "taiyi-beacon-client"
 version = "0.1.8"
 dependencies = [
@@ -9382,7 +9262,6 @@ dependencies = [
  "serde",
  "taiyi-contracts",
  "taiyi-crypto",
- "taiyi-underwriter",
  "thiserror 2.0.12",
  "tiny-bip39",
  "tonic",
@@ -9443,7 +9322,6 @@ dependencies = [
  "sp1-sdk",
  "taiyi-cmd",
  "taiyi-primitives",
- "taiyi-underwriter",
  "taiyi-zkvm-types",
  "tokio",
  "tracing",
@@ -9511,55 +9389,6 @@ dependencies = [
  "sha2 0.10.8",
  "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
  "tokio",
- "uuid 1.11.0",
-]
-
-[[package]]
-name = "taiyi-underwriter"
-version = "0.1.8"
-dependencies = [
- "alloy-consensus 0.12.6",
- "alloy-contract",
- "alloy-eips 0.12.6",
- "alloy-network 0.12.6",
- "alloy-node-bindings",
- "alloy-primitives 0.8.25",
- "alloy-provider 0.12.6",
- "alloy-rpc-client 0.12.6",
- "alloy-rpc-types 0.12.6",
- "alloy-rpc-types-beacon 0.8.1",
- "alloy-rpc-types-trace",
- "alloy-signer 0.12.6",
- "alloy-signer-local 0.12.6",
- "alloy-sol-types",
- "alloy-transport 0.12.6",
- "axum 0.7.9",
- "blst",
- "ethereum-consensus",
- "eyre",
- "futures",
- "k256 0.13.4",
- "lazy_static",
- "mev-share-sse 0.4.0",
- "mockito",
- "parking_lot 0.12.3",
- "prometheus",
- "reqwest 0.12.9",
- "reqwest-eventsource",
- "serde",
- "serde_json",
- "serde_with",
- "ssz_rs 0.9.0 (git+https://github.com/ralexstokes/ssz-rs?rev=ec3073e2273b4d0873fcb6df68ff4eff79588e92)",
- "taiyi-beacon-client",
- "taiyi-primitives",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "tree_hash 0.6.0",
- "tree_hash_derive 0.6.0",
  "uuid 1.11.0",
 ]
 
@@ -10214,23 +10043,12 @@ dependencies = [
 
 [[package]]
 name = "tree_hash"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "134d6b24a5b829f30b5ee7de05ba7384557f5f6b00e29409cdf2392f93201bfa"
-dependencies = [
- "ethereum-types",
- "ethereum_hashing 0.6.0",
- "smallvec",
-]
-
-[[package]]
-name = "tree_hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "373495c23db675a5192de8b610395e1bec324d596f9e6111192ce903dc11403a"
 dependencies = [
  "alloy-primitives 0.8.25",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "smallvec",
 ]
 
@@ -10241,21 +10059,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c58eb0f518840670270d90d97ffee702d8662d9c5494870c9e1e9e0fa00f668"
 dependencies = [
  "alloy-primitives 0.8.25",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_ssz 0.8.1",
  "smallvec",
  "typenum",
-]
-
-[[package]]
-name = "tree_hash_derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ce7bccc538359a213436af7bc95804bdbf1c2a21d80e22953cbe9e096837ff1"
-dependencies = [
- "darling 0.13.4",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -10340,54 +10147,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "type_a"
-version = "0.1.8"
-dependencies = [
- "alloy-contract",
- "alloy-eips 0.12.6",
- "alloy-primitives 0.8.25",
- "alloy-provider 0.12.6",
- "alloy-rpc-types 0.12.6",
- "alloy-signer 0.12.6",
- "alloy-signer-local 0.12.6",
- "beacon-api-client",
- "eyre",
- "hex",
- "reqwest 0.12.9",
- "serde_json",
- "taiyi-primitives",
- "taiyi-underwriter",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "type_b"
-version = "0.1.8"
-dependencies = [
- "alloy-contract",
- "alloy-eips 0.12.6",
- "alloy-primitives 0.8.25",
- "alloy-provider 0.12.6",
- "alloy-rpc-types 0.12.6",
- "alloy-signer 0.12.6",
- "alloy-signer-local 0.12.6",
- "alloy-sol-types",
- "beacon-api-client",
- "eyre",
- "hex",
- "reqwest 0.12.9",
- "serde_json",
- "taiyi-primitives",
- "taiyi-underwriter",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid 1.11.0",
-]
-
-[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10406,7 +10165,7 @@ dependencies = [
  "compare_fields_derive",
  "derivative",
  "eth2_interop_keypairs",
- "ethereum_hashing 0.7.0",
+ "ethereum_hashing",
  "ethereum_serde_utils",
  "ethereum_ssz 0.7.1",
  "ethereum_ssz_derive 0.7.1",
