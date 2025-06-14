@@ -1,7 +1,7 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::{Decodable2718, Eip2718Error};
+use alloy_primitives::Bytes;
 use ethereum_consensus::{
-    bellatrix::mainnet::Transaction,
     crypto::{PublicKey as BlsPublicKey, Signature as BlsSignature},
     ssz::prelude::List,
 };
@@ -27,7 +27,7 @@ pub struct ConstraintsMessage {
     pub pubkey: BlsPublicKey,
     pub slot: u64,
     pub top: bool,
-    pub transactions: List<Transaction, MAX_CONSTRAINTS_PER_SLOT>,
+    pub transactions: List<Bytes, MAX_CONSTRAINTS_PER_SLOT>,
 }
 
 impl ConstraintsMessage {
