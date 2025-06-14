@@ -25,7 +25,6 @@ reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 taiyi-contracts = { workspace = true }
 taiyi-crypto = { workspace = true }
-taiyi-underwriter = { workspace = true }
 thiserror = { workspace = true }
 tiny-bip39 = { workspace = true }
 tonic = { workspace = true, features = ["tls"] }

@@ -2,7 +2,7 @@
 
 [workspace]
 members = [
-    "bin/taiyi",
+#    "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "bin/taiyi-fraud-proof-cli",
@@ -13,21 +13,19 @@ members = [
     "crates/poi",
     "crates/poni",
     "crates/primitives",
-    "crates/underwriter",
     "crates/zkvm-verifier",
     "e2e-tests",
-    "examples/type_a",
-    "examples/type_b",
-    "spammer",
+#    "examples/type_a",
+#    "examples/type_b",
+#    "spammer",
 ]
 default-members = [
-    "bin/taiyi",
+#    "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
     "bin/taiyi-fraud-proof-cli",
     "bin/taiyi-underwriter-monitor",
     "crates/cli",
-    "crates/underwriter",
     "crates/primitives",
     "crates/contracts",
 ]
@@ -59,7 +57,6 @@ taiyi-integration-tests = { path = "tests" }
 taiyi-poi = { path = "crates/poi" }
 taiyi-poni = { path = "crates/poni" }
 taiyi-primitives = { path = "crates/primitives" }
-taiyi-underwriter = { path = "crates/underwriter" }
 taiyi-zkvm-types = { path = "crates/zkvm-types" }
 
 axum = { version = "0.7.9", features = ["macros"] }
