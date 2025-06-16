@@ -3,7 +3,6 @@ use std::str::FromStr;
 
 use alloy_provider::ProviderBuilder;
 use clap::Parser;
-use ethereum_consensus::{deneb::Context, networks::Network};
 use reqwest::Url;
 use taiyi_underwriter::{
     clients::pricer::{ExecutionClientPricer, TaiyiPricer},

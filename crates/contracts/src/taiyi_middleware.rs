@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol! {
+sol!(
     #[derive(Debug, PartialEq, Eq)]
     struct Fp {
         uint256 a;
@@ -47,5 +47,4 @@ sol! {
             bytes memory domainSeparator
         ) public view returns (bool);
     }
-
-}
+);

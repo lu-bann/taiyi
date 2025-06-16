@@ -54,7 +54,7 @@ pub enum KeySource {
 pub fn generate_from_local_keys(
     secret_keys: &[String],
     underwriter_pubkey: BlsPublicKey,
-    network: Network,
+    fork_version: [u8; 4],
     action: Action,
 ) -> Result<Vec<SignedMessage>> {
     let mut signed_messages = Vec::with_capacity(secret_keys.len());
@@ -64,7 +64,7 @@ pub fn generate_from_local_keys(
             Action::Delegate => {
                 let message = DelegationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
-                    compute_commit_boost_signing_root(message.digest(), network.clone())?;
+                    compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = sk.sign(signing_root.0.as_ref())?;
                 let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed))
@@ -72,7 +72,7 @@ pub fn generate_from_local_keys(
             Action::Revoke => {
                 let message = RevocationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
-                    compute_commit_boost_signing_root(message.digest(), network.clone())?;
+                    compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = sk.sign(signing_root.0.as_ref())?;
                 let signed = SignedRevocation { message, signature };
                 signed_messages.push(SignedMessage::Revocation(signed));
@@ -94,7 +94,7 @@ pub fn generate_from_keystore(
     keys_path: &str,
     keystore_secret: KeystoreSecret,
     underwriter_pubkey: BlsPublicKey,
-    network: Network,
+    fork_version: [u8; 4],
     action: Action,
 ) -> Result<Vec<SignedMessage>> {
     let keystores_paths = keystore_paths(keys_path)?;
@@ -112,7 +112,7 @@ pub fn generate_from_keystore(
             Action::Delegate => {
                 let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey.clone());
                 let signing_root =
-                    compute_commit_boost_signing_root(message.digest(), network.clone())?;
+                    compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = validator_private_key.sign(signing_root.0.into());
                 let signature = BlsSignature::try_from(signature.serialize().as_ref())?;
                 let signed = SignedDelegation { message, signature };
@@ -121,7 +121,7 @@ pub fn generate_from_keystore(
             Action::Revoke => {
                 let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey.clone());
                 let signing_root =
-                    compute_commit_boost_signing_root(message.digest(), network.clone())?;
+                    compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = validator_private_key.sign(signing_root.0.into());
                 let signature = BlsSignature::try_from(signature.serialize().as_ref())?;
                 let signed = SignedRevocation { message, signature };
@@ -139,7 +139,7 @@ pub async fn generate_from_dirk(
     underwriter_pubkey: BlsPublicKey,
     account_path: String,
     passphrases: Option<Vec<String>>,
-    network: Network,
+    fork_version: [u8; 4],
     action: Action,
 ) -> Result<Vec<SignedMessage>> {
     // first read the accounts from the remote keystore
@@ -148,13 +148,12 @@ pub async fn generate_from_dirk(
 
     let mut signed_messages = Vec::with_capacity(accounts.len());
 
-    let context: CLContext = network.try_into()?;
     // specify the signing domain (needs to be included in the signing request)
-    let domain = B256::from(compute_domain_from_mask(context.genesis_fork_version));
+    let domain = B256::from(compute_domain_from_mask(fork_version));
 
     for account in accounts {
         // for each available pubkey we control, sign a delegation message
-        let pubkey = BlsPublicKey::try_from(account.public_key.as_slice())?;
+        let pubkey = BlsPublicKey::deserialize(account.public_key.as_slice()).expect("bls error");
 
         // Note: before signing, we must unlock the account
         let mut is_unlocked = false;

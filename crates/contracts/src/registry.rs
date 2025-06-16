@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol! {
+sol!(
     #[sol(rpc)]
     #[derive(Debug)]
     enum OperatorStatus {
@@ -23,4 +23,4 @@ sol! {
             view
             returns (OperatorInfo memory);
     }
-}
+);

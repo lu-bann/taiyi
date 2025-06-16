@@ -4,14 +4,16 @@
 use core::panic;
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
-use alloy_consensus::{Header, Transaction, TxEnvelope};
+use alloy_consensus::{
+    transaction::SignerRecoverable, Header, Transaction, TrieAccount, TxEnvelope,
+};
 use alloy_eips::{
     eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB, eip7840::BlobParams,
     merge::SLOT_DURATION_SECS,
 };
-use alloy_primitives::{keccak256, Address, PrimitiveSignature, B256, U256};
+use alloy_primitives::{keccak256, Address, Signature, B256, U256};
 use alloy_sol_types::{SolCall, SolValue};
-use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
+use alloy_trie::{proof::verify_proof, Nibbles};
 use eth_trie::{EthTrie, MemoryDB, Trie};
 use taiyi_zkvm_types::{types::*, utils::*};
 
@@ -41,7 +43,7 @@ pub fn main() {
     assert_eq!(previous_block_header.hash_slow(), previous_block_hash);
     assert_eq!(inclusion_block_header.parent_hash, previous_block_hash);
 
-    let preconf_signature = PrimitiveSignature::from_str(&preconf_signature).unwrap();
+    let preconf_signature = Signature::from_str(&preconf_signature).unwrap();
     if is_type_a {
         let preconf_req_a = serde_json::from_str::<PreconfTypeA>(&preconf).unwrap();
         let txs = preconf_req_a.preconf.clone().preconf_tx;
@@ -171,7 +173,7 @@ pub fn main() {
         // Check that the anchor tx to field matches the taiyi core address
         assert!(anchor_tx.to().unwrap() == taiyi_core);
 
-        let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input(), true).unwrap();
+        let sponsor_call = sponsorEthBatchCall::abi_decode(anchor_tx.input()).unwrap();
         let mut senders_found: HashSet<Address> = HashSet::new();
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
         {
@@ -312,7 +314,7 @@ pub fn main() {
 
         // TODO: Check if this is correct (aka. should the sponsorship tx be to the taiyi core address?)
         assert!(sponsorship_tx.to().unwrap() == taiyi_core); // taiyi core address
-        let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input(), true).unwrap();
+        let sponsor_call = sponsorEthBatchCall::abi_decode(sponsorship_tx.input()).unwrap();
         let mut sender_found = false;
         for (recipient, _amount) in sponsor_call.recipients.iter().zip(sponsor_call.amounts.iter())
         {

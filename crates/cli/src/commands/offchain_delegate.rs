@@ -30,15 +30,14 @@ pub struct DelegateCommand {
     /// underwriter BLS public key
     #[clap(long, env = "UNDERWRITER_PUBKEY")]
     pub underwriter_pubkey: String,
-    /// Chain Network
-    #[clap(long, env = "NETWORK", default_value = "mainnet")]
-    pub network: Network,
     /// The action to perform, delegate or revoke
     #[clap(long, env = "ACTION", default_value = "delegate")]
     pub action: Action,
     /// The source of the private key.
     #[clap(subcommand)]
     pub source: KeySource,
+
+    pub fork_version: u32,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -56,7 +55,7 @@ impl DelegateCommand {
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
                     underwriter_pubkey,
-                    self.network.clone(),
+                    self.fork_version.to_be_bytes(),
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with local keys", signed_messages.len());
@@ -70,7 +69,7 @@ impl DelegateCommand {
                     &opts.path,
                     keystore_secret,
                     underwriter_pubkey,
-                    self.network.clone(),
+                    self.fork_version.to_be_bytes(),
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with keystore", signed_messages.len());
@@ -87,7 +86,7 @@ impl DelegateCommand {
                     underwriter_pubkey,
                     opts.wallet_path.clone(),
                     opts.passphrases.clone(),
-                    self.network.clone(),
+                    self.fork_version.to_be_bytes(),
                     self.action.clone(),
                 )
                 .await?;
@@ -162,8 +161,8 @@ impl DelegationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.0.to_bytes());
-        hasher.update(self.delegatee_pubkey.0.to_bytes());
+        hasher.update(self.validator_pubkey.serialize());
+        hasher.update(self.delegatee_pubkey.serialize());
 
         hasher.finalize().into()
     }
@@ -192,8 +191,8 @@ impl RevocationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.0.to_bytes());
-        hasher.update(self.underwriter_pubkey.0.to_bytes());
+        hasher.update(self.validator_pubkey.serialize());
+        hasher.update(self.underwriter_pubkey.serialize());
 
         hasher.finalize().into()
     }

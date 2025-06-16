@@ -27,7 +27,7 @@ pub fn map_fp2_to_g2(fp2: Fp2) -> eyre::Result<G2Point> {
     let input_bytes = Bytes::from(input);
     let output = map_fp2_to_g2_precompile(&input_bytes)?;
     let output_bytes = output.as_ref();
-    let output_g2 = G2Point::abi_decode_sequence(output_bytes, false)?;
+    let output_g2 = G2Point::abi_decode_sequence(output_bytes)?;
     Ok(output_g2)
 }
 
@@ -36,7 +36,7 @@ pub fn g2_mul(point: G2Point, scalar: U256) -> eyre::Result<G2Point> {
     let input_bytes = Bytes::from(input);
     let output = g2_mul_precompile(&input_bytes)?;
     let output_bytes = output.as_ref();
-    let output_g2 = G2Point::abi_decode_sequence(output_bytes, false)?;
+    let output_g2 = G2Point::abi_decode_sequence(output_bytes)?;
     Ok(output_g2)
 }
 
@@ -59,6 +59,6 @@ pub fn to_public_key(sk: U256) -> eyre::Result<G1Point> {
     let input_bytes = Bytes::from(input);
     let output = g1_msm(&input_bytes)?;
     let output_bytes = output.as_ref();
-    let output_g1 = G1Point::abi_decode_sequence(output_bytes, false)?;
+    let output_g1 = G1Point::abi_decode_sequence(output_bytes)?;
     Ok(output_g1)
 }

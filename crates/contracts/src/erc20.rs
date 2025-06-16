@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol! {
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
 
@@ -26,4 +26,4 @@ sol! {
             uint256 amount
         ) external returns (bool);
     }
-}
+);

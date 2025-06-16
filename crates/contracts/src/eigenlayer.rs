@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol! {
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
 
@@ -42,9 +42,7 @@ sol! {
 
         function explanation() external view returns (string memory);
     }
-}
 
-sol! {
     #[allow(missing_docs)]
     #[sol(rpc)]
     // Reference source code: https://github.com/Layr-Labs/eigenlayer-contracts/blob/dev/src/contracts/interfaces/IStrategyManager.sol
@@ -108,4 +106,4 @@ sol! {
 
         function domainSeparator() external view returns (bytes32);
     }
-}
+);

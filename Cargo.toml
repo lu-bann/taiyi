@@ -9,12 +9,13 @@ members = [
 #    "bin/taiyi-underwriter-monitor",
 #    "crates/cli",
     "crates/contracts",
-    "crates/crypto",
+    "crates/bls",
+    "crates/eth2_keystore",
     "crates/poi",
     "crates/poni",
     "crates/primitives",
     "crates/zkvm-verifier",
-    "e2e-tests",
+#    "e2e-tests",
 #    "examples/type_a",
 #    "examples/type_b",
 #    "spammer",
@@ -27,7 +28,7 @@ default-members = [
 #    "bin/taiyi-underwriter-monitor",
 #    "crates/cli",
     "crates/primitives",
-    "crates/contracts",
+#    "crates/contracts",
 ]
 resolver = "2"
 [workspace.package]
@@ -38,7 +39,6 @@ edition = "2021"
 ignored = [
     "alloy-contract",
     "tiny-bip39",
-    "derive_more",
     "tree_hash",
     "ssz_rs",
     "alloy-rpc-client",
@@ -58,50 +58,40 @@ taiyi-poi = { path = "crates/poi" }
 taiyi-poni = { path = "crates/poni" }
 taiyi-primitives = { path = "crates/primitives" }
 taiyi-zkvm-types = { path = "crates/zkvm-types" }
+bls = { path = "crates/bls" }
+eth2_keystore = { path = "crates/eth2_keystore" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
-cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
-cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
-commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
 
 # alloy
-alloy-consensus = { version = "0.12", features = ["k256", "serde"] }
-alloy-contract = { version = "0.12" }
-alloy-eips = { version = "0.12", default-features = false }
-alloy-network = { version = "0.12", default-features = false }
-alloy-node-bindings = { version = "0.12", default-features = false }
-alloy-primitives = { version = "0.8.15", features = [
+alloy-consensus = { version = "1", features = ["k256", "serde"] }
+alloy-contract = { version = "1" }
+alloy-eips = { version = "1", default-features = false }
+alloy-network = { version = "1", default-features = false }
+alloy-node-bindings = { version = "1", default-features = false }
+alloy-primitives = { version = "1", features = [
     "serde",
 ], default-features = false }
-alloy-provider = { version = "0.12", features = [
+alloy-provider = { version = "1", features = [
     "reqwest",
     "ws",
 ], default-features = false }
 alloy-rlp = "0.3.10"
-alloy-rpc-client = { version = "0.12", default-features = false }
-alloy-rpc-types = { version = "0.12", features = [
+alloy-rpc-client = { version = "1", default-features = false }
+alloy-rpc-types = { version = "1", features = [
     "eth",
 ], default-features = false }
-alloy-rpc-types-beacon = { version = "0.8.0", default-features = false }
-alloy-rpc-types-engine = { version = "0.12", default-features = false }
-alloy-rpc-types-eth = { version = "0.12", default-features = false }
-alloy-rpc-types-trace = { version = "0.12", default-features = false }
-alloy-signer = { version = "0.12", default-features = false }
-alloy-signer-local = { version = "0.12", features = ["mnemonic"] }
-alloy-sol-types = "0.8.15"
-alloy-transport = { version = "0.12" }
-alloy-transport-http = { version = "0.12", default-features = false }
-alloy-trie = "0.7.9"
-
-lighthouse-eth2-keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
-lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
-lighthouse = { git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
-
-# eth
-eth-trie-proofs = "0.1.2"
-eth_trie = "0.5.0"
-
+alloy-rpc-types-beacon = { version = "1", default-features = false }
+alloy-rpc-types-engine = { version = "1", default-features = false }
+alloy-rpc-types-eth = { version = "1", default-features = false }
+alloy-rpc-types-trace = { version = "1", default-features = false }
+alloy-signer = { version = "1", default-features = false }
+alloy-signer-local = { version = "1", features = ["mnemonic"] }
+alloy-sol-types = "1"
+alloy-transport = { version = "1" }
+alloy-transport-http = { version = "1", default-features = false }
+alloy-trie = "0.8"
 # sp1
 sp1-build = "=4.1.7"
 sp1-sdk = "=4.1.7"
@@ -109,13 +99,16 @@ sp1-verifier = "=4.1.7"
 sp1-zkvm = "=4.1.7"
 
 ahash = "0.8.11"
+arbitrary = { version = "1", features = ["derive"] }
 async-trait = "0.1.83"
 blst = "0.3.12"
 clap = { version = "4.5.23", features = ["derive", "env"] }
-derive_more = "1.0.0"
 ethereum_ssz = "0.7"
 ethereum_ssz_derive = "0.7"
+eth_trie = "0.6.0"
 eyre = { version = "0.6.12" }
+ethereum_hashing = "0.7.0"
+ethereum_serde_utils = "0.7"
 futures = "0.3.31"
 futures-util = "0.3.31"
 hex = "0.4.3"
@@ -128,13 +121,15 @@ parking_lot = "0.12.3"
 priority-queue = "2.1.1"
 prometheus = "0.13.4"
 prost = "0.13.4"
+rand = "0.8"
 reqwest = "0.12.9"
 rustls = "0.23.20"
 scc = "2.2.6"
 secp256k1 = { version = "0.30.0", features = ["global-context"] }
 serde = { version = "1.0.216", features = ["derive"] }
 serde_json = "1.0.133"
-sha2 = "0.10.8"
+serde_repr = "0.1.20"
+sha2 = "0.9"
 sqlx = { default-features = true, version = "*", features = [
     "runtime-tokio-rustls",
     "postgres",
@@ -142,7 +137,7 @@ sqlx = { default-features = true, version = "*", features = [
     "bigdecimal",
     "migrate"
 ] }
-ssz_rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "ec3073e2273b4d0873fcb6df68ff4eff79588e92" }
+ssz_rs = "0.9.0"
 ssz_types = "0.10"
 thiserror = "2.0.12"
 time = { version = "0.3.37", features = ["macros", "formatting", "parsing"] }
@@ -159,17 +154,3 @@ tree_hash = "0.9.1"
 tree_hash_derive = "0.9.1"
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
 zeroize = "1.8.1"
-
-[patch.crates-io]
-# SHA2
-sha2-v0-9-9 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.9.9-sp1-4.0.0" }
-sha2-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.8-sp1-4.0.0" }
-# SHA3
-sha3-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
-# BigInt
-crypto-bigint = { git = "https://github.com/sp1-patches/RustCrypto-bigint", tag = "patch-0.5.5-sp1-4.0.0" }
-# Keccak
-tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", tag = "patch-2.0.2-sp1-4.0.0" }
-# ECDSA
-ecdsa-core = { git = "https://github.com/sp1-patches/signatures", package = "ecdsa", tag = "patch-0.16.9-sp1-4.0.0" }
-secp256k1 = { git = "https://github.com/sp1-patches/rust-secp256k1", tag = "patch-0.29.1-sp1-4.0.0" }
