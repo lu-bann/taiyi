@@ -58,7 +58,4 @@ jobs:
           version: nightly
       - name: Run tests
         run: |
-          make test
-      - name: Run coverage
-        run: |
           make coverage
