@@ -4417,6 +4417,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-cli"
+version = "0.1.8"
+dependencies = [
+ "clap",
+ "eyre",
+ "taiyi-cmd",
+ "tokio",
+ "tree_hash",
+]
+
+[[package]]
 name = "taiyi-cmd"
 version = "0.1.8"
 dependencies = [
