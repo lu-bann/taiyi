@@ -6,8 +6,8 @@ use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolValue;
 use clap::Parser;
-use eyre::Result;
 use eth2_keystore::Keystore;
+use eyre::Result;
 use reqwest::Url;
 use taiyi_contracts::{SignedRegistration, TaiyiMiddleware};
 use taiyi_crypto::{sign, to_public_key};
@@ -54,7 +54,7 @@ impl RegisterValidatorsCommand {
         let wallet = EthereumWallet::new(signer.clone());
         let provider = ProviderBuilder::new()
             .wallet(wallet.clone())
-            .on_http(Url::from_str(&self.execution_rpc_url)?);
+            .connect_http(Url::from_str(&self.execution_rpc_url)?);
 
         let bls_signatures = match &self.source {
             KeySource::SecretKeys { secret_keys } => secret_keys

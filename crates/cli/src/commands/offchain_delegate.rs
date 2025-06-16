@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use alloy_signer::k256::{
-    elliptic_curve::group::GroupEncoding,
-    sha2::{Digest, Sha256},
-};
+use alloy_signer::k256::sha2::{Digest, Sha256};
 use clap::{Parser, ValueEnum};
 use eyre::Result;
 use reqwest::Url;
@@ -137,34 +134,29 @@ pub enum SignedMessage {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct SignedDelegation {
     pub message: DelegationMessage,
-    #[serde(serialize_with = "serialize_bls_signature", deserialize_with = "deserialize_bls_signature")]
+    #[serde(serialize_with = "serialize_bls_signature")]
+    //, deserialize_with = "deserialize_bls_signature")]
     pub signature: BlsSignature,
 }
 
-fn serialize_bls_signature<S: serde::Serializer>(sig: &BlsSignature, serializer: S) -> Result<S::Ok, S::Error> {
-    let hex_str = format!("0x{}", hex::encode(sig.serialize()));
-    serializer.serialize_str(&hex_str)
+fn serialize_bls_signature<S: serde::Serializer>(
+    sig: &BlsSignature,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_bytes(&sig.serialize())
 }
 
-fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsSignature, D::Error> {
-    let hex_str = <String as serde::Deserializer>::deserialize(deserializer).unwrap();
-    let hex_str = hex_str.trim_start_matches("0x");
-    let bytes = hex::decode(hex_str).unwrap();
-    Ok(BlsSignature::deserialize(&bytes).unwrap())
-}
-
-fn serialize_bls_publickey<S: serde::Serializer>(public_key: &BlsPublicKey, serializer: S) -> Result<S::Ok, S::Error> {
-    let hex_str = format!("0x{}", hex::encode(public_key.serialize()));
-    serializer.serialize_str(&hex_str)
-}
-
-// fn deserialize_bls_publickey<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsPublicKey, D::Error> {
-//     //let hex_str = <String as serde::Deserializer>::deserialize(deserializer).unwrap();
-//     let hex_str = deserializer.deserialize_str();
-//     let hex_str = hex_str.trim_start_matches("0x");
-//     let bytes = hex::decode(hex_str).unwrap();
-//     Ok(BlsPublicKey::deserialize(&bytes).unwrap())
+// fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsSignature, D::Error> {
+//     let bytes = <String as serde::Deserialize>::deserialize(deserializer)?;
+//     Ok(BlsSignature::deserialize(bytes.as_ref()).unwrap())
 // }
+
+fn serialize_bls_publickey<S: serde::Serializer>(
+    public_key: &BlsPublicKey,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_bytes(&public_key.serialize())
+}
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DelegationMessage {

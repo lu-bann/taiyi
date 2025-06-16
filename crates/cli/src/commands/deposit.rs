@@ -8,8 +8,7 @@ use clap::Parser;
 use eyre::Result;
 use reqwest::Url;
 use taiyi_contracts::{
-    AllocateParams, AllocationManager, IStrategy, IStrategyManager, OperatorSet,
-    IERC20::{self, balanceOfReturn},
+    AllocateParams, AllocationManager, IStrategy, IStrategyManager, OperatorSet, IERC20,
 };
 use tracing::info;
 
@@ -61,7 +60,7 @@ impl DepositCommand {
         // Connect to the Ethereum network
         let provider = ProviderBuilder::new()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_http(Url::from_str(&self.execution_rpc_url)?);
+            .connect_http(Url::from_str(&self.execution_rpc_url)?);
 
         // Create Strategy contract interface
         let strategy = IStrategy::new(self.strategy_address, provider.clone());

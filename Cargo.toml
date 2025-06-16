@@ -7,7 +7,7 @@ members = [
 #    "bin/taiyi-cli",
 #    "bin/taiyi-fraud-proof-cli",
 #    "bin/taiyi-underwriter-monitor",
-#    "crates/cli",
+    "crates/cli",
     "crates/contracts",
     "crates/bls",
     "crates/eth2_keystore",
@@ -28,7 +28,7 @@ default-members = [
 #    "bin/taiyi-underwriter-monitor",
 #    "crates/cli",
     "crates/primitives",
-#    "crates/contracts",
+    "crates/contracts",
 ]
 resolver = "2"
 [workspace.package]
@@ -93,10 +93,10 @@ alloy-transport = { version = "1" }
 alloy-transport-http = { version = "1", default-features = false }
 alloy-trie = "0.8"
 # sp1
-sp1-build = "=4.1.7"
-sp1-sdk = "=4.1.7"
-sp1-verifier = "=4.1.7"
-sp1-zkvm = "=4.1.7"
+sp1-build = "4.1.7"
+sp1-sdk = "4.1.7"
+sp1-verifier = "4.1.7"
+sp1-zkvm = "4.1.7"
 
 ahash = "0.8.11"
 arbitrary = { version = "1", features = ["derive"] }
@@ -150,7 +150,7 @@ tracing = "0.1.41"
 tracing-core = "0.1.33"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tree_hash = "0.9.1"
-tree_hash_derive = "0.9.1"
+tree_hash = "0.10"
+tree_hash_derive = "0.10"
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
 zeroize = "1.8.1"
