@@ -25,7 +25,7 @@ pub struct GetStrategiesStakesCommand {
 
 impl GetStrategiesStakesCommand {
     pub async fn execute(&self) -> Result<()> {
-        let provider = ProviderBuilder::new().on_http(Url::from_str(&self.execution_rpc_url)?);
+        let provider = ProviderBuilder::new().connect_http(Url::from_str(&self.execution_rpc_url)?);
 
         let avs = TaiyiMiddleware::new(self.validator_avs_address, provider);
 

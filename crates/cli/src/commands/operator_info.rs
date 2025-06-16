@@ -25,7 +25,7 @@ pub struct OperatorInfoCommand {
 
 impl OperatorInfoCommand {
     pub async fn execute(&self) -> Result<()> {
-        let provider = ProviderBuilder::new().on_http(Url::from_str(&self.execution_rpc_url)?);
+        let provider = ProviderBuilder::new().connect_http(Url::from_str(&self.execution_rpc_url)?);
 
         let registry = TaiyiCoordinator::new(self.linglong_coordinator_address, provider);
 

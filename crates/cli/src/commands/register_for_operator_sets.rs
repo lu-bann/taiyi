@@ -55,7 +55,7 @@ impl RegisterForOperatorSetsCommand {
         let operator_address = signer.address();
         let provider = ProviderBuilder::new()
             .wallet(EthereumWallet::new(signer.clone()))
-            .on_http(Url::from_str(&self.execution_rpc_url)?);
+            .connect_http(Url::from_str(&self.execution_rpc_url)?);
 
         let allocation_manager =
             AllocationManager::new(self.allocation_manager_address, provider.clone());
