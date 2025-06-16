@@ -25,7 +25,6 @@ serde_json = { workspace = true }
 # serde = { workspace = true }
 # serde_json = { workspace = true }
 taiyi-primitives = { workspace = true }
-taiyi-underwriter = { workspace = true }
 # time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
