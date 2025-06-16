@@ -1,11 +1,6 @@
 // codes are basically copied from https://github.com/chainbound/bolt/blob/89253d92b079adf0abf6c9279eeed1d5dc7a3aed/bolt-cli/src/common/keystore.rs
 use alloy_primitives::B256;
 use clap::Parser;
-use ethereum_consensus::{
-    crypto::{PublicKey as BlsPublicKey, SecretKey as BlsSecretKey, Signature as BlsSignature},
-    deneb::Context as CLContext,
-    networks::Network,
-};
 use eyre::{bail, Result};
 use lighthouse_eth2_keystore::Keystore;
 use tracing::{debug, warn};
@@ -20,6 +15,9 @@ use crate::{
         keystore::{keystore_paths, KeystoreError, KeystoreSecret, LocalKeystoreOpts},
         signing::{compute_commit_boost_signing_root, compute_domain_from_mask},
     },
+};
+use taiyi_primitives::bls::{
+    PublicKey as BlsPublicKey, SecretKey as BlsSecretKey, Signature as BlsSignature,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -62,14 +60,12 @@ pub fn generate_from_local_keys(
     let mut signed_messages = Vec::with_capacity(secret_keys.len());
 
     for sk in secret_keys {
-        let sk = BlsSecretKey::try_from(sk.trim().to_string())?;
-
         match action {
             Action::Delegate => {
                 let message = DelegationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
-                let signature = sk.sign(signing_root.0.as_ref());
+                let signature = sk.sign(signing_root.0.as_ref())?;
                 let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed))
             }
@@ -77,7 +73,7 @@ pub fn generate_from_local_keys(
                 let message = RevocationMessage::new(sk.public_key(), underwriter_pubkey.clone());
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), network.clone())?;
-                let signature = sk.sign(signing_root.0.as_ref());
+                let signature = sk.sign(signing_root.0.as_ref())?;
                 let signed = SignedRevocation { message, signature };
                 signed_messages.push(SignedMessage::Revocation(signed));
             }

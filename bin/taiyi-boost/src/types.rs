@@ -4,28 +4,17 @@ use alloy_consensus::{
     Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
 };
 use alloy_eips::{
-    eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
+    eip2718::{Decodable2718, Eip2718Error, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
 };
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
-use alloy_signer::k256::sha2::{Digest, Sha256};
 use axum::http::HeaderMap;
 use cb_common::pbs::{
     Blob, BlobsBundle, DenebSpec, ElectraSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader,
     GetHeaderResponse, KzgCommitment, KzgProof, Transaction as cbTransaction, Transactions,
     Withdrawal as cbWithdrawal,
-};
-use ethereum_consensus::{
-    bellatrix::mainnet::Transaction as ConsensusTransaction,
-    deneb::{
-        mainnet::{Withdrawal as ConsensusWithdrawal, MAX_WITHDRAWALS_PER_PAYLOAD},
-        minimal::MAX_TRANSACTIONS_PER_PAYLOAD,
-        ExecutionAddress,
-    },
-    networks::Network,
-    ssz::prelude::{HashTreeRoot, List},
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -77,24 +66,6 @@ pub struct ConstraintsMessage {
     pub slot: u64,
     pub top: bool,
     pub transactions: Vec<Bytes>,
-}
-
-#[allow(unused)]
-impl ConstraintsMessage {
-    /// Returns the digest of this message.
-    pub fn digest(&self) -> Eip2718Result<[u8; 32]> {
-        let mut hasher = Sha256::new();
-        hasher.update(self.pubkey);
-        hasher.update(self.slot.to_le_bytes());
-        hasher.update((self.top as u8).to_le_bytes());
-
-        for bytes in &self.transactions {
-            let tx = TxEnvelope::decode_2718(&mut bytes.as_ref())?;
-            hasher.update(tx.tx_hash());
-        }
-
-        Ok(hasher.finalize().into())
-    }
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -404,13 +375,5 @@ pub fn to_cb_execution_payload_header(
         withdrawals_root,
         blob_gas_used: header.blob_gas_used.unwrap_or_default(),
         excess_blob_gas: header.excess_blob_gas.unwrap_or_default(),
-    }
-}
-pub fn to_consensus_withdrawal(value: &Withdrawal) -> ethereum_consensus::capella::Withdrawal {
-    ethereum_consensus::capella::Withdrawal {
-        index: value.index as usize,
-        validator_index: value.validator_index as usize,
-        address: ExecutionAddress::try_from(value.address.as_ref()).expect("invalid address"),
-        amount: value.amount,
     }
 }

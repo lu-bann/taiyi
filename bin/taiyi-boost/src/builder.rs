@@ -31,7 +31,6 @@ use cb_common::{
 };
 use cb_pbs::submit_block;
 use commit_boost::prelude::*;
-use ethereum_consensus::deneb::Context;
 use eyre::Result;
 use futures::future::join_all;
 use parking_lot::Mutex;

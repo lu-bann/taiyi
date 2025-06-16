@@ -1,10 +1,7 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::{Decodable2718, Eip2718Error};
 use alloy_primitives::Bytes;
-use ethereum_consensus::{
-    crypto::{PublicKey as BlsPublicKey, Signature as BlsSignature},
-    ssz::prelude::List,
-};
+use blsful::{PublicKey as BlsPublicKey, Signature as BlsSignature};
 use sha2::{Digest, Sha256};
 
 pub const MAX_CONSTRAINTS_PER_SLOT: usize = 256;
@@ -27,7 +24,7 @@ pub struct ConstraintsMessage {
     pub pubkey: BlsPublicKey,
     pub slot: u64,
     pub top: bool,
-    pub transactions: List<Bytes, MAX_CONSTRAINTS_PER_SLOT>,
+    pub transactions: Vec<Bytes>,
 }
 
 impl ConstraintsMessage {
