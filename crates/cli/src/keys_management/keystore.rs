@@ -21,7 +21,7 @@ pub enum KeystoreError {
     #[error("failed to read keystore directory: {0}")]
     ReadFromDirectory(#[from] std::io::Error),
     #[error("Failed to read or decrypt keystore: {0:?}")]
-    Eth2Keystore(lighthouse_eth2_keystore::Error),
+    Eth2Keystore(eth2_keystore::Error),
     #[error("Missing password for keypair")]
     MissingPassword,
 }

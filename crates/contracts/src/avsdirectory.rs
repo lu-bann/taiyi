@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol! {
+sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
 
@@ -14,4 +14,4 @@ sol! {
         ) external view returns (bytes32);
 
     }
-}
+);

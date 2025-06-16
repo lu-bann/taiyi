@@ -50,7 +50,7 @@ impl PreconfRequest {
 #[cfg(test)]
 mod tests {
     use alloy_consensus::TxEnvelope;
-    use alloy_primitives::{hex, PrimitiveSignature, B256, U256};
+    use alloy_primitives::{hex, Signature, B256, U256};
     use alloy_provider::network::{EthereumWallet, TransactionBuilder};
     use alloy_rpc_types::TransactionRequest;
     use alloy_signer::Signer as _;
@@ -146,7 +146,7 @@ mod tests {
                 blob_count: 0,
                 preconf_fee: PreconfFeeResponse::default(),
             },
-            alloc_sig: PrimitiveSignature::from_raw([0u8; 65].as_slice()).unwrap(),
+            alloc_sig: Signature::from_raw([0u8; 65].as_slice()).unwrap(),
             transaction: Some(
                 TransactionRequest::default()
                     .with_from(signer.address())
@@ -205,7 +205,7 @@ mod tests {
         let preconf_request = PreconfRequest::TypeB(request.clone());
         assert_eq!(
             preconf_request.digest(DUMMY_CHAIN_ID),
-            B256::from(hex!("0x27d1a4b4d48c9dbea4a94cd75e8cc9b1c0ce645d55df95615087be7ebda27e2d"))
+            B256::from(hex!("0x252188074b2c51cd2341670f266acaaf0b76a95985c2eefb1ec01e50fe21b196"))
         );
         assert_eq!(preconf_request.signer(), signer.address());
         assert_eq!(preconf_request.sequence_num(), None);

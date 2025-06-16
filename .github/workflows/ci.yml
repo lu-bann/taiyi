@@ -57,5 +57,5 @@ jobs:
         with:
           version: nightly
       - name: Run tests
-        run: |
-          make coverage
+        run: make coverage
+        if: ${{ always() }}

@@ -166,8 +166,8 @@ impl Dirk {
                 res.signature.len()
             );
         }
-        let sig = BlsSignature::try_from(res.signature.as_slice())
-            .wrap_err("Failed to parse signature")?;
+        let sig =
+            BlsSignature::deserialize(res.signature.as_slice()).expect("Failed to parse signature");
 
         debug!("Signature request succeeded for account {}", account.name);
         Ok(sig)

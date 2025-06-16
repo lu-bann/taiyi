@@ -31,7 +31,7 @@ impl OperatorInfoCommand {
 
         let operator_info = registry.getOperator(self.operator_address).call().await?;
 
-        info!("Operator: {}, status: {:?}", self.operator_address, &operator_info._0.status);
+        info!("Operator: {}, status: {:?}", self.operator_address, &operator_info.status);
 
         Ok(())
     }

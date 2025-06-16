@@ -8,8 +8,7 @@ alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-derive_more = { workspace = true }
-lighthouse-types = { workspace = true }
+blst = { workspace = true }
 serde = { workspace = true }
 sha2 = { workspace = true }
 ssz_rs = { workspace = true }

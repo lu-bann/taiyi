@@ -1,6 +1,6 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{hex, keccak256, Address, PrimitiveSignature, B256, U256};
+use alloy_primitives::{hex, keccak256, Address, Signature, B256, U256};
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,7 +12,7 @@ pub struct PreconfRequestTypeB {
     /// blockspace allocated
     pub allocation: BlockspaceAllocation,
     /// Signature by the user over allocation
-    pub alloc_sig: PrimitiveSignature,
+    pub alloc_sig: Signature,
     /// Preconf transaction
     pub transaction: Option<TxEnvelope>,
     /// The signer of the request
@@ -31,7 +31,7 @@ impl PreconfRequestTypeB {
     }
 
     /// Set alloc signature
-    pub fn set_alloc_sig(&mut self, sig: PrimitiveSignature) {
+    pub fn set_alloc_sig(&mut self, sig: Signature) {
         self.alloc_sig = sig;
     }
 
@@ -93,7 +93,6 @@ impl BlockspaceAllocation {
     pub fn struct_hash(&self) -> B256 {
         keccak256(
             (
-                blockspace_allocation_type_hash(),
                 self.gas_limit,
                 self.sender,
                 self.recipient,
@@ -115,6 +114,7 @@ pub fn eip712_domain_type_hash() -> B256 {
     keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
 }
 
+#[allow(dead_code)]
 pub fn blockspace_allocation_type_hash() -> B256 {
     keccak256("BlockspaceAllocation(uint256 gasLimit,address sender,address recipient,uint256 deposit,uint256 tip,uint256 targetSlot,uint256 blobCount)")
 }

@@ -87,8 +87,7 @@ impl RegisterForOperatorSetsCommand {
                 expiry,
             )
             .call()
-            .await?
-            ._0;
+            .await?;
         let signature = Bytes::from(signer.sign_hash_sync(&signature_digest_hash)?.as_bytes());
         let signature_entry = SignatureWithSaltAndExpiry { signature, expiry, salt: self.salt };
 
