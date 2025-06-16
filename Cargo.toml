@@ -3,11 +3,11 @@
 [workspace]
 members = [
 #    "bin/taiyi",
-    "bin/taiyi-boost",
-    "bin/taiyi-cli",
-    "bin/taiyi-fraud-proof-cli",
-    "bin/taiyi-underwriter-monitor",
-    "crates/cli",
+#    "bin/taiyi-boost",
+#    "bin/taiyi-cli",
+#    "bin/taiyi-fraud-proof-cli",
+#    "bin/taiyi-underwriter-monitor",
+#    "crates/cli",
     "crates/contracts",
     "crates/crypto",
     "crates/poi",
@@ -21,11 +21,11 @@ members = [
 ]
 default-members = [
 #    "bin/taiyi",
-    "bin/taiyi-boost",
-    "bin/taiyi-cli",
-    "bin/taiyi-fraud-proof-cli",
-    "bin/taiyi-underwriter-monitor",
-    "crates/cli",
+#    "bin/taiyi-boost",
+#    "bin/taiyi-cli",
+#    "bin/taiyi-fraud-proof-cli",
+#    "bin/taiyi-underwriter-monitor",
+#    "crates/cli",
     "crates/primitives",
     "crates/contracts",
 ]
@@ -61,11 +61,9 @@ taiyi-zkvm-types = { path = "crates/zkvm-types" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
-beacon-api-client = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
 cb-common = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
 cb-pbs = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
 commit-boost = { git = "https://github.com/Commit-Boost/commit-boost-client.git", rev = "f776bca71db413ab0a0d83488cbcdbe96a5216c8" }
-ethereum-consensus = { git = "https://github.com/ralexstokes/ethereum-consensus", rev = "92f3ec39d8c595790ed4717b8996a314165f013f" }
 
 # alloy
 alloy-consensus = { version = "0.12", features = ["k256", "serde"] }
@@ -95,6 +93,10 @@ alloy-sol-types = "0.8.15"
 alloy-transport = { version = "0.12" }
 alloy-transport-http = { version = "0.12", default-features = false }
 alloy-trie = "0.7.9"
+
+lighthouse-eth2-keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
+lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
+lighthouse = { git = "https://github.com/sigp/lighthouse", tag = "v7.0.1" }
 
 # eth
 eth-trie-proofs = "0.1.2"

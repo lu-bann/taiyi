@@ -26,7 +26,6 @@ axum = { workspace = true }
 cb-common = { workspace = true }
 cb-pbs = { workspace = true }
 commit-boost = { workspace = true }
-ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }
 eyre = { workspace = true }
@@ -54,7 +53,6 @@ reqwest-eventsource = "0.6"
 
 [dev-dependencies]
 alloy-node-bindings = { workspace = true }
-ethereum-consensus = { workspace = true }
 ethereum_ssz = { workspace = true }
-lighthouse-types = { package = "types", git = "https://github.com/sigp/lighthouse", tag = "v7.0.0-beta.5" }
+lighthouse-types = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

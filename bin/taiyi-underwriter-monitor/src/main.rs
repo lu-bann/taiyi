@@ -8,7 +8,6 @@ use alloy_provider::{Provider as _, ProviderBuilder, WsConnect};
 use alloy_rpc_types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
-use ethereum_consensus::{deneb::Context, networks::Network};
 use eyre::{eyre, OptionExt};
 use futures_util::StreamExt as _;
 use reqwest::Url;
@@ -230,6 +229,8 @@ struct Opts {
     /// URL of taiyi's API URL, example: http://127.0.0.1:5656/
     #[clap(long)]
     pub taiyi_url: String,
+
+    pub genesis_time: u64,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
@@ -261,13 +262,8 @@ async fn main() -> eyre::Result<()> {
         db_conn.clone(),
         Url::parse(&format!("{}/commitments/v0/commitment_stream", opts.taiyi_url))?,
     );
-    let genesis_time = {
-        let network: Network = opts.network.clone().into();
-        let context: Context = network.try_into()?;
-        context.genesis_time()?
-    };
     let tx_settlement_handle =
-        tx_settlement_listener(opts.execution_client_ws_url, genesis_time, db_conn);
+        tx_settlement_listener(opts.execution_client_ws_url, opts.genesis_time, db_conn);
     tokio::select! {
         result = commitment_handle => {
             error!("commitment listener task is dead. exiting...");

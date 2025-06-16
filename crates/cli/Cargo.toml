@@ -13,18 +13,17 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
 blst = { workspace = true }
 cb-common = { workspace = true }
-
 clap = { workspace = true }
-ethereum-consensus = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }
 hex-literal = { workspace = true }
-lighthouse_eth2_keystore = { package = "eth2_keystore", git = "https://github.com/sigp/lighthouse", tag = "v7.0.0-beta.5" }
+lighthouse-eth2-keystore = { workspace = true }
 prost = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 taiyi-contracts = { workspace = true }
 taiyi-crypto = { workspace = true }
+taiyi-primitives = { workspace = true }
 thiserror = { workspace = true }
 tiny-bip39 = { workspace = true }
 tonic = { workspace = true, features = ["tls"] }

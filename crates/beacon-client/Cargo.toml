@@ -10,11 +10,11 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 blst = { workspace = true }
 const-hex = "1.13.2"
 eyre = { workspace = true }
+lighthouse = { workspace = true }
 reqwest = { version = "0.11.27", features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hex = { workspace = true }
-beacon-api-client = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 

@@ -12,7 +12,6 @@ use cb_common::{
     },
     signer::BlsSecretKey,
 };
-use ethereum_consensus::deneb::{compute_domain, Context, DomainType, Root};
 use reqwest::Url;
 use taiyi_beacon_client::BeaconClient;
 use tracing::debug;

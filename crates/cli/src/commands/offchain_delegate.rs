@@ -1,11 +1,10 @@
 use std::time::Duration;
 
-use alloy_signer::k256::sha2::{Digest, Sha256};
-use clap::{Parser, ValueEnum};
-use ethereum_consensus::{
-    crypto::{PublicKey as BlsPublicKey, Signature as BlsSignature},
-    networks::Network,
+use alloy_signer::k256::{
+    elliptic_curve::group::GroupEncoding,
+    sha2::{Digest, Sha256},
 };
+use clap::{Parser, ValueEnum};
 use eyre::Result;
 use reqwest::Url;
 use serde::Serialize;
@@ -15,6 +14,7 @@ use crate::{
     keys_management::{dirk::Dirk, keystore::KeystoreSecret, signing::parse_bls_public_key},
     keysource::{generate_from_dirk, generate_from_keystore, generate_from_local_keys, KeySource},
 };
+use taiyi_primitives::bls::{PublicKey as BlsPublicKey, Signature as BlsSignature};
 
 const RELAY_DELEGATE_PATH: &str = "/constraints/v1/builder/delegate";
 const RELAY_REVOKE_PATH: &str = "/constraints/v1/builder/revoke";
@@ -162,8 +162,8 @@ impl DelegationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.to_vec());
-        hasher.update(self.delegatee_pubkey.to_vec());
+        hasher.update(self.validator_pubkey.0.to_bytes());
+        hasher.update(self.delegatee_pubkey.0.to_bytes());
 
         hasher.finalize().into()
     }
@@ -192,8 +192,8 @@ impl RevocationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.to_vec());
-        hasher.update(self.underwriter_pubkey.to_vec());
+        hasher.update(self.validator_pubkey.0.to_bytes());
+        hasher.update(self.underwriter_pubkey.0.to_bytes());
 
         hasher.finalize().into()
     }
