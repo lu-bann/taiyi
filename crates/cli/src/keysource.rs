@@ -2,7 +2,7 @@
 use alloy_primitives::B256;
 use clap::Parser;
 use eyre::{bail, Result};
-use lighthouse_eth2_keystore::Keystore;
+use eth2_keystore::Keystore;
 use tracing::{debug, warn};
 
 use crate::{

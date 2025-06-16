@@ -68,7 +68,7 @@ impl DepositCommand {
 
         // Get underlying token address
         let token_address = strategy.underlyingToken().call().await?;
-        let token_address = token_address._0;
+        let token_address = token_address;
         info!("Underlying token address: {:?}", token_address);
 
         // Create ERC20 interface for the token
@@ -76,7 +76,7 @@ impl DepositCommand {
 
         // Check user's balance before proceeding
         let signer_address = signer.address();
-        let balanceOfReturn { _0: balance } = token.balanceOf(signer_address).call().await?;
+        let balance = token.balanceOf(signer_address).call().await?;
         info!("Strategy Token Balance of signer: {:?}", balance);
         if balance < self.amount {
             return Err(eyre::eyre!(

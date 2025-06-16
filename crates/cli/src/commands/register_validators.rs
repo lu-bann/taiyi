@@ -7,7 +7,7 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolValue;
 use clap::Parser;
 use eyre::Result;
-use lighthouse_eth2_keystore::Keystore;
+use eth2_keystore::Keystore;
 use reqwest::Url;
 use taiyi_contracts::{SignedRegistration, TaiyiMiddleware};
 use taiyi_crypto::{sign, to_public_key};

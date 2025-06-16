@@ -137,13 +137,41 @@ pub enum SignedMessage {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct SignedDelegation {
     pub message: DelegationMessage,
+    #[serde(serialize_with = "serialize_bls_signature", deserialize_with = "deserialize_bls_signature")]
     pub signature: BlsSignature,
 }
+
+fn serialize_bls_signature<S: serde::Serializer>(sig: &BlsSignature, serializer: S) -> Result<S::Ok, S::Error> {
+    let hex_str = format!("0x{}", hex::encode(sig.serialize()));
+    serializer.serialize_str(&hex_str)
+}
+
+fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsSignature, D::Error> {
+    let hex_str = <String as serde::Deserializer>::deserialize(deserializer).unwrap();
+    let hex_str = hex_str.trim_start_matches("0x");
+    let bytes = hex::decode(hex_str).unwrap();
+    Ok(BlsSignature::deserialize(&bytes).unwrap())
+}
+
+fn serialize_bls_publickey<S: serde::Serializer>(public_key: &BlsPublicKey, serializer: S) -> Result<S::Ok, S::Error> {
+    let hex_str = format!("0x{}", hex::encode(public_key.serialize()));
+    serializer.serialize_str(&hex_str)
+}
+
+// fn deserialize_bls_publickey<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsPublicKey, D::Error> {
+//     //let hex_str = <String as serde::Deserializer>::deserialize(deserializer).unwrap();
+//     let hex_str = deserializer.deserialize_str();
+//     let hex_str = hex_str.trim_start_matches("0x");
+//     let bytes = hex::decode(hex_str).unwrap();
+//     Ok(BlsPublicKey::deserialize(&bytes).unwrap())
+// }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DelegationMessage {
     action: u8,
+    #[serde(serialize_with = "serialize_bls_publickey")]
     pub validator_pubkey: BlsPublicKey,
+    #[serde(serialize_with = "serialize_bls_publickey")]
     pub delegatee_pubkey: BlsPublicKey,
 }
 
@@ -171,13 +199,16 @@ impl DelegationMessage {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct SignedRevocation {
     pub message: RevocationMessage,
+    #[serde(serialize_with = "serialize_bls_signature")]
     pub signature: BlsSignature,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct RevocationMessage {
     action: u8,
+    #[serde(serialize_with = "serialize_bls_publickey")]
     pub validator_pubkey: BlsPublicKey,
+    #[serde(serialize_with = "serialize_bls_publickey")]
     pub underwriter_pubkey: BlsPublicKey,
 }
 
