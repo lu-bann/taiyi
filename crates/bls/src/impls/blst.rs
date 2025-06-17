@@ -271,7 +271,7 @@ impl TSecretKey<blst_core::Signature, blst_core::PublicKey> for blst_core::Secre
         let rng = &mut rand::rng();
         let ikm: [u8; 32] = rng.random();
 
-        Self::key_gen(&ikm, &[]).unwrap()
+        Self::key_gen(&ikm, &[]).expect("Random secret key generation failed")
     }
 
     fn public_key(&self) -> blst_core::PublicKey {

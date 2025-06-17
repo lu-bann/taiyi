@@ -5,17 +5,14 @@ publish = false
 version = { workspace = true }
 
 [dependencies]
-aes = { workspace = true }
 alloy = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-extra = { workspace = true }
 base64 = { workspace = true }
-bimap = { workspace = true }
 blst = { workspace = true }
 cipher = { workspace = true }
-ctr = { workspace = true }
 derive_more = { workspace = true }
 eth2_keystore = { workspace = true }
 ethereum_serde_utils = { workspace = true }
@@ -25,13 +22,11 @@ eyre = { workspace = true }
 futures = { workspace = true }
 parking_lot = { workspace = true }
 prometheus = { workspace = true }
-pbkdf2 = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-sha2 = { workspace = true }
 ssz_rs = { workspace = true }
 ssz_types = { workspace = true }
 thiserror = { workspace = true }
@@ -43,7 +38,6 @@ tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 tree_hash = { workspace = true }
 tree_hash_derive = { workspace = true }
-unicode-normalization = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 jsonwebtoken = { workspace = true }

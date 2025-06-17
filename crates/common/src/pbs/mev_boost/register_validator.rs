@@ -18,8 +18,8 @@ use crate::{
     pbs::types::utils::read_chunked_body_with_max,
 };
 
-pub const REGISTER_VALIDATOR_ENDPOINT_TAG: &str = "register_validator";
-pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
+// pub const REGISTER_VALIDATOR_ENDPOINT_TAG: &str = "register_validator";
+// pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
 pub const MAX_SIZE_DEFAULT: usize = 1024;
 
 /// Implements https://ethereum.github.io/builder-specs/#/Builder/registerValidator

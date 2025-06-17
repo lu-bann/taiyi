@@ -1,6 +1,5 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/engine_hints/geth.rs
 use alloy_primitives::{Bloom, B256};
-use hex::FromHex;
 use lazy_static::lazy_static;
 use regex::Regex;
 use taiyi_primitives::encode_util::hex_decode;
@@ -37,23 +36,19 @@ pub fn parse_geth_engine_error_hint(error: &str) -> Result<Option<EngineApiHint>
 
     // Match the hint value to the corresponding hint type based on other parts of the error message
     if error.contains("blockhash mismatch") {
-        return Ok(Some(EngineApiHint::BlockHash(B256::from_slice(
-            &hex_decode(&raw_hint_value).unwrap(),
-        ))));
+        return Ok(Some(EngineApiHint::BlockHash(B256::from_slice(&hex_decode(&raw_hint_value)?))));
     } else if error.contains("invalid gas used") {
         return Ok(Some(EngineApiHint::GasUsed(raw_hint_value.parse()?)));
     } else if error.contains("invalid merkle root") {
-        return Ok(Some(EngineApiHint::StateRoot(B256::from_slice(
-            &hex_decode(&raw_hint_value).unwrap(),
-        ))));
+        return Ok(Some(EngineApiHint::StateRoot(B256::from_slice(&hex_decode(&raw_hint_value)?))));
     } else if error.contains("invalid receipt root hash") {
-        return Ok(Some(EngineApiHint::ReceiptsRoot(B256::from_slice(
-            &hex_decode(&raw_hint_value).unwrap(),
-        ))));
+        return Ok(Some(EngineApiHint::ReceiptsRoot(B256::from_slice(&hex_decode(
+            &raw_hint_value,
+        )?))));
     } else if error.contains("invalid bloom") {
-        return Ok(Some(EngineApiHint::LogsBloom(Bloom::from_slice(
-            &hex_decode(&raw_hint_value).unwrap(),
-        ))));
+        return Ok(Some(EngineApiHint::LogsBloom(Bloom::from_slice(&hex_decode(
+            &raw_hint_value,
+        )?))));
     };
 
     // Match some error message that we don't know how to handle

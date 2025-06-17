@@ -9,8 +9,6 @@ use axum::http::HeaderValue;
 use blst::min_pk::{PublicKey, Signature};
 use rand::prelude::*;
 use reqwest::header::HeaderMap;
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
 use ssz::{Decode, Encode};
 use tracing::Level;
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
@@ -42,20 +40,20 @@ pub fn ms_into_slot(slot: u64, chain: Chain) -> u64 {
 
 /// Seconds
 pub fn utcnow_sec() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is before epoch").as_secs()
 }
 /// Millis
 pub fn utcnow_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is before epoch").as_millis() as u64
 }
 /// Micros
 pub fn utcnow_us() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is before epoch").as_micros() as u64
 }
 /// Nanos
 pub fn utcnow_ns() -> u64 {
     // safe until ~2554
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("Time is before epoch").as_nanos() as u64
 }
 
 pub const WEI_PER_ETH: u64 = 1_000_000_000_000_000_000;
@@ -65,6 +63,7 @@ pub fn eth_to_wei(eth: f64) -> U256 {
 
 // Serde
 /// Test that the encoding and decoding works, returns the decoded struct
+#[cfg(test)]
 pub fn test_encode_decode<T: Serialize + DeserializeOwned>(d: &str) -> T {
     let decoded = serde_json::from_str::<T>(d).expect("deserialize");
 
@@ -215,7 +214,7 @@ fn format_crates_filter(default_level: &str, crates_level: &str) -> EnvFilter {
     let s = format!(
         "{default_level},cb_signer={crates_level},cb_pbs={crates_level},cb_common={crates_level},cb_metrics={crates_level}",
     );
-    s.parse().unwrap()
+    s.parse().expect("Provide an error instead")
 }
 
 pub fn print_logo() {

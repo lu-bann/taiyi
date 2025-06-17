@@ -5,7 +5,7 @@ members = [
 #    "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
-    "bin/taiyi-fraud-proof-cli",
+#    "bin/taiyi-fraud-proof-cli",
 #    "bin/taiyi-underwriter-monitor",
     "crates/beacon-client",
     "crates/cli",
@@ -47,6 +47,7 @@ ignored = [
     "ethereum_ssz",
     "ethereum_ssz_derive",
     "log",
+    "ethereum_serde_utils",
 ]
 
 [workspace.dependencies]

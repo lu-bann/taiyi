@@ -11,7 +11,7 @@ use crate::pbs::{
     state::{BuilderApiState, PbsStateGuard},
 };
 
-const STATUS_ENDPOINT_TAG: &str = "status";
+//const STATUS_ENDPOINT_TAG: &str = "status";
 
 pub async fn handle_get_status<S: BuilderApiState, A: BuilderApi<S>>(
     req_headers: HeaderMap,

@@ -5,17 +5,14 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
-    config::PbsConfig,
     constants::APPLICATION_BUILDER_DOMAIN,
     pbs::{
-        error::ValidationError, ElectraSpec, ExecutionPayloadHeader,
-        ExecutionPayloadHeaderMessageElectra, ExecutionRequests, GetHeaderParams,
-        GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra, SignedExecutionPayloadHeader,
-        EMPTY_TX_ROOT_HASH,
+        ElectraSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageElectra,
+        ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
+        SignedExecutionPayloadHeader,
     },
     signature::compute_domain,
     types::Chain,
-    utils::{get_user_agent_with_version, utcnow_ms},
 };
 use reqwest::Url;
 use taiyi_beacon_client::BeaconClient;
@@ -47,7 +44,6 @@ const DEFAULT_EXTRA_DATA: [u8; 20] = [
 pub struct LocalBlockBuilder {
     genesis_time: u64,
     seconds_per_slot: u64,
-    fork_version: u64,
     beacon_api_client: BeaconClient,
     engine_hinter: EngineHinter,
     execution_api_client: ExecutionClient,
@@ -70,7 +66,6 @@ impl LocalBlockBuilder {
     pub async fn new(
         genesis_time: u64,
         seconds_per_slot: u64,
-        fork_version: u64,
         beacon_api: Url,
         engine_api: Url,
         execution_api: Url,
@@ -85,7 +80,6 @@ impl LocalBlockBuilder {
         Self {
             genesis_time,
             seconds_per_slot,
-            fork_version,
             beacon_api_client,
             engine_hinter,
             execution_api_client,
@@ -314,12 +308,10 @@ mod tests {
         let chain_id: u64 = 13;
         let genesis_time: u64 = 1;
         let seconds_per_slot: u64 = 10;
-        let fork_version: u64 = 100;
 
         let local_builder = LocalBlockBuilder::new(
             genesis_time,
             seconds_per_slot,
-            fork_version,
             config.beacon_api,
             config.engine_api,
             config.execution_api.clone(),

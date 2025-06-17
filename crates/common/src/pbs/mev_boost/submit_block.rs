@@ -22,8 +22,8 @@ use crate::{
     pbs::utils::read_chunked_body_with_max,
 };
 
-pub const SUBMIT_BLINDED_BLOCK_ENDPOINT_TAG: &str = "submit_blinded_block";
-pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
+//pub const SUBMIT_BLINDED_BLOCK_ENDPOINT_TAG: &str = "submit_blinded_block";
+//pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
 pub const MAX_SIZE_SUBMIT_BLOCK: usize = 20 * 1024 * 1024;
 
 /// Implements https://ethereum.github.io/builder-specs/#/Builder/submitBlindedBlock

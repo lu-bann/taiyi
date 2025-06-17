@@ -67,7 +67,6 @@ impl DepositCommand {
 
         // Get underlying token address
         let token_address = strategy.underlyingToken().call().await?;
-        let token_address = token_address;
         info!("Underlying token address: {:?}", token_address);
 
         // Create ERC20 interface for the token

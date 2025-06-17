@@ -11,7 +11,6 @@ alloy-provider = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
-blst = { workspace = true }
 eth2_keystore = { workspace = true }
 clap = { workspace = true }
 eyre = { workspace = true }
