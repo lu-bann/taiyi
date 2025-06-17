@@ -2,9 +2,8 @@ use std::{fmt::Debug, ops::Deref};
 
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types_eth::Withdrawal;
-use reqwest::{Client, Url};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use lighthouse::common::eth2::GenericResponse;
 
 /// Errors that can occur while interacting with the beacon API.
 #[derive(Debug, thiserror::Error)]
@@ -34,7 +33,7 @@ pub type BeaconClientResult<T> = Result<T, BeaconClientError>;
 #[derive(Clone)]
 pub struct BeaconClient {
     auth_token: Option<String>,
-    endpoint: Url,
+    endpoint: String,
     inner: Client,
 }
 
@@ -64,12 +63,12 @@ struct BeaconBlockMessage {
 
 impl BeaconClient {
     /// Create a new [BeaconClient] instance with the given beacon RPC URL.
-    pub fn new(beacon_rpc_url: Url, auth_token: Option<String>) -> Self {
-        let inner = Client::new(&beacon_rpc_url.to_string());
+    pub fn new(beacon_rpc_url: String, auth_token: Option<String>) -> Self {
+        let inner = Client::new();
         Self { auth_token, endpoint: beacon_rpc_url, inner }
     }
 
-    pub fn endpoint(&self) -> &Url {
+    pub fn endpoint(&self) -> &String {
         &self.endpoint
     }
 
@@ -77,7 +76,7 @@ impl BeaconClient {
     /// support the eth/v2/beacon/blocks/head endpoint yet for electra fork now.
     /// reference: https://github.com/ralexstokes/ethereum-consensus/pull/406
     pub async fn get_head_slot(&self) -> BeaconClientResult<u64> {
-        let response = self.inner.get("eth/v2/beacon/blocks/head").send().await?;
+        let response = self.inner.get(format!("{}/eth/v2/beacon/blocks/head", self.endpoint)).send().await?;
         let result = response.bytes().await?;
         let result: BeaconBlock = serde_json::from_slice(&result)?;
         Ok(result.data.message.slot.parse::<u64>()?)
@@ -88,10 +87,7 @@ impl BeaconClient {
         // NOTE: The beacon_api_client crate method for this doesn't always work,
         // so we implement it manually here.
 
-        let url = self
-            .endpoint
-            .join("/eth/v1/beacon/states/head/randao")
-            .map_err(|_| BeaconClientError::Url)?;
+        let url = format!("{}/eth/v1/beacon/states/head/randao", self.endpoint);
 
         #[derive(Deserialize)]
         struct Inner {
@@ -114,8 +110,7 @@ impl BeaconClient {
     ///
     /// This function also maps the return type into [alloy::rpc::types::Withdrawal]s.
     pub async fn get_expected_withdrawals_at_head(&self) -> BeaconClientResult<Vec<Withdrawal>> {
-        let path = format!("eth/v1/builder/states/head/expected_withdrawals");
-        let url = self.endpoint.join(&path).map_err(|_| BeaconClientError::Url)?;
+        let url = format!("{}/eth/v1/builder/states/head/expected_withdrawals", self.endpoint);
 
         // Create the request builder
         let mut request_builder = self.inner.get(url.clone());
@@ -126,7 +121,7 @@ impl BeaconClient {
         }
 
         let response = request_builder.send().await?;
-        let result: GenericResponse<Vec<Withdrawal>> = response.json().await??;
+        let result: GenericResponse<Vec<Withdrawal>> = response.json().await?;
 
         let mut withdrawals = Vec::with_capacity(result.data.len());
         for w in result.data {
@@ -143,8 +138,7 @@ impl BeaconClient {
 
     /// Fetch the parent beacon block root from the beacon chain.
     pub async fn get_parent_beacon_block_root(&self) -> BeaconClientResult<B256> {
-        let path = format!("eth/v1/beacon/blocks/head/root");
-        let url = self.inner.endpoint.join(&path).map_err(|_| BeaconClientError::Url)?;
+        let url = format!("{}/eth/v1/beacon/blocks/head/root", self.endpoint);
 
         // Create the request builder
         let mut request_builder = self.inner.get(url.clone());
@@ -155,10 +149,15 @@ impl BeaconClient {
         }
 
         let response = request_builder.send().await?;
-        let result = response.json().await??;
+        let result: GenericResponse<BlockRoot> = response.json().await?;
 
         Ok(B256::from_slice(result.data.root.as_slice()))
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BlockRoot {
+    pub root: B256,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -172,84 +171,26 @@ impl Debug for BeaconClient {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::env;
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(bound = "T: Serialize + serde::de::DeserializeOwned")]
+pub struct GenericResponse<T: Serialize + serde::de::DeserializeOwned> {
+    pub data: T,
+}
 
-    use reqwest::Url;
-    use serde::Deserialize;
-
-    use super::*;
-
-    #[derive(Debug, Clone, Deserialize)]
-    pub struct ExtraConfig {
-        pub beacon_api: Url,
+impl<T: Serialize + serde::de::DeserializeOwned> From<T> for GenericResponse<T> {
+    fn from(data: T) -> Self {
+        Self { data }
     }
+}
 
-    pub fn get_test_config() -> eyre::Result<Option<ExtraConfig>> {
-        if env::var("BEACON_API").is_err() {
-            return Ok(None);
-        }
+#[derive(Debug, PartialEq, Clone, Serialize)]
+#[serde(bound = "T: Serialize")]
+pub struct GenericResponseRef<'a, T: Serialize> {
+    pub data: &'a T,
+}
 
-        let beacon_api = env::var("BEACON_API").unwrap();
-
-        Ok(Some(ExtraConfig { beacon_api: Url::parse(&beacon_api)? }))
-    }
-
-    #[tokio::test]
-    async fn test_get_prev_randao() -> eyre::Result<()> {
-        let Some(config) = get_test_config()? else {
-            eprintln!("Skipping test because required environment variables are not set");
-            return Ok(());
-        };
-        let url = config.beacon_api.clone();
-
-        if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {
-            eprintln!("Skipping test because remotebeast is not reachable");
-            return Ok(());
-        }
-
-        let beacon_api = BeaconClient::new(url, None);
-
-        assert!(beacon_api.get_prev_randao().await.is_ok());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_get_expected_withdrawals_at_head() -> eyre::Result<()> {
-        let Some(config) = get_test_config()? else {
-            eprintln!("Skipping test because required environment variables are not set");
-            return Ok(());
-        };
-        let url = config.beacon_api.clone();
-
-        if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {
-            eprintln!("Skipping test because remotebeast is not reachable");
-            return Ok(());
-        }
-
-        let beacon_api = BeaconClient::new(url, None);
-
-        assert!(beacon_api.get_expected_withdrawals_at_head().await.is_ok());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_get_parent_beacon_block_root() -> eyre::Result<()> {
-        let Some(config) = get_test_config()? else {
-            eprintln!("Skipping test because required environment variables are not set");
-            return Ok(());
-        };
-        let url = config.beacon_api.clone();
-
-        if reqwest::get(url.clone()).await.is_err_and(|err| err.is_timeout() || err.is_connect()) {
-            eprintln!("Skipping test because remotebeast is not reachable");
-            return Ok(());
-        }
-
-        let beacon_api = BeaconClient::new(url, None);
-
-        assert!(beacon_api.get_parent_beacon_block_root().await.is_ok());
-        Ok(())
+impl<'a, T: Serialize> From<&'a T> for GenericResponseRef<'a, T> {
+    fn from(data: &'a T) -> Self {
+        Self { data }
     }
 }

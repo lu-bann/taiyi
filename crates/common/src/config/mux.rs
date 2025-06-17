@@ -370,7 +370,7 @@ mod tests {
         let node_operator_id = U256::from(1);
 
         let total_keys: u64 =
-            registry.getTotalSigningKeyCount(node_operator_id).call().await?._0.try_into()?;
+            registry.getTotalSigningKeyCount(node_operator_id).call().await?.try_into()?;
 
         assert!(total_keys > LIMIT as u64);
 

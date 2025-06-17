@@ -1,13 +1,15 @@
 use alloy::primitives::{b256, Address, B256, U256};
 use serde::{Deserialize, Serialize};
 use ssz_types::{FixedVector, VariableList};
+use tree_hash::TreeHash;
+use ssz_derive::{Decode, Encode};
 
 use super::spec::{DenebSpec, ElectraSpec, EthSpec};
 
 pub const EMPTY_TX_ROOT_HASH: B256 =
     b256!("7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1");
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct ExecutionPayload<T: EthSpec> {
     pub parent_hash: B256,
     pub fee_recipient: Address,
@@ -38,55 +40,13 @@ pub struct ExecutionPayload<T: EthSpec> {
     pub excess_blob_gas: u64,
 }
 
-impl ssz::Decode for ExecutionPayload<DenebSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Decode for ExecutionPayload<ElectraSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for ExecutionPayload<DenebSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-impl ssz::Encode for ExecutionPayload<ElectraSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
 pub type Transactions<T> = VariableList<
     Transaction<<T as EthSpec>::MaxBytesPerTransaction>,
     <T as EthSpec>::MaxTransactionsPerPayload,
 >;
 pub type Transaction<N> = VariableList<u8, N>;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct Withdrawal {
     #[serde(with = "serde_utils::quoted_u64")]
     pub index: u64,
@@ -97,28 +57,7 @@ pub struct Withdrawal {
     pub amount: u64,
 }
 
-impl ssz::Decode for Withdrawal {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for Withdrawal {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode, tree_hash_derive::TreeHash)]
 pub struct ExecutionPayloadHeader<T: EthSpec> {
     pub parent_hash: B256,
     pub fee_recipient: Address,
@@ -148,53 +87,10 @@ pub struct ExecutionPayloadHeader<T: EthSpec> {
     pub excess_blob_gas: u64,
 }
 
-impl ssz::Decode for ExecutionPayloadHeader<DenebSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Decode for ExecutionPayloadHeader<ElectraSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for ExecutionPayloadHeader<DenebSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-impl ssz::Encode for ExecutionPayloadHeader<ElectraSpec> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloy::primitives::b256;
     use ssz_types::VariableList;
-    use tree_hash::TreeHash;
 
     use super::*;
     use crate::{

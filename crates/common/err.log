@@ -1,119 +1,465 @@
+    Updating crates.io index
+     Locking 1 package to latest compatible version
+    Updating ssz_types v0.10.1 -> v0.11.0
+ Downloading crates ...
+  Downloaded ssz_types v0.11.0
+   Compiling cfg-if v1.0.0
+   Compiling once_cell v1.21.3
+   Compiling subtle v2.6.1
+   Compiling itoa v1.0.14
+   Compiling cpufeatures v0.2.16
+   Compiling const-oid v0.9.6
+   Compiling equivalent v1.0.1
+   Compiling foldhash v0.1.5
+   Compiling allocator-api2 v0.2.21
+   Compiling libc v0.2.173
+   Compiling typenum v1.17.0
+   Compiling pin-project-lite v0.2.15
+   Compiling crunchy v0.2.2
+   Compiling serde v1.0.216
+   Compiling zeroize v1.8.1
+   Compiling memchr v2.7.4
+   Compiling log v0.4.22
+   Compiling base16ct v0.2.0
+   Compiling tiny-keccak v2.0.2
+   Compiling ryu v1.0.18
+   Compiling derive_more v2.0.1
+   Compiling byteorder v1.5.0
+   Compiling der v0.7.9
+   Compiling tracing-core v0.1.33
+   Compiling hex v0.4.3
+   Compiling thiserror v2.0.12
+   Compiling futures-core v0.3.31
+   Compiling scopeguard v1.2.0
+   Compiling generic-array v0.14.7
+   Compiling zerocopy v0.7.35
+   Compiling fnv v1.0.7
+   Compiling indexmap v2.7.0
+   Compiling futures-sink v0.3.31
+   Compiling serde_json v1.0.133
+   Compiling lock_api v0.4.12
+   Compiling slab v0.4.9
+   Compiling untrusted v0.9.0
+   Compiling winnow v0.7.11
+   Compiling futures-channel v0.3.31
+   Compiling tracing v0.1.41
+   Compiling futures-task v0.3.31
+   Compiling futures-io v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling crc-catalog v2.4.0
+   Compiling zerofrom v0.1.5
+   Compiling getrandom v0.2.15
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling ppv-lite86 v0.2.20
+   Compiling num_cpus v1.16.0
+   Compiling signal-hook-registry v1.4.2
+   Compiling socket2 v0.5.8
+   Compiling spki v0.7.3
+   Compiling mio v1.0.3
+   Compiling futures-util v0.3.31
+   Compiling crc v3.2.1
+   Compiling digest v0.10.7
+   Compiling stable_deref_trait v1.2.0
+   Compiling rand_core v0.6.4
+   Compiling threadpool v1.8.1
+   Compiling ring v0.17.14
+   Compiling pkcs8 v0.10.2
+   Compiling yoke v0.7.5
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+   Compiling blst v0.3.15
+   Compiling ff v0.13.0
+   Compiling crypto-bigint v0.5.5
+   Compiling signature v2.2.0
+   Compiling rfc6979 v0.4.0
+   Compiling num-traits v0.2.19
+   Compiling zerovec v0.10.4
+   Compiling tower-service v0.3.3
+   Compiling group v0.13.0
+   Compiling rand_chacha v0.3.1
+   Compiling litemap v0.7.4
+   Compiling bytes v1.9.0
+   Compiling hashbrown v0.15.2
+   Compiling smallvec v1.13.2
+   Compiling arrayvec v0.7.6
+   Compiling const-hex v1.14.0
+   Compiling serdect v0.2.0
+   Compiling either v1.15.0
+   Compiling parking_lot_core v0.9.10
+   Compiling sec1 v0.7.3
+   Compiling alloy-sol-type-parser v1.2.0
+   Compiling nybbles v0.3.4
+   Compiling alloy-rlp v0.3.12
+   Compiling itertools v0.13.0
+   Compiling c-kzg v2.1.1
+   Compiling parking_lot v0.12.3
+   Compiling ruint v1.15.0
+   Compiling num-integer v0.1.46
+   Compiling elliptic-curve v0.13.8
+   Compiling tokio v1.45.1
+   Compiling num-bigint v0.4.6
+   Compiling tinystr v0.7.6
+   Compiling writeable v0.5.5
+   Compiling rand v0.8.5
+   Compiling alloy-primitives v1.2.0
+   Compiling ecdsa v0.16.9
+   Compiling httparse v1.9.5
+   Compiling getrandom v0.3.2
+   Compiling icu_locid_transform_data v1.5.0
+   Compiling zerocopy v0.8.24
+   Compiling icu_collections v1.5.0
+   Compiling http v1.2.0
+   Compiling icu_properties_data v1.5.0
+   Compiling try-lock v0.2.5
+   Compiling icu_locid v1.5.0
+   Compiling rand_core v0.9.3
+   Compiling base64 v0.22.1
+   Compiling percent-encoding v2.3.1
+   Compiling k256 v0.13.4
+   Compiling want v0.3.1
+   Compiling httpdate v1.0.3
+   Compiling utf16_iter v1.0.5
+   Compiling utf8_iter v1.0.4
+   Compiling rand_chacha v0.9.0
+   Compiling form_urlencoded v1.2.1
+   Compiling icu_normalizer_data v1.5.0
+   Compiling write16 v1.0.0
+   Compiling foreign-types-shared v0.1.1
+   Compiling openssl-sys v0.9.109
+   Compiling bitflags v2.9.1
+   Compiling tower-layer v0.3.3
+   Compiling rustls-pki-types v1.10.1
+   Compiling foreign-types v0.3.2
+   Compiling sync_wrapper v1.0.2
+   Compiling http-body v1.0.1
+   Compiling alloy-json-abi v1.2.0
+   Compiling icu_provider v1.5.0
+   Compiling openssl-probe v0.1.6
+   Compiling rand v0.9.0
+   Compiling mime v0.3.17
+   Compiling atomic-waker v1.1.2
+   Compiling opaque-debug v0.3.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling futures-executor v0.3.31
+   Compiling futures-utils-wasm v0.1.0
+   Compiling rustls-webpki v0.102.8
+   Compiling openssl v0.10.73
+   Compiling strum v0.27.1
+   Compiling http-body-util v0.1.2
+   Compiling digest v0.9.0
+   Compiling encoding_rs v0.8.35
+   Compiling ipnet v2.10.1
+   Compiling futures v0.3.31
+   Compiling icu_locid_transform v1.5.0
+   Compiling block-buffer v0.9.0
+   Compiling pin-project v1.1.7
+   Compiling rustls-pemfile v2.2.0
+   Compiling bimap v0.6.3
+   Compiling sha1 v0.10.6
+   Compiling data-encoding v2.6.0
+   Compiling utf-8 v0.7.6
+   Compiling crossbeam-utils v0.8.21
+   Compiling alloy-sol-macro-input v1.2.0
+   Compiling rustls v0.23.20
+   Compiling sha2 v0.9.9
+   Compiling webpki-roots v0.26.7
+   Compiling uuid v1.11.0
+   Compiling strsim v0.11.1
+   Compiling alloy-sol-macro-expander v1.2.0
+   Compiling alloy-eip2930 v0.2.1
+   Compiling alloy-serde v1.0.9
+   Compiling alloy-eip2124 v0.2.0
+   Compiling alloy-eip7702 v0.6.1
+   Compiling alloy-trie v0.8.1
+   Compiling icu_properties v1.5.1
+   Compiling ethereum_serde_utils v0.8.0
+   Compiling alloy-signer v1.0.9
+   Compiling async-stream v0.3.6
+   Compiling alloy-primitives v0.8.25
+   Compiling alloy-eips v1.0.9
+   Compiling ethereum_hashing v0.7.0
+   Compiling tap v1.0.1
+   Compiling num_enum v0.7.3
+   Compiling ethereum_ssz v0.9.0
+   Compiling radium v0.7.0
+   Compiling tokio-util v0.7.13
+   Compiling tower v0.5.2
+   Compiling interprocess v2.2.3
+   Compiling wyz v0.5.1
+   Compiling tracing-futures v0.2.5
+   Compiling spin v0.9.8
+   Compiling funty v2.0.0
+   Compiling tree_hash v0.10.0
+   Compiling base64 v0.21.7
+   Compiling h2 v0.4.10
+   Compiling tokio-stream v0.1.17
+   Compiling native-tls v0.2.14
+   Compiling hashbrown v0.14.5
+   Compiling darling_core v0.20.10
+   Compiling bitvec v1.0.1
+   Compiling ethereum_ssz v0.7.1
+   Compiling alloy-consensus v1.0.9
+   Compiling tokio-native-tls v0.3.1
+   Compiling ethereum_serde_utils v0.7.0
+   Compiling lazy_static v1.5.0
+   Compiling icu_normalizer v1.5.0
+   Compiling alloy-sol-macro v1.2.0
+   Compiling arbitrary v1.4.1
+   Compiling tokio-rustls v0.26.1
+   Compiling tungstenite v0.26.2
+   Compiling dashmap v6.1.0
+   Compiling alloy-chains v0.2.4
+   Compiling alloy-rpc-types-debug v1.0.9
+   Compiling lru v0.13.0
+   Compiling cipher v0.3.0
+   Compiling anyhow v1.0.98
+   Compiling idna_adapter v1.2.0
+   Compiling alloy-sol-types v1.2.0
+   Compiling idna v1.0.3
+   Compiling crypto-mac v0.11.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling tokio-tungstenite v0.26.2
+   Compiling num-conv v0.1.0
+   Compiling time-core v0.1.2
+   Compiling powerfmt v0.2.0
+   Compiling tinyvec v1.8.0
+   Compiling bls v0.2.0 (/workspaces/taiyi/crates/bls)
+   Compiling url v2.5.4
+   Compiling deranged v0.3.11
+   Compiling ssz_rs v0.9.0
+   Compiling time-macros v0.2.19
+   Compiling thiserror v1.0.69
+   Compiling alloy-network-primitives v1.0.9
+   Compiling alloy-consensus-any v1.0.9
+   Compiling indenter v0.3.3
+   Compiling darling_macro v0.20.10
+   Compiling hmac v0.11.0
+   Compiling pbkdf2 v0.8.0
+   Compiling unicode-normalization v0.1.24
+   Compiling ctr v0.8.0
+   Compiling eyre v0.6.12
+   Compiling salsa20 v0.8.1
+   Compiling keccak v0.1.5
+   Compiling bs58 v0.5.1
+   Compiling aes v0.7.5
+   Compiling ripemd v0.1.3
+   Compiling hyper v1.5.2
+   Compiling scrypt v0.7.0
+   Compiling darling v0.20.10
+   Compiling sha3 v0.10.8
+   Compiling bech32 v0.9.1
+   Compiling pem v3.0.5
+   Compiling itertools v0.12.1
+   Compiling p3-util v0.2.2-succinct
+   Compiling pbkdf2 v0.12.2
+   Compiling rustix v1.0.7
+   Compiling prost-derive v0.13.5
+   Compiling eth2_keystore v0.1.0 (/workspaces/taiyi/crates/eth2_keystore)
+   Compiling time v0.3.37
+   Compiling regex-syntax v0.8.5
+   Compiling coins-core v0.12.0
+   Compiling p3-maybe-rayon v0.2.2-succinct
+   Compiling regex-syntax v0.6.29
+   Compiling overload v0.1.1
+   Compiling prettyplease v0.2.34
+   Compiling linux-raw-sys v0.9.4
+   Compiling coins-bip32 v0.12.0
+   Compiling hashbrown v0.12.3
+   Compiling nu-ansi-term v0.46.0
+   Compiling hyper-util v0.1.10
+   Compiling serde_with_macros v3.12.0
+   Compiling p3-field v0.2.2-succinct
+   Compiling coins-bip39 v0.12.0
+   Compiling regex-automata v0.4.9
+   Compiling indexmap v1.9.3
+   Compiling sharded-slab v0.1.7
+   Compiling simple_asn1 v0.6.3
+   Compiling regex-automata v0.1.10
+   Compiling p3-matrix v0.2.2-succinct
+   Compiling p3-symmetric v0.2.2-succinct
+   Compiling hyper-tls v0.6.0
+   Compiling jsonwebtoken v9.3.1
+   Compiling prost v0.13.5
+   Compiling axum-core v0.4.5
+   Compiling p3-dft v0.2.2-succinct
+   Compiling reqwest v0.12.15
+   Compiling serde_path_to_error v0.1.17
+   Compiling tracing-log v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling blake3 v1.8.2
+   Compiling matchers v0.1.0
+   Compiling fixedbitset v0.5.7
+   Compiling matchit v0.7.3
+   Compiling fastrand v2.3.0
+   Compiling prost-types v0.13.5
+   Compiling p3-mds v0.2.2-succinct
+   Compiling regex v1.11.1
+   Compiling serde_with v3.12.0
+   Compiling alloy-rpc-types-engine v1.0.9
+   Compiling tempfile v3.20.0
+   Compiling petgraph v0.7.1
+   Compiling tower v0.4.13
+   Compiling hyper-timeout v0.5.2
+   Compiling tracing-subscriber v0.3.19
+   Compiling http v0.2.12
+   Compiling constant_time_eq v0.3.1
+   Compiling alloy-rpc-types-eth v1.0.9
+   Compiling alloy-json-rpc v1.0.9
+   Compiling alloy-dyn-abi v1.2.0
+   Compiling taiyi-primitives v0.1.8 (/workspaces/taiyi/crates/primitives)
+   Compiling multimap v0.10.1
+   Compiling arrayref v0.3.9
+   Compiling gcd v2.3.0
+   Compiling axum v0.7.9
+   Compiling utf8parse v0.2.2
+   Compiling alloy-rpc-types-beacon v1.0.9
+   Compiling prost-build v0.13.5
+   Compiling p3-poseidon2 v0.2.2-succinct
+   Compiling alloy-transport v1.0.9
+   Compiling anstyle-parse v0.2.7
+   Compiling tree_hash_derive v0.10.0
+   Compiling is_terminal_polyfill v1.70.1
+   Compiling colorchoice v1.0.4
+   Compiling hex-literal v1.0.0
+   Compiling anstyle v1.0.11
+   Compiling anstyle-query v1.1.3
+   Compiling p3-baby-bear v0.2.2-succinct
+   Compiling http-body v0.4.6
+   Compiling h2 v0.3.26
+   Compiling bincode v1.3.3
+   Compiling alloy-pubsub v1.0.9
+   Compiling alloy-transport-http v1.0.9
+   Compiling anstream v0.6.19
+   Compiling tonic-build v0.12.3
+   Compiling inout v0.1.4
+   Compiling static_assertions v1.1.0
+   Compiling libm v0.2.11
+   Compiling clap_lex v0.7.5
+   Compiling cipher v0.4.4
+   Compiling toml_datetime v0.6.11
+   Compiling sp1-primitives v4.2.1
+   Compiling serde_spanned v0.6.9
+   Compiling clap_derive v4.5.40
+   Compiling toml_write v0.1.2
+   Compiling alloy-transport-ws v1.0.9
+   Compiling alloy-rpc-types-any v1.0.9
+   Compiling alloy-rpc-types-trace v1.0.9
+   Compiling alloy-rpc-types-anvil v1.0.9
+   Compiling alloy-rpc-types-txpool v1.0.9
+   Compiling alloy-network v1.0.9
+   Compiling alloy-transport-ipc v1.0.9
+   Compiling clap_builder v4.5.40
+   Compiling rustc-hash v1.1.0
+   Compiling tiny-bip39 v2.0.0
+   Compiling toml_edit v0.22.27
+   Compiling taiyi-cmd v0.1.8 (/workspaces/taiyi/crates/cli)
+   Compiling sp1-lib v4.2.1
+   Compiling fixed-hash v0.8.0
+   Compiling alloy-rpc-client v1.0.9
+   Compiling uint v0.10.0
+   Compiling alloy-core v1.2.0
+   Compiling alloy-signer-local v1.0.9
+   Compiling rustls-pemfile v1.0.4
+   Compiling crossbeam-channel v0.5.15
+   Compiling bytemuck_derive v1.9.3
+   Compiling unsafe-libyaml v0.2.11
+   Compiling sync_wrapper v0.1.2
    Compiling cb-common v0.1.8 (/workspaces/taiyi/crates/common)
-error[E0425]: cannot find function `copy_from_slice` in crate `serde_json`
-    --> crates/common/src/pbs/types/get_header.rs:100:24
-     |
-100  |           Ok(serde_json::copy_from_slice(bytes).unwrap())
-     |                          ^^^^^^^^^^^^^^^ help: a function with a similar name exists: `from_slice`
-     |
-    ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.133/src/de.rs:2650:1
-     |
-2650 | / pub fn from_slice<'a, T>(v: &'a [u8]) -> Result<T>
-2651 | | where
-2652 | |     T: de::Deserialize<'a>,
-     | |___________________________- similarly named function `from_slice` defined here
+   Compiling sp1-zkvm v4.2.1
+   Compiling primitive-types v0.13.1
+   Compiling ctr v0.9.2
+   Compiling aes v0.8.4
+   Compiling ethereum_ssz_derive v0.7.1
+   Compiling tracing-appender v0.2.3
+   Compiling ssz_types v0.11.0
+   Compiling rustc-hex v2.1.0
+   Compiling taiyi-zkvm-types v0.1.8 (/workspaces/taiyi/crates/zkvm-types)
+   Compiling taiyi-poni v1.1.0 (/workspaces/taiyi/crates/poni)
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling alloy-provider v1.0.9
+   Compiling tonic v0.12.3
+   Compiling alloy-rpc-types v1.0.9
+   Compiling hyper v0.14.32
+   Compiling clap v4.5.40
+   Compiling keccak-hash v0.11.0
+   Compiling toml v0.8.23
+   Compiling bytemuck v1.23.1
+   Compiling eth_trie v0.6.0
+   Compiling substrate-bn-succinct v0.6.0-v4.1.4
+   Compiling taiyi-poi v1.1.0 (/workspaces/taiyi/crates/poi)
+   Compiling sp1-verifier v4.2.1
+   Compiling taiyi-zkvm-verifier v1.1.0 (/workspaces/taiyi/crates/zkvm-verifier)
+   Compiling hyper-tls v0.5.0
+   Compiling reqwest v0.11.27
+   Compiling alloy-contract v1.0.9
+   Compiling taiyi-beacon-client v0.1.8 (/workspaces/taiyi/crates/beacon-client)
+   Compiling taiyi-contracts v0.1.8 (/workspaces/taiyi/crates/contracts)
+   Compiling alloy v1.0.9
+warning: unused imports: `File` and `io::BufReader`
+ --> crates/common/src/signer/loader.rs:3:16
+  |
+3 |     fs::{self, File},
+  |                ^^^^
+4 |     io::BufReader,
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
 
-error[E0277]: the trait bound `CoreWrapper<HmacCore<Sha256>>: KeyInit` is not satisfied
-   --> crates/common/src/signer/loader.rs:244:14
-    |
-244 |     pbkdf2::<hmac::Hmac<sha2::Sha256>>(
-    |              ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `KeyInit` is not implemented for `CoreWrapper<HmacCore<Sha256>>`
-    |
-    = help: the trait `KeyInit` is implemented for `CoreWrapper<T>`
-note: required by a bound in `pbkdf2`
-   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pbkdf2-0.12.2/src/lib.rs:171:10
-    |
-164 | pub fn pbkdf2<PRF>(
-    |        ------ required by a bound in this function
-...
-171 |     PRF: KeyInit + Update + FixedOutput + Clone + Sync,
-    |          ^^^^^^^ required by this bound in `pbkdf2`
+warning: unused imports: `Aes128` and `StreamCipher`
+  --> crates/common/src/signer/loader.rs:9:25
+   |
+9  |     cipher::{KeyIvInit, StreamCipher},
+   |                         ^^^^^^^^^^^^
+10 |     Aes128,
+   |     ^^^^^^
 
-error[E0277]: the trait bound `Sha256: CoreProxy` is not satisfied
-   --> crates/common/src/signer/loader.rs:244:14
-    |
-244 |     pbkdf2::<hmac::Hmac<sha2::Sha256>>(
-    |              ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `CoreProxy` is not implemented for `Sha256`
-    |
-note: there are multiple different versions of crate `digest` in the dependency graph
-   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.10.7/src/core_api/wrapper.rs:266:1
-    |
-266 | pub trait CoreProxy: sealed::Sealed {
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the required trait
-    |
-   ::: crates/common/src/commit/client.rs:3:5
-    |
-3   | use alloy::primitives::Address;
-    |     ----- one version of crate `digest` used here, as a dependency of crate `signature`
-    |
-   ::: crates/common/src/signer/loader.rs:14:5
-    |
-14  | use eth2_keystore::{json_keystore::JsonKeystore, Keystore};
-    |     ------------- one version of crate `digest` used here, as a dependency of crate `hmac`
-    |
-   ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.9.9/src/sha256.rs:52:1
-    |
-52  | pub struct Sha256 {
-    | ----------------- this type doesn't implement the required trait
-    |
-   ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.9.0/src/digest.rs:9:1
-    |
-9   | pub trait Digest {
-    | ---------------- this is the found trait
-    = help: you can use `cargo tree` to explore your dependency tree
-    = note: required for `HmacCore<Sha256>` to implement `BlockSizeUser`
+warning: unused imports: `hmac` and `pbkdf2`
+  --> crates/common/src/signer/loader.rs:16:14
+   |
+16 | use pbkdf2::{hmac, pbkdf2};
+   |              ^^^^  ^^^^^^
 
-error[E0599]: no method named `json` found for struct `Layer` in the current scope
-   --> crates/common/src/utils.rs:180:18
+warning: unused import: `unicode_normalization::UnicodeNormalization`
+  --> crates/common/src/signer/loader.rs:19:5
+   |
+19 | use unicode_normalization::UnicodeNormalization;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PrysmDecryptedKeystore` and `PrysmKeystore`
+  --> crates/common/src/signer/loader.rs:21:37
+   |
+21 | use super::{BlsSigner, EcdsaSigner, PrysmDecryptedKeystore, PrysmKeystore};
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+   Compiling taiyi-crypto v0.1.8 (/workspaces/taiyi/crates/crypto)
+warning: unused import: `KeyIvInit`
+ --> crates/common/src/signer/loader.rs:9:14
+  |
+9 |     cipher::{KeyIvInit, StreamCipher},
+  |              ^^^^^^^^^
+
+error[E0599]: no method named `tree_hash_root` found for struct `VariableList<VariableList<u8, UInt<UInt<..., ...>, ...>>, ...>` in the current scope
+   --> crates/common/src/pbs/types/execution_payload.rs:207:28
     |
-178 |               let layer = Layer::default()
-    |  _________________________-
-179 | |                 .event_format(format)
-180 | |                 .json()
-    | |                 -^^^^ method not found in `Layer<_, DefaultFields, Format<Compact>>`
-    | |_________________|
+207 |         let txs_root = txs.tree_hash_root();
+    |                            ^^^^^^^^^^^^^^ method not found in `VariableList<VariableList<u8, UInt<UInt<..., ...>, ...>>, ...>`
     |
+   ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree_hash-0.10.0/src/lib.rs:116:8
     |
-    = note: the full type name has been written to '/home/vscode/target/debug/deps/cb_common-65f725087c6be7d7.long-type-6491178270315340627.txt'
+116 |     fn tree_hash_root(&self) -> Hash256;
+    |        -------------- the method is available for `VariableList<VariableList<u8, UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>>, UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>>` here
+    |
+    = note: the full type name has been written to '/home/vscode/target/debug/deps/cb_common-7aad8675938b458d.long-type-6646883981392725958.txt'
     = note: consider using `--verbose` to print the full type name to the console
+    = help: items from traits can only be used if the trait is in scope
+help: trait `TreeHash` which provides `tree_hash_root` is implemented but not in scope; perhaps you want to import it
+    |
+195 +     use tree_hash::TreeHash;
+    |
 
-error[E0599]: no method named `json` found for struct `Layer` in the current scope
-   --> crates/common/src/utils.rs:220:18
-    |
-218 |               let layer = Layer::default()
-    |  _________________________-
-219 | |                 .event_format(format)
-220 | |                 .json()
-    | |                 -^^^^ method not found in `Layer<_, DefaultFields, Format<Compact>>`
-    | |_________________|
-    |
-    |
-    = note: the full type name has been written to '/home/vscode/target/debug/deps/cb_common-65f725087c6be7d7.long-type-13705349667248454056.txt'
-    = note: consider using `--verbose` to print the full type name to the console
-
-error[E0599]: no method named `to_slice` found for reference `&alloy::alloy_primitives::FixedBytes<48>` in the current scope
-   --> crates/common/src/utils.rs:268:36
-    |
-268 |     PublicKey::key_validate(pubkey.to_slice())
-    |                                    ^^^^^^^^
-    |
-help: there is a method `encode_to_slice` with a similar name, but with different arguments
-   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/der-0.7.9/src/encode.rs:32:5
-    |
-32  |     fn encode_to_slice<'a>(&self, buf: &'a mut [u8]) -> Result<&'a [u8]> {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-error[E0599]: no method named `to_slice` found for reference `&alloy::alloy_primitives::FixedBytes<96>` in the current scope
-   --> crates/common/src/utils.rs:272:37
-    |
-272 |     Signature::from_bytes(signature.to_slice())
-    |                                     ^^^^^^^^
-    |
-help: there is a method `encode_to_slice` with a similar name, but with different arguments
-   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/der-0.7.9/src/encode.rs:32:5
-    |
-32  |     fn encode_to_slice<'a>(&self, buf: &'a mut [u8]) -> Result<&'a [u8]> {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Some errors have detailed explanations: E0277, E0425, E0599.
-For more information about an error, try `rustc --explain E0277`.
-error: could not compile `cb-common` (lib) due to 7 previous errors
+For more information about this error, try `rustc --explain E0599`.
+warning: `cb-common` (lib test) generated 6 warnings (6 duplicates)
+error: could not compile `cb-common` (lib test) due to 1 previous error; 6 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `cb-common` (lib) generated 6 warnings (run `cargo fix --lib -p cb-common` to apply 5 suggestions)

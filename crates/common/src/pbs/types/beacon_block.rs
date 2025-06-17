@@ -11,32 +11,11 @@ use super::{
     utils::VersionedResponse,
 };
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
 /// Sent to relays in submit_block
 pub struct SignedBlindedBeaconBlock {
     pub message: BlindedBeaconBlock,
     pub signature: BlsSignature,
-}
-
-impl ssz::Decode for SignedBlindedBeaconBlock {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for SignedBlindedBeaconBlock {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
 }
 
 impl SignedBlindedBeaconBlock {
@@ -83,7 +62,7 @@ impl Default for BlindedBeaconBlock {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
 pub struct BlindedBeaconBlockDeneb {
     #[serde(with = "serde_utils::quoted_u64")]
     pub slot: u64,
@@ -94,28 +73,7 @@ pub struct BlindedBeaconBlockDeneb {
     pub body: BlindedBeaconBlockBodyDeneb<DenebSpec>,
 }
 
-impl ssz::Decode for BlindedBeaconBlockDeneb {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for BlindedBeaconBlockDeneb {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
 pub struct BlindedBeaconBlockElectra {
     #[serde(with = "serde_utils::quoted_u64")]
     pub slot: u64,
@@ -124,27 +82,6 @@ pub struct BlindedBeaconBlockElectra {
     pub parent_root: B256,
     pub state_root: B256,
     pub body: BlindedBeaconBlockBodyElectra<ElectraSpec>,
-}
-
-impl ssz::Decode for BlindedBeaconBlockElectra {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for BlindedBeaconBlockElectra {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
 }
 
 /// Returned by relay in submit_block

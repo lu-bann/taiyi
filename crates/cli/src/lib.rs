@@ -1,5 +1,5 @@
 mod commands;
-mod keys_management;
+pub mod keys_management;
 mod keysource;
 mod utils;
 
