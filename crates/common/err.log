@@ -1,0 +1,119 @@
+   Compiling cb-common v0.1.8 (/workspaces/taiyi/crates/common)
+error[E0425]: cannot find function `copy_from_slice` in crate `serde_json`
+    --> crates/common/src/pbs/types/get_header.rs:100:24
+     |
+100  |           Ok(serde_json::copy_from_slice(bytes).unwrap())
+     |                          ^^^^^^^^^^^^^^^ help: a function with a similar name exists: `from_slice`
+     |
+    ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.133/src/de.rs:2650:1
+     |
+2650 | / pub fn from_slice<'a, T>(v: &'a [u8]) -> Result<T>
+2651 | | where
+2652 | |     T: de::Deserialize<'a>,
+     | |___________________________- similarly named function `from_slice` defined here
+
+error[E0277]: the trait bound `CoreWrapper<HmacCore<Sha256>>: KeyInit` is not satisfied
+   --> crates/common/src/signer/loader.rs:244:14
+    |
+244 |     pbkdf2::<hmac::Hmac<sha2::Sha256>>(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `KeyInit` is not implemented for `CoreWrapper<HmacCore<Sha256>>`
+    |
+    = help: the trait `KeyInit` is implemented for `CoreWrapper<T>`
+note: required by a bound in `pbkdf2`
+   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pbkdf2-0.12.2/src/lib.rs:171:10
+    |
+164 | pub fn pbkdf2<PRF>(
+    |        ------ required by a bound in this function
+...
+171 |     PRF: KeyInit + Update + FixedOutput + Clone + Sync,
+    |          ^^^^^^^ required by this bound in `pbkdf2`
+
+error[E0277]: the trait bound `Sha256: CoreProxy` is not satisfied
+   --> crates/common/src/signer/loader.rs:244:14
+    |
+244 |     pbkdf2::<hmac::Hmac<sha2::Sha256>>(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^ the trait `CoreProxy` is not implemented for `Sha256`
+    |
+note: there are multiple different versions of crate `digest` in the dependency graph
+   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.10.7/src/core_api/wrapper.rs:266:1
+    |
+266 | pub trait CoreProxy: sealed::Sealed {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the required trait
+    |
+   ::: crates/common/src/commit/client.rs:3:5
+    |
+3   | use alloy::primitives::Address;
+    |     ----- one version of crate `digest` used here, as a dependency of crate `signature`
+    |
+   ::: crates/common/src/signer/loader.rs:14:5
+    |
+14  | use eth2_keystore::{json_keystore::JsonKeystore, Keystore};
+    |     ------------- one version of crate `digest` used here, as a dependency of crate `hmac`
+    |
+   ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.9.9/src/sha256.rs:52:1
+    |
+52  | pub struct Sha256 {
+    | ----------------- this type doesn't implement the required trait
+    |
+   ::: /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.9.0/src/digest.rs:9:1
+    |
+9   | pub trait Digest {
+    | ---------------- this is the found trait
+    = help: you can use `cargo tree` to explore your dependency tree
+    = note: required for `HmacCore<Sha256>` to implement `BlockSizeUser`
+
+error[E0599]: no method named `json` found for struct `Layer` in the current scope
+   --> crates/common/src/utils.rs:180:18
+    |
+178 |               let layer = Layer::default()
+    |  _________________________-
+179 | |                 .event_format(format)
+180 | |                 .json()
+    | |                 -^^^^ method not found in `Layer<_, DefaultFields, Format<Compact>>`
+    | |_________________|
+    |
+    |
+    = note: the full type name has been written to '/home/vscode/target/debug/deps/cb_common-65f725087c6be7d7.long-type-6491178270315340627.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0599]: no method named `json` found for struct `Layer` in the current scope
+   --> crates/common/src/utils.rs:220:18
+    |
+218 |               let layer = Layer::default()
+    |  _________________________-
+219 | |                 .event_format(format)
+220 | |                 .json()
+    | |                 -^^^^ method not found in `Layer<_, DefaultFields, Format<Compact>>`
+    | |_________________|
+    |
+    |
+    = note: the full type name has been written to '/home/vscode/target/debug/deps/cb_common-65f725087c6be7d7.long-type-13705349667248454056.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0599]: no method named `to_slice` found for reference `&alloy::alloy_primitives::FixedBytes<48>` in the current scope
+   --> crates/common/src/utils.rs:268:36
+    |
+268 |     PublicKey::key_validate(pubkey.to_slice())
+    |                                    ^^^^^^^^
+    |
+help: there is a method `encode_to_slice` with a similar name, but with different arguments
+   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/der-0.7.9/src/encode.rs:32:5
+    |
+32  |     fn encode_to_slice<'a>(&self, buf: &'a mut [u8]) -> Result<&'a [u8]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `to_slice` found for reference `&alloy::alloy_primitives::FixedBytes<96>` in the current scope
+   --> crates/common/src/utils.rs:272:37
+    |
+272 |     Signature::from_bytes(signature.to_slice())
+    |                                     ^^^^^^^^
+    |
+help: there is a method `encode_to_slice` with a similar name, but with different arguments
+   --> /home/vscode/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/der-0.7.9/src/encode.rs:32:5
+    |
+32  |     fn encode_to_slice<'a>(&self, buf: &'a mut [u8]) -> Result<&'a [u8]> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0277, E0425, E0599.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `cb-common` (lib) due to 7 previous errors
