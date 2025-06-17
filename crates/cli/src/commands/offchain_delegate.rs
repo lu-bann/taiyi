@@ -5,6 +5,7 @@ use clap::{Parser, ValueEnum};
 use eyre::Result;
 use reqwest::Url;
 use serde::Serialize;
+use taiyi_primitives::bls::{serialize_bls_publickey, serialize_bls_signature};
 use tracing::{debug, error, info};
 
 use crate::{
@@ -137,25 +138,6 @@ pub struct SignedDelegation {
     #[serde(serialize_with = "serialize_bls_signature")]
     //, deserialize_with = "deserialize_bls_signature")]
     pub signature: BlsSignature,
-}
-
-fn serialize_bls_signature<S: serde::Serializer>(
-    sig: &BlsSignature,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_bytes(&sig.serialize())
-}
-
-// fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BlsSignature, D::Error> {
-//     let bytes = <String as serde::Deserialize>::deserialize(deserializer)?;
-//     Ok(BlsSignature::deserialize(bytes.as_ref()).unwrap())
-// }
-
-fn serialize_bls_publickey<S: serde::Serializer>(
-    public_key: &BlsPublicKey,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_bytes(&public_key.serialize())
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

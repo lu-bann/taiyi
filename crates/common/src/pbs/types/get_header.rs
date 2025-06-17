@@ -1,7 +1,7 @@
 use alloy::primitives::{B256, U256};
 use alloy_rpc_types_beacon::BlsSignature;
 use serde::{Deserialize, Serialize};
-use ssz::{Decode, Encode};
+use ssz_derive::{Decode, Encode};
 
 use super::{
     execution_payload::ExecutionPayloadHeader,
@@ -12,7 +12,7 @@ use super::{
 };
 use crate::signer::BlsPublicKey;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Decode, Encode)]
 pub struct GetHeaderParams {
     /// The slot to request the header for
     pub slot: u64,
@@ -86,55 +86,13 @@ impl GetHeaderResponse {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct SignedExecutionPayloadHeader<T: Encode + Decode> {
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
+pub struct SignedExecutionPayloadHeader<T: ssz::Encode + ssz::Decode> {
     pub message: T,
     pub signature: BlsSignature,
 }
 
-impl ssz::Decode for SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageElectra> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Decode for SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageDeneb> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageElectra> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-impl ssz::Encode for SignedExecutionPayloadHeader<ExecutionPayloadHeaderMessageDeneb> {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash)]
 pub struct ExecutionPayloadHeaderMessageDeneb {
     pub header: ExecutionPayloadHeader<DenebSpec>,
     pub blob_kzg_commitments: KzgCommitments<DenebSpec>,
@@ -143,28 +101,7 @@ pub struct ExecutionPayloadHeaderMessageDeneb {
     pub pubkey: BlsPublicKey,
 }
 
-impl ssz::Decode for ExecutionPayloadHeaderMessageDeneb {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for ExecutionPayloadHeaderMessageDeneb {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
 pub struct ExecutionPayloadHeaderMessageElectra {
     pub header: ExecutionPayloadHeader<ElectraSpec>,
     pub blob_kzg_commitments: KzgCommitments<ElectraSpec>,
@@ -174,30 +111,10 @@ pub struct ExecutionPayloadHeaderMessageElectra {
     pub pubkey: BlsPublicKey,
 }
 
-impl ssz::Decode for ExecutionPayloadHeaderMessageElectra {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        Ok(serde_json::from_slice(bytes).unwrap())
-    }
-}
-
-impl ssz::Encode for ExecutionPayloadHeaderMessageElectra {
-    fn is_ssz_fixed_len() -> bool {
-        false
-    }
-    fn ssz_append(&self, buf: &mut Vec<u8>) {
-        buf.append(&mut serde_json::to_vec(self).unwrap())
-    }
-    fn ssz_bytes_len(&self) -> usize {
-        self.as_ssz_bytes().len()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloy::primitives::U256;
+    use ssz::Encode;
 
     use super::*;
     use crate::{
