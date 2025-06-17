@@ -12,7 +12,9 @@ use super::{
 };
 use crate::signer::BlsPublicKey;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Decode, Encode)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Copy, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct GetHeaderParams {
     /// The slot to request the header for
     pub slot: u64,
@@ -86,13 +88,17 @@ impl GetHeaderResponse {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
-pub struct SignedExecutionPayloadHeader<T: ssz::Encode + ssz::Decode> {
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
+pub struct SignedExecutionPayloadHeader<T: ssz::Encode + ssz::Decode + tree_hash::TreeHash> {
     pub message: T,
     pub signature: BlsSignature,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash)]
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct ExecutionPayloadHeaderMessageDeneb {
     pub header: ExecutionPayloadHeader<DenebSpec>,
     pub blob_kzg_commitments: KzgCommitments<DenebSpec>,
@@ -101,7 +107,9 @@ pub struct ExecutionPayloadHeaderMessageDeneb {
     pub pubkey: BlsPublicKey,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct ExecutionPayloadHeaderMessageElectra {
     pub header: ExecutionPayloadHeader<ElectraSpec>,
     pub blob_kzg_commitments: KzgCommitments<ElectraSpec>,

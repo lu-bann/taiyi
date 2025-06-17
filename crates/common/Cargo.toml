@@ -10,6 +10,7 @@ alloy = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
+axum-extra = { workspace = true }
 base64 = { workspace = true }
 bimap = { workspace = true }
 blst = { workspace = true }
@@ -21,7 +22,9 @@ ethereum_serde_utils = { workspace = true }
 ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }
 eyre = { workspace = true }
+futures = { workspace = true }
 parking_lot = { workspace = true }
+prometheus = { workspace = true }
 pbkdf2 = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
@@ -42,5 +45,6 @@ tree_hash = { workspace = true }
 tree_hash_derive = { workspace = true }
 unicode-normalization = { workspace = true }
 url = { workspace = true }
+uuid = { workspace = true }
 jsonwebtoken = { workspace = true }
 taiyi-primitives = { workspace = true }

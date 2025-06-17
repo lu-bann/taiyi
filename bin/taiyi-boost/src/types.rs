@@ -1,7 +1,8 @@
 use std::{fmt::Debug, ops::Deref};
 
 use alloy_consensus::{
-    Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
+    Block, Header, Sealed, Signed, Transaction as ConsensusTransaction, TxEip4844Variant,
+    TxEip4844WithSidecar, TxEnvelope,
 };
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Encodable2718},
@@ -9,7 +10,7 @@ use alloy_eips::{
 };
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
+use alloy_rpc_types_engine::payload::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
 use axum::http::HeaderMap;
 use cb_common::pbs::{
     Blob, BlobsBundle, DenebSpec, ElectraSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader,
@@ -19,6 +20,7 @@ use cb_common::pbs::{
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
+use ssz_rs::{List, Merkleized};
 use ssz_types::{FixedVector, VariableList};
 use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 use tree_hash::TreeHash;
@@ -27,6 +29,8 @@ use tree_hash::TreeHash;
 pub type HashTreeRootType = tree_hash::Hash256;
 /// List of transaction hashes and the corresponding hash tree roots of the raw transactions.
 pub type ConstraintsProofData = Vec<(TxHash, HashTreeRootType)>;
+const MAX_TRANSACTIONS_PER_PAYLOAD: usize = 1048576;
+const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
@@ -36,7 +40,6 @@ pub struct ExtraConfig {
     pub fee_recipient: Address,
     pub builder_private_key: BlsSecretKeyWrapper,
     pub engine_jwt: JwtSecretWrapper,
-    pub network: Network,
     pub auth_token: Option<String>,
 }
 
@@ -333,29 +336,31 @@ pub fn to_cb_execution_payload_header(
 
     let transactions_bytes = transactions.iter().map(|t| t.encoded_2718()).collect::<Vec<_>>();
 
-    let mut transactions_ssz: List<ConsensusTransaction, MAX_TRANSACTIONS_PER_PAYLOAD> =
-        List::default();
+    // let mut transactions_ssz: List<ConsensusTransaction, MAX_TRANSACTIONS_PER_PAYLOAD> =
+    //     List::default();
 
-    for tx in transactions_bytes {
-        transactions_ssz.push(ConsensusTransaction::try_from(tx.as_ref()).expect("invalid tx"));
-    }
+    // for tx in transactions_bytes {
+    //     transactions_ssz.push(ConsensusTransaction::try_from(tx.as_ref()).expect("invalid tx"));
+    // }
 
-    let transactions_root = B256::from_slice(
-        transactions_ssz.hash_tree_root().expect("valid transactions root").as_slice(),
-    );
+    // let transactions_root = B256::from_slice(
+    //     transactions_ssz.hash_tree_root().expect("valid transactions root").as_slice(),
+    // );
+    let transactions_root = B256::ZERO;
 
-    let mut withdrawals_ssz: List<ConsensusWithdrawal, MAX_WITHDRAWALS_PER_PAYLOAD> =
-        List::default();
+    // let mut withdrawals_ssz: List<Withdrawal, MAX_WITHDRAWALS_PER_PAYLOAD> =
+    //     List::default();
 
-    if let Some(withdrawals) = withdrawals.as_ref() {
-        for w in withdrawals.iter() {
-            withdrawals_ssz.push(to_consensus_withdrawal(w));
-        }
-    }
+    // if let Some(withdrawals) = withdrawals.as_ref() {
+    //     for w in withdrawals.iter() {
+    //         withdrawals_ssz.push(to_consensus_withdrawal(w));
+    //     }
+    // }
 
-    let withdrawals_root = B256::from_slice(
-        withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
-    );
+    // let withdrawals_root = B256::from_slice(
+    //     withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
+    // );
+    let withdrawals_root = B256::ZERO;
 
     ExecutionPayloadHeader::<ElectraSpec> {
         parent_hash: header.parent_hash,
@@ -375,5 +380,13 @@ pub fn to_cb_execution_payload_header(
         withdrawals_root,
         blob_gas_used: header.blob_gas_used.unwrap_or_default(),
         excess_blob_gas: header.excess_blob_gas.unwrap_or_default(),
+    }
+}
+pub fn to_consensus_withdrawal(value: &cbWithdrawal) -> Withdrawal {
+    Withdrawal {
+        index: value.index,
+        validator_index: value.validator_index,
+        address: value.address,
+        amount: value.amount,
     }
 }

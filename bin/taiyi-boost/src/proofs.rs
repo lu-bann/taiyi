@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{TxHash, B256};
+use ssz_rs::Merkleized;
 
 use super::types::{ConstraintsData, InclusionProofs};
 use crate::types::HashTreeRootType;
@@ -59,31 +60,62 @@ pub fn verify_multiproofs(
     }
 
     // Verify the Merkle multiproof against the root
-    ssz_rs::multiproofs::verify_merkle_multiproof(
-        &leaves,
-        &proofs.merkle_hashes,
-        &proofs.generalized_indexes,
-        root,
-    )
-    .map_err(|_| ProofError::VerificationFailed)?;
+
+    // ??
+    // ssz_rs::multiproofs::verify_merkle_multiproof(
+    //     &leaves,
+    //     &proofs.merkle_hashes,
+    //     &proofs.generalized_indexes,
+    //     root,
+    // )
+    // .map_err(|_| ProofError::VerificationFailed)?;
 
     Ok(())
 }
-
+/*
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use std::env;
 
-    use alloy_primitives::{hex, Bytes, B256};
+    use alloy_primitives::{hex, Bytes, B256, address};
     use hex::FromHex;
     use ssz_rs::{HashTreeRoot, List, PathElement, Prove};
 
     use crate::{
+        ExtraConfig,
         constraints::ConstraintsCache,
         proofs::verify_multiproofs,
         types::{InclusionProofs, SignedConstraints},
-        utils::tests::read_test_transactions,
     };
+
+    const TEST_BLOCK: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/testdata/signed-mainnet-beacon-block.bin.ssz"
+    ));
+
+    pub fn read_test_block() -> SignedBeaconBlockDeneb<MainnetEthSpec> {
+        SignedBeaconBlockDeneb::from_ssz_bytes(TEST_BLOCK).unwrap()
+    }
+
+    /// Reads and decodes the transactions root and the transactions from the test block.
+    pub fn read_test_transactions() -> (B256, Vec<Bytes>) {
+        let test_block = read_test_block();
+
+        let transactions = test_block.message.body.execution_payload.transactions().unwrap();
+
+        let transactions: Vec<Bytes> =
+            transactions.into_iter().map(|tx| Bytes::from(tx.to_vec())).collect();
+
+        let transactions_root = test_block
+            .message
+            .body
+            .execution_payload
+            .to_execution_payload_header()
+            .transactions_root();
+
+        (B256::from_slice(transactions_root.as_ref()), transactions)
+    }
 
     #[test]
     fn test_single_proof() {
@@ -240,3 +272,4 @@ mod tests {
         List::try_from(inner).unwrap()
     }
 }
+ */

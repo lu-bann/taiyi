@@ -8,7 +8,7 @@ use std::{
 
 use ::tree_hash::Hash256;
 use alloy_primitives::{utils::format_ether, FixedBytes, B256, U256};
-use alloy_rpc_types_beacon::BlsPublicKey as AlloyBlsPublicKey;
+use alloy_rpc_types_beacon::{BlsPublicKey as AlloyBlsPublicKey, BlsSignature};
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
@@ -19,18 +19,18 @@ use cb_common::{
     constants::APPLICATION_BUILDER_DOMAIN,
     error::BlstErrorWrapper,
     pbs::{
+        api::BuilderApi,
         error::{PbsError, ValidationError},
+        mev_boost::submit_block,
+        state::{BuilderApiState, PbsState},
         GetHeaderParams, GetHeaderResponse, RelayClient, SignedBlindedBeaconBlock,
-        SubmitBlindedBlockResponse, VersionedResponse, EMPTY_TX_ROOT_HASH,
-        HEADER_START_TIME_UNIX_MS,
+        SubmitBlindedBlockResponse, EMPTY_TX_ROOT_HASH, HEADER_START_TIME_UNIX_MS,
     },
     signature::{compute_domain, compute_signing_root},
-    signer::verify_bls_signature,
+    signer::{verify_bls_signature, BlsPublicKey},
     types::Chain,
-    utils::{get_user_agent_with_version, ms_into_slot},
+    utils::{get_user_agent_with_version, ms_into_slot, utcnow_ms},
 };
-use cb_pbs::submit_block;
-use commit_boost::prelude::*;
 use eyre::Result;
 use futures::future::join_all;
 use parking_lot::Mutex;
@@ -56,21 +56,7 @@ pub struct SidecarBuilderState {
 impl BuilderApiState for SidecarBuilderState {}
 
 impl SidecarBuilderState {
-    pub async fn new(extra: &ExtraConfig) -> Self {
-        let context: Context =
-            extra.network.clone().try_into().expect("failed to convert network to context");
-
-        let local_block_builder = LocalBlockBuilder::new(
-            context,
-            extra.beacon_api.clone(),
-            extra.engine_api.clone(),
-            extra.execution_api.clone(),
-            extra.engine_jwt.0,
-            extra.fee_recipient,
-            extra.builder_private_key.clone().0,
-            extra.auth_token.clone(),
-        )
-        .await;
+    pub fn new(local_block_builder: LocalBlockBuilder) -> Self {
         Self {
             constraints: ConstraintsCache::default(),
             local_block_builder,

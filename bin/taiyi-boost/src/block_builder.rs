@@ -5,15 +5,22 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
+    config::PbsConfig,
+    constants::APPLICATION_BUILDER_DOMAIN,
     pbs::{
-        ElectraSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderMessageElectra,
-        ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
-        SignedExecutionPayloadHeader,
+        error::ValidationError, ElectraSpec, ExecutionPayloadHeader,
+        ExecutionPayloadHeaderMessageElectra, ExecutionRequests, GetHeaderParams,
+        GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra, SignedExecutionPayloadHeader,
+        EMPTY_TX_ROOT_HASH,
     },
-    signer::BlsSecretKey,
+    signature::compute_domain,
+    types::Chain,
+    utils::{get_user_agent_with_version, utcnow_ms},
 };
 use reqwest::Url;
 use taiyi_beacon_client::BeaconClient;
+use taiyi_cmd::keys_management::signing::compute_signing_root;
+use taiyi_primitives::bls::SecretKey as BlsSecretKey;
 use tracing::debug;
 use tree_hash::TreeHash;
 
@@ -22,7 +29,6 @@ use crate::{
     error::BuilderError,
     execution::ExecutionClient,
     types::{to_blobs_bundle, to_cb_execution_payload, to_cb_execution_payload_header},
-    utils::compute_signing_root,
 };
 
 #[derive(Debug, Clone)]
@@ -39,7 +45,9 @@ const DEFAULT_EXTRA_DATA: [u8; 20] = [
 
 #[derive(Clone)]
 pub struct LocalBlockBuilder {
-    context: Context,
+    genesis_time: u64,
+    seconds_per_slot: u64,
+    fork_version: u64,
     beacon_api_client: BeaconClient,
     engine_hinter: EngineHinter,
     execution_api_client: ExecutionClient,
@@ -60,7 +68,9 @@ const TARGET_BLOB_GAS_PER_BLOCK: u64 = 786432;
 impl LocalBlockBuilder {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
-        context: Context,
+        genesis_time: u64,
+        seconds_per_slot: u64,
+        fork_version: u64,
         beacon_api: Url,
         engine_api: Url,
         execution_api: Url,
@@ -69,11 +79,13 @@ impl LocalBlockBuilder {
         bls_secret_key: BlsSecretKey,
         auth_token: Option<String>,
     ) -> Self {
-        let beacon_api_client = BeaconClient::new(beacon_api, auth_token);
+        let beacon_api_client = BeaconClient::new(beacon_api.to_string(), auth_token);
         let engine_hinter = EngineHinter::new(jwt_secret, engine_api);
         let execution_api_client = ExecutionClient::new(execution_api);
         Self {
-            context,
+            genesis_time,
+            seconds_per_slot,
+            fork_version,
             beacon_api_client,
             engine_hinter,
             execution_api_client,
@@ -116,11 +128,7 @@ impl LocalBlockBuilder {
         // The next block timestamp must be calculated manually rather than relying on the
         // previous execution block, to cover the edge case where any previous slots have
         // been missed by the proposers immediately before us.
-        let genesis_time = match self.context.genesis_time() {
-            Ok(genesis_time) => genesis_time,
-            Err(_) => self.context.min_genesis_time + self.context.genesis_delay,
-        };
-        let block_timestamp = genesis_time + (target_slot * self.context.seconds_per_slot);
+        let block_timestamp = self.genesis_time + (target_slot * self.seconds_per_slot);
 
         let blob_versioned_hashes = transactions
             .iter()
@@ -214,33 +222,76 @@ impl LocalBlockBuilder {
         // Note: the application builder domain specs require the genesis_validators_root
         // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
         // same rule.
-        let root = Root::default();
-        let domain = compute_domain(
-            DomainType::ApplicationBuilder,
-            Some(self.context.genesis_fork_version),
-            Some(root),
-            &self.context,
-        )
-        .expect("Failed to compute domain");
+        let domain = compute_domain(Chain::Holesky, APPLICATION_BUILDER_DOMAIN);
         let object_root = message.tree_hash_root().0;
         let signing_root = compute_signing_root(object_root, domain);
-        let signature = self.bls_secret_key.sign(&signing_root, BLS_DST_SIG, &[]).to_bytes();
+        let signature =
+            self.bls_secret_key.sign(signing_root.as_slice(), BLS_DST_SIG, &[]).to_bytes();
         Ok(SignedExecutionPayloadHeader { message, signature: signature.into() })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::ExtraConfig;
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
     use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::Address;
+    use alloy_primitives::{address, Address};
     use alloy_provider::{Provider, ProviderBuilder};
+    use alloy_rpc_types_eth::TransactionRequest;
     use alloy_signer::k256::ecdsa::SigningKey;
     use alloy_signer_local::PrivateKeySigner;
     use cb_common::utils::utcnow_sec;
+    use std::env;
+    use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 
     use super::*;
-    use crate::utils::tests::{gen_test_tx_request, get_test_config};
+
+    fn get_test_config() -> eyre::Result<Option<ExtraConfig>> {
+        if env::var("ENGINE_API").is_err()
+            || env::var("EXECUTION_API").is_err()
+            || env::var("BEACON_API").is_err()
+            || env::var("JWT_SECRET").is_err()
+            || env::var("NETWORK").is_err()
+        {
+            return Ok(None);
+        }
+
+        let engine_api = env::var("ENGINE_API").unwrap();
+        let execution_api = env::var("EXECUTION_API").unwrap();
+        let beacon_api = env::var("BEACON_API").unwrap();
+        let jwt_secret = env::var("JWT_SECRET").unwrap();
+        let auth_token = env::var("AUTH_TOKEN").ok();
+
+        Ok(Some(ExtraConfig {
+            engine_api: Url::parse(&engine_api)?,
+            execution_api: Url::parse(&execution_api)?,
+            beacon_api: Url::parse(&beacon_api)?,
+            fee_recipient: address!("dd5DFB73a16B21a6D6bAfF278Fe05D97f71ACfD3"),
+            builder_private_key: BlsSecretKeyWrapper::from(
+                "0x6b845831c99c6bf43364bee624447d39698465df5c07f2cc4dca6e0acfbe46cd",
+            ),
+            engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
+            auth_token,
+        }))
+    }
+
+    fn gen_test_tx_request(
+        sender: Address,
+        chain_id: u64,
+        nonce: Option<u64>,
+    ) -> TransactionRequest {
+        TransactionRequest::default()
+            .with_from(sender)
+            // Burn it
+            .with_to(Address::ZERO)
+            .with_chain_id(chain_id)
+            .with_nonce(nonce.unwrap_or(0))
+            .with_value(U256::from(100))
+            .with_gas_limit(21_000)
+            .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
+            .with_max_fee_per_gas(20_000_000_000)
+    }
 
     #[test]
     fn local_extra_data() {
@@ -260,11 +311,15 @@ mod tests {
         let raw_sk = std::env::var("PRIVATE_KEY")?;
         let hex_sk = raw_sk.strip_prefix("0x").unwrap_or(&raw_sk);
 
-        let context: Context = config.network.try_into()?;
-        let chain_id = context.deposit_chain_id as u64;
+        let chain_id: u64 = 13;
+        let genesis_time: u64 = 1;
+        let seconds_per_slot: u64 = 10;
+        let fork_version: u64 = 100;
 
         let local_builder = LocalBlockBuilder::new(
-            context.clone(),
+            genesis_time,
+            seconds_per_slot,
+            fork_version,
             config.beacon_api,
             config.engine_api,
             config.execution_api.clone(),
@@ -278,7 +333,7 @@ mod tests {
         let sk = SigningKey::from_slice(hex::decode(hex_sk)?.as_slice())?;
         let signer = PrivateKeySigner::from_signing_key(sk.clone());
         let wallet = EthereumWallet::from(signer);
-        let provider = ProviderBuilder::new().on_http(config.execution_api);
+        let provider = ProviderBuilder::new().connect_http(config.execution_api);
         let sender = Address::from_private_key(&sk);
         let nonce = provider.get_transaction_count(sender).await?;
 
@@ -287,12 +342,7 @@ mod tests {
         let raw_encoded = tx_signed.encoded_2718();
         let tx_signed_reth = TxEnvelope::decode_2718(&mut raw_encoded.as_slice())?;
 
-        let genesis_time = match context.genesis_time() {
-            Ok(genesis_time) => genesis_time,
-            Err(_) => context.min_genesis_time + context.genesis_delay,
-        };
-
-        let slot = (utcnow_sec() - genesis_time) / context.seconds_per_slot + 1;
+        let slot = (utcnow_sec() - genesis_time) / seconds_per_slot + 1;
 
         let block = local_builder.build_local_payload(slot, &[tx_signed_reth]).await?;
         assert_eq!(block.body.transactions.len(), 1);

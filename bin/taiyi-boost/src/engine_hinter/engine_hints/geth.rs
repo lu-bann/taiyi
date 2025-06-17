@@ -3,6 +3,7 @@ use alloy_primitives::{Bloom, B256};
 use hex::FromHex;
 use lazy_static::lazy_static;
 use regex::Regex;
+use taiyi_primitives::encode_util::hex_decode;
 
 use crate::{engine_hinter::EngineApiHint, error::BuilderError};
 
@@ -36,15 +37,23 @@ pub fn parse_geth_engine_error_hint(error: &str) -> Result<Option<EngineApiHint>
 
     // Match the hint value to the corresponding hint type based on other parts of the error message
     if error.contains("blockhash mismatch") {
-        return Ok(Some(EngineApiHint::BlockHash(B256::from_hex(raw_hint_value)?)));
+        return Ok(Some(EngineApiHint::BlockHash(B256::from_slice(
+            &hex_decode(&raw_hint_value).unwrap(),
+        ))));
     } else if error.contains("invalid gas used") {
         return Ok(Some(EngineApiHint::GasUsed(raw_hint_value.parse()?)));
     } else if error.contains("invalid merkle root") {
-        return Ok(Some(EngineApiHint::StateRoot(B256::from_hex(raw_hint_value)?)));
+        return Ok(Some(EngineApiHint::StateRoot(B256::from_slice(
+            &hex_decode(&raw_hint_value).unwrap(),
+        ))));
     } else if error.contains("invalid receipt root hash") {
-        return Ok(Some(EngineApiHint::ReceiptsRoot(B256::from_hex(raw_hint_value)?)));
+        return Ok(Some(EngineApiHint::ReceiptsRoot(B256::from_slice(
+            &hex_decode(&raw_hint_value).unwrap(),
+        ))));
     } else if error.contains("invalid bloom") {
-        return Ok(Some(EngineApiHint::LogsBloom(Bloom::from_hex(&raw_hint_value)?)));
+        return Ok(Some(EngineApiHint::LogsBloom(Bloom::from_slice(
+            &hex_decode(&raw_hint_value).unwrap(),
+        ))));
     };
 
     // Match some error message that we don't know how to handle

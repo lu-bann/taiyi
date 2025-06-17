@@ -1,4 +1,5 @@
-use commit_boost::prelude::*;
+use cb_common::pbs::service::PbsService;
+use cb_common::types::Chain;
 use eyre::Result;
 use lazy_static::lazy_static;
 use prometheus::{

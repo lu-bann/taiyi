@@ -5,11 +5,8 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum, BitList, BitVector, FixedVector, VariableList};
 
 use super::{
-    execution_payload::ExecutionPayloadHeader,
-    execution_requests::ExecutionRequests,
-    kzg::KzgCommitments,
-    spec::{DenebSpec, ElectraSpec, EthSpec},
-    utils::*,
+    execution_payload::ExecutionPayloadHeader, execution_requests::ExecutionRequests,
+    kzg::KzgCommitments, spec::EthSpec, utils::*,
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Encode, Decode)]
