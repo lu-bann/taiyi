@@ -206,23 +206,23 @@ fn load_from_lodestar_format(
     Ok(signers)
 }
 
-/// Prysm's keystore is a json file with the keys encrypted with a password,
-/// among with some metadata to decrypt them.
-/// Once decrypted, the keys have the following structure:
-/// ```json
-/// {
-///     "private_keys": [
-///         "sk1_base64_encoded",
-///         "sk2_base64_encoded",
-///         ...
-///     ],
-///     "public_keys": [
-///         "pk1_base64_encoded",
-///         "pk2_base64_encoded",
-///         ...
-///     ]
-/// }
-/// ```
+// /// Prysm's keystore is a json file with the keys encrypted with a password,
+// /// among with some metadata to decrypt them.
+// /// Once decrypted, the keys have the following structure:
+// /// ```json
+// /// {
+// ///     "private_keys": [
+// ///         "sk1_base64_encoded",
+// ///         "sk2_base64_encoded",
+// ///         ...
+// ///     ],
+// ///     "public_keys": [
+// ///         "pk1_base64_encoded",
+// ///         "pk2_base64_encoded",
+// ///         ...
+// ///     ]
+// /// }
+// /// ```
 // fn load_from_prysm_format(
 //     accounts_path: PathBuf,
 //     password_path: PathBuf,

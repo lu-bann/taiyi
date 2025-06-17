@@ -12,7 +12,7 @@ use crate::pbs::{
     state::{BuilderApiState, PbsStateGuard},
 };
 
-const REGISTER_VALIDATOR_ENDPOINT_TAG: &str = "register_validator";
+// const REGISTER_VALIDATOR_ENDPOINT_TAG: &str = "register_validator";
 
 pub async fn handle_register_validator<S: BuilderApiState, A: BuilderApi<S>>(
     State(state): State<PbsStateGuard<S>>,

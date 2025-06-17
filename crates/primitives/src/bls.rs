@@ -13,7 +13,8 @@ pub fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Signature, D::Error> {
     let bytes = <String as serde::Deserialize>::deserialize(deserializer)?;
-    Ok(Signature::deserialize(bytes.as_ref()).unwrap())
+    Signature::deserialize(bytes.as_ref())
+        .map_err(|err| <D::Error as serde::de::Error>::custom(format!("{:?}", err)))
 }
 
 pub fn serialize_bls_publickey<S: serde::Serializer>(

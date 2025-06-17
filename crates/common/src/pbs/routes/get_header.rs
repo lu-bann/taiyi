@@ -18,7 +18,7 @@ use crate::{
     pbs::state::{BuilderApiState, PbsStateGuard},
 };
 
-const GET_HEADER_ENDPOINT_TAG: &str = "get_header";
+//const GET_HEADER_ENDPOINT_TAG: &str = "get_header";
 
 pub async fn handle_get_header<S: BuilderApiState, A: BuilderApi<S>>(
     State(state): State<PbsStateGuard<S>>,

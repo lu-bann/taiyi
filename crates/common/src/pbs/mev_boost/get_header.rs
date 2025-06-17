@@ -35,9 +35,9 @@ use crate::{
     pbs::types::utils::{check_gas_limit, read_chunked_body_with_max},
 };
 
-pub const GET_HEADER_ENDPOINT_TAG: &str = "get_header";
+// pub const GET_HEADER_ENDPOINT_TAG: &str = "get_header";
 pub const TIMEOUT_ERROR_CODE: u16 = 555;
-pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
+// pub const TIMEOUT_ERROR_CODE_STR: &str = "555";
 pub const MAX_SIZE_GET_HEADER: usize = 10 * 1024;
 
 /// Implements https://ethereum.github.io/builder-specs/#/Builder/getHeader

@@ -46,7 +46,6 @@ tokio = { workspace = true, features = ["full"] }
 tower = { workspace = true }
 tracing = { workspace = true }
 tree_hash = { workspace = true }
-tree_hash_derive = { workspace = true }
 
 reqwest-eventsource = "0.6"
 

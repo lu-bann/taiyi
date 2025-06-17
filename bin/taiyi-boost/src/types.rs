@@ -1,8 +1,7 @@
 use std::{fmt::Debug, ops::Deref};
 
 use alloy_consensus::{
-    Block, Header, Sealed, Signed, Transaction as ConsensusTransaction, TxEip4844Variant,
-    TxEip4844WithSidecar, TxEnvelope,
+    Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
 };
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Encodable2718},
@@ -20,7 +19,6 @@ use cb_common::pbs::{
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
-use ssz_rs::{List, Merkleized};
 use ssz_types::{FixedVector, VariableList};
 use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 use tree_hash::TreeHash;
@@ -29,8 +27,8 @@ use tree_hash::TreeHash;
 pub type HashTreeRootType = tree_hash::Hash256;
 /// List of transaction hashes and the corresponding hash tree roots of the raw transactions.
 pub type ConstraintsProofData = Vec<(TxHash, HashTreeRootType)>;
-const MAX_TRANSACTIONS_PER_PAYLOAD: usize = 1048576;
-const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
+// const MAX_TRANSACTIONS_PER_PAYLOAD: usize = 1048576;
+// const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
@@ -332,9 +330,9 @@ pub fn to_cb_execution_payload_header(
 ) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
-    let withdrawals = &value.body.withdrawals;
+    let _withdrawals = &value.body.withdrawals;
 
-    let transactions_bytes = transactions.iter().map(|t| t.encoded_2718()).collect::<Vec<_>>();
+    let _transactions_bytes = transactions.iter().map(|t| t.encoded_2718()).collect::<Vec<_>>();
 
     // let mut transactions_ssz: List<ConsensusTransaction, MAX_TRANSACTIONS_PER_PAYLOAD> =
     //     List::default();
@@ -382,11 +380,12 @@ pub fn to_cb_execution_payload_header(
         excess_blob_gas: header.excess_blob_gas.unwrap_or_default(),
     }
 }
-pub fn to_consensus_withdrawal(value: &cbWithdrawal) -> Withdrawal {
-    Withdrawal {
-        index: value.index,
-        validator_index: value.validator_index,
-        address: value.address,
-        amount: value.amount,
-    }
-}
+
+// pub fn to_consensus_withdrawal(value: &cbWithdrawal) -> Withdrawal {
+//     Withdrawal {
+//         index: value.index,
+//         validator_index: value.validator_index,
+//         address: value.address,
+//         amount: value.amount,
+//     }
+// }

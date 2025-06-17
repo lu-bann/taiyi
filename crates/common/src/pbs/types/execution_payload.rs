@@ -2,7 +2,6 @@ use alloy::primitives::{b256, Address, B256, U256};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
-use tree_hash::TreeHash;
 
 use super::spec::EthSpec;
 

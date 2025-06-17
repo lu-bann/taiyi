@@ -15,8 +15,8 @@ use crate::{
     pbs::types::utils::read_chunked_body_with_max,
 };
 
-const STATUS_ENDPOINT_TAG: &str = "status";
-const TIMEOUT_ERROR_CODE_STR: &str = "555";
+// const STATUS_ENDPOINT_TAG: &str = "status";
+// const TIMEOUT_ERROR_CODE_STR: &str = "555";
 const MAX_SIZE_DEFAULT: usize = 1024;
 
 /// Implements https://ethereum.github.io/builder-specs/#/Builder/status

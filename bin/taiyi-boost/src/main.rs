@@ -34,12 +34,10 @@ async fn main() -> Result<()> {
 
     let genesis_time: u64 = 1;
     let seconds_per_slot: u64 = 2;
-    let fork_version: u64 = 4;
 
     let local_block_builder = LocalBlockBuilder::new(
         genesis_time,
         seconds_per_slot,
-        fork_version,
         extra.beacon_api.clone(),
         extra.engine_api.clone(),
         extra.execution_api.clone(),

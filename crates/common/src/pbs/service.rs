@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use crate::{
-    constants::{COMMIT_BOOST_COMMIT, COMMIT_BOOST_VERSION},
     pbs::{
         state::{BuilderApiState, PbsState},
         BUILDER_API_PATH, GET_STATUS_PATH,
@@ -13,7 +12,6 @@ use eyre::{bail, Context, Result};
 use parking_lot::RwLock;
 use prometheus::core::Collector;
 use tokio::net::TcpListener;
-use tracing::info;
 use url::Url;
 
 use crate::{
@@ -27,9 +25,6 @@ pub struct PbsService;
 impl PbsService {
     pub async fn run<S: BuilderApiState, A: BuilderApi<S>>(state: PbsState<S>) -> Result<()> {
         let addr = state.config.endpoint;
-        let events_subs =
-            state.config.event_publisher.as_ref().map(|e| e.n_subscribers()).unwrap_or_default();
-        info!(version = COMMIT_BOOST_VERSION, commit_hash = COMMIT_BOOST_COMMIT, ?addr, events_subs, chain =? state.config.chain, "starting PBS service");
 
         let app = create_app_router::<S, A>(RwLock::new(state).into());
         let listener = TcpListener::bind(addr).await?;
@@ -52,11 +47,11 @@ impl PbsService {
         task.await?
     }
 
-    pub fn register_metric(c: Box<dyn Collector>) {
+    pub fn register_metric(_c: Box<dyn Collector>) {
         //        PBS_METRICS_REGISTRY.register(c).expect("failed to register metric");
     }
 
-    pub fn init_metrics(network: Chain) -> Result<()> {
+    pub fn init_metrics(_network: Chain) -> Result<()> {
         //        MetricsProvider::load_and_run(network, PBS_METRICS_REGISTRY.clone())
         Ok(())
     }

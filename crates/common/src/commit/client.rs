@@ -144,7 +144,8 @@ impl SignerClient {
             });
         }
 
-        let signature = BlsSignature::deserialize(&response_bytes).unwrap();
+        let signature = BlsSignature::deserialize(&response_bytes)
+            .expect("Deserialization of bls signature failed in SignerClient");
 
         Ok(signature)
     }

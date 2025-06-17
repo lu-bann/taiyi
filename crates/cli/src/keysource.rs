@@ -3,7 +3,14 @@ use alloy_primitives::B256;
 use clap::Parser;
 use eth2_keystore::Keystore;
 use eyre::{bail, Result};
+use thiserror::Error;
 use tracing::{debug, warn};
+
+#[derive(Debug, Error)]
+pub enum BlstError {
+    #[error("Deserialization failed: {msg}")]
+    Deserialize { msg: String },
+}
 
 use crate::{
     commands::offchain_delegate::{
@@ -60,10 +67,11 @@ pub fn generate_from_local_keys(
     let mut signed_messages = Vec::with_capacity(secret_keys.len());
 
     for sk in secret_keys {
-        let sk = BlsSecretKey::deserialize(sk.as_ref()).unwrap();
+        let sk = BlsSecretKey::deserialize(sk.as_ref())
+            .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?;
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(sk.sk_to_pk(), underwriter_pubkey.clone());
+                let message = DelegationMessage::new(sk.sk_to_pk(), underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = sk.sign(signing_root.0.as_ref(), &[], &[]);
@@ -71,7 +79,7 @@ pub fn generate_from_local_keys(
                 signed_messages.push(SignedMessage::Delegation(signed))
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(sk.sk_to_pk(), underwriter_pubkey.clone());
+                let message = RevocationMessage::new(sk.sk_to_pk(), underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = sk.sign(signing_root.0.as_ref(), &[], &[]);
@@ -106,30 +114,32 @@ pub fn generate_from_keystore(
         let ks = Keystore::from_json_file(path).map_err(KeystoreError::Eth2Keystore)?;
         let password = keystore_secret.get(ks.pubkey()).ok_or(KeystoreError::MissingPassword)?;
         let kp = ks.decrypt_keypair(password.as_bytes()).map_err(KeystoreError::Eth2Keystore)?;
-        let validator_pubkey =
-            BlsPublicKey::deserialize(kp.pk.serialize().to_vec().as_ref()).unwrap();
+        let validator_pubkey = BlsPublicKey::deserialize(kp.pk.serialize().to_vec().as_ref())
+            .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?;
         let validator_private_key = kp.sk;
 
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey.clone());
+                let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = validator_private_key.sign(signing_root.0.into());
                 let signed = SignedDelegation {
                     message,
-                    signature: BlsSignature::deserialize(&signature.serialize()).unwrap(),
+                    signature: BlsSignature::deserialize(&signature.serialize())
+                        .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?,
                 };
                 signed_messages.push(SignedMessage::Delegation(signed));
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey.clone());
+                let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
                 let signature = validator_private_key.sign(signing_root.0.into());
                 let signed = SignedRevocation {
                     message,
-                    signature: BlsSignature::deserialize(&signature.serialize()).unwrap(),
+                    signature: BlsSignature::deserialize(&signature.serialize())
+                        .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?,
                 };
                 signed_messages.push(SignedMessage::Revocation(signed));
             }
@@ -179,14 +189,14 @@ pub async fn generate_from_dirk(
 
         match action {
             Action::Delegate => {
-                let message = DelegationMessage::new(pubkey.clone(), underwriter_pubkey.clone());
+                let message = DelegationMessage::new(pubkey, underwriter_pubkey);
                 let signing_root = message.digest().into(); // Dirk does the hash tree root internally
                 let signature = dirk.request_signature(&account, signing_root, domain).await?;
                 let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed));
             }
             Action::Revoke => {
-                let message = RevocationMessage::new(pubkey.clone(), underwriter_pubkey.clone());
+                let message = RevocationMessage::new(pubkey, underwriter_pubkey);
                 let signing_root = message.digest().into(); // Dirk does the hash tree root internally
                 let signature = dirk.request_signature(&account, signing_root, domain).await?;
                 let signed = SignedRevocation { message, signature };

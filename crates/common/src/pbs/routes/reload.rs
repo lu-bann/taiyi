@@ -10,7 +10,7 @@ use crate::pbs::{
     state::{BuilderApiState, PbsStateGuard},
 };
 
-const RELOAD_ENDPOINT_TAG: &str = "reload";
+//const RELOAD_ENDPOINT_TAG: &str = "reload";
 
 pub async fn handle_reload<S: BuilderApiState, A: BuilderApi<S>>(
     req_headers: HeaderMap,

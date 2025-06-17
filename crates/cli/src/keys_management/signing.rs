@@ -54,7 +54,7 @@ pub fn compute_domain_from_mask(fork_version: [u8; 4]) -> [u8; 32] {
     domain
 }
 
-/// Verify the signature of the object with the given public key.
+// /// Verify the signature of the object with the given public key.
 // pub fn verify_root(
 //     pubkey: BlsPublicKey,
 //     root: [u8; 32],

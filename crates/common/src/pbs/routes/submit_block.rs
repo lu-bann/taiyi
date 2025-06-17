@@ -14,7 +14,7 @@ use crate::pbs::{
     state::{BuilderApiState, PbsStateGuard},
 };
 
-const SUBMIT_BLINDED_BLOCK_ENDPOINT_TAG: &str = "submit_blinded_block";
+//const SUBMIT_BLINDED_BLOCK_ENDPOINT_TAG: &str = "submit_blinded_block";
 
 pub async fn handle_submit_block<S: BuilderApiState, A: BuilderApi<S>>(
     State(state): State<PbsStateGuard<S>>,
