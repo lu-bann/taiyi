@@ -1,5 +1,6 @@
 use builder::{SidecarBuilderApi, SidecarBuilderState};
-use commit_boost::prelude::{load_pbs_custom_config, PbsService, PbsState};
+use cb_common::config::load_pbs_custom_config;
+use cb_common::pbs::{service::PbsService, state::PbsState};
 use constraints::subscribe_to_constraints_stream;
 use eyre::Result;
 use taiyi_cmd::initialize_tracing_log;
@@ -18,7 +19,7 @@ mod ext;
 mod metrics;
 mod proofs;
 mod types;
-mod utils;
+use crate::block_builder::LocalBlockBuilder;
 
 fn log_error<E: ToString>(result: Result<(), E>, msg: &str) {
     if let Err(err) = result {
@@ -31,7 +32,24 @@ async fn main() -> Result<()> {
     let (pbs_config, extra) = load_pbs_custom_config::<ExtraConfig>().await?;
     initialize_tracing_log();
 
-    let sidecar_state = SidecarBuilderState::new(&extra).await;
+    let genesis_time: u64 = 1;
+    let seconds_per_slot: u64 = 2;
+    let fork_version: u64 = 4;
+
+    let local_block_builder = LocalBlockBuilder::new(
+        genesis_time,
+        seconds_per_slot,
+        fork_version,
+        extra.beacon_api.clone(),
+        extra.engine_api.clone(),
+        extra.execution_api.clone(),
+        extra.engine_jwt.0,
+        extra.fee_recipient,
+        extra.builder_private_key.clone().0,
+        extra.auth_token.clone(),
+    )
+    .await;
+    let sidecar_state = SidecarBuilderState::new(local_block_builder);
     let pbs_state = PbsState::new(pbs_config.clone()).with_data(sidecar_state.clone());
 
     metrics::init_metrics(pbs_config.chain)?;

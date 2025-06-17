@@ -1,24 +1,26 @@
 use std::{
     ffi::OsStr,
-    fs::{self, File},
-    io::BufReader,
+    fs,
+    //    fs::{self, File},
+    //    io::BufReader,
     path::PathBuf,
 };
 
-use aes::{
-    cipher::{KeyIvInit, StreamCipher},
-    Aes128,
-};
+//use aes::{
+//    cipher::{KeyIvInit, StreamCipher},
+//    Aes128,
+//};
 use alloy::primitives::hex::FromHex;
 use alloy_rpc_types_beacon::BlsPublicKey;
 use eth2_keystore::{json_keystore::JsonKeystore, Keystore};
 use eyre::{eyre, Context, OptionExt};
-use pbkdf2::{hmac, pbkdf2};
+//use pbkdf2::{hmac, pbkdf2};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tracing::warn;
-use unicode_normalization::UnicodeNormalization;
+//use unicode_normalization::UnicodeNormalization;
 
-use super::{BlsSigner, EcdsaSigner, PrysmDecryptedKeystore, PrysmKeystore};
+use super::{BlsSigner, EcdsaSigner};
+//use super::{BlsSigner, EcdsaSigner, PrysmDecryptedKeystore, PrysmKeystore};
 use crate::{
     config::{load_env_var, SIGNER_DIR_KEYS_ENV, SIGNER_DIR_SECRETS_ENV, SIGNER_KEYS_ENV},
     signer::ConsensusSigner,

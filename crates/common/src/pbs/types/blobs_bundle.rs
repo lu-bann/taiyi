@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-use ssz_types::{FixedVector, VariableList};
 use ssz_derive::{Decode, Encode};
+use ssz_types::{FixedVector, VariableList};
 
 use super::{
     kzg::{KzgCommitments, KzgProofs},
-    spec::{DenebSpec, ElectraSpec, EthSpec},
+    spec::EthSpec,
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]

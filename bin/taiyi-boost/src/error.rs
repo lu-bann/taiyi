@@ -4,6 +4,8 @@ use taiyi_beacon_client::BeaconClientError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
+    #[error("{0}")]
+    BeaconClient(#[from] BeaconClientError),
     #[error("Failed to parse from integer: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
     #[error("Failed to de/serialize JSON: {0}")]
@@ -16,8 +18,6 @@ pub enum BuilderError {
     Reqwest(#[from] reqwest::Error),
     #[error("Failed while fetching from RPC: {0}")]
     Transport(#[from] alloy_transport::TransportError),
-    #[error("Beacon API error: {0}")]
-    BeaconApi(#[from] BeaconClientError),
     #[error("Failed to build payload due to invalid transactions: {0}")]
     InvalidTransactions(String),
     #[error("Got an unexpected response from engine_newPayload query: {0}")]

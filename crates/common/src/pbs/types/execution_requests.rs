@@ -1,19 +1,21 @@
 use alloy::primitives::{Address, B256};
 use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use serde::{Deserialize, Serialize};
-use ssz_types::VariableList;
 use ssz_derive::{Decode, Encode};
+use ssz_types::VariableList;
 
-use super::spec::{DenebSpec, ElectraSpec, EthSpec};
+use super::spec::EthSpec;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct ExecutionRequests<T: EthSpec> {
     pub deposits: VariableList<DepositRequest, T::MaxDepositRequestsPerPayload>,
     pub withdrawals: VariableList<WithdrawalRequest, T::MaxWithdrawalRequestsPerPayload>,
     pub consolidations: VariableList<ConsolidationRequest, T::MaxConsolidationRequestsPerPayload>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Decode, Encode)]
+#[derive(Debug, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash)]
 pub struct DepositRequest {
     pub pubkey: BlsPublicKey,
     pub withdrawal_credentials: B256,
@@ -24,7 +26,9 @@ pub struct DepositRequest {
     pub index: u64,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct WithdrawalRequest {
     pub source_address: Address,
     pub validator_pubkey: BlsPublicKey,
@@ -32,7 +36,9 @@ pub struct WithdrawalRequest {
     pub amount: u64,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Decode, Encode)]
+#[derive(
+    Debug, Default, Clone, Serialize, Deserialize, Decode, Encode, tree_hash_derive::TreeHash,
+)]
 pub struct ConsolidationRequest {
     pub source_address: Address,
     pub source_pubkey: BlsPublicKey,

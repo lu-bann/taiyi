@@ -76,7 +76,8 @@ impl BeaconClient {
     /// support the eth/v2/beacon/blocks/head endpoint yet for electra fork now.
     /// reference: https://github.com/ralexstokes/ethereum-consensus/pull/406
     pub async fn get_head_slot(&self) -> BeaconClientResult<u64> {
-        let response = self.inner.get(format!("{}/eth/v2/beacon/blocks/head", self.endpoint)).send().await?;
+        let response =
+            self.inner.get(format!("{}/eth/v2/beacon/blocks/head", self.endpoint)).send().await?;
         let result = response.bytes().await?;
         let result: BeaconBlock = serde_json::from_slice(&result)?;
         Ok(result.data.message.slot.parse::<u64>()?)

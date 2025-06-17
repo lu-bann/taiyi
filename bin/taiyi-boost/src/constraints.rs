@@ -72,13 +72,30 @@ pub async fn subscribe_to_constraints_stream(
 mod tests {
     use alloy_eips::eip2718::Encodable2718;
     use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::{Address, Bytes};
+    use alloy_primitives::{Address, Bytes, U256};
     use alloy_rpc_types_beacon::BlsPublicKey;
+    use alloy_rpc_types_eth::TransactionRequest;
     use alloy_signer::k256::ecdsa::SigningKey;
     use alloy_signer_local::PrivateKeySigner;
 
     use super::*;
-    use crate::utils::tests::gen_test_tx_request;
+
+    fn gen_test_tx_request(
+        sender: Address,
+        chain_id: u64,
+        nonce: Option<u64>,
+    ) -> TransactionRequest {
+        TransactionRequest::default()
+            .with_from(sender)
+            // Burn it
+            .with_to(Address::ZERO)
+            .with_chain_id(chain_id)
+            .with_nonce(nonce.unwrap_or(0))
+            .with_value(U256::from(100))
+            .with_gas_limit(21_000)
+            .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
+            .with_max_fee_per_gas(20_000_000_000)
+    }
 
     #[tokio::test]
     async fn test_constraints_cache() -> eyre::Result<()> {

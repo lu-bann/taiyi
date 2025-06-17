@@ -1,4 +1,5 @@
 pub mod bls;
+pub mod encode_util;
 mod preconf_fee;
 mod preconf_request;
 mod preconf_request_type_a;

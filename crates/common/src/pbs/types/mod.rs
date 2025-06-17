@@ -6,7 +6,7 @@ mod execution_requests;
 mod get_header;
 mod kzg;
 mod spec;
-mod utils;
+pub mod utils;
 
 pub use beacon_block::{
     BlindedBeaconBlock, BlindedBeaconBlockDeneb, BlindedBeaconBlockElectra, PayloadAndBlobsDeneb,
