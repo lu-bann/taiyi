@@ -1,0 +1,20 @@
+[package]
+name = "taiyi-underwriter"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-consensus = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true }
+mockall = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+taiyi-primitives = { workspace = true }
+
+[dev-dependencies]
+alloy-primitives = { workspace = true, features = ["getrandom"] }
