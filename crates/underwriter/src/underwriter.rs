@@ -19,7 +19,14 @@ use crate::{
 
 #[cfg_attr(test, mockall::automock)]
 pub trait Sender {
-    fn sign_and_send(&self, request: PreconfRequest) -> impl Future<Output = ()>;
+    fn sign_and_send(&self, id: Uuid, request: PreconfRequest) -> impl Future<Output = ()>;
+}
+
+#[derive(Debug)]
+pub struct DummySender;
+
+impl Sender for DummySender {
+    async fn sign_and_send(&self, _: Uuid, _: PreconfRequest) {}
 }
 
 #[derive(Debug, Error, PartialEq)]
@@ -51,7 +58,7 @@ impl Underwriter {
         }
     }
 
-    fn get_block_info(&mut self, slot: u64) -> &mut (BlockInfo, Vec<Uuid>) {
+    pub fn get_block_info(&mut self, slot: u64) -> &mut (BlockInfo, Vec<Uuid>) {
         if let Entry::Vacant(e) = self.block_info.entry(slot) {
             e.insert((self.reference_block_info, vec![]));
         }
@@ -78,8 +85,9 @@ impl Underwriter {
         self.block_info.retain(|reserved_slot, _| reserved_slot >= slot);
     }
 
-    pub async fn submit_transaction<S: Sender>(
+    pub async fn reserve_slot_with_calldata<S: Sender>(
         &mut self,
+        id: Uuid,
         request: SubmitTypeATransactionRequest,
         preconf_fee: PreconfFeeResponse,
         sender: S,
@@ -101,13 +109,27 @@ impl Underwriter {
         self.sequence_number_per_slot
             .add(request.target_slot, request.preconf_transaction.len() as u64 + 1);
 
-        sender.sign_and_send(PreconfRequest::TypeA(preconf_request)).await;
+        sender.sign_and_send(id, PreconfRequest::TypeA(preconf_request)).await;
 
         Ok(())
     }
 
     pub fn reserve_transaction(&mut self, id: Uuid, request: PreconfRequestTypeB) {
         self.reserved_transactions.insert(id, request);
+    }
+
+    pub fn reserve_transaction_with_blockspace(
+        &mut self,
+        id: Uuid,
+        request: PreconfRequestTypeB,
+    ) -> Result<(), BlockInfoError> {
+        self.reserve_blockspace(
+            request.allocation.target_slot,
+            request.allocation.gas_limit,
+            request.allocation.blob_count,
+        )?;
+        self.reserved_transactions.insert(id, request);
+        Ok(())
     }
 
     pub async fn submit_reserved_transaction<S: Sender>(
@@ -117,7 +139,12 @@ impl Underwriter {
     ) -> UnderwriterResult<()> {
         let mut reserved_transaction = self.get_reserved_transaction(request.request_id)?;
         reserved_transaction.transaction = Some(request.transaction.clone());
-        sender.sign_and_send(taiyi_primitives::PreconfRequest::TypeB(reserved_transaction)).await;
+        sender
+            .sign_and_send(
+                request.request_id,
+                taiyi_primitives::PreconfRequest::TypeB(reserved_transaction),
+            )
+            .await;
         Ok(())
     }
 
@@ -132,12 +159,12 @@ impl Underwriter {
     }
 }
 
-fn get_required_gas(request: &PreconfRequestTypeA) -> u64 {
+pub fn get_required_gas(request: &PreconfRequestTypeA) -> u64 {
     request.tip_transaction.gas_limit()
         + request.preconf_tx.iter().map(|tx| tx.gas_limit()).sum::<u64>()
 }
 
-fn get_required_blobs(request: &PreconfRequestTypeA) -> usize {
+pub fn get_required_blobs(request: &PreconfRequestTypeA) -> usize {
     request
         .preconf_tx
         .iter()
@@ -258,7 +285,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_submit_transaction() {
+    async fn test_reserve_slot_with_calldata() {
         let gas_limit = 123456;
         let blob_limit = 1324;
         let constraint_limit = 12;
@@ -275,13 +302,14 @@ mod tests {
         let mut sender = MockSender::new();
         sender
             .expect_sign_and_send()
-            .withf(|request| match request {
+            .withf(|_, request| match request {
                 PreconfRequest::TypeA(request) => request.sequence_number == Some(1u64),
                 PreconfRequest::TypeB(_) => false,
             })
-            .return_once(|_| Box::pin(async { () }));
+            .return_once(|_, _| Box::pin(async { () }));
+        let id = Uuid::new_v4();
         assert!(underwriter
-            .submit_transaction(request, preconf_fee, sender, signer,)
+            .reserve_slot_with_calldata(id, request, preconf_fee, sender, signer,)
             .await
             .is_ok());
     }
@@ -323,11 +351,11 @@ mod tests {
         let mut sender = MockSender::new();
         sender
             .expect_sign_and_send()
-            .withf(|request| match request {
+            .withf(|_, request| match request {
                 PreconfRequest::TypeA(_) => false,
                 PreconfRequest::TypeB(request) => request.transaction.is_some(),
             })
-            .return_once(|_| Box::pin(async { () }));
+            .return_once(|_, _| Box::pin(async { () }));
         assert!(underwriter.submit_reserved_transaction(request, sender).await.is_ok());
     }
 }

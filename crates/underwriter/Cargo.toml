@@ -9,12 +9,15 @@ alloy-primitives = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true }
+axum = { workspace = true }
 mockall = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 taiyi-primitives = { workspace = true }
+tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]

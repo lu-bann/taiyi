@@ -5415,12 +5415,15 @@ dependencies = [
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types",
+ "axum",
  "mockall",
  "reqwest 0.12.20",
  "serde",
+ "serde_json",
  "taiyi-primitives",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
  "uuid",
 ]
 

@@ -12,9 +12,9 @@ pub enum BlockInfoError {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BlockInfo {
-    remaining_gas: u64,
-    remaining_blobs: usize,
-    remaining_constraints: u32,
+    pub remaining_gas: u64,
+    pub remaining_blobs: usize,
+    pub remaining_constraints: u32,
 }
 
 impl BlockInfo {
