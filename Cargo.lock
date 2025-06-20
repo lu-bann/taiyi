@@ -1457,9 +1457,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.9.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
+checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 dependencies = [
  "serde",
 ]
@@ -5342,6 +5342,7 @@ name = "taiyi-contracts"
 version = "0.1.8"
 dependencies = [
  "alloy-contract",
+ "alloy-provider",
  "alloy-rpc-client",
  "alloy-sol-types",
 ]
@@ -5392,6 +5393,7 @@ dependencies = [
  "alloy-primitives 1.2.0",
  "alloy-provider",
  "alloy-rpc-types",
+ "alloy-rpc-types-beacon",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types",
@@ -5411,19 +5413,35 @@ name = "taiyi-underwriter"
 version = "0.1.8"
 dependencies = [
  "alloy-consensus",
+ "alloy-eips",
+ "alloy-network",
  "alloy-primitives 1.2.0",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-beacon",
+ "alloy-rpc-types-trace",
  "alloy-signer",
  "alloy-signer-local",
- "alloy-sol-types",
+ "alloy-transport",
  "axum",
+ "blst",
+ "bytes",
+ "eyre",
+ "futures",
+ "hex",
  "mockall",
  "reqwest 0.12.20",
  "serde",
  "serde_json",
+ "taiyi-contracts",
  "taiyi-primitives",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-stream",
  "tracing",
+ "tree_hash",
+ "tree_hash_derive",
+ "url",
  "uuid",
 ]
 

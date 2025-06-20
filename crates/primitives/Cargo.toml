@@ -9,6 +9,7 @@ alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-sol-types = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
 blst = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }

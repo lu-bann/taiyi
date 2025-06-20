@@ -1,7 +1,7 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::{Decodable2718, Eip2718Error};
-use alloy_primitives::Bytes;
-use blsful::{PublicKey as BlsPublicKey, Signature as BlsSignature};
+use alloy_primitives::{Bytes, B256};
+use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
 use sha2::{Digest, Sha256};
 
 pub const MAX_CONSTRAINTS_PER_SLOT: usize = 256;
@@ -10,7 +10,7 @@ pub const MAX_CONSTRAINTS_PER_SLOT: usize = 256;
 /// This trait is used to abstract over the signing and verification of different types.
 pub trait SignableBLS {
     /// Returns the digest of the object.
-    fn digest(&self) -> [u8; 32];
+    fn digest(&self) -> B256;
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -29,14 +29,14 @@ pub struct ConstraintsMessage {
 
 impl ConstraintsMessage {
     pub fn decoded_tx(&self) -> Result<Vec<TxEnvelope>, Eip2718Error> {
-        self.transactions.iter().map(|tx| TxEnvelope::decode_2718(&mut tx.as_slice())).collect()
+        self.transactions.iter().map(|tx| TxEnvelope::decode_2718(&mut tx.trim_ascii())).collect()
     }
 }
 
 impl SignableBLS for ConstraintsMessage {
-    fn digest(&self) -> [u8; 32] {
+    fn digest(&self) -> B256 {
         let mut hasher = Sha256::new();
-        hasher.update(self.pubkey.to_vec());
+        hasher.update(self.pubkey);
         hasher.update(self.slot.to_le_bytes());
         hasher.update((self.top as u8).to_le_bytes());
         for tx in self.transactions.iter() {
@@ -48,6 +48,6 @@ impl SignableBLS for ConstraintsMessage {
             hasher.update(tx.tx_hash());
         }
 
-        hasher.finalize().into()
+        B256::from_slice(hasher.finalize().as_slice())
     }
 }
