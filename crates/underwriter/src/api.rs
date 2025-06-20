@@ -1,6 +1,5 @@
 use alloy_primitives::{Address, Signature, B256};
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types_beacon::events::HeadEvent;
 use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
 use axum::{
@@ -24,8 +23,10 @@ use std::{
 };
 use taiyi_contracts::TaiyiCoreInstance;
 use taiyi_primitives::{
-    bls::SecretKey, encode_util::hex_decode, BlockspaceAllocation, PreconfFeeResponse,
-    PreconfRequestTypeB, SlotInfo, SubmitTransactionRequest, SubmitTypeATransactionRequest,
+    bls::{bls_pubkey_to_alloy, SecretKey},
+    encode_util::hex_decode,
+    BlockspaceAllocation, PreconfFeeResponse, PreconfRequestTypeB, SlotInfo,
+    SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use thiserror::Error;
 use tokio::{net::TcpListener, sync::RwLock};
@@ -38,7 +39,10 @@ use crate::{
     bls_signer::BlsSigner,
     broadcast_sender::{BroadcastSender, Sender},
     constraints_stream::{get_next_slot_start, get_slot_stream, submit_constraints},
-    event_stream::{get_event_stream, process_event_stream},
+    event_stream::{
+        get_event_stream, process_event_stream, Noop, StoreAvailableSlotsDecorator,
+        StoreLastSlotDecorator, StreamError,
+    },
     preconf_fee_provider::{PreconfFeeProvider, TaiyiPreconfFeeProvider},
     slot_model::SlotModel,
     tx_cache::{TxCacheError, TxCachePerSlot},
@@ -60,8 +64,8 @@ pub enum PreconfApiError {
     #[error("Missing header for {key}")]
     MissingHeader { key: String },
 
-    #[error("Slot needs to be in the future. (slot={slot}, current={current})")]
-    SlotNotInFuture { slot: u64, current: u64 },
+    #[error("Slot needs to be in the future. (slot={slot}, last slot={last})")]
+    SlotNotInFuture { slot: u64, last: u64 },
 
     #[error("Slot not available. (slot={slot})")]
     SlotNotAvailable { slot: u64 },
@@ -92,6 +96,9 @@ pub enum PreconfApiError {
 
     #[error("{0}")]
     Parse(#[from] url::ParseError),
+
+    #[error("{0}")]
+    Stream(#[from] StreamError),
 
     #[error("{0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
@@ -131,7 +138,7 @@ pub async fn health_check() -> impl IntoResponse {
 #[derive(Debug)]
 pub struct PreconfState<P: PreconfFeeProvider> {
     pub underwriter: RwLock<Underwriter>,
-    pub current_slot: Arc<AtomicU64>,
+    pub last_slot: Arc<AtomicU64>,
     pub available_slots: Arc<RwLock<Vec<u64>>>,
     pub preconf_fee_provider: Arc<RwLock<P>>,
     pub tx_cache: TxCachePerSlot,
@@ -142,7 +149,7 @@ pub struct PreconfState<P: PreconfFeeProvider> {
 impl<P: PreconfFeeProvider> PreconfState<P> {
     pub fn new(
         underwriter: Underwriter,
-        current_slot: Arc<AtomicU64>,
+        last_slot: Arc<AtomicU64>,
         available_slots: Arc<RwLock<Vec<u64>>>,
         preconf_fee_provider: Arc<RwLock<P>>,
         tx_cache: TxCachePerSlot,
@@ -150,7 +157,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
     ) -> Self {
         Self {
             underwriter: underwriter.into(),
-            current_slot,
+            last_slot,
             available_slots,
             preconf_fee_provider,
             tx_cache,
@@ -159,14 +166,14 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         }
     }
 
-    pub fn get_current_slot(&self) -> u64 {
-        self.current_slot.load(Ordering::Relaxed)
+    pub fn get_last_slot(&self) -> u64 {
+        self.last_slot.load(Ordering::Relaxed)
     }
 
     pub fn assert_slot_in_future(&self, slot: u64) -> PreconfApiResult<()> {
-        let current = self.get_current_slot();
-        if slot <= current {
-            return Err(PreconfApiError::SlotNotInFuture { slot, current });
+        let last = self.get_last_slot();
+        if slot <= last {
+            return Err(PreconfApiError::SlotNotInFuture { slot, last });
         }
         Ok(())
     }
@@ -226,16 +233,16 @@ pub async fn run(
     let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
     let underwriter = Underwriter::new(reference_block_info);
 
-    let current_slot = Arc::new(AtomicU64::new(0u64));
+    let last_slot = Arc::new(AtomicU64::new(0u64));
     let available_slots = Arc::new(RwLock::<Vec<u64>>::new(vec![]));
     let preconf_fee_provider =
         Arc::new(RwLock::new(TaiyiPreconfFeeProvider::new(taiyi_service_url)));
     let tx_cache = TxCachePerSlot::new();
-    let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, current_slot.clone());
+    let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
     let state = Arc::new(PreconfState::new(
         underwriter,
-        current_slot.clone(),
-        available_slots,
+        last_slot.clone(),
+        available_slots.clone(),
         preconf_fee_provider,
         tx_cache.clone(),
         broadcast_sender,
@@ -259,28 +266,39 @@ pub async fn run(
     let now_since_genesis = now_since_epoch - genesis_since_epoch;
     let start = get_next_slot_start(&now_since_genesis, &slot_duration)?;
     let epoch_duration = Duration::from_secs(slot_duration.as_secs() * slots_per_epoch);
-    let slot_model = SlotModel::new(genesis_timestamp, slot_duration, epoch_duration);
-    let slot = slot_model.get_slot(now_since_epoch.as_secs());
+    let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
+    let slot = slot_model.get_slot(now_since_epoch);
     let next_slot_count = slot.epoch * slots_per_epoch + slot.slot + 1;
     let slot_stream = get_slot_stream(start, next_slot_count, slot_duration)?;
 
-    let store_current_slot = |head_event: HeadEvent| {
-        println!("update current slot {:?}", head_event);
-        current_slot.store(head_event.slot, Ordering::Relaxed);
-    };
-
-    let event_stream = get_event_stream(&beacon_rpc_url).await?;
-    let listener = TcpListener::bind(&taiyi_addr).await?;
+    // let store_last_slot = |head_event: HeadEvent| {
+    //     println!("update current slot {:?}", head_event);
+    //     last_slot.store(head_event.slot, Ordering::Relaxed);
+    // };
 
     let bls_private_key =
         SecretKey::from_bytes(&hex_decode(&bls_sk).map_err(PreconfApiError::from)?)?;
+    let alloy_bls_public_key = bls_pubkey_to_alloy(&bls_private_key.sk_to_pk());
+    let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
+    let epoch_lookahead = 2;
+    let store_last_slot = StoreAvailableSlotsDecorator::new(
+        beacon_rpc_url.clone(),
+        alloy_bls_public_key,
+        available_slots,
+        slots_per_epoch,
+        epoch_lookahead,
+        store_last_slot,
+    );
+    let event_stream = get_event_stream(&beacon_rpc_url).await?;
+    let listener = TcpListener::bind(&taiyi_addr).await?;
+
     let bls_signer =
         BlsSigner::new(signer.address(), Some(chain_id), bls_private_key, fork_version);
 
     tokio::select!(
         _ = axum::serve(listener, app) => { println!("terminating server") },
-        _ = process_event_stream(event_stream, store_current_slot) => { println!("terminating event stream")},
-        _ = submit_constraints(taiyi_core, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url) => { println!("terminating constraint stream")}
+        _ = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream")},
+        _ = submit_constraints(taiyi_core, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
     );
     Ok(())
 }

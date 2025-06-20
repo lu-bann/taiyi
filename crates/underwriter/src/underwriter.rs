@@ -58,8 +58,8 @@ impl Underwriter {
         self.get_block_info(slot).0.update(gas, blobs, 1)
     }
 
-    pub fn remove_slots_before(&mut self, slot: &u64) {
-        self.block_info.retain(|reserved_slot, _| reserved_slot >= slot);
+    pub fn remove_slots_until(&mut self, slot: &u64) {
+        self.block_info.retain(|reserved_slot, _| reserved_slot > slot);
     }
 
     pub async fn reserve_slot_with_calldata<S: Sender>(
@@ -186,8 +186,8 @@ mod tests {
         assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).is_ok());
         assert!(underwriter.reserve_blockspace(target_slot_2, gas, blobs).is_ok());
 
-        let current_slot = 25;
-        underwriter.remove_slots_before(&current_slot);
+        let last_slot = 25;
+        underwriter.remove_slots_until(&last_slot);
         let gas = 123406;
         let err = underwriter.reserve_blockspace(target_slot_1, gas, blobs).unwrap_err();
         assert_eq!(err, BlockInfoError::GasLimit { available: 123256, required: gas });

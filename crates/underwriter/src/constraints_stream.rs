@@ -34,10 +34,10 @@ pub fn get_next_slot_start(
     now_since_start: &Duration,
     slot_time: &Duration,
 ) -> Result<Instant, TryFromIntError> {
-    let in_current_slot_ms: Duration =
+    let in_last_slot_ms: Duration =
         Duration::from_millis((now_since_start.as_millis() % slot_time.as_millis()).try_into()?);
     let remaining =
-        if in_current_slot_ms.is_zero() { Duration::ZERO } else { *slot_time - in_current_slot_ms };
+        if in_last_slot_ms.is_zero() { Duration::ZERO } else { *slot_time - in_last_slot_ms };
     Ok(Instant::now() + remaining)
 }
 
@@ -68,6 +68,7 @@ pub async fn submit_constraints<P: Provider>(
     signer: PrivateKeySigner,
     bls_signer: BlsSigner,
     constraints_url: String,
+    slots_per_epoch: u64,
 ) -> eyre::Result<()> {
     let sender = signer.address();
     let chain_id = provider.get_chain_id().await?;
@@ -79,6 +80,7 @@ pub async fn submit_constraints<P: Provider>(
     while let Some(slot) = slot_stream.next().await {
         println!("New slot {:?}", slot);
         let next_slot = slot + 1;
+        let is_new_epoch = slot % slots_per_epoch == 0;
 
         let estimate = provider.estimate_eip1559_fees().await?;
         let max_fee_per_gas = estimate.max_fee_per_gas;
@@ -106,9 +108,6 @@ pub async fn submit_constraints<P: Provider>(
         let mut amounts = Vec::new();
 
         let mut total_preconf_tips = U256::ZERO;
-        //     let fee_reciepient =
-        //         state.network_state.get_fee_recipient(next_slot).unwrap_or_default();
-        //     info!(fee_reciepient=?fee_reciepient);
 
         let mut tx_cache = tx_cache.clone();
         let (ready, pending) = tx_cache.take(next_slot).await?;
@@ -256,6 +255,8 @@ pub async fn submit_constraints<P: Provider>(
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
+
+        if is_new_epoch {}
     }
     Ok(())
 }

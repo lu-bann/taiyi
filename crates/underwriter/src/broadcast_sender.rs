@@ -27,13 +27,13 @@ pub trait Sender {
 pub struct BroadcastSender {
     signer: PrivateKeySigner,
     chain_id: u64,
-    current_slot: Arc<AtomicU64>,
+    last_slot: Arc<AtomicU64>,
     broadcast_sender: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
 }
 
 impl BroadcastSender {
-    pub fn new(signer: PrivateKeySigner, chain_id: u64, current_slot: Arc<AtomicU64>) -> Self {
-        Self { signer, chain_id, current_slot, broadcast_sender: broadcast::channel(128).0 }
+    pub fn new(signer: PrivateKeySigner, chain_id: u64, last_slot: Arc<AtomicU64>) -> Self {
+        Self { signer, chain_id, last_slot, broadcast_sender: broadcast::channel(128).0 }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<(PreconfRequest, PreconfResponseData)> {
@@ -50,7 +50,7 @@ impl Sender for BroadcastSender {
             request_id: id,
             commitment: Some(hex_encode(signature.as_bytes())),
             sequence_num: None,
-            current_slot: self.current_slot.load(Ordering::Relaxed),
+            current_slot: self.last_slot.load(Ordering::Relaxed) + 1,
         };
 
         self.broadcast_sender.send((request, response))?;
