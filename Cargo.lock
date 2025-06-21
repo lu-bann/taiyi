@@ -5404,6 +5404,7 @@ dependencies = [
  "serde_json",
  "sha2 0.9.9",
  "ssz_rs",
+ "thiserror 2.0.12",
  "tokio",
  "uuid",
 ]

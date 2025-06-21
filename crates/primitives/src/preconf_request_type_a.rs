@@ -4,7 +4,7 @@ use alloy_primitives::{hex, keccak256, Address, B256, U256};
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
-use crate::PreconfFeeResponse;
+use crate::PreconfFee;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeA {
@@ -19,7 +19,7 @@ pub struct PreconfRequestTypeA {
     /// The signer of the request
     pub signer: Address,
     /// The quoted price by the underwriter
-    pub preconf_fee: PreconfFeeResponse,
+    pub preconf_fee: PreconfFee,
 }
 
 impl PreconfRequestTypeA {

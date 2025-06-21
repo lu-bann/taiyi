@@ -1,5 +1,4 @@
 pub mod api;
-pub mod block_info;
 pub mod bls_signer;
 pub mod broadcast_sender;
 pub mod constraints_stream;

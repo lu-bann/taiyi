@@ -9,6 +9,7 @@ use std::{
         Arc,
     },
 };
+use taiyi_primitives::slot_info::{SlotInfo, SlotInfoFactory};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -68,34 +69,48 @@ impl<F: EventHandler> EventHandler for StoreLastSlotDecorator<F> {
 }
 
 #[derive(Debug)]
-pub struct StoreAvailableSlotsDecorator<F: EventHandler> {
+pub struct StoreAvailableSlotsDecorator<F: EventHandler, Factory: SlotInfoFactory> {
     url: String,
     underwriter: BlsPublicKey,
-    available_slots: Arc<RwLock<Vec<u64>>>,
+    available_slots: Arc<RwLock<Vec<SlotInfo>>>,
     slots_per_epoch: u64,
     epoch_lookahead: u64,
     f: F,
+    slot_info_factory: Factory,
 }
 
-impl<F: EventHandler> StoreAvailableSlotsDecorator<F> {
+impl<F: EventHandler, Factory: SlotInfoFactory> StoreAvailableSlotsDecorator<F, Factory> {
     pub fn new(
         url: String,
         underwriter: BlsPublicKey,
-        available_slots: Arc<RwLock<Vec<u64>>>,
+        available_slots: Arc<RwLock<Vec<SlotInfo>>>,
         slots_per_epoch: u64,
         epoch_lookahead: u64,
         f: F,
+        slot_info_factory: Factory,
     ) -> Self {
-        Self { url, underwriter, available_slots, slots_per_epoch, epoch_lookahead, f }
+        Self {
+            url,
+            underwriter,
+            available_slots,
+            slots_per_epoch,
+            epoch_lookahead,
+            f,
+            slot_info_factory,
+        }
     }
 
-    async fn get_assigned_slots(&self, first_slot: u64, last_slot: u64) -> Result<Vec<u64>, Error> {
+    async fn get_assigned_slots(
+        &self,
+        first_slot: u64,
+        last_slot: u64,
+    ) -> Result<Vec<SlotInfo>, Error> {
         let mut assigned_slots = vec![];
         for slot in first_slot..=last_slot {
             if let Some(assigned_validator) = get_assigned_validator(&self.url, slot).await? {
                 if assigned_validator == self.underwriter {
                     println!("Delegation to underwriter found for slot: {}", slot);
-                    assigned_slots.push(slot);
+                    assigned_slots.push(self.slot_info_factory.slot_info(slot));
                 }
             }
         }
@@ -104,12 +119,21 @@ impl<F: EventHandler> StoreAvailableSlotsDecorator<F> {
     }
 }
 
-impl<F: EventHandler> EventHandler for StoreAvailableSlotsDecorator<F> {
+impl<F: EventHandler, Factory: SlotInfoFactory> EventHandler
+    for StoreAvailableSlotsDecorator<F, Factory>
+{
     async fn handle_event(&self, event: HeadEvent) -> Result<(), Error> {
         let slot = event.slot;
         self.f.handle_event(event).await?;
-        self.available_slots.write().await.retain(|available_slot| available_slot > &slot);
-        let first_slot = self.available_slots.read().await.last().cloned().unwrap_or(slot + 1);
+        self.available_slots.write().await.retain(|info| info.slot > slot);
+        let first_slot = self
+            .available_slots
+            .read()
+            .await
+            .iter()
+            .map(|info| info.slot)
+            .last()
+            .unwrap_or(slot + 1);
         let slot_in_epoch = slot % self.slots_per_epoch;
         let last_slot = slot + self.epoch_lookahead * self.slots_per_epoch - slot_in_epoch;
         if last_slot > first_slot {

@@ -12,7 +12,7 @@ impl Slot {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SlotModel {
     genesis_epoch_offset: Duration,
     slot_duration: Duration,
@@ -41,6 +41,10 @@ impl SlotModel {
         let now_since_genesis = now_since_epoch - self.genesis_epoch_offset;
         let passed_slots = now_since_genesis.as_secs() / self.slot_duration.as_secs();
         self.genesis_epoch_offset + self.slot_duration * (passed_slots + 1) as u32
+    }
+
+    pub fn get_next_slot_start_offset(&self, slot: u64) -> Duration {
+        self.genesis_epoch_offset + self.slot_duration * (slot + 1) as u32
     }
 }
 
@@ -110,5 +114,23 @@ mod tests {
         let now_since_epoch = TEST_GENESIS_DURATION + TEST_SLOT_DURATION * 3;
         let next_slot_start = model.get_time_until_next_slot_start(now_since_epoch);
         assert_eq!(next_slot_start, TEST_GENESIS_DURATION + TEST_SLOT_DURATION * 4);
+    }
+
+    #[test]
+    fn get_next_slot_start_epoch_offset_at_genesis() {
+        let model = SlotModel::new(TEST_GENESIS_DURATION, TEST_SLOT_DURATION, TEST_EPOCH_DURATION);
+
+        let slot = 0;
+        let next_slot_start_offset = model.get_next_slot_start_offset(slot);
+        assert_eq!(next_slot_start_offset, TEST_GENESIS_DURATION + TEST_SLOT_DURATION);
+    }
+
+    #[test]
+    fn get_next_slot_start_epoch_offset_at_ten_slots_after_genesis() {
+        let model = SlotModel::new(TEST_GENESIS_DURATION, TEST_SLOT_DURATION, TEST_EPOCH_DURATION);
+
+        let slot = 10;
+        let next_slot_start_offset = model.get_next_slot_start_offset(slot);
+        assert_eq!(next_slot_start_offset, TEST_GENESIS_DURATION + 11 * TEST_SLOT_DURATION);
     }
 }

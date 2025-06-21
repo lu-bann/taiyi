@@ -1,72 +1,75 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::sync::Arc;
 
 use alloy_consensus::transaction::Transaction;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use taiyi_primitives::{
-    PreconfFeeResponse, PreconfRequest, PreconfRequestTypeA, SubmitTypeATransactionRequest,
+    slot_info::{SlotInfo, SlotInfoError},
+    PreconfFee, PreconfRequest, PreconfRequestTypeA, SubmitTypeATransactionRequest,
 };
 use thiserror::Error;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    api::PreconfApiResult,
-    block_info::{BlockInfo, BlockInfoError},
-    broadcast_sender::Sender,
-    sequence_number::SequenceNumberPerSlot,
+    api::PreconfApiResult, broadcast_sender::Sender, sequence_number::SequenceNumberPerSlot,
 };
 
 #[derive(Debug, Error, PartialEq)]
 pub enum UnderwriterError {
     #[error("{0}")]
-    BlockInfo(#[from] BlockInfoError),
+    SlotInfo(#[from] SlotInfoError),
 
     #[error("No reserved transaction for {id}")]
     MissingTransaction { id: Uuid },
+
+    #[error("Slot {slot} is not available")]
+    SlotNotAvailable { slot: u64 },
+
+    #[error("Insufficient tip (expected={expected}, tip={tip})")]
+    InsufficientTip { tip: U256, expected: U256 },
+}
+
+pub fn assert_tip(tip: U256, expected: U256) -> Result<(), UnderwriterError> {
+    if tip < expected {
+        return Err(UnderwriterError::InsufficientTip { expected, tip });
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
 pub struct Underwriter {
-    reference_block_info: BlockInfo,
-    block_info: HashMap<u64, (BlockInfo, Vec<Uuid>)>,
+    slot_infos: Arc<RwLock<Vec<SlotInfo>>>,
     sequence_number_per_slot: SequenceNumberPerSlot,
 }
 
 pub type UnderwriterResult<T> = Result<T, UnderwriterError>;
 
 impl Underwriter {
-    pub fn new(reference_block_info: BlockInfo) -> Self {
-        Self {
-            reference_block_info,
-            block_info: HashMap::new(),
-            sequence_number_per_slot: SequenceNumberPerSlot::default(),
-        }
+    pub fn new(slot_infos: Arc<RwLock<Vec<SlotInfo>>>) -> Self {
+        Self { slot_infos, sequence_number_per_slot: SequenceNumberPerSlot::default() }
     }
 
-    pub fn get_block_info(&mut self, slot: u64) -> &mut (BlockInfo, Vec<Uuid>) {
-        if let Entry::Vacant(e) = self.block_info.entry(slot) {
-            e.insert((self.reference_block_info, vec![]));
-        }
-        self.block_info.get_mut(&slot).expect("Must be available")
-    }
-
-    pub fn reserve_blockspace(
+    pub async fn reserve_blockspace(
         &mut self,
         slot: u64,
         gas: u64,
         blobs: usize,
-    ) -> Result<(), BlockInfoError> {
-        self.get_block_info(slot).0.update(gas, blobs, 1)
-    }
-
-    pub fn remove_slots_until(&mut self, slot: &u64) {
-        self.block_info.retain(|reserved_slot, _| reserved_slot > slot);
+    ) -> UnderwriterResult<()> {
+        Ok(self
+            .slot_infos
+            .write()
+            .await
+            .iter_mut()
+            .find(|info| info.slot == slot)
+            .ok_or(UnderwriterError::SlotNotAvailable { slot })?
+            .update(gas, blobs, 1)?)
     }
 
     pub async fn reserve_slot_with_calldata<S: Sender>(
         &mut self,
         id: Uuid,
         request: SubmitTypeATransactionRequest,
-        preconf_fee: PreconfFeeResponse,
+        preconf_fee: PreconfFee,
         sender: S,
         signer: Address,
     ) -> PreconfApiResult<()> {
@@ -82,7 +85,9 @@ impl Underwriter {
 
         let required_gas = get_required_gas(&preconf_request);
         let required_blobs = get_required_blobs(&preconf_request);
-        self.get_block_info(request.target_slot).0.update(required_gas, required_blobs, 1)?;
+        let expected_tip = preconf_fee.compute_tip(required_gas, required_blobs);
+        assert_tip(preconf_request.preconf_tip(), expected_tip)?;
+        self.reserve_blockspace(request.target_slot, required_gas, required_blobs).await?;
         self.sequence_number_per_slot
             .add(request.target_slot, request.preconf_transaction.len() as u64 + 1);
 
@@ -120,80 +125,118 @@ mod tests {
     use alloy_consensus::{TxEip1559, TxEnvelope};
     use alloy_primitives::{Signature, U256};
 
-    #[test]
-    fn test_reserve_blockspace_works_for_new_slot_within_limits() {
-        let gas_limit = 123456;
-        let blob_limit = 1324;
-        let constraint_limit = 12;
-        let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
-        let mut underwriter = Underwriter::new(reference_block_info);
+    #[tokio::test]
+    async fn test_reserve_blockspace_fails_if_no_slot_is_available() {
+        let slot_infos = Arc::new(RwLock::new(vec![]));
+        let mut underwriter = Underwriter::new(slot_infos);
 
         let target_slot = 234;
         let gas = 100;
         let blobs = 3;
-        assert!(underwriter.reserve_blockspace(target_slot, gas, blobs).is_ok());
+        let err = underwriter.reserve_blockspace(target_slot, gas, blobs).await.unwrap_err();
+        assert_eq!(err, UnderwriterError::SlotNotAvailable { slot: target_slot });
     }
 
-    #[test]
-    fn test_reserve_blockspace_fails_for_new_slot_that_exceeds_limits() {
-        let gas_limit = 123456;
-        let blob_limit = 1324;
-        let constraint_limit = 12;
-        let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
-        let mut underwriter = Underwriter::new(reference_block_info);
+    const DUMMY_GAS_AVAILABLE: u64 = 123456;
+    const DUMMY_BLOBS_AVAILABLE: usize = 1234;
+    const DUMMY_CONSTRAINTS_AVAILABLE: u32 = 12;
+
+    fn test_slot_info(slot: u64) -> SlotInfo {
+        SlotInfo {
+            slot,
+            gas_available: DUMMY_GAS_AVAILABLE,
+            blobs_available: DUMMY_BLOBS_AVAILABLE,
+            constraints_available: DUMMY_CONSTRAINTS_AVAILABLE,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_reserve_blockspace_works_for_new_slot_within_limits() {
+        let slot = 234;
+        let slot_info = test_slot_info(slot);
+        let slot_infos = Arc::new(RwLock::new(vec![slot_info]));
+        let mut underwriter = Underwriter::new(slot_infos);
+
+        let gas = 100;
+        let blobs = 3;
+        assert!(underwriter.reserve_blockspace(slot, gas, blobs).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_reserve_blockspace_fails_if_target_slot_is_not_available() {
+        let slot = 2;
+        let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(slot)]));
+        let mut underwriter = Underwriter::new(slot_infos);
 
         let target_slot = 234;
-        let gas = 123457;
-        let blobs = 3;
-        let err = underwriter.reserve_blockspace(target_slot, gas, blobs).unwrap_err();
-        assert_eq!(err, BlockInfoError::GasLimit { available: gas_limit, required: gas });
-    }
-
-    #[test]
-    fn test_reserve_blockspace_with_two_slots() {
-        let gas_limit = 123456;
-        let blob_limit = 1324;
-        let constraint_limit = 12;
-        let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
-        let mut underwriter = Underwriter::new(reference_block_info);
-
-        let target_slot_1 = 234;
-        let target_slot_2 = 24;
         let gas = 100;
         let blobs = 3;
-        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).is_ok());
-        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).is_ok());
-        assert!(underwriter.reserve_blockspace(target_slot_2, gas, blobs).is_ok());
-
-        let gas = 123406;
-        let err = underwriter.reserve_blockspace(target_slot_1, gas, blobs).unwrap_err();
-        assert_eq!(err, BlockInfoError::GasLimit { available: 123256, required: gas });
+        let err = underwriter.reserve_blockspace(target_slot, gas, blobs).await.unwrap_err();
+        assert_eq!(err, UnderwriterError::SlotNotAvailable { slot: target_slot });
     }
 
-    #[test]
-    fn test_remove_old_slots() {
-        let gas_limit = 123456;
-        let blob_limit = 1324;
-        let constraint_limit = 12;
-        let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
-        let mut underwriter = Underwriter::new(reference_block_info);
+    #[tokio::test]
+    async fn test_reserve_blockspace_fails_for_new_slot_that_exceeds_limits() {
+        let target_slot = 234;
+        let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(target_slot)]));
+        let mut underwriter = Underwriter::new(slot_infos);
 
+        let gas = DUMMY_GAS_AVAILABLE + 1;
+        let blobs = 3;
+        let err = underwriter.reserve_blockspace(target_slot, gas, blobs).await.unwrap_err();
+        assert_eq!(
+            err,
+            SlotInfoError::GasLimit { available: DUMMY_GAS_AVAILABLE, required: gas }.into()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_reserve_blockspace_with_two_slots() {
         let target_slot_1 = 234;
         let target_slot_2 = 24;
+        let slot_infos = Arc::new(RwLock::new(vec![
+            test_slot_info(target_slot_1),
+            test_slot_info(target_slot_2),
+        ]));
+        let mut underwriter = Underwriter::new(slot_infos);
+
         let gas = 100;
         let blobs = 3;
-        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).is_ok());
-        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).is_ok());
-        assert!(underwriter.reserve_blockspace(target_slot_2, gas, blobs).is_ok());
+        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.is_ok());
+        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.is_ok());
+        assert!(underwriter.reserve_blockspace(target_slot_2, gas, blobs).await.is_ok());
 
-        let last_slot = 25;
-        underwriter.remove_slots_until(&last_slot);
+        let expected_available = DUMMY_GAS_AVAILABLE - 2 * gas;
+        let gas = expected_available + 1;
+        let err = underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.unwrap_err();
+        assert_eq!(
+            err,
+            SlotInfoError::GasLimit { available: expected_available, required: gas }.into()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_remove_old_slots() {
+        let target_slot_1 = 234;
+        let target_slot_2 = 24;
+        let slot_infos = Arc::new(RwLock::new(vec![
+            test_slot_info(target_slot_1),
+            test_slot_info(target_slot_2),
+        ]));
+        let mut underwriter = Underwriter::new(slot_infos.clone());
+
+        let gas = 100;
+        let blobs = 3;
+        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.is_ok());
+        assert!(underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.is_ok());
+        assert!(underwriter.reserve_blockspace(target_slot_2, gas, blobs).await.is_ok());
+
+        slot_infos.write().await.remove(1);
         let gas = 123406;
-        let err = underwriter.reserve_blockspace(target_slot_1, gas, blobs).unwrap_err();
-        assert_eq!(err, BlockInfoError::GasLimit { available: 123256, required: gas });
-        assert!(underwriter.reserve_blockspace(target_slot_2, gas_limit, blobs).is_ok());
-        let err = underwriter.reserve_blockspace(target_slot_2, gas_limit, blobs).unwrap_err();
-        assert_eq!(err, BlockInfoError::GasLimit { available: 0, required: gas_limit })
+        let err = underwriter.reserve_blockspace(target_slot_1, gas, blobs).await.unwrap_err();
+        assert_eq!(err, SlotInfoError::GasLimit { available: 123256, required: gas }.into());
+        let err = underwriter.reserve_blockspace(target_slot_2, gas, blobs).await.unwrap_err();
+        assert_eq!(err, UnderwriterError::SlotNotAvailable { slot: target_slot_2 })
     }
 
     fn get_test_signature() -> Signature {
@@ -206,17 +249,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_reserve_slot_with_calldata() {
-        let gas_limit = 123456;
-        let blob_limit = 1324;
-        let constraint_limit = 12;
-        let reference_block_info = BlockInfo::new(gas_limit, blob_limit, constraint_limit);
-        let mut underwriter = Underwriter::new(reference_block_info);
+        let target_slot = 10;
+        let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(target_slot)]));
+        let mut underwriter = Underwriter::new(slot_infos.clone());
 
-        let preconf_fee = PreconfFeeResponse { gas_fee: 10, blob_gas_fee: 150 };
+        let preconf_fee = PreconfFee { gas_fee: 10, blob_gas_fee: 150 };
         let request = SubmitTypeATransactionRequest {
             tip_transaction: get_test_transaction(),
             preconf_transaction: vec![],
-            target_slot: 10,
+            target_slot,
         };
         let signer = Address::random();
         let mut sender = MockSender::new();

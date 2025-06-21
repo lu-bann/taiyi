@@ -59,8 +59,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        BlockspaceAllocation, PreconfFeeResponse, SubmitTransactionRequest,
-        SubmitTypeATransactionRequest,
+        BlockspaceAllocation, PreconfFee, SubmitTransactionRequest, SubmitTypeATransactionRequest,
     };
 
     const DUMMY_CHAIN_ID: u64 = 123;
@@ -128,7 +127,7 @@ mod tests {
             target_slot: request.target_slot,
             sequence_number: DUMMY_SEQUENCE_NUMBER,
             signer: signer.address(),
-            preconf_fee: PreconfFeeResponse::default(),
+            preconf_fee: PreconfFee::default(),
         })
     }
 
@@ -144,7 +143,7 @@ mod tests {
                 tip: U256::from(DUMMY_TIP),
                 target_slot: DUMMY_TARGET_SLOT,
                 blob_count: 0,
-                preconf_fee: PreconfFeeResponse::default(),
+                preconf_fee: PreconfFee::default(),
             },
             alloc_sig: Signature::from_raw([0u8; 65].as_slice()).unwrap(),
             transaction: Some(

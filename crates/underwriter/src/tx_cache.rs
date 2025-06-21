@@ -38,14 +38,14 @@ impl TxCache {
         self.reserved_without_calldata.insert(id, request);
     }
 
-    pub fn add_calldata(&mut self, id: Uuid, tx: TxEnvelope) -> TxCacheResult<PreconfRequest> {
+    pub fn add_calldata(&mut self, id: Uuid, tx: TxEnvelope) -> TxCacheResult<PreconfRequestTypeB> {
         let mut request = self
             .reserved_without_calldata
             .remove(&id)
             .ok_or(TxCacheError::MissingReservedTransaction { id })?;
         request.transaction = Some(tx);
-        let request = PreconfRequest::TypeB(request);
-        self.reserved_with_calldata.push(request.clone());
+        let preconf_request = PreconfRequest::TypeB(request.clone());
+        self.reserved_with_calldata.push(preconf_request);
         Ok(request)
     }
 
@@ -93,7 +93,7 @@ impl TxCachePerSlot {
         slot: u64,
         id: Uuid,
         tx: TxEnvelope,
-    ) -> TxCacheResult<PreconfRequest> {
+    ) -> TxCacheResult<PreconfRequestTypeB> {
         let mut caches = self.caches.write().await;
         caches
             .get_mut(&slot)
