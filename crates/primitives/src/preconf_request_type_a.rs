@@ -69,7 +69,6 @@ impl PreconfRequestTypeA {
         )
     }
 
-    /// Returns the total value transfer
     pub fn value(&self) -> U256 {
         let mut total = self.tip_transaction.value();
         for tx in &self.preconf_tx {
@@ -106,5 +105,13 @@ impl SubmitTypeATransactionRequest {
         }
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         keccak256(&digest)
+    }
+
+    pub fn value(&self) -> U256 {
+        let mut total = self.tip_transaction.value();
+        for tx in &self.preconf_transaction {
+            total += tx.value();
+        }
+        total
     }
 }

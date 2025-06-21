@@ -23,7 +23,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use taiyi_contracts::TaiyiCoreInstance;
+use taiyi_contracts::{TaiyiCoreInstance, TaiyiEscrowInstance};
 use taiyi_primitives::{
     bls::{bls_pubkey_to_alloy, SecretKey},
     encode_util::hex_decode,
@@ -38,6 +38,8 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
+    account_info::OnChainAccountInfoProvider,
+    account_state::AccountState,
     bls_signer::BlsSigner,
     broadcast_sender::{BroadcastSender, Sender},
     constraints_stream::{get_next_slot_start, get_slot_stream, submit_constraints},
@@ -48,7 +50,7 @@ use crate::{
     preconf_fee_provider::{PreconfFeeProvider, TaiyiPreconfFeeProvider},
     slot_model::SlotModel,
     tx_cache::{TxCacheError, TxCachePerSlot},
-    underwriter::{assert_tip, Underwriter, UnderwriterError},
+    underwriter::{verify_tip, Underwriter, UnderwriterError},
 };
 
 pub const HOLESKY_GENESIS_TIMESTAMP: u64 = 1_695_902_400;
@@ -140,6 +142,9 @@ pub enum PreconfApiError {
 
     #[error("{0}")]
     AlloySigner(#[from] alloy_signer::k256::ecdsa::Error),
+
+    #[error("{0}")]
+    Account(#[from] crate::account_state::AccountError),
 }
 
 impl IntoResponse for PreconfApiError {
@@ -166,9 +171,11 @@ pub struct PreconfState<P: PreconfFeeProvider> {
     pub broadcast_sender: BroadcastSender,
     pub min_duration_until_next_slot: Duration,
     pub slot_model: SlotModel,
+    pub account_state: AccountState<OnChainAccountInfoProvider>,
 }
 
 impl<P: PreconfFeeProvider> PreconfState<P> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         underwriter: Underwriter,
         last_slot: Arc<AtomicU64>,
@@ -177,6 +184,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         tx_cache: TxCachePerSlot,
         broadcast_sender: BroadcastSender,
         slot_model: SlotModel,
+        account_state: AccountState<OnChainAccountInfoProvider>,
     ) -> Self {
         Self {
             underwriter: Arc::new(underwriter.into()),
@@ -188,6 +196,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
             broadcast_sender,
             min_duration_until_next_slot: Duration::from_secs(1),
             slot_model,
+            account_state,
         }
     }
 
@@ -195,7 +204,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         self.last_slot.load(Ordering::Relaxed)
     }
 
-    pub fn assert_slot_in_future(&self, slot: u64) -> PreconfApiResult<()> {
+    pub fn verify_slot_in_future(&self, slot: u64) -> PreconfApiResult<()> {
         let last = self.get_last_slot();
         if slot <= last {
             return Err(PreconfApiError::SlotNotInFuture { slot, last });
@@ -203,14 +212,14 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         Ok(())
     }
 
-    pub async fn assert_slot_available(&self, slot: u64) -> PreconfApiResult<()> {
+    pub async fn verify_slot_available(&self, slot: u64) -> PreconfApiResult<()> {
         if !self.available_slots.read().await.iter().any(|info| info.slot == slot) {
             return Err(PreconfApiError::SlotNotAvailable { slot });
         }
         Ok(())
     }
 
-    pub fn assert_within_deadline(&self, slot: u64) -> PreconfApiResult<()> {
+    pub fn verify_within_deadline(&self, slot: u64) -> PreconfApiResult<()> {
         let now_since_epoch =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid time before epoch");
         let time_until_next_slot_start = self.slot_model.get_next_slot_start_offset(slot);
@@ -224,7 +233,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
     }
 }
 
-fn assert_preconfirmation_transactions_available(
+fn verify_preconfirmation_transactions_available(
     request: &SubmitTypeATransactionRequest,
 ) -> PreconfApiResult<()> {
     if request.preconf_transaction.is_empty() {
@@ -233,7 +242,7 @@ fn assert_preconfirmation_transactions_available(
     Ok(())
 }
 
-fn assert_blobs(txs: &[TxEnvelope]) -> PreconfApiResult<()> {
+fn verify_blobs(txs: &[TxEnvelope]) -> PreconfApiResult<()> {
     let env_kzg_settings: EnvKzgSettings = EnvKzgSettings::default();
     let _ = txs
         .iter()
@@ -253,7 +262,7 @@ fn assert_blobs(txs: &[TxEnvelope]) -> PreconfApiResult<()> {
     Ok(())
 }
 
-fn assert_reserved_gas_limit(gas_limit: u64, reserved_gas_limit: u64) -> PreconfApiResult<()> {
+fn verify_reserved_gas_limit(gas_limit: u64, reserved_gas_limit: u64) -> PreconfApiResult<()> {
     if gas_limit > reserved_gas_limit {
         return Err(PreconfApiError::ReservedGasLimitExceeded { gas_limit, reserved_gas_limit });
     }
@@ -277,6 +286,7 @@ pub async fn run(
     ecdsa_sk: String,
     relay_url: String,
     taiyi_core_address: Address,
+    taiyi_escrow_address: Address,
     fork_version: [u8; 4],
 ) -> PreconfApiResult<()> {
     println!("run...");
@@ -305,6 +315,11 @@ pub async fn run(
     let tx_cache = TxCachePerSlot::new();
     let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
+
+    let taiyi_escrow = TaiyiEscrowInstance::new(taiyi_escrow_address, execution_provider.clone());
+    let state_provider = OnChainAccountInfoProvider::new(execution_rpc_url.clone(), taiyi_escrow);
+    let account_state = AccountState::new(last_slot.clone(), state_provider);
+
     let state = Arc::new(PreconfState::new(
         underwriter,
         last_slot.clone(),
@@ -313,6 +328,7 @@ pub async fn run(
         tx_cache.clone(),
         broadcast_sender,
         slot_model.clone(),
+        account_state,
     ));
     let app = Router::new()
         .route(HEALTH, get(health_check))
@@ -390,8 +406,8 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
     info!("Received blockspace reservation request, signer: {}", signer);
 
     let target_slot = request.target_slot;
-    state.assert_slot_in_future(target_slot)?;
-    state.assert_slot_available(target_slot).await?;
+    state.verify_slot_in_future(target_slot)?;
+    state.verify_slot_available(target_slot).await?;
 
     let expected_preconf_fee =
         state.preconf_fee_provider.read().await.get(request.target_slot).await?;
@@ -403,8 +419,8 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
     }
 
     let expected_tip = expected_preconf_fee.compute_tip(request.gas_limit, request.blob_count);
-    assert_tip(request.preconf_tip(), expected_tip)?;
-
+    verify_tip(request.preconf_tip(), expected_tip)?;
+    state.account_state.verify_sufficient_balance(&signer, request.preconf_tip()).await?;
     state
         .underwriter
         .write()
@@ -432,12 +448,13 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
     let (signer, _) = get_signer_and_signature(headers, request.digest())?;
     info!("Received slot reservation request with calldata, signer: {}", signer);
 
-    assert_preconfirmation_transactions_available(&request)?;
-    state.assert_within_deadline(request.target_slot)?;
+    verify_preconfirmation_transactions_available(&request)?;
+    state.verify_within_deadline(request.target_slot)?;
     if !request.tip_transaction.is_eip1559() {
         return Err(PreconfApiError::InvalidTipTransaction);
     }
-    assert_blobs(&request.preconf_transaction)?;
+    verify_blobs(&request.preconf_transaction)?;
+    state.account_state.reserve(&signer, request.tip_transaction.nonce(), request.value()).await?;
 
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
 
@@ -462,7 +479,7 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
     State(state): State<Arc<PreconfState<P>>>,
     Json(request): Json<SubmitTransactionRequest>,
 ) -> PreconfApiResult<Json<()>> {
-    let _ = get_signer_and_signature(headers, request.digest())?;
+    let (signer, _) = get_signer_and_signature(headers, request.digest())?;
     info!("Received slot reservation request without calldata");
 
     let slot = state
@@ -472,12 +489,15 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
         .remove(&request.request_id)
         .ok_or(PreconfApiError::UnknownId { id: request.request_id })?;
     let mut tx_cache = state.tx_cache.clone();
-    assert_blobs(&[request.transaction.clone()])?;
+    verify_blobs(&[request.transaction.clone()])?;
     let request_gas_limit = request.transaction.gas_limit();
+    let nonce = request.transaction.nonce();
+    let amount = request.transaction.value();
     let preconf_request =
         tx_cache.add_calldata(slot, request.request_id, request.transaction).await?;
-    state.assert_within_deadline(preconf_request.target_slot())?;
-    assert_reserved_gas_limit(request_gas_limit, preconf_request.allocation.gas_limit)?;
+    state.verify_within_deadline(preconf_request.target_slot())?;
+    verify_reserved_gas_limit(request_gas_limit, preconf_request.allocation.gas_limit)?;
+    state.account_state.reserve(&signer, nonce, amount).await?;
 
     state
         .broadcast_sender

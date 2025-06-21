@@ -29,7 +29,7 @@ pub enum UnderwriterError {
     InsufficientTip { tip: U256, expected: U256 },
 }
 
-pub fn assert_tip(tip: U256, expected: U256) -> Result<(), UnderwriterError> {
+pub fn verify_tip(tip: U256, expected: U256) -> Result<(), UnderwriterError> {
     if tip < expected {
         return Err(UnderwriterError::InsufficientTip { expected, tip });
     }
@@ -86,7 +86,7 @@ impl Underwriter {
         let required_gas = get_required_gas(&preconf_request);
         let required_blobs = get_required_blobs(&preconf_request);
         let expected_tip = preconf_fee.compute_tip(required_gas, required_blobs);
-        assert_tip(preconf_request.preconf_tip(), expected_tip)?;
+        verify_tip(preconf_request.preconf_tip(), expected_tip)?;
         self.reserve_blockspace(request.target_slot, required_gas, required_blobs).await?;
         self.sequence_number_per_slot
             .add(request.target_slot, request.preconf_transaction.len() as u64 + 1);

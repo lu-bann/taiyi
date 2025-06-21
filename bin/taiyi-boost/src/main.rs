@@ -4,8 +4,8 @@ use cb_common::pbs::{service::PbsService, state::PbsState};
 use constraints::subscribe_to_constraints_stream;
 use eyre::Result;
 use taiyi_cmd::initialize_tracing_log;
+use taiyi_primitives::log_util::log_error;
 use tokio::select;
-use tracing::error;
 use types::ExtraConfig;
 
 mod block_builder;
@@ -20,12 +20,6 @@ mod metrics;
 mod proofs;
 mod types;
 use crate::block_builder::LocalBlockBuilder;
-
-fn log_error<E: ToString>(result: Result<(), E>, msg: &str) {
-    if let Err(err) = result {
-        error!("{msg}: {}", err.to_string());
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -57,6 +51,6 @@ async fn main() -> Result<()> {
             v = subscribe_to_constraints_stream(sidecar_state.constraints.clone(), pbs_state.all_relays()) => v,
             v = PbsService::run::<SidecarBuilderState, SidecarBuilderApi>(pbs_state.clone()) => v
         );
-        log_error(result, "Taiyi Boost");
+        let _ = log_error(result, "Taiyi Boost");
     }
 }
