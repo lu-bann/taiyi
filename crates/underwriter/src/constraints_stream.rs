@@ -16,7 +16,7 @@ use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use futures::{pin_mut, stream::Stream, StreamExt};
 use reqwest::Client;
-use taiyi_contracts::{TaiyiCore, TaiyiCoreInstance};
+use taiyi_contracts::{TaiyiEscrow, TaiyiEscrowInstance};
 use taiyi_primitives::{
     bls::{bls_pubkey_to_alloy, bls_signature_to_alloy},
     constraints::{ConstraintsMessage, SignableBLS, SignedConstraints},
@@ -64,7 +64,7 @@ pub fn get_slot_stream(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn submit_constraints<P: Provider>(
-    taiyi_core: TaiyiCoreInstance,
+    taiyi_escrow: TaiyiEscrowInstance,
     slot_stream: impl Stream<Item = u64>,
     provider: P,
     tx_cache: Arc<RwLock<TxCachePerSlot>>,
@@ -147,7 +147,7 @@ pub async fn submit_constraints<P: Provider>(
                     let request_sol =
                         to_solidity_type(preconf_req, alloc_sig_sig, tx_bytes, signed);
 
-                    let get_tip_tx = taiyi_core
+                    let get_tip_tx = taiyi_escrow
                         .getTip(request_sol)
                         .into_transaction_request()
                         .with_chain_id(chain_id)
@@ -166,7 +166,7 @@ pub async fn submit_constraints<P: Provider>(
         }
 
         let mut constraints = Vec::new();
-        let sponsor_tx = taiyi_core
+        let sponsor_tx = taiyi_escrow
             .sponsorEthBatch(accounts, amounts)
             .into_transaction_request()
             .with_nonce(sponsor_nonce)
@@ -211,7 +211,7 @@ pub async fn submit_constraints<P: Provider>(
             let request_sol =
                 to_solidity_type(preconf_req, allog_sig_sig, Bytes::default(), signed_empty);
 
-            let exhaust_tx = taiyi_core
+            let exhaust_tx = taiyi_escrow
                 .exhaust(request_sol)
                 .into_transaction_request()
                 .with_chain_id(chain_id)
@@ -268,9 +268,9 @@ fn to_solidity_type(
     blockspace_allocation_sig_underwriter: Signature,
     raw_tx: Bytes,
     underwriter_signed_raw_tx: Signature,
-) -> TaiyiCore::PreconfRequestBType {
-    TaiyiCore::PreconfRequestBType {
-        blockspaceAllocation: TaiyiCore::BlockspaceAllocation {
+) -> TaiyiEscrow::PreconfRequestBType {
+    TaiyiEscrow::PreconfRequestBType {
+        blockspaceAllocation: TaiyiEscrow::BlockspaceAllocation {
             gasLimit: U256::from(request.allocation.gas_limit),
             sender: request.signer(),
             recipient: request.allocation.recipient,

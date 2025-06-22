@@ -23,7 +23,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use taiyi_contracts::{TaiyiCoreInstance, TaiyiEscrowInstance};
+use taiyi_contracts::TaiyiEscrowInstance;
 use taiyi_primitives::{
     bls::{bls_pubkey_to_alloy, SecretKey},
     encode_util::hex_decode,
@@ -145,6 +145,9 @@ pub enum PreconfApiError {
 
     #[error("{0}")]
     Account(#[from] crate::account_state::AccountError),
+
+    #[error("{0}")]
+    Eyre(#[from] eyre::ErrReport),
 }
 
 impl IntoResponse for PreconfApiError {
@@ -281,11 +284,10 @@ pub async fn run(
     taiyi_rpc_port: u16,
     execution_rpc_url: String,
     beacon_rpc_url: String,
-    taiyi_service_url: String,
+    taiyi_service_url: Option<String>,
     bls_sk: String,
     ecdsa_sk: String,
     relay_url: String,
-    taiyi_core_address: Address,
     taiyi_escrow_address: Address,
     fork_version: [u8; 4],
 ) -> PreconfApiResult<()> {
@@ -310,13 +312,21 @@ pub async fn run(
     let underwriter = Underwriter::new(available_slots.clone());
 
     let last_slot = Arc::new(AtomicU64::new(0u64));
-    let preconf_fee_provider = TaiyiPreconfFeeProvider::new(taiyi_service_url);
+    let preconf_fee_provider =
+        TaiyiPreconfFeeProvider::new(taiyi_service_url, execution_provider.clone());
+    //     let preconf_fee_provider = if let Some(taiyi_service_url) = taiyi_service_url {
+    //         TaiyiPreconfFeeProvider::new(taiyi_service_url)
+    //     } else {
+    //         TaiyiPreconfFeeProvider::new(taiyi_service_url.unwrap())
+    // //        AlloyPreconfFeeProvider::new(execution_provider.clone())
+    //     };
     let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
     let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
 
     let taiyi_escrow = TaiyiEscrowInstance::new(taiyi_escrow_address, execution_provider.clone());
-    let state_provider = OnChainAccountInfoProvider::new(execution_rpc_url.clone(), taiyi_escrow);
+    let state_provider =
+        OnChainAccountInfoProvider::new(execution_rpc_url.clone(), taiyi_escrow.clone());
     let account_state = AccountState::new(last_slot.clone(), state_provider);
 
     let state = Arc::new(PreconfState::new(
@@ -341,7 +351,6 @@ pub async fn run(
 
     println!("Starting rpc server...");
 
-    let taiyi_core = TaiyiCoreInstance::new(taiyi_core_address, execution_provider.clone());
     let now_since_epoch =
         SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid time before epoch");
     let now_since_genesis = now_since_epoch - genesis_since_epoch;
@@ -373,7 +382,7 @@ pub async fn run(
     tokio::select!(
         _ = axum::serve(listener, app) => { println!("terminating server") },
         _ = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream")},
-        _ = submit_constraints(taiyi_core, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
+        _ = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
     );
     Ok(())
 }
