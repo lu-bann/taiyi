@@ -51,8 +51,8 @@ impl AccountInfoMeta {
         Self { owner, slot, info: AccountInfo::default() }
     }
 
-    pub fn reserve(&mut self, amount: U256) {
-        self.info.reserve(amount);
+    pub fn reserve(&mut self, tx_count: u64, amount: U256) {
+        self.info.reserve(tx_count, amount);
     }
 }
 
@@ -97,7 +97,13 @@ impl<Provider: AccountInfoProvider> AccountState<Provider> {
         verify_nonce(nonce, expected_nonce)
     }
 
-    pub async fn reserve(&self, owner: &Address, nonce: u64, amount: U256) -> AccountResult<()> {
+    pub async fn reserve(
+        &self,
+        owner: &Address,
+        nonce: u64,
+        tx_count: u64,
+        amount: U256,
+    ) -> AccountResult<()> {
         let mut accounts = self.accounts.write().await;
         let slot = self.last_slot.load(Ordering::Relaxed) + 1;
         accounts.retain(|meta| meta.slot == slot);
@@ -106,11 +112,11 @@ impl<Provider: AccountInfoProvider> AccountState<Provider> {
         {
             self.assert_account_info(owner, nonce, meta.info.tx_count, meta.info.amount + amount)
                 .await?;
-            meta.reserve(amount);
+            meta.reserve(tx_count, amount);
         } else {
             self.assert_account_info(owner, nonce, 0, amount).await?;
             let mut meta = AccountInfoMeta::new(*owner, slot);
-            meta.reserve(amount);
+            meta.reserve(tx_count, amount);
             accounts.push(meta);
         }
         Ok(())
@@ -175,7 +181,8 @@ pub mod tests {
 
         let amount = U256::from(1012);
         let nonce = 1;
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        let tx_count = 1;
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
 
         assert_eq!(err, AccountError::BalanceTooLow { required: amount, balance });
     }
@@ -191,7 +198,8 @@ pub mod tests {
 
         let amount = U256::from(400);
         let nonce = 1;
-        assert!(account_state.reserve(&DUMMY_OWNER, nonce, amount).await.is_ok());
+        let tx_count = 1;
+        assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
         let info = account_state.get(&DUMMY_OWNER).await.unwrap();
         assert_eq!(info, AccountInfo::new(1, U256::from(600)));
@@ -209,11 +217,12 @@ pub mod tests {
 
         let amount = U256::from(400);
         let nonce = 1;
-        assert!(account_state.reserve(&DUMMY_OWNER, nonce, amount).await.is_ok());
+        let tx_count = 1;
+        assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
         let amount = U256::from(612);
         let nonce = 2;
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
 
         assert_eq!(err, AccountError::BalanceTooLow { required: U256::from(1012), balance });
     }
@@ -229,7 +238,8 @@ pub mod tests {
 
         let amount = U256::from(500);
         let nonce = 1;
-        assert!(account_state.reserve(&DUMMY_OWNER, nonce, amount).await.is_ok());
+        let tx_count = 1;
+        assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
         last_slot.store(1u64, Ordering::Relaxed);
 
@@ -248,11 +258,12 @@ pub mod tests {
 
         let amount = U256::from(400);
         let nonce = 2;
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        let tx_count = 1;
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
         assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
         let nonce = 3;
-        assert!(account_state.reserve(&DUMMY_OWNER, nonce, amount).await.is_ok());
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
         assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 4 });
     }
 
@@ -267,12 +278,13 @@ pub mod tests {
 
         let amount = U256::from(400);
         let nonce = 4;
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        let tx_count = 1;
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
         assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
         let nonce = 3;
-        assert!(account_state.reserve(&DUMMY_OWNER, nonce, amount).await.is_ok());
+        assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
         let nonce = 5;
-        let err = account_state.reserve(&DUMMY_OWNER, nonce, amount).await.unwrap_err();
+        let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
         assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 4 });
     }
 

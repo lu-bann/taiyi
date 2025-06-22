@@ -21,8 +21,8 @@ impl AccountInfo {
         Self { tx_count, amount }
     }
 
-    pub fn reserve(&mut self, amount: U256) {
-        self.tx_count += 1;
+    pub fn reserve(&mut self, tx_count: u64, amount: U256) {
+        self.tx_count += tx_count;
         self.amount += amount;
     }
 }
@@ -125,10 +125,11 @@ pub mod tests {
         assert_eq!(account_info.tx_count, 0u64);
         assert_eq!(account_info.amount, U256::ZERO);
 
+        let tx_count = 2;
         let amount = U256::from(13);
-        account_info.reserve(amount);
+        account_info.reserve(tx_count, amount);
 
-        assert_eq!(account_info.tx_count, 1u64);
+        assert_eq!(account_info.tx_count, tx_count);
         assert_eq!(account_info.amount, amount);
     }
 }

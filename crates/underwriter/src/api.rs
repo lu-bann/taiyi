@@ -461,7 +461,11 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
         return Err(PreconfApiError::InvalidTipTransaction);
     }
     verify_blobs(&request.preconf_transaction)?;
-    state.account_state.reserve(&signer, request.tip_transaction.nonce(), request.value()).await?;
+    let tx_count = 1 + request.preconf_transaction.len();
+    state
+        .account_state
+        .reserve(&signer, request.tip_transaction.nonce(), tx_count as u64, request.value())
+        .await?;
 
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
 
@@ -503,7 +507,8 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
         state.tx_cache.write().await.add_calldata(slot, request.request_id, request.transaction)?;
     state.verify_within_deadline(preconf_request.target_slot())?;
     verify_reserved_gas_limit(request_gas_limit, preconf_request.allocation.gas_limit)?;
-    state.account_state.reserve(&signer, nonce, amount).await?;
+    let tx_count = 1;
+    state.account_state.reserve(&signer, nonce, tx_count, amount).await?;
 
     state
         .broadcast_sender
