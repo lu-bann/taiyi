@@ -100,10 +100,10 @@ alloy-transport-http = { version = "1", default-features = false }
 alloy-trie = "0.8"
 alloy = { version = "1", features = ["full", "essentials" ,"rpc-types-beacon"] }
 # sp1
-sp1-build = "5"
-sp1-sdk = "5"
-sp1-verifier = "5"
-sp1-zkvm = "5"
+sp1-build = "5.0.5"
+sp1-sdk = "5.0.5"
+sp1-verifier = "5.0.5"
+sp1-zkvm = "5.0.5"
 
 aes = "0.8"
 ahash = "0.8.11"
@@ -155,7 +155,7 @@ sqlx = { default-features = true, version = "*", features = [
     "bigdecimal",
     "migrate"
 ] }
-ssz_rs = "0.9.0"
+ssz_rs = { git = "https://github.com/lu-bann/ssz-rs", rev = "b8c202e13bf117a895f949015e7215e20ad8f88b" }
 ssz_types = "0.11"
 thiserror = "2.0.12"
 time = { version = "0.3.37", features = ["macros", "formatting", "parsing"] }
