@@ -22,7 +22,6 @@ serde = { workspace = true, features = ["derive"] }
 ssz_rs = { workspace = true }
 taiyi-contracts = { workspace = true }
 taiyi-crypto = { workspace = true }
-taiyi-primitives = { workspace = true }
 taiyi-underwriter = { workspace = true }
 thiserror = { workspace = true }
 tiny-bip39 = { workspace = true }

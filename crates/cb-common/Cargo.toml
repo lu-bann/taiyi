@@ -41,4 +41,4 @@ tree_hash_derive = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 jsonwebtoken = { workspace = true }
-taiyi-primitives = { workspace = true }
+taiyi-crypto = { workspace = true }

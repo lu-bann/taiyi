@@ -17,8 +17,8 @@ use alloy_signer_local::PrivateKeySigner;
 use futures::{pin_mut, stream::Stream, StreamExt};
 use reqwest::Client;
 use taiyi_contracts::{TaiyiEscrow, TaiyiEscrowInstance};
+use taiyi_crypto::bls::{bls_pubkey_to_alloy, bls_signature_to_alloy};
 use taiyi_primitives::{
-    bls::{bls_pubkey_to_alloy, bls_signature_to_alloy},
     constraints::{ConstraintsMessage, SignableBLS, SignedConstraints},
     encode_util::hex_encode,
     PreconfRequest, PreconfRequestTypeB,

@@ -5,14 +5,16 @@ use clap::{Parser, ValueEnum};
 use eyre::Result;
 use reqwest::Url;
 use serde::Serialize;
-use taiyi_primitives::bls::{serialize_bls_publickey, serialize_bls_signature};
+use taiyi_crypto::bls::{
+    serialize_bls_publickey, serialize_bls_signature, PublicKey as BlsPublicKey,
+    Signature as BlsSignature,
+};
 use tracing::{debug, error, info};
 
 use crate::{
     keys_management::{dirk::Dirk, keystore::KeystoreSecret, signing::parse_bls_public_key},
     keysource::{generate_from_dirk, generate_from_keystore, generate_from_local_keys, KeySource},
 };
-use taiyi_primitives::bls::{PublicKey as BlsPublicKey, Signature as BlsSignature};
 
 const RELAY_DELEGATE_PATH: &str = "/constraints/v1/builder/delegate";
 const RELAY_REVOKE_PATH: &str = "/constraints/v1/builder/revoke";

@@ -57,7 +57,7 @@ impl UnderwriterCommand {
         //         init_metrics(metrics_port)?;
         //     }
 
-        let electra_fork_version = [6, 1, 112, 0];
+        let deneb_fork_version = [5, 1, 112, 0];
         taiyi_underwriter::api::run(
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
@@ -68,7 +68,7 @@ impl UnderwriterCommand {
             self.ecdsa_sk.clone(),
             self.relay_url.clone(),
             Address::from_str(&self.taiyi_escrow_address)?,
-            electra_fork_version,
+            deneb_fork_version,
         )
         .await?;
         Ok(())

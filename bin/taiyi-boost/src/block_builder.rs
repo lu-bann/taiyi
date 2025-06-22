@@ -1,7 +1,7 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
 use alloy_consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
 use alloy_eips::{calc_next_block_base_fee, eip1559::BaseFeeParams};
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, B256, U256};
 use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
@@ -11,13 +11,11 @@ use cb_common::{
         ExecutionRequests, GetHeaderResponse, KzgCommitments, PayloadAndBlobsElectra,
         SignedExecutionPayloadHeader,
     },
-    signature::compute_domain,
-    types::Chain,
 };
 use reqwest::Url;
 use taiyi_beacon_client::BeaconClient;
-use taiyi_cmd::keys_management::signing::compute_signing_root;
-use taiyi_primitives::bls::SecretKey as BlsSecretKey;
+use taiyi_cmd::keys_management::signing::{compute_fork_data_root, compute_signing_root};
+use taiyi_crypto::bls::SecretKey as BlsSecretKey;
 use tracing::debug;
 use tree_hash::TreeHash;
 
@@ -50,6 +48,7 @@ pub struct LocalBlockBuilder {
     fee_recipient: Address,
     extra_data: Bytes,
     bls_secret_key: BlsSecretKey,
+    fork_version: [u8; 4],
 }
 
 fn calc_excess_blob_gas(excess_blob_gas: u64, blob_gas_used: u64, max_blob_gas: u64) -> u64 {
@@ -73,6 +72,7 @@ impl LocalBlockBuilder {
         fee_recipient: Address,
         bls_secret_key: BlsSecretKey,
         auth_token: Option<String>,
+        fork_version: [u8; 4],
     ) -> Self {
         let beacon_api_client = BeaconClient::new(beacon_api.to_string(), auth_token);
         let engine_hinter = EngineHinter::new(jwt_secret, engine_api);
@@ -86,6 +86,7 @@ impl LocalBlockBuilder {
             fee_recipient,
             extra_data: DEFAULT_EXTRA_DATA.into(),
             bls_secret_key,
+            fork_version,
         }
     }
 
@@ -216,13 +217,23 @@ impl LocalBlockBuilder {
         // Note: the application builder domain specs require the genesis_validators_root
         // to be 0x00 for any out-of-protocol message. The commit-boost domain follows the
         // same rule.
-        let domain = compute_domain(Chain::Holesky, APPLICATION_BUILDER_DOMAIN);
+        let domain = compute_domain(self.fork_version)?;
         let object_root = message.tree_hash_root().0;
-        let signing_root = compute_signing_root(object_root, domain);
+        let signing_root = compute_signing_root(object_root, domain.0);
         let signature =
             self.bls_secret_key.sign(signing_root.as_slice(), BLS_DST_SIG, &[]).to_bytes();
         Ok(SignedExecutionPayloadHeader { message, signature: signature.into() })
     }
+}
+
+fn compute_domain(fork_version: [u8; 4]) -> eyre::Result<FixedBytes<32>> {
+    let genesis_validators_root = B256::ZERO;
+    let fork_data_root = compute_fork_data_root(fork_version, genesis_validators_root);
+
+    let mut domain = FixedBytes::<32>::default();
+    domain[..4].copy_from_slice(&APPLICATION_BUILDER_DOMAIN);
+    domain[4..].copy_from_slice(&fork_data_root[..28]);
+    Ok(domain)
 }
 
 #[cfg(test)]
@@ -308,6 +319,7 @@ mod tests {
         let chain_id: u64 = 13;
         let genesis_time: u64 = 1;
         let seconds_per_slot: u64 = 10;
+        let fork_version = [0u8; 4];
 
         let local_builder = LocalBlockBuilder::new(
             genesis_time,
@@ -319,6 +331,7 @@ mod tests {
             config.fee_recipient,
             config.builder_private_key.0,
             None,
+            fork_version,
         )
         .await;
 

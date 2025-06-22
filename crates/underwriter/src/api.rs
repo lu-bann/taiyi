@@ -24,8 +24,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use taiyi_contracts::TaiyiEscrowInstance;
+use taiyi_crypto::bls::{bls_pubkey_to_alloy, SecretKey};
 use taiyi_primitives::{
-    bls::{bls_pubkey_to_alloy, SecretKey},
     encode_util::hex_decode,
     slot_info::{HoleskySlotInfoFactory, SlotInfo},
     BlockspaceAllocation, PreconfFee, PreconfRequest, PreconfRequestTypeB,

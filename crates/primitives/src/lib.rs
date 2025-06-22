@@ -1,4 +1,3 @@
-pub mod bls;
 pub mod constraints;
 pub mod encode_util;
 pub mod log_util;

@@ -9,7 +9,7 @@ members = [
     "bin/taiyi-underwriter-monitor",
     "crates/beacon-client",
     "crates/cli",
-    "crates/common",
+    "crates/cb-common",
     "crates/contracts",
     "crates/bls",
     "crates/eth2_keystore",
@@ -65,7 +65,7 @@ taiyi-underwriter = { path = "crates/underwriter" }
 taiyi-zkvm-types = { path = "crates/zkvm-types" }
 bls = { path = "crates/bls" }
 eth2_keystore = { path = "crates/eth2_keystore" }
-cb-common = { path = "crates/common" }
+cb-common = { path = "crates/cb-common" }
 
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }

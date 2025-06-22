@@ -28,6 +28,7 @@ async fn main() -> Result<()> {
 
     let genesis_time: u64 = 1;
     let seconds_per_slot: u64 = 2;
+    let deneb_fork_version = [5, 1, 112, 0];
 
     let local_block_builder = LocalBlockBuilder::new(
         genesis_time,
@@ -39,6 +40,7 @@ async fn main() -> Result<()> {
         extra.fee_recipient,
         extra.builder_private_key.clone().0,
         extra.auth_token.clone(),
+        deneb_fork_version,
     )
     .await;
     let sidecar_state = SidecarBuilderState::new(local_block_builder);

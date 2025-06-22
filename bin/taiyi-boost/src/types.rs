@@ -27,8 +27,9 @@ use tree_hash::TreeHash;
 pub type HashTreeRootType = tree_hash::Hash256;
 /// List of transaction hashes and the corresponding hash tree roots of the raw transactions.
 pub type ConstraintsProofData = Vec<(TxHash, HashTreeRootType)>;
-// const MAX_TRANSACTIONS_PER_PAYLOAD: usize = 1048576;
-// const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
+
+type MaxBytesPerTransaction = ssz_types::typenum::U1073741824;
+type MaxTransactionsPerPayload = ssz_types::typenum::U1048576;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtraConfig {
@@ -330,35 +331,29 @@ pub fn to_cb_execution_payload_header(
 ) -> ExecutionPayloadHeader<ElectraSpec> {
     let header = &value.header;
     let transactions = &value.body.transactions;
-    let _withdrawals = &value.body.withdrawals;
+    let withdrawals = &value.body.withdrawals;
 
-    let _transactions_bytes = transactions.iter().map(|t| t.encoded_2718()).collect::<Vec<_>>();
+    let mut transactions_ssz: VariableList<
+        VariableList<u8, MaxBytesPerTransaction>,
+        MaxTransactionsPerPayload,
+    > = VariableList::default();
+    for tx in transactions {
+        transactions_ssz
+            .push(VariableList::<u8, MaxBytesPerTransaction>::from(tx.encoded_2718()))
+            .expect("Too many transactions");
+    }
+    let transactions_root = transactions_ssz.tree_hash_root();
 
-    // let mut transactions_ssz: List<ConsensusTransaction, MAX_TRANSACTIONS_PER_PAYLOAD> =
-    //     List::default();
+    let mut withdrawals_ssz: VariableList<WithdrawalWithTreeHash, MaxTransactionsPerPayload> =
+        VariableList::default();
 
-    // for tx in transactions_bytes {
-    //     transactions_ssz.push(ConsensusTransaction::try_from(tx.as_ref()).expect("invalid tx"));
-    // }
+    if let Some(withdrawals) = withdrawals.as_ref() {
+        for w in withdrawals.iter() {
+            withdrawals_ssz.push(to_consensus_withdrawal(w)).expect("Too many withdrawals");
+        }
+    }
 
-    // let transactions_root = B256::from_slice(
-    //     transactions_ssz.hash_tree_root().expect("valid transactions root").as_slice(),
-    // );
-    let transactions_root = B256::ZERO;
-
-    // let mut withdrawals_ssz: List<Withdrawal, MAX_WITHDRAWALS_PER_PAYLOAD> =
-    //     List::default();
-
-    // if let Some(withdrawals) = withdrawals.as_ref() {
-    //     for w in withdrawals.iter() {
-    //         withdrawals_ssz.push(to_consensus_withdrawal(w));
-    //     }
-    // }
-
-    // let withdrawals_root = B256::from_slice(
-    //     withdrawals_ssz.hash_tree_root().expect("valid withdrawals root").as_slice(),
-    // );
-    let withdrawals_root = B256::ZERO;
+    let withdrawals_root = withdrawals_ssz.tree_hash_root();
 
     ExecutionPayloadHeader::<ElectraSpec> {
         parent_hash: header.parent_hash,
@@ -381,11 +376,19 @@ pub fn to_cb_execution_payload_header(
     }
 }
 
-// pub fn to_consensus_withdrawal(value: &cbWithdrawal) -> Withdrawal {
-//     Withdrawal {
-//         index: value.index,
-//         validator_index: value.validator_index,
-//         address: value.address,
-//         amount: value.amount,
-//     }
-// }
+pub fn to_consensus_withdrawal(value: &Withdrawal) -> WithdrawalWithTreeHash {
+    WithdrawalWithTreeHash {
+        index: value.index,
+        validator_index: value.validator_index,
+        address: value.address,
+        amount: value.amount,
+    }
+}
+
+#[derive(Debug, tree_hash_derive::TreeHash)]
+pub struct WithdrawalWithTreeHash {
+    pub index: u64,
+    pub validator_index: u64,
+    pub address: Address,
+    pub amount: u64,
+}

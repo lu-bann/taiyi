@@ -10,7 +10,6 @@ alloy-primitives = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-rpc-types-beacon = { workspace = true }
-blst = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
@@ -23,8 +22,6 @@ uuid = { workspace = true }
 [dev-dependencies]
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
-alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
-eyre = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
