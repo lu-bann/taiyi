@@ -1,11 +1,7 @@
 use alloy_consensus::TxEnvelope;
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    sync::Arc,
-};
+use std::collections::{hash_map::Entry, HashMap};
 use taiyi_primitives::{PreconfRequest, PreconfRequestTypeB};
 use thiserror::Error;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -57,45 +53,37 @@ impl TxCache {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct TxCachePerSlot {
-    caches: Arc<RwLock<HashMap<u64, TxCache>>>,
+    caches: HashMap<u64, TxCache>,
 }
 
 impl TxCachePerSlot {
     pub fn new() -> Self {
-        Self { caches: Arc::new(RwLock::new(HashMap::new())) }
+        Self { caches: HashMap::new() }
     }
 
-    pub async fn add_with_calldata(&mut self, slot: u64, request: PreconfRequest) {
-        let mut caches = self.caches.write().await;
-        if let Entry::Vacant(e) = caches.entry(slot) {
+    pub fn add_with_calldata(&mut self, slot: u64, request: PreconfRequest) {
+        if let Entry::Vacant(e) = self.caches.entry(slot) {
             e.insert(TxCache::new());
         }
-        caches.get_mut(&slot).expect("Must be available").add_with_calldata(request);
+        self.caches.get_mut(&slot).expect("Must be available").add_with_calldata(request);
     }
 
-    pub async fn add_without_calldata(
-        &mut self,
-        slot: u64,
-        id: Uuid,
-        request: PreconfRequestTypeB,
-    ) {
-        let mut caches = self.caches.write().await;
-        if let Entry::Vacant(e) = caches.entry(slot) {
+    pub fn add_without_calldata(&mut self, slot: u64, id: Uuid, request: PreconfRequestTypeB) {
+        if let Entry::Vacant(e) = self.caches.entry(slot) {
             e.insert(TxCache::new());
         }
-        caches.get_mut(&slot).expect("Must be available").add_without_calldata(id, request);
+        self.caches.get_mut(&slot).expect("Must be available").add_without_calldata(id, request);
     }
 
-    pub async fn add_calldata(
+    pub fn add_calldata(
         &mut self,
         slot: u64,
         id: Uuid,
         tx: TxEnvelope,
     ) -> TxCacheResult<PreconfRequestTypeB> {
-        let mut caches = self.caches.write().await;
-        caches
+        self.caches
             .get_mut(&slot)
             .ok_or(TxCacheError::MissingSlotReservations { slot })?
             .add_calldata(id, tx)
@@ -105,10 +93,9 @@ impl TxCachePerSlot {
         &mut self,
         slot: u64,
     ) -> TxCacheResult<(Vec<PreconfRequest>, Vec<PreconfRequestTypeB>)> {
-        let mut caches = self.caches.write().await;
-        if let Entry::Vacant(e) = caches.entry(slot) {
+        if let Entry::Vacant(e) = self.caches.entry(slot) {
             e.insert(TxCache::new());
         }
-        Ok(caches.get_mut(&slot).ok_or(TxCacheError::MissingSlotReservations { slot })?.take())
+        Ok(self.caches.get_mut(&slot).ok_or(TxCacheError::MissingSlotReservations { slot })?.take())
     }
 }

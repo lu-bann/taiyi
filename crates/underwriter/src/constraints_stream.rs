@@ -1,4 +1,4 @@
-use std::{num::TryFromIntError, time::Duration};
+use std::{num::TryFromIntError, sync::Arc, time::Duration};
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::{
@@ -23,7 +23,10 @@ use taiyi_primitives::{
     encode_util::hex_encode,
     PreconfRequest, PreconfRequestTypeB,
 };
-use tokio::time::{interval_at, Instant};
+use tokio::{
+    sync::RwLock,
+    time::{interval_at, Instant},
+};
 use tokio_stream::wrappers::IntervalStream;
 use tracing::{debug, error, info};
 
@@ -64,7 +67,7 @@ pub async fn submit_constraints<P: Provider>(
     taiyi_core: TaiyiCoreInstance,
     slot_stream: impl Stream<Item = u64>,
     provider: P,
-    tx_cache: TxCachePerSlot,
+    tx_cache: Arc<RwLock<TxCachePerSlot>>,
     signer: PrivateKeySigner,
     bls_signer: BlsSigner,
     constraints_url: String,
@@ -109,8 +112,7 @@ pub async fn submit_constraints<P: Provider>(
 
         let mut total_preconf_tips = U256::ZERO;
 
-        let mut tx_cache = tx_cache.clone();
-        let (ready, pending) = tx_cache.take(next_slot).await?;
+        let (ready, pending) = tx_cache.write().await.take(next_slot).await?;
         let sponsor_nonce = nonce;
         nonce += 1;
         for preconf_req in ready {

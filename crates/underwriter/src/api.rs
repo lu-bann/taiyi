@@ -162,12 +162,12 @@ pub async fn health_check() -> impl IntoResponse {
 
 #[derive(Debug)]
 pub struct PreconfState<P: PreconfFeeProvider> {
-    pub underwriter: Arc<RwLock<Underwriter>>,
+    pub underwriter: RwLock<Underwriter>,
     pub last_slot: Arc<AtomicU64>,
     pub available_slots: Arc<RwLock<Vec<SlotInfo>>>,
-    pub preconf_fee_provider: Arc<RwLock<P>>,
-    pub tx_cache: TxCachePerSlot,
-    pub id_to_slot: Arc<RwLock<HashMap<Uuid, u64>>>,
+    pub preconf_fee_provider: RwLock<P>,
+    pub tx_cache: Arc<RwLock<TxCachePerSlot>>,
+    pub id_to_slot: RwLock<HashMap<Uuid, u64>>,
     pub broadcast_sender: BroadcastSender,
     pub min_duration_until_next_slot: Duration,
     pub slot_model: SlotModel,
@@ -180,19 +180,19 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         underwriter: Underwriter,
         last_slot: Arc<AtomicU64>,
         available_slots: Arc<RwLock<Vec<SlotInfo>>>,
-        preconf_fee_provider: Arc<RwLock<P>>,
-        tx_cache: TxCachePerSlot,
+        preconf_fee_provider: P,
+        tx_cache: Arc<RwLock<TxCachePerSlot>>,
         broadcast_sender: BroadcastSender,
         slot_model: SlotModel,
         account_state: AccountState<OnChainAccountInfoProvider>,
     ) -> Self {
         Self {
-            underwriter: Arc::new(underwriter.into()),
+            underwriter: underwriter.into(),
             last_slot,
             available_slots,
-            preconf_fee_provider,
+            preconf_fee_provider: preconf_fee_provider.into(),
             tx_cache,
-            id_to_slot: Arc::new(HashMap::new().into()),
+            id_to_slot: HashMap::new().into(),
             broadcast_sender,
             min_duration_until_next_slot: Duration::from_secs(1),
             slot_model,
@@ -310,9 +310,8 @@ pub async fn run(
     let underwriter = Underwriter::new(available_slots.clone());
 
     let last_slot = Arc::new(AtomicU64::new(0u64));
-    let preconf_fee_provider =
-        Arc::new(RwLock::new(TaiyiPreconfFeeProvider::new(taiyi_service_url)));
-    let tx_cache = TxCachePerSlot::new();
+    let preconf_fee_provider = TaiyiPreconfFeeProvider::new(taiyi_service_url);
+    let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
     let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
 
@@ -359,7 +358,7 @@ pub async fn run(
     let store_last_slot = StoreAvailableSlotsDecorator::new(
         beacon_rpc_url.clone(),
         alloy_bls_public_key,
-        Arc::new(vec![].into()),
+        available_slots,
         slots_per_epoch,
         epoch_lookahead,
         store_last_slot,
@@ -435,8 +434,7 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
         signer,
     };
     state.id_to_slot.write().await.insert(id, target_slot);
-    let mut tx_cache = state.tx_cache.clone();
-    tx_cache.add_without_calldata(target_slot, id, preconf_request).await;
+    state.tx_cache.write().await.add_without_calldata(target_slot, id, preconf_request);
     Ok(Json(id))
 }
 
@@ -488,13 +486,12 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
         .await
         .remove(&request.request_id)
         .ok_or(PreconfApiError::UnknownId { id: request.request_id })?;
-    let mut tx_cache = state.tx_cache.clone();
     verify_blobs(&[request.transaction.clone()])?;
     let request_gas_limit = request.transaction.gas_limit();
     let nonce = request.transaction.nonce();
     let amount = request.transaction.value();
     let preconf_request =
-        tx_cache.add_calldata(slot, request.request_id, request.transaction).await?;
+        state.tx_cache.write().await.add_calldata(slot, request.request_id, request.transaction)?;
     state.verify_within_deadline(preconf_request.target_slot())?;
     verify_reserved_gas_limit(request_gas_limit, preconf_request.allocation.gas_limit)?;
     state.account_state.reserve(&signer, nonce, amount).await?;

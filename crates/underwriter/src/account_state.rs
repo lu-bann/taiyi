@@ -58,14 +58,14 @@ impl AccountInfoMeta {
 
 #[derive(Debug, Default)]
 pub struct AccountState<Provider: AccountInfoProvider> {
-    accounts: Arc<RwLock<Vec<AccountInfoMeta>>>,
+    accounts: RwLock<Vec<AccountInfoMeta>>,
     last_slot: Arc<AtomicU64>,
     state_provider: Provider,
 }
 
 impl<Provider: AccountInfoProvider> AccountState<Provider> {
     pub fn new(last_slot: Arc<AtomicU64>, state_provider: Provider) -> Self {
-        Self { accounts: Arc::new(vec![].into()), last_slot, state_provider }
+        Self { accounts: vec![].into(), last_slot, state_provider }
     }
 
     async fn get_from_provider(&self, owner: &Address) -> AccountResult<AccountInfo> {
