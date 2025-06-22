@@ -6,7 +6,7 @@ members = [
     "bin/taiyi-boost",
     "bin/taiyi-cli",
 #    "bin/taiyi-fraud-proof-cli",
-#    "bin/taiyi-underwriter-monitor",
+    "bin/taiyi-underwriter-monitor",
     "crates/beacon-client",
     "crates/cli",
     "crates/common",
@@ -24,8 +24,8 @@ members = [
 #    "spammer",
 ]
 default-members = [
-#    "bin/taiyi",
-#    "bin/taiyi-boost",
+    "bin/taiyi",
+    "bin/taiyi-boost",
     "bin/taiyi-cli",
 #    "bin/taiyi-fraud-proof-cli",
 #    "bin/taiyi-underwriter-monitor",
