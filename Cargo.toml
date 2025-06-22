@@ -97,8 +97,8 @@ alloy-signer-local = { version = "1", features = ["mnemonic"] }
 alloy-sol-types = "1"
 alloy-transport = { version = "1" }
 alloy-transport-http = { version = "1", default-features = false }
-alloy-trie = "0.8"
-alloy = { version = "1", features = ["full", "essentials" ,"rpc-types-beacon"] }
+alloy-trie = "0.9"
+alloy = { version = "1.0.12", features = ["full", "essentials" ,"rpc-types-beacon"] }
 # sp1
 sp1-build = "5.0.5"
 sp1-sdk = "5.0.5"
@@ -111,7 +111,7 @@ arbitrary = { version = "1", features = ["derive"] }
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bimap = { version = "0.6.3", features = ["serde"] }
-blst = "0.3.0"
+blst = "0.3.15"
 bytes = "1.10.1"
 cipher = "0.4"
 clap = { version = "4.5.23", features = ["derive", "env"] }
@@ -138,7 +138,7 @@ pbkdf2 = "0.12.2"
 priority-queue = "2.1.1"
 prometheus = "0.13.4"
 prost = "0.13.4"
-rand = { version = "0.9", features = ["os_rng"] }
+rand = { version = "0.9.1", features = ["os_rng"] }
 reqwest = { version = "0.12.20", features = ["stream"] }
 rustls = "0.23.20"
 scc = "2.2.6"
