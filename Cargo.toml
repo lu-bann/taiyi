@@ -5,7 +5,7 @@ members = [
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
-#    "bin/taiyi-fraud-proof-cli",
+    "bin/taiyi-fraud-proof-cli",
     "bin/taiyi-underwriter-monitor",
     "crates/beacon-client",
     "crates/cli",
@@ -27,8 +27,8 @@ default-members = [
     "bin/taiyi",
     "bin/taiyi-boost",
     "bin/taiyi-cli",
-#    "bin/taiyi-fraud-proof-cli",
-#    "bin/taiyi-underwriter-monitor",
+    "bin/taiyi-fraud-proof-cli",
+    "bin/taiyi-underwriter-monitor",
     "crates/cli",
     "crates/primitives",
     "crates/contracts",
@@ -100,10 +100,10 @@ alloy-transport-http = { version = "1", default-features = false }
 alloy-trie = "0.8"
 alloy = { version = "1", features = ["full", "essentials" ,"rpc-types-beacon"] }
 # sp1
-sp1-build = "4.1.7"
-sp1-sdk = "4.1.7"
-sp1-verifier = "4.1.7"
-sp1-zkvm = "4.1.7"
+sp1-build = "5"
+sp1-sdk = "5"
+sp1-verifier = "5"
+sp1-zkvm = "5"
 
 aes = "0.8"
 ahash = "0.8.11"
@@ -111,7 +111,7 @@ arbitrary = { version = "1", features = ["derive"] }
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bimap = { version = "0.6.3", features = ["serde"] }
-blst = "0.3.12"
+blst = "0.3.0"
 bytes = "1.10.1"
 cipher = "0.4"
 clap = { version = "4.5.23", features = ["derive", "env"] }
