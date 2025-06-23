@@ -1,0 +1,42 @@
+[package]
+name = "taiyi-underwriter"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-consensus = { workspace = true, features = ["kzg"] }
+alloy-contract = { workspace = true }
+alloy-eips = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true, features = ["debug-api"] }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-beacon = { workspace = true }
+alloy-rpc-types-trace = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-transport = { workspace = true }
+axum = { workspace = true }
+blst = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+mockall = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+thiserror = { workspace = true }
+taiyi-contracts = { workspace = true }
+taiyi-crypto = { workspace = true }
+taiyi-primitives = { workspace = true }
+tracing = { workspace = true }
+tree_hash = { workspace = true }
+tree_hash_derive = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+url = { workspace = true }
+eyre = { workspace = true }
+
+[dev-dependencies]
+alloy-primitives = { workspace = true, features = ["getrandom"] }

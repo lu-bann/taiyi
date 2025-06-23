@@ -14,7 +14,7 @@ use crate::keys_management::{
     },
     signing::BLS_SIGNATURE_BYTES_LEN,
 };
-use taiyi_primitives::bls::Signature as BlsSignature;
+use taiyi_crypto::bls::Signature as BlsSignature;
 
 /// Options for connecting to a DIRK keystore.
 #[derive(Debug, Clone, Parser)]

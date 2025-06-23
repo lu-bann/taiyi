@@ -29,7 +29,7 @@ fn total_leaves(constraints: &ConstraintsData) -> usize {
 pub fn verify_multiproofs(
     constraints: &ConstraintsData,
     proofs: &InclusionProofs,
-    _root: B256,
+    root: B256,
 ) -> Result<(), ProofError> {
     // Check if the length of the leaves and indices match
     if proofs.transaction_hashes.len() != proofs.generalized_indexes.len() {
@@ -59,13 +59,13 @@ pub fn verify_multiproofs(
     }
 
     // Verify the Merkle multiproof against the root
-    // ssz_rs::multiproofs::verify_merkle_multiproof(
-    //     &leaves,
-    //     &proofs.merkle_hashes,
-    //     &proofs.generalized_indexes,
-    //     root,
-    // )
-    // .map_err(|_| ProofError::VerificationFailed)?;
+    ssz_rs::multiproofs::verify_merkle_multiproof(
+        &leaves,
+        &proofs.merkle_hashes,
+        &proofs.generalized_indexes,
+        root,
+    )
+    .map_err(|_| ProofError::VerificationFailed)?;
 
     Ok(())
 }

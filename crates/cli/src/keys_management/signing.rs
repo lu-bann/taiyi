@@ -1,7 +1,7 @@
 use alloy_primitives::B256;
 use eyre::{Context, Result};
 use ssz_rs::prelude::*;
-use taiyi_primitives::bls::PublicKey as BlsPublicKey;
+use taiyi_crypto::bls::PublicKey as BlsPublicKey;
 use tree_hash::TreeHash;
 
 pub const DOMAIN: [u8; 4] = [109, 109, 111, 67];

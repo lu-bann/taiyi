@@ -70,25 +70,11 @@ async fn tx_settlement_listener(
     genesis_timestamp: u64,
     db_conn: TaiyiDBConnection,
 ) -> eyre::Result<()> {
-    // Create a ws provider
     info!("connecting to WS...");
     let ws = WsConnect::new(execution_client_ws_url);
-    let provider = match ProviderBuilder::new().on_ws(ws).await {
-        Ok(provider) => provider,
-        Err(e) => {
-            error!("[Settlement Monitor]: Failed to create provider: {}", e);
-            return Err(eyre::eyre!("Failed to create provider: {}", e));
-        }
-    };
+    let provider = ProviderBuilder::new().connect_ws(ws).await?;
 
-    // Subscribe to block headers.
-    let subscription = match provider.subscribe_blocks().await {
-        Ok(sub) => sub,
-        Err(e) => {
-            error!("[Settlement Monitor]: Failed to subscribe to blocks: {}", e);
-            return Err(eyre::eyre!("Failed to subscribe to blocks: {}", e));
-        }
-    };
+    let subscription = provider.subscribe_blocks().await?;
     let mut stream = subscription.into_stream();
 
     while let Some(header) = stream.next().await {

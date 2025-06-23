@@ -4,7 +4,7 @@ use alloy::primitives::Address;
 use eyre::WrapErr;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde::Deserialize;
-use taiyi_primitives::bls::Signature as BlsSignature;
+use taiyi_crypto::bls::Signature as BlsSignature;
 use url::Url;
 
 use super::{

@@ -5,7 +5,7 @@ use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::PreconfFeeResponse;
+use crate::PreconfFee;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeB {
@@ -82,7 +82,7 @@ pub struct BlockspaceAllocation {
     /// Number of blobs to reserve
     pub blob_count: usize,
     /// Gas fees quoted by the underwriter for the transaction
-    pub preconf_fee: PreconfFeeResponse,
+    pub preconf_fee: PreconfFee,
 }
 
 impl BlockspaceAllocation {

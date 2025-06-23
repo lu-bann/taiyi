@@ -4,7 +4,7 @@ use alloy_primitives::{hex, keccak256, Address, B256, U256};
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 
-use crate::PreconfFeeResponse;
+use crate::PreconfFee;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct PreconfRequestTypeA {
@@ -19,7 +19,7 @@ pub struct PreconfRequestTypeA {
     /// The signer of the request
     pub signer: Address,
     /// The quoted price by the underwriter
-    pub preconf_fee: PreconfFeeResponse,
+    pub preconf_fee: PreconfFee,
 }
 
 impl PreconfRequestTypeA {
@@ -69,7 +69,6 @@ impl PreconfRequestTypeA {
         )
     }
 
-    /// Returns the total value transfer
     pub fn value(&self) -> U256 {
         let mut total = self.tip_transaction.value();
         for tx in &self.preconf_tx {
@@ -106,5 +105,13 @@ impl SubmitTypeATransactionRequest {
         }
         digest.extend_from_slice(&self.target_slot.to_be_bytes());
         keccak256(&digest)
+    }
+
+    pub fn value(&self) -> U256 {
+        let mut total = self.tip_transaction.value();
+        for tx in &self.preconf_transaction {
+            total += tx.value();
+        }
+        total
     }
 }

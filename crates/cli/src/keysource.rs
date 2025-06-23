@@ -23,7 +23,7 @@ use crate::{
         signing::{compute_commit_boost_signing_root, compute_domain_from_mask},
     },
 };
-use taiyi_primitives::bls::{
+use taiyi_crypto::bls::{
     PublicKey as BlsPublicKey, SecretKey as BlsSecretKey, Signature as BlsSignature,
 };
 
