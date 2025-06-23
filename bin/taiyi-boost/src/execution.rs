@@ -187,61 +187,83 @@ impl ExecutionClient {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::str::FromStr;
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
 
-//     use alloy_consensus::constants::ETH_TO_WEI;
-//     use alloy_node_bindings::Anvil;
-//     use alloy_primitives::{uint, Uint};
+    use alloy_consensus::constants::ETH_TO_WEI;
+    use alloy_network::{AnyNetwork, TransactionBuilder};
+    use alloy_node_bindings::Anvil;
+    use alloy_primitives::{uint, Uint};
+    use alloy_provider::Provider;
+    use alloy_rpc_types_eth::TransactionRequest;
 
-//     use super::*;
-//     use crate::utils::tests::get_test_config;
+    use super::*;
 
-//     #[tokio::test]
-//     async fn test_rpc_client() {
-//         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
-//         let anvil_url = Url::from_str(&anvil.endpoint()).unwrap();
-//         let client = ExecutionClient::new(anvil_url);
+    #[tokio::test]
+    async fn test_rpc_client() {
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let anvil_url = Url::from_str(&anvil.endpoint()).unwrap();
+        let client = ExecutionClient::new(anvil_url);
 
-//         let addr = anvil.addresses().first().unwrap();
+        let addr = anvil.addresses().first().unwrap();
 
-//         let account_state = client.get_account_state(addr, None).await.unwrap();
+        let account_state = client.get_account_state(addr, None).await.unwrap();
 
-//         // Accounts in Anvil start with 10_000 ETH
-//         assert_eq!(account_state.balance, uint!(10_000U256 * Uint::from(ETH_TO_WEI)));
+        // Accounts in Anvil start with 10_000 ETH
+        assert_eq!(account_state.balance, uint!(10_000U256 * Uint::from(ETH_TO_WEI)));
 
-//         assert_eq!(account_state.transaction_count, 0);
-//     }
+        assert_eq!(account_state.transaction_count, 0);
+    }
 
-//     #[tokio::test]
-//     async fn test_get_receipts() -> eyre::Result<()> {
-//         let _ = tracing_subscriber::fmt().try_init();
-//         let Some(config) = get_test_config()? else {
-//             eprintln!("Skipping test because required environment variables are not set");
-//             return Ok(());
-//         };
-//         let client = ExecutionClient::new(config.execution_api.clone());
+    fn gen_test_tx_request(
+        sender: Address,
+        chain_id: u64,
+        nonce: Option<u64>,
+    ) -> TransactionRequest {
+        TransactionRequest::default()
+            .with_from(sender)
+            // Burn it
+            .with_to(Address::ZERO)
+            .with_chain_id(chain_id)
+            .with_nonce(nonce.unwrap_or(0))
+            .with_value(U256::from(100))
+            .with_gas_limit(21_000)
+            .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
+            .with_max_fee_per_gas(20_000_000_000)
+    }
 
-//         let _receipts = client
-//             .get_receipts(&[
-//                 TxHash::from_str(
-//                     "0xc0e4c278eb6e90c285cbe7dd28c5da4282d819b38667da353922f8ef5e7a2eec",
-//                 )
-//                 .unwrap(),
-//                 TxHash::from_str(
-//                     "0x5a22423048cd9bd76eee03a1deae0527d74850a2f0af179b363cde25309b275f",
-//                 )
-//                 .unwrap(),
-//                 TxHash::from_str(
-//                     "0x467602dac55190551fd9a143ca8c8e45e6892c86c9e9703c21aac4f30484b80f",
-//                 )
-//                 .unwrap(),
-//             ])
-//             .await
-//             .unwrap();
+    #[tokio::test]
+    async fn test_get_receipts() -> eyre::Result<()> {
+        let _ = tracing_subscriber::fmt().try_init();
 
-//         println!("{_receipts:?}");
-//         Ok(())
-//     }
-// }
+        let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
+        let anvil_url = Url::from_str(&anvil.endpoint()).unwrap();
+        let sender: Address = <alloy_network::EthereumWallet as alloy_network::NetworkWallet<
+            AnyNetwork,
+        >>::default_signer_address(&anvil.wallet().unwrap());
+
+        // send 1 dummy tx on anvil using alloy's client
+        let provider = ProviderBuilder::new().connect_http(anvil_url.clone());
+        let hash = provider
+            .send_transaction(gen_test_tx_request(sender, 0, None))
+            .await?
+            .with_required_confirmations(1)
+            .with_timeout(Some(std::time::Duration::from_secs(10)))
+            .watch()
+            .await?;
+
+        // test functionality of our own client
+        let client = ExecutionClient::new(anvil_url.clone());
+        let receipts = client.get_receipts(&[hash]).await?;
+
+        let Some(Some(receipt)) = receipts.first() else {
+            return Err(eyre::eyre!("expected to fetch one transaction receipt"));
+        };
+
+        assert!(receipt.from == sender, "transaction sender mismatch");
+
+        println!("{receipts:?}");
+        Ok(())
+    }
+}
