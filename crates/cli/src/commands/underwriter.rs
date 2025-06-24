@@ -4,6 +4,8 @@ use std::str::FromStr;
 use alloy_primitives::Address;
 use clap::Parser;
 
+pub const HOLESKY_GENESIS_TIMESTAMP: u64 = 1_695_902_400;
+
 #[derive(Debug, Parser)]
 pub struct UnderwriterCommand {
     /// jsonrpc service address to listen on.
@@ -58,6 +60,8 @@ impl UnderwriterCommand {
         //     }
 
         let deneb_fork_version = [5, 1, 112, 0];
+        let genesis_timestamp = HOLESKY_GENESIS_TIMESTAMP;
+
         taiyi_underwriter::api::run(
             self.taiyi_rpc_addr,
             self.taiyi_rpc_port,
@@ -69,6 +73,7 @@ impl UnderwriterCommand {
             self.relay_url.clone(),
             Address::from_str(&self.taiyi_escrow_address)?,
             deneb_fork_version,
+            genesis_timestamp,
         )
         .await?;
         Ok(())
