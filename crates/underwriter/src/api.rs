@@ -53,8 +53,6 @@ use crate::{
     underwriter::{verify_tip, Underwriter, UnderwriterError},
 };
 
-pub const HOLESKY_GENESIS_TIMESTAMP: u64 = 1_695_902_400;
-
 const HEALTH: &str = "/health";
 const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
 const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
@@ -290,10 +288,10 @@ pub async fn run(
     relay_url: String,
     taiyi_escrow_address: Address,
     fork_version: [u8; 4],
+    genesis_timestamp: u64,
 ) -> PreconfApiResult<()> {
     println!("run...");
 
-    let genesis_timestamp = HOLESKY_GENESIS_TIMESTAMP;
     let genesis_since_epoch = Duration::from_secs(genesis_timestamp);
     let slot_duration = Duration::from_secs(12);
     let slots_per_epoch = 32u64;

@@ -243,7 +243,6 @@ mod tests {
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_primitives::{address, Address};
     use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_rpc_types_eth::TransactionRequest;
     use alloy_signer::k256::ecdsa::SigningKey;
     use alloy_signer_local::PrivateKeySigner;
     use cb_common::utils::utcnow_sec;
@@ -251,6 +250,7 @@ mod tests {
     use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};
 
     use super::*;
+    use crate::constraints::tests::gen_test_tx_request;
 
     fn get_test_config() -> eyre::Result<Option<ExtraConfig>> {
         if env::var("ENGINE_API").is_err()
@@ -279,23 +279,6 @@ mod tests {
             engine_jwt: JwtSecretWrapper::try_from(jwt_secret.as_str())?,
             auth_token,
         }))
-    }
-
-    fn gen_test_tx_request(
-        sender: Address,
-        chain_id: u64,
-        nonce: Option<u64>,
-    ) -> TransactionRequest {
-        TransactionRequest::default()
-            .with_from(sender)
-            // Burn it
-            .with_to(Address::ZERO)
-            .with_chain_id(chain_id)
-            .with_nonce(nonce.unwrap_or(0))
-            .with_value(U256::from(100))
-            .with_gas_limit(21_000)
-            .with_max_priority_fee_per_gas(1_000_000_000) // 1 gwei
-            .with_max_fee_per_gas(20_000_000_000)
     }
 
     #[test]
