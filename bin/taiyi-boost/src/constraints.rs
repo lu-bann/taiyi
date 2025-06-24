@@ -69,7 +69,7 @@ pub async fn subscribe_to_constraints_stream(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use alloy_eips::eip2718::Encodable2718;
     use alloy_network::{EthereumWallet, TransactionBuilder};
     use alloy_primitives::{Address, Bytes, U256};
@@ -80,7 +80,7 @@ mod tests {
 
     use super::*;
 
-    fn gen_test_tx_request(
+    pub fn gen_test_tx_request(
         sender: Address,
         chain_id: u64,
         nonce: Option<u64>,
