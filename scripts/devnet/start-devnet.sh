@@ -2,9 +2,7 @@ set -xe
 # set default enclave name
 source "$(dirname "$0")/config.sh"
 
-if [ -z "$TAIYI_BOOST_IMAGE" ]; then
-  export TAIYI_BOOST_IMAGE="lubann/taiyi:latest"
-fi
+export TAIYI_BOOST_IMAGE="${TAIYI_BOOST_IMAGE:-lubann/taiyi:latest}"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS (Darwin)
