@@ -37,6 +37,7 @@ pub struct DelegateCommand {
     #[clap(subcommand)]
     pub source: KeySource,
 
+    #[clap(long)]
     pub fork_version: u32,
 }
 
