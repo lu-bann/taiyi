@@ -13,15 +13,16 @@ sp1-build = { workspace = true }
 [dev-dependencies]
 alloy = { workspace = true }
 clap = { workspace = true }
-eth-trie-proofs = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }
 lazy_static = { workspace = true }
 reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 sp1-sdk = { workspace = true }
 taiyi-cmd = { workspace = true }
 taiyi-primitives = { workspace = true }
+taiyi-underwriter = { workspace = true }
 taiyi-zkvm-types = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

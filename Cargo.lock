@@ -7255,6 +7255,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-e2e-tests"
+version = "0.1.8"
+dependencies = [
+ "alloy",
+ "clap",
+ "eyre",
+ "hex",
+ "lazy_static",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "taiyi-cmd",
+ "taiyi-primitives",
+ "taiyi-underwriter",
+ "taiyi-zkvm-types",
+ "tokio",
+ "tracing",
+ "tracing-core",
+ "tree_hash",
+ "uuid",
+]
+
+[[package]]
 name = "taiyi-fraud-proof-cli"
 version = "0.1.8"
 dependencies = [

@@ -54,13 +54,13 @@ use crate::{
     underwriter::{verify_tip, Underwriter, UnderwriterError},
 };
 
-const HEALTH: &str = "/health";
-const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
-const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
-const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
-const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
-const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
-const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
+pub const HEALTH: &str = "/health";
+pub const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
+pub const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
+pub const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
+pub const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
+pub const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
+pub const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Error)]
