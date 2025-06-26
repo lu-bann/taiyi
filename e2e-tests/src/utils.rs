@@ -14,18 +14,17 @@ use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use clap::Parser;
-use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, UnderwriterCommand};
 use taiyi_primitives::{
-    BlockspaceAllocation as BlockspaceAlloc, PreconfFeeResponse, PreconfRequest,
-    PreconfResponseData, SignedConstraints, SlotInfo, SubmitTransactionRequest,
+    constraints::SignedConstraints, slot_info::SlotInfo, BlockspaceAllocation as BlockspaceAlloc,
+    PreconfFee, PreconfRequest, PreconfResponseData, SubmitTransactionRequest,
     SubmitTypeATransactionRequest,
 };
-use taiyi_underwriter::{
-    context_ext::ContextExt, AVAILABLE_SLOT_PATH, PRECONF_FEE_PATH, RESERVE_BLOCKSPACE_PATH,
-    SUBMIT_TRANSACTION_PATH, SUBMIT_TYPEA_TRANSACTION_PATH,
+use taiyi_underwriter::api::{
+    AVAILABLE_SLOTS, PRECONF_FEE, RESERVE_BLOCKSPACE, RESERVE_SLOT_WITHOUT_CALLDATA,
+    RESERVE_SLOT_WITH_CALLDATA,
 };
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -81,7 +80,9 @@ pub struct TestConfig {
     pub beacon_url: String,
     pub relay_url: String,
     pub taiyi_port: u16,
-    pub context: Context,
+    pub genesis_time: u64,
+    pub seconds_per_slot: u64,
+    pub fork_version: [u8; 4],
     pub taiyi_core: Address,
     pub sp1_private_key: String,
 }
@@ -114,7 +115,6 @@ impl TestConfig {
         let config_path = format!("{}/{}/config.yaml", working_dir, "el_cl_genesis_data");
         let p = Path::new(&config_path);
         info!("config file path: {:?}", p);
-        let context = Context::try_from_file(p).unwrap();
         let taiyi_core = Address::from_str(&taiyi_core).unwrap();
         let config = Self {
             working_dir,
@@ -122,7 +122,9 @@ impl TestConfig {
             beacon_url,
             relay_url,
             taiyi_port,
-            context,
+            genesis_time: 1750950419,
+            seconds_per_slot: 12,
+            fork_version: hex::decode("00000000").unwrap().try_into().unwrap(),
             taiyi_core,
             sp1_private_key,
         };
@@ -212,23 +214,23 @@ pub async fn wait_until_slot(beacon_node_url: &str, slot: u64) -> eyre::Result<(
 
 pub async fn get_available_slot(taiyi_url: &str) -> eyre::Result<Vec<SlotInfo>> {
     let client = reqwest::Client::new();
-    let res = client.get(&format!("{}{}", taiyi_url, AVAILABLE_SLOT_PATH)).send().await?;
+    let res = client.get(format!("{}{}", taiyi_url, AVAILABLE_SLOTS)).send().await?;
     let res_b = res.bytes().await?;
     let available_slots = serde_json::from_slice::<Vec<SlotInfo>>(&res_b)?;
     Ok(available_slots)
 }
 
-pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFeeResponse> {
+pub async fn get_preconf_fee(taiyi_url: &str, slot: u64) -> eyre::Result<PreconfFee> {
     let client = reqwest::Client::new();
-    let res = client.post(&format!("{}{}", taiyi_url, PRECONF_FEE_PATH)).json(&slot).send().await?;
+    let res = client.post(format!("{}{}", taiyi_url, PRECONF_FEE)).json(&slot).send().await?;
     let res_b = res.bytes().await?;
-    let preconf_fee = serde_json::from_slice::<PreconfFeeResponse>(&res_b)?;
+    let preconf_fee = serde_json::from_slice::<PreconfFee>(&res_b)?;
     Ok(preconf_fee)
 }
 
 pub async fn health_check(taiyi_url: &str) -> eyre::Result<String> {
     let client = reqwest::Client::new();
-    let res = client.get(&format!("{}/health", taiyi_url)).send().await?;
+    let res = client.get(format!("{}/health", taiyi_url)).send().await?;
     let res_b = res.text().await?;
     Ok(res_b)
 }
@@ -239,7 +241,7 @@ pub async fn get_constraints_from_relay(
 ) -> eyre::Result<Vec<SignedConstraints>> {
     let client = reqwest::Client::new();
     let res = client
-        .get(&format!("{}/relay/v1/builder/constraints?slot={}", relay_url, target_slot))
+        .get(format!("{}/relay/v1/builder/constraints?slot={}", relay_url, target_slot))
         .send()
         .await?;
     let res_b = res.text().await?;
@@ -252,7 +254,8 @@ pub async fn wait_until_deadline_of_slot(
     config: &TestConfig,
     target_slot: u64,
 ) -> eyre::Result<()> {
-    let deadline = config.context.get_deadline_of_slot(target_slot);
+    // deadline is the beginning of the next slot (TODO check if this is correct or off-by-one)
+    let deadline = config.genesis_time + ((target_slot + 1) * config.seconds_per_slot);
     let time_diff = deadline.saturating_sub(
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
     );
@@ -264,7 +267,7 @@ pub async fn wait_until_deadline_of_slot(
 pub async fn get_block_from_slot(beacon_url: &str, slot: u64) -> eyre::Result<u64> {
     let client = reqwest::Client::new();
     let response = client
-        .get(&format!("{}/eth/v2/beacon/blocks/{}", beacon_url, slot))
+        .get(format!("{}/eth/v2/beacon/blocks/{}", beacon_url, slot))
         .send()
         .await?
         .json::<serde_json::Value>()
@@ -360,7 +363,7 @@ pub async fn generate_reserve_blockspace_request(
     target_slot: u64,
     gas_limit: u64,
     blob_count: u64,
-    preconf_fee: PreconfFeeResponse,
+    preconf_fee: PreconfFee,
     chain_id: u64,
 ) -> (BlockspaceAlloc, String) {
     let fee = preconf_fee.gas_fee * (gas_limit as u128)
@@ -398,7 +401,7 @@ pub async fn generate_type_a_request(
     signer: PrivateKeySigner,
     target_slot: u64,
     execution_url: &str,
-    fee: PreconfFeeResponse,
+    fee: PreconfFee,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
     let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
@@ -444,7 +447,7 @@ pub async fn generate_type_a_request_with_multiple_txs(
     signer: PrivateKeySigner,
     target_slot: u64,
     execution_url: &str,
-    fee: PreconfFeeResponse,
+    fee: PreconfFee,
     count: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
     let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
@@ -496,7 +499,7 @@ pub async fn generate_type_a_request_with_nonce(
     signer: PrivateKeySigner,
     target_slot: u64,
     execution_url: &str,
-    fee: PreconfFeeResponse,
+    fee: PreconfFee,
     nonce: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
     let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
@@ -543,7 +546,7 @@ pub async fn send_reserve_blockspace_request(
     signature: String,
     taiyi_url: &str,
 ) -> eyre::Result<Response> {
-    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(RESERVE_BLOCKSPACE_PATH).unwrap();
+    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(RESERVE_BLOCKSPACE).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
         .header("content-type", "application/json")
@@ -559,7 +562,8 @@ pub async fn send_submit_transaction_request(
     signature: String,
     taiyi_url: &str,
 ) -> eyre::Result<Response> {
-    let request_endpoint = Url::parse(&taiyi_url).unwrap().join(SUBMIT_TRANSACTION_PATH).unwrap();
+    let request_endpoint =
+        Url::parse(&taiyi_url).unwrap().join(RESERVE_SLOT_WITHOUT_CALLDATA).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
         .header("content-type", "application/json")
@@ -576,7 +580,7 @@ pub async fn send_type_a_request(
     taiyi_url: &str,
 ) -> eyre::Result<Response> {
     let request_endpoint =
-        Url::parse(&taiyi_url).unwrap().join(SUBMIT_TYPEA_TRANSACTION_PATH).unwrap();
+        Url::parse(&taiyi_url).unwrap().join(RESERVE_SLOT_WITH_CALLDATA).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
         .header("content-type", "application/json")

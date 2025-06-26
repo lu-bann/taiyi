@@ -9,6 +9,8 @@ use axum::http::HeaderValue;
 use blst::min_pk::{PublicKey, Signature};
 use rand::prelude::*;
 use reqwest::header::HeaderMap;
+#[cfg(test)]
+use serde::{de::DeserializeOwned, Serialize};
 use ssz::{Decode, Encode};
 use tracing::Level;
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
@@ -65,6 +67,8 @@ pub fn eth_to_wei(eth: f64) -> U256 {
 /// Test that the encoding and decoding works, returns the decoded struct
 #[cfg(test)]
 pub fn test_encode_decode<T: Serialize + DeserializeOwned>(d: &str) -> T {
+    use serde_json::Value;
+
     let decoded = serde_json::from_str::<T>(d).expect("deserialize");
 
     // re-encode to make sure that different formats are ignored

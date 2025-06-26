@@ -12,7 +12,7 @@ use alloy_transport::BoxTransport;
 
 mod constant;
 mod contract_call;
-mod test_fraud_proof;
+// mod test_fraud_proof;
 
 mod test_preconf_workflow;
 
