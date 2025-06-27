@@ -19,6 +19,7 @@ lazy_static = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 sp1-sdk = { workspace = true }
 taiyi-cmd = { workspace = true }
 taiyi-primitives = { workspace = true }

@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use std::fs::File;
 use std::sync::Arc;
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
@@ -15,6 +16,7 @@ use alloy::signers::Signer;
 use alloy::signers::local::PrivateKeySigner;
 use alloy::sol;
 use clap::Parser;
+use eyre::eyre;
 use reqwest::{Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use taiyi_cmd::{initialize_tracing_log, UnderwriterCommand};
@@ -42,13 +44,11 @@ use crate::{
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
     // static ref TAIYI_PROCESS: Mutex<Option<TaiyiProcess>> =  Mutex::new(None);
-    static ref TAIYI_INSTANCE:Arc <TaiyiProcess> = {
+    static ref TAIYI_INSTANCE:Arc<TaiyiProcess> = {
         // This closure is executed only once, on the first access.
         let config = TestConfig::from_env();
-
         let process = TaiyiProcess::new(&config)
             .expect("Failed to start shared Taiyi process for tests");
-
         Arc::new(process)
     };
     static ref TAIYI_PORT: u16 = {
@@ -103,6 +103,15 @@ impl std::fmt::Debug for TestConfig {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GenesisConfig {
+    #[serde(rename = "GENESIS_FORK_VERSION")]
+    genesis_fork_version: String,
+
+    #[serde(rename = "MIN_GENESIS_TIME")]
+    min_genesis_time: u64,
+}
+
 impl TestConfig {
     pub fn from_env() -> Self {
         let working_dir =
@@ -123,8 +132,13 @@ impl TestConfig {
         let sp1_private_key = std::env::var("SP1_PRIVATE_KEY").unwrap_or_else(|_| "".to_string()); // Only required for the `generate-proof` feature
 
         let config_path = format!("{}/{}/config.yaml", working_dir, "el_cl_genesis_data");
-        let p = Path::new(&config_path);
-        info!("config file path: {:?}", p);
+        info!("config file path: {:?}", config_path);
+        let GenesisConfig { genesis_fork_version, min_genesis_time } = serde_yaml::from_reader(
+            File::open(&config_path)
+                .unwrap_or_else(|_| panic!("Failed to open config file at {:?}", config_path)),
+        )
+        .unwrap_or_else(|_| panic!("Failed to parse YAML from {:?}", config_path));
+
         let taiyi_core = Address::from_str(&taiyi_core).unwrap();
         let config = Self {
             working_dir,
@@ -132,9 +146,14 @@ impl TestConfig {
             beacon_url,
             relay_url,
             taiyi_port,
-            genesis_time: 1750950419,
+            genesis_time: min_genesis_time,
             seconds_per_slot: 12,
-            fork_version: hex::decode("00000000").unwrap().try_into().unwrap(),
+            fork_version: hex::decode(
+                genesis_fork_version.strip_prefix("0x").unwrap_or(&genesis_fork_version),
+            )
+            .expect("could not parse fork version hex")
+            .try_into()
+            .expect("hex number not of expected length"),
             taiyi_core,
             sp1_private_key,
         };
