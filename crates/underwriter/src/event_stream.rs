@@ -12,6 +12,7 @@ use std::{
 use taiyi_primitives::slot_info::{SlotInfo, SlotInfoFactory};
 use thiserror::Error;
 use tokio::sync::RwLock;
+use tracing::{debug, error};
 
 const EVENT_KEY: &str = "event:head";
 const DELEGATION_ACTION: u8 = 0;
@@ -160,11 +161,18 @@ pub async fn process_event_stream<F: EventHandler>(
     pin_mut!(stream);
     while let Some(Ok(bytes)) = stream.next().await {
         let text = String::from_utf8_lossy(&bytes);
+        debug!("begin processing event: {}", text);
         if text.contains(EVENT_KEY) {
             let text =
                 text.trim().trim_start_matches(EVENT_KEY).trim().trim_start_matches("data:").trim();
             let head: HeadEvent = serde_json::from_str(text)?;
-            f.handle_event(head).await?;
+            match f.handle_event(head).await {
+                Ok(_) => debug!("finished processing event: {}", text),
+                Err(e) => {
+                    error!("error processing event: {e}");
+                    continue;
+                }
+            }
         }
     }
     Ok(())
