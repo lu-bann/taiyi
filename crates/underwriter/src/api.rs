@@ -304,7 +304,8 @@ pub async fn run(
     let signer =
         PrivateKeySigner::from_signing_key(SigningKey::from_slice(&hex_decode(&ecdsa_sk)?)?);
 
-    let chain_id = beacon_provider.get_chain_id().await?;
+    let chain_id = execution_provider.get_chain_id().await?;
+    info!("chain_id: {chain_id}");
 
     let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(vec![]));
     let underwriter = Underwriter::new(available_slots.clone());
