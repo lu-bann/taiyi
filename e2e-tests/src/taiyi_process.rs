@@ -24,7 +24,8 @@ pub struct TaiyiProcess {
 impl TaiyiProcess {
     pub fn new(config: &TestConfig) -> Result<Self, std::io::Error> {
         let network_dir = format!("{}/{}", config.working_dir, "el_cl_genesis_data");
-        let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("path");
+        let manifest =
+            std::env::var("CARGO_MANIFEST_DIR").expect("no CARGO_MANIFEST_DIR in environment");
         let manifest_path = Path::new(manifest.as_str());
         let binary = manifest_path.parent().expect("parent").join("target/debug/taiyi");
         let mut command = Command::new(binary);

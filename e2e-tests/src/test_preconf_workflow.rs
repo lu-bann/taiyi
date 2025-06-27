@@ -178,7 +178,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     info!("Block number: {}", block_number);
 
     assert!(
-        verify_tx_in_block(&config.execution_url, block_number, transaction.tx_hash().clone())
+        verify_tx_in_block(&config.execution_url, block_number, *transaction.tx_hash())
             .await
             .is_ok(),
         "tx is not in the block"
@@ -284,7 +284,7 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
 #[tokio::test]
 async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Result<()> {
     // Start taiyi command in background
-    let (taiyi_handle, config) = setup_env().await?;
+    let (_taiyi_handle, config) = setup_env().await?;
     let signer = new_account(&config).await?;
 
     let provider = ProviderBuilder::new()
@@ -346,7 +346,7 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
     //     verify_tx_in_block(
     //         &config.execution_url,
     //         block_number,
-    //         exhaust_tx.unwrap().tx_hash().clone()
+    //         exhaust_tx.unwrap().tx_hash()
     //     )
     //     .await
     //     .is_ok(),
@@ -425,7 +425,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
 
     // check if constraints contains our transaction
     assert!(
-        txs.contains(&request.preconf_transaction.first().unwrap()),
+        txs.contains(request.preconf_transaction.first().unwrap()),
         "preconf tx {:?} is not in the constraints",
         request.preconf_transaction.first().unwrap().tx_hash()
     );
@@ -440,20 +440,16 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     info!("Block number: {}", block_number);
 
     assert!(
-        verify_tx_in_block(
-            &config.execution_url,
-            block_number,
-            request.tip_transaction.tx_hash().clone()
-        )
-        .await
-        .is_ok(),
+        verify_tx_in_block(&config.execution_url, block_number, *request.tip_transaction.tx_hash())
+            .await
+            .is_ok(),
         "tip tx is not in the block"
     );
     assert!(
         verify_tx_in_block(
             &config.execution_url,
             block_number,
-            request.preconf_transaction.first().unwrap().tx_hash().clone()
+            *request.preconf_transaction.first().unwrap().tx_hash()
         )
         .await
         .is_ok(),
@@ -527,7 +523,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
 
     // Check if constraints contains only user1's transactions
     assert!(
-        txs.contains(&request1.preconf_transaction.first().unwrap()),
+        txs.contains(request1.preconf_transaction.first().unwrap()),
         "User1's preconf tx {:?} is in the constraints",
         request1.preconf_transaction.first().unwrap().tx_hash()
     );
@@ -537,7 +533,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
         request1.tip_transaction.tx_hash()
     );
     assert!(
-        txs.contains(&request2.preconf_transaction.first().unwrap()),
+        txs.contains(request2.preconf_transaction.first().unwrap()),
         "User2's preconf tx {:?} should be in the constraints",
         request2.preconf_transaction.first().unwrap().tx_hash()
     );
@@ -556,7 +552,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
         verify_tx_in_block(
             &config.execution_url,
             block_number,
-            request1.tip_transaction.tx_hash().clone()
+            *request1.tip_transaction.tx_hash()
         )
         .await
         .is_ok(),
@@ -566,7 +562,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
         verify_tx_in_block(
             &config.execution_url,
             block_number,
-            request1.preconf_transaction.first().unwrap().tx_hash().clone()
+            *request1.preconf_transaction.first().unwrap().tx_hash()
         )
         .await
         .is_ok(),
@@ -576,7 +572,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
         verify_tx_in_block(
             &config.execution_url,
             block_number,
-            request2.tip_transaction.tx_hash().clone()
+            *request2.tip_transaction.tx_hash()
         )
         .await
         .is_ok(),
@@ -586,7 +582,7 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
         verify_tx_in_block(
             &config.execution_url,
             block_number,
-            request2.preconf_transaction.first().unwrap().tx_hash().clone()
+            *request2.preconf_transaction.first().unwrap().tx_hash()
         )
         .await
         .is_ok(),
