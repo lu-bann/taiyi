@@ -296,7 +296,7 @@ pub async fn verify_tx_in_block(
     block_number: u64,
     target_tx_hash: TxHash,
 ) -> eyre::Result<()> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
 
     let tx_receipt =
         provider.get_transaction_by_hash(target_tx_hash).await?.expect("tx receipt not found");
@@ -305,7 +305,7 @@ pub async fn verify_tx_in_block(
 }
 
 pub async fn verify_txs_inclusion(execution_url: &str, txs: Vec<TxEnvelope>) -> eyre::Result<()> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
 
     for tx in &txs {
         info!("checking tx inclusion: {:?}", tx.tx_hash());
@@ -320,7 +320,7 @@ pub async fn generate_tx(
     execution_url: &str,
     signer: PrivateKeySigner,
 ) -> eyre::Result<TxEnvelope> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
@@ -347,7 +347,7 @@ pub async fn generate_tx_with_nonce(
     signer: PrivateKeySigner,
     nonce: u64,
 ) -> eyre::Result<TxEnvelope> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
@@ -413,7 +413,7 @@ pub async fn generate_type_a_request(
     execution_url: &str,
     fee: PreconfFee,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
@@ -460,7 +460,7 @@ pub async fn generate_type_a_request_with_multiple_txs(
     fee: PreconfFee,
     count: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
@@ -512,7 +512,7 @@ pub async fn generate_type_a_request_with_nonce(
     fee: PreconfFee,
     nonce: u64,
 ) -> eyre::Result<(SubmitTypeATransactionRequest, String)> {
-    let provider = ProviderBuilder::new().on_http(Url::from_str(execution_url)?);
+    let provider = ProviderBuilder::new().connect_http(Url::from_str(execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
     let sender = signer.address();
@@ -609,7 +609,7 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     info!("Funding signer: {:?}", funding.address());
     let wallet = EthereumWallet::new(funding.clone());
     let provider =
-        ProviderBuilder::new().wallet(wallet).on_http(Url::from_str(&config.execution_url)?);
+        ProviderBuilder::new().wallet(wallet).connect_http(Url::from_str(&config.execution_url)?);
     let new_signer = PrivateKeySigner::random();
     let mut tx = TransactionRequest::default();
     tx.set_to(new_signer.address());
