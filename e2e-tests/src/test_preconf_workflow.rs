@@ -118,7 +118,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     assert_eq!(preconf_response.request_id, request_id);
 
     let commitment_string = preconf_response.commitment.unwrap();
-    let commitment = alloy_primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
+    let commitment = alloy_primitives::Signature::from_str(&commitment_string).unwrap();
     let mut tx_bytes = Vec::new();
     transaction.clone().encode_2718(&mut tx_bytes);
     let raw_tx = format!("0x{}", hex::encode(&tx_bytes));

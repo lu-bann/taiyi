@@ -14,9 +14,13 @@ use crate::{
     utils::TestConfig,
 };
 
+// The struct that holds the process.
+// Its Drop implementation will handle cleanup.
 #[derive(Debug)]
 pub struct TaiyiProcess {
-    process: Child,
+    // We wrap the Child in a Mutex<Option<...>> to allow us
+    // to "take" it during drop, which is a common pattern for Drop logic.
+    process: Mutex<Option<Child>>,
 }
 
 impl TaiyiProcess {
@@ -47,51 +51,21 @@ impl TaiyiProcess {
             ])
             .spawn()?;
 
-        Ok(TaiyiProcess { process })
-    }
-
-    pub fn kill(&mut self) {
-        let _ = self.process.kill();
-        let _ = self.process.wait(); // Wait for the process to exit
+        Ok(TaiyiProcess { process: Mutex::new(Some(process)) })
     }
 }
 
-pub struct ResourceManager {
-    resource: Arc<Mutex<TaiyiProcess>>,
-    ref_count: Arc<Mutex<usize>>,
-}
-
-impl ResourceManager {
-    pub fn new(test_config: &TestConfig) -> Self {
-        let taiyi = TaiyiProcess::new(test_config).expect("taiyi process failed");
-        ResourceManager {
-            resource: Arc::new(Mutex::new(taiyi)),
-            ref_count: Arc::new(Mutex::new(0)),
-        }
-    }
-
-    pub fn acquire(&self) -> ResourceHandle {
-        let mut count = self.ref_count.lock().unwrap();
-        *count += 1;
-        ResourceHandle { resource: self.resource.clone(), ref_count: self.ref_count.clone() }
-    }
-}
-
-#[derive(Debug)]
-pub struct ResourceHandle {
-    resource: Arc<Mutex<TaiyiProcess>>,
-    ref_count: Arc<Mutex<usize>>,
-}
-
-impl Drop for ResourceHandle {
+// when the last Arc<TaiyiProcess> is dropped,
+// this code will automatically run.
+impl Drop for TaiyiProcess {
     fn drop(&mut self) {
-        let mut count = self.ref_count.lock().unwrap();
-        *count -= 1;
-
-        if *count == 0 {
-            // Last handle is being dropped, perform cleanup
-            if let Ok(mut resource) = self.resource.lock() {
-                resource.kill();
+        if let Some(mut child) = self.process.lock().unwrap().take() {
+            info!("last TaiyiProcess handle dropped. killing taiyi process.");
+            if let Err(e) = child.kill() {
+                error!("failed to kill taiyi process: {}", e);
+            }
+            if let Err(e) = child.wait() {
+                error!("failed to wait for taiyi process exit: {}", e);
             }
         }
     }
