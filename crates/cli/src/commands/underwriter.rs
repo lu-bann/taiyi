@@ -3,8 +3,7 @@ use std::str::FromStr;
 
 use alloy_primitives::Address;
 use clap::Parser;
-
-pub const HOLESKY_GENESIS_TIMESTAMP: u64 = 1_695_902_400;
+use eyre::{eyre, ContextCompat};
 
 #[derive(Debug, Parser)]
 pub struct UnderwriterCommand {
@@ -32,9 +31,12 @@ pub struct UnderwriterCommand {
     #[clap(long, env = "TAIYI_ECDSA_SK")]
     pub ecdsa_sk: String,
 
-    /// network
-    #[clap(long, env = "NETWORK")]
-    pub network: String,
+    /// Hex string representing the fork version, e.g., "0x00000000" for Mainnet, "0x01017000" for Holesky
+    #[clap(long)]
+    pub fork_version: String,
+
+    #[clap(long)]
+    pub genesis_timestamp: u64,
 
     /// consensus client rpc url
     #[clap(long, value_delimiter = ',')]
@@ -59,8 +61,18 @@ impl UnderwriterCommand {
         //         init_metrics(metrics_port)?;
         //     }
 
-        let deneb_fork_version = [5, 1, 112, 0];
-        let genesis_timestamp = HOLESKY_GENESIS_TIMESTAMP;
+        println!("Starting on port {}", self.taiyi_rpc_port);
+        // decode the fork version from hex string
+        println!("Fork version: {}", self.fork_version);
+        let fork_version: [u8; 4] = {
+            hex::decode(
+                self.fork_version
+                    .strip_prefix("0x")
+                    .wrap_err("Fork version must start with '0x'")?,
+            )?
+            .try_into()
+            .map_err(|x| eyre!("could not convert vec to slice: {x:?}"))?
+        };
 
         taiyi_underwriter::api::run(
             self.taiyi_rpc_addr,
@@ -72,8 +84,8 @@ impl UnderwriterCommand {
             self.ecdsa_sk.clone(),
             self.relay_url.clone(),
             Address::from_str(&self.taiyi_escrow_address)?,
-            deneb_fork_version,
-            genesis_timestamp,
+            fork_version,
+            self.genesis_timestamp,
         )
         .await?;
         Ok(())

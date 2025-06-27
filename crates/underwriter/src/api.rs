@@ -290,7 +290,7 @@ pub async fn run(
     fork_version: [u8; 4],
     genesis_timestamp: u64,
 ) -> PreconfApiResult<()> {
-    println!("run...");
+    info!("taiyi starting up");
 
     let genesis_since_epoch = Duration::from_secs(genesis_timestamp);
     let slot_duration = Duration::from_secs(12);
@@ -298,7 +298,7 @@ pub async fn run(
     let epoch_duration = Duration::from_secs(slot_duration.as_secs() * slots_per_epoch);
 
     let taiyi_addr = SocketAddr::new(taiyi_rpc_addr, taiyi_rpc_port);
-    let beacon_provider = ProviderBuilder::new().connect_http(Url::from_str(&beacon_rpc_url)?);
+    // let beacon_provider = ProviderBuilder::new().connect_http(Url::from_str(&beacon_rpc_url)?);
     let execution_provider =
         ProviderBuilder::new().connect_http(Url::from_str(&execution_rpc_url)?);
     let signer =
@@ -379,9 +379,22 @@ pub async fn run(
         BlsSigner::new(signer.address(), Some(chain_id), bls_private_key, fork_version);
 
     tokio::select!(
-        _ = axum::serve(listener, app) => { println!("terminating server") },
-        _ = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream")},
-        _ = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
+        _ = axum::serve(listener, app) => {
+            println!("server task terminated, exiting ...")
+        },
+        _ = process_event_stream(event_stream, store_last_slot) => {
+            println!("stream task terminated, exiting ...")
+        },
+        _ = submit_constraints(
+            taiyi_escrow,
+            slot_stream,
+            execution_provider,
+            tx_cache.clone(),
+            signer,
+            bls_signer,
+            relay_url,
+            slots_per_epoch
+        ) => { println!("stream task terminated, exiting ...")}
     );
     Ok(())
 }
