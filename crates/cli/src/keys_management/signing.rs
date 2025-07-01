@@ -12,10 +12,26 @@ use eyre::{eyre, Context, Result};
 pub const BLS_DST_PREFIX: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
 pub const BLS_SIGNATURE_BYTES_LEN: usize = 96;
 
+pub fn get_network_fork_version(network: Network) -> Result<[u8; 4]> {
+    match network {
+        Network::Custom(s) => {
+            if s == "hoodi" {
+                Ok([16, 0, 9, 16]) // 0x10000910
+            } else {
+                Err(eyre!("Network {s:?} not supported"))
+            }
+        }
+        _ => {
+            let context: CLContext = network.try_into()?;
+            Ok(context.genesis_fork_version)
+        }
+    }
+}
+
 /// Helper function to compute the signing root for a message
 pub fn compute_commit_boost_signing_root(message: [u8; 32], network: Network) -> Result<B256> {
-    let context: CLContext = network.try_into()?;
-    compute_signing_root(&message, compute_domain_from_mask(context.genesis_fork_version))
+    let fork_version = get_network_fork_version(network)?;
+    compute_signing_root(&message, compute_domain_from_mask(fork_version))
         // Ethereum-consensus uses a different version of alloy so we need to do this cast
         .map(|r| B256::from_slice(r.to_vec().as_slice()))
         .map_err(|e| eyre!("Failed to compute signing root: {}", e))
