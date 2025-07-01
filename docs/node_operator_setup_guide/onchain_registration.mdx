@@ -1,6 +1,6 @@
 ---
 title: 'Onchain Registration'
-description: 'Step-by-step guide for deploying and registering your Taiyi node on Holesky testnet.'
+description: 'Step-by-step guide for deploying and registering your Taiyi node on testnet.'
 icon: 'server'
 ---
 <Note>
@@ -28,7 +28,7 @@ After register as an EigenLayer operator, register yourself into the Taiyi proto
 
 <CodeGroup>
 
-```bash Holesky
+```bash holesky
 taiyi-cli register-for-operator-sets \
     --execution-rpc-url $EXECUTION_URL \
     --operator-set-ids 0 \
@@ -37,6 +37,19 @@ taiyi-cli register-for-operator-sets \
     --allocation-manager-address 0x78469728304326CBc65f8f95FA756B0B73164462 \
     --avs-address 0xC568b4cB806f38a5c487DE63F5C4dD600d53767E \
     --avs-directory-address 0x055733000064333CaDDbC92763c58BF0192fFeBf \
+    --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
+    --socket $YOUR_ORGS_NAME
+```
+
+```bash hoodi
+taiyi-cli register-for-operator-sets \
+    --execution-rpc-url $EXECUTION_URL \
+    --operator-set-ids 0 \
+    --operator-bls-key $UNDERWRITER_BLS_PUBLIC_KEY \
+    --private-key $UNDERWRITER_ECDSA_PRIVATE_KEY \
+    --allocation-manager-address 0x95a7431400F362F3647a69535C5666cA0133CAA0 \
+    --avs-address 0xd50b60903F15f2958528DbCA3Dd8F2673780C12c \
+    --avs-directory-address 0xD58f6844f79eB1fbd9f7091d05f7cb30d3363926 \
     --salt 0x0000000000000000000000000000000000000000000000000000000000000000 \
     --socket $YOUR_ORGS_NAME
 ```
@@ -53,7 +66,7 @@ This command:
 After registering as an Operator, you can register your validator keys to the Taiyi service. This allows your validator to participate in the preconf game.
 
 <CodeGroup>
-```bash Holesky
+```bash hoodi
 taiyi-cli register-validators \
     --execution-rpc-url $EXECUTION_URL \
     --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
@@ -64,16 +77,27 @@ taiyi-cli register-validators \
     --path /path/to/validators \
     --password-path /path/to/secrets
 ```
+```bash hoodi
+taiyi-cli register-validators \
+    --execution-rpc-url $EXECUTION_URL \
+    --private-key $VALIDATOR_OPERATOR_PRIVATE_KEY \
+    --taiyi-middleware-address 0xd50b60903F15f2958528DbCA3Dd8F2673780C12c \
+    --operator-address $VALIDATOR_OPERATOR_ADDRESS \
+    --collateral 100000000000000000 \
+    local-keystore \
+    --path /path/to/validators \
+    --password-path /path/to/secrets
+```
 </CodeGroup>
 
 <Note>
-The validator pubkeys should be your holesky validator's pubkey.
+The validator pubkeys should be your testnet validator's pubkey.
 
 If you have your validators already staking in network, you can use the existing validator keys to register with pod-owners 0x0000000000000000000000000000000000000000.
 
 If you have your validators already natively staking in eigenlayer, you can use the existing validator keys to register with your own eigenlayer pod address.
 
-We don't support register as gateway avs operator right now,so make sure to delegated your preconf rights to luban holesky gateway pubkey: `b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9`
+We don't support register as gateway avs operator right now,so make sure to delegated your preconf rights to luban testnet gateway pubkey: `b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9`
 </Note>
 
 ## 4. Delegate Validator Keys
@@ -91,11 +115,21 @@ Finally, delegate your validator keys to the Taiyi Gateway. This allows your val
 *Source: [Preconfirmations API Specification](https://github.com/ethereum-commitments/constraints-specs/blob/main/specs/preconf-api.md#endpoint-constraintsv0builderdelegate)*
 
 <CodeGroup>
-```bash Holesky
+```bash holesky
 taiyi-cli delegate \
   --relay-url https://relay.holesky.luban.wtf \
   --underwriter-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
   --network holesky \
+  local-keystore \
+  --path /path/to/validators \
+  --password-path /path/to/secrets
+```
+
+```bash hoodi
+taiyi-cli delegate \
+  --relay-url https://relay.hoodi.luban.wtf \
+  --underwriter-pubkey b2796db1455143b39c4b6104dddbaf3fdca059009b9df3f61c729bac81cadd355fcc3fc61f5185a4748eb3bf298c0ad9 \
+  --network hoodi \
   local-keystore \
   --path /path/to/validators \
   --password-path /path/to/secrets
@@ -128,12 +162,19 @@ taiyi-cli operator-info \
     --operator-address <VALIDATOR_OPERATOR_ADDRESS> \
     --linglong-coordinator-address 0x4778517B371D996476D0a0Fc240fa754391ad5e7
 ```
+
+```bash hoodi
+taiyi-cli operator-info \
+    --execution-rpc-url <EXECUTION_URL> \
+    --operator-address <VALIDATOR_OPERATOR_ADDRESS> \
+    --linglong-coordinator-address 0x9bdfeFcE06AFB7Ee3Cb13a3d8C413281b7F909B7
+```
 </CodeGroup>
 
 
 ## 5. Deposit WETH to EigenLayer Strategy(Optional)
 
-Before depositing into the EigenLayer strategy contract, ensure you have sufficient WETH tokens in your account. You can check your WETH balance on Holesky testnet at [Etherscan](https://holesky.etherscan.io/address/0x94373a4919B3240D86eA41593D5eBa789FEF3848#readContract).
+Before depositing into the EigenLayer strategy contract, ensure you have sufficient WETH tokens in your account. You can check your WETH balance on testnet at [Etherscan](https://holesky.etherscan.io/address/0x94373a4919B3240D86eA41593D5eBa789FEF3848#readContract).
 If you already stake in eigenlayer, you can skip this step.
 
 To check your balance:
@@ -161,7 +202,7 @@ First, you need to deposit WETH into the EigenLayer strategy contract. This stak
 *Source: [EigenLayer AVS Book - Stakers](https://eigenlabs.gitbook.io/avs-book/learn/eigenlayer-a-visual-guide/actors/stakers)*
 
 <CodeGroup>
-```bash Holesky
+```bash holesky
 # Convert ETH to WETH first if needed
 # Then approve and deposit WETH to allocation manager
 # allocation manager address modify distribution
@@ -174,6 +215,22 @@ taiyi-cli deposit \
   --allocation-manager-address 0x78469728304326CBc65f8f95FA756B0B73164462 \
   --operator-set-id 0 \
   --linglong-eigenlayer-middleware-address 0xC568b4cB806f38a5c487DE63F5C4dD600d53767E \
+  --wad 1000000000000000000
+```
+
+```bash hoodi
+# Convert ETH to WETH first if needed
+# Then approve and deposit WETH to allocation manager
+# allocation manager address modify distribution
+taiyi-cli deposit \
+  --execution-rpc-url https://ethereum-hoodi.publicnode.com \
+  --strategy-address 0x24579ad4fe83ac53546e5c2d3df5f85d6383420d	 \
+  --amount <AMOUNT> \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --strategy-manager-address 0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41	 \
+  --allocation-manager-address 0x95a7431400F362F3647a69535C5666cA0133CAA0 \
+  --operator-set-id 0 \
+  --linglong-eigenlayer-middleware-address 0xd50b60903F15f2958528DbCA3Dd8F2673780C12c \
   --wad 1000000000000000000
 ```
 </CodeGroup>
