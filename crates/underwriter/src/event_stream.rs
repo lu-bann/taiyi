@@ -2,6 +2,7 @@ use alloy::rpc::types::beacon::{events::HeadEvent, BlsPublicKey, BlsSignature};
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 use reqwest::{Client, Error};
+use serde::Deserialize;
 use std::{
     future::Future,
     sync::{
@@ -12,7 +13,7 @@ use std::{
 use taiyi_primitives::slot_info::{SlotInfo, SlotInfoFactory};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 const EVENT_KEY: &str = "event:head";
 const DELEGATION_ACTION: u8 = 0;
@@ -124,22 +125,16 @@ impl<F: EventHandler, Factory: SlotInfoFactory> EventHandler
 {
     async fn handle_event(&self, event: HeadEvent) -> Result<(), Error> {
         let slot = event.slot;
+        let epoch_transition = event.epoch_transition;
         self.f.handle_event(event).await?;
         self.available_slots.write().await.retain(|info| info.slot > slot);
-        let first_slot = self
-            .available_slots
-            .read()
-            .await
-            .iter()
-            .map(|info| info.slot)
-            .next_back()
-            .unwrap_or(slot + 1);
-        let slot_in_epoch = slot % self.slots_per_epoch;
-        let last_slot = slot + self.epoch_lookahead * self.slots_per_epoch - slot_in_epoch;
-        if last_slot > first_slot {
+        if epoch_transition {
+            let first_slot = slot + self.slots_per_epoch;
+            let last_slot = first_slot + self.slots_per_epoch;
             let assigned_slots = self.get_assigned_slots(first_slot, last_slot).await?;
             self.available_slots.write().await.extend(assigned_slots);
         }
+
         Ok(())
     }
 }
@@ -190,6 +185,31 @@ pub struct SignedDelegation {
     pub signature: BlsSignature,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+struct BeaconBlock {
+    version: String,
+    data: BeaconBlockData,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct BeaconBlockData {
+    message: BeaconBlockMessage,
+}
+fn parse<'de, T, D>(de: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    Ok(String::deserialize(de)?.parse().map_err(serde::de::Error::custom)?)
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct BeaconBlockMessage {
+    #[serde(deserialize_with = "parse")]
+    slot: u64,
+}
+
 pub async fn get_assigned_validator(url: &str, slot: u64) -> Result<Option<BlsPublicKey>, Error> {
     let url = format!("{url}/relay/v1/builder/delegations");
     let delegations: Vec<SignedDelegation> =
@@ -204,4 +224,30 @@ pub async fn get_assigned_validator(url: &str, slot: u64) -> Result<Option<BlsPu
             }
         })
         .next())
+}
+
+pub async fn get_head_slot(url: &str) -> Result<u64, Error> {
+    let url = format!("{url}/eth/v2/beacon/blocks/head");
+    let block: BeaconBlock = Client::new().get(url).send().await?.json().await?;
+    Ok(block.data.message.slot)
+}
+
+pub async fn get_initial_assigned_validator<Factory: SlotInfoFactory>(
+    beacon_url: &str,
+    relay_url: &str,
+    slots_per_epoch: u64,
+    underwriter_pubkey: BlsPublicKey,
+    factory: Factory,
+) -> Result<Vec<SlotInfo>, Error> {
+    let head_slot = get_head_slot(beacon_url).await?;
+    let epoch = head_slot / slots_per_epoch;
+    let mut available_slots = vec![];
+    for slot in (head_slot + 1)..(epoch + 2) * slots_per_epoch {
+        if let Some(assigned_validator) = get_assigned_validator(relay_url, slot).await? {
+            if assigned_validator == underwriter_pubkey {
+                available_slots.push(factory.slot_info(slot));
+            }
+        }
+    }
+    Ok(available_slots)
 }

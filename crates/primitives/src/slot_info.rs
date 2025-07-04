@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub const GAS_LIMIT: u64 = 30_000_000;
+pub const BLOBS_LIMIT: usize = 9;
+pub const CONSTRAINTS_LIMIT: u32 = 12;
+
 #[derive(Debug, Error, PartialEq)]
 pub enum SlotInfoError {
     #[error("Required gas: {required}. Available: {available}")]
@@ -23,12 +27,17 @@ pub trait SlotInfoFactory {
     fn slot_info(&self, slot: u64) -> SlotInfo;
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct HoleskySlotInfoFactory {}
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HoleskySlotInfoFactory;
 
 impl SlotInfoFactory for HoleskySlotInfoFactory {
     fn slot_info(&self, slot: u64) -> SlotInfo {
-        SlotInfo { slot, gas_available: 30_000_000, blobs_available: 9, constraints_available: 12 }
+        SlotInfo {
+            slot,
+            gas_available: GAS_LIMIT,
+            blobs_available: BLOBS_LIMIT,
+            constraints_available: CONSTRAINTS_LIMIT,
+        }
     }
 }
 
