@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{num::ParseIntError, time::Duration};
 
 use alloy_signer::k256::sha2::{Digest, Sha256};
 use clap::{Parser, ValueEnum};
@@ -37,8 +37,20 @@ pub struct DelegateCommand {
     #[clap(subcommand)]
     pub source: KeySource,
 
-    #[clap(long)]
-    pub fork_version: u32,
+    #[clap(long, env = "FORK_VERSION", value_parser = parse_fork_version)]
+    pub fork_version: [u8; 4],
+}
+
+fn parse_fork_version(s: &str) -> Result<[u8; 4], hex::FromHexError> {
+    // Remove "0x" prefix if present
+    let cleaned = s.trim_start_matches("0x");
+    let decoded = hex::decode(cleaned)?;
+    if decoded.len() != 4 {
+        return Err(hex::FromHexError::InvalidStringLength);
+    }
+    let mut res = [0; 4];
+    res.copy_from_slice(&decoded);
+    Ok(res)
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -56,7 +68,7 @@ impl DelegateCommand {
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
                     underwriter_pubkey,
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with local keys", signed_messages.len());
@@ -70,7 +82,7 @@ impl DelegateCommand {
                     &opts.path,
                     keystore_secret,
                     underwriter_pubkey,
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with keystore", signed_messages.len());
@@ -87,7 +99,7 @@ impl DelegateCommand {
                     underwriter_pubkey,
                     opts.wallet_path.clone(),
                     opts.passphrases.clone(),
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )
                 .await?;
