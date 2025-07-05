@@ -13,7 +13,7 @@ use std::{
 use taiyi_primitives::slot_info::{SlotInfo, SlotInfoFactory};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 const EVENT_KEY: &str = "event:head";
 const DELEGATION_ACTION: u8 = 0;
@@ -76,7 +76,6 @@ pub struct StoreAvailableSlotsDecorator<F: EventHandler, Factory: SlotInfoFactor
     underwriter: BlsPublicKey,
     available_slots: Arc<RwLock<Vec<SlotInfo>>>,
     slots_per_epoch: u64,
-    epoch_lookahead: u64,
     f: F,
     slot_info_factory: Factory,
 }
@@ -87,19 +86,10 @@ impl<F: EventHandler, Factory: SlotInfoFactory> StoreAvailableSlotsDecorator<F, 
         underwriter: BlsPublicKey,
         available_slots: Arc<RwLock<Vec<SlotInfo>>>,
         slots_per_epoch: u64,
-        epoch_lookahead: u64,
         f: F,
         slot_info_factory: Factory,
     ) -> Self {
-        Self {
-            url,
-            underwriter,
-            available_slots,
-            slots_per_epoch,
-            epoch_lookahead,
-            f,
-            slot_info_factory,
-        }
+        Self { url, underwriter, available_slots, slots_per_epoch, f, slot_info_factory }
     }
 
     async fn get_assigned_slots(
