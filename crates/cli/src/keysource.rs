@@ -5,7 +5,7 @@ use clap::Parser;
 use eth2_keystore::Keystore;
 use eyre::{bail, Result};
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 #[derive(Debug, Error)]
 pub enum BlstError {
@@ -24,9 +24,7 @@ use crate::{
         signing::{compute_commit_boost_signing_root, compute_domain_from_mask},
     },
 };
-use taiyi_crypto::bls::{
-    PublicKey as BlsPublicKey, SecretKey as BlsSecretKey, Signature as BlsSignature,
-};
+use taiyi_crypto::bls::{PublicKey as BlsPublicKey, SecretKey as BlsSecretKey};
 
 #[derive(Debug, Clone, Parser)]
 pub enum KeySource {
