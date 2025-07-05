@@ -166,9 +166,8 @@ impl DelegationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.delegatee_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.delegatee_pubkey.compress());
         hasher.finalize().into()
     }
 }
@@ -199,9 +198,8 @@ impl RevocationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.underwriter_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.underwriter_pubkey.compress());
         hasher.finalize().into()
     }
 }
