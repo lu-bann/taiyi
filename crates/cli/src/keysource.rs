@@ -1,10 +1,11 @@
 // codes are basically copied from https://github.com/chainbound/bolt/blob/89253d92b079adf0abf6c9279eeed1d5dc7a3aed/bolt-cli/src/common/keystore.rs
 use alloy_primitives::B256;
+use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
 use clap::Parser;
 use eth2_keystore::Keystore;
 use eyre::{bail, Result};
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Error)]
 pub enum BlstError {
@@ -74,7 +75,7 @@ pub fn generate_from_local_keys(
                 let message = DelegationMessage::new(sk.sk_to_pk(), underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
-                let signature = sk.sign(signing_root.0.as_ref(), &[], &[]);
+                let signature = sk.sign(signing_root.0.as_ref(), BLS_DST_SIG, &[]);
                 let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed))
             }
@@ -82,7 +83,7 @@ pub fn generate_from_local_keys(
                 let message = RevocationMessage::new(sk.sk_to_pk(), underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
-                let signature = sk.sign(signing_root.0.as_ref(), &[], &[]);
+                let signature = sk.sign(signing_root.0.as_ref(), BLS_DST_SIG, &[]);
                 let signed = SignedRevocation { message, signature };
                 signed_messages.push(SignedMessage::Revocation(signed));
             }
@@ -116,31 +117,26 @@ pub fn generate_from_keystore(
         let kp = ks.decrypt_keypair(password.as_bytes()).map_err(KeystoreError::Eth2Keystore)?;
         let validator_pubkey = BlsPublicKey::deserialize(kp.pk.serialize().to_vec().as_ref())
             .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?;
-        let validator_private_key = kp.sk;
+        let validator_private_key = BlsSecretKey::deserialize(kp.sk.serialize().as_ref())
+            .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?;
 
         match action {
             Action::Delegate => {
                 let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
-                let signature = validator_private_key.sign(signing_root.0.into());
-                let signed = SignedDelegation {
-                    message,
-                    signature: BlsSignature::deserialize(&signature.serialize())
-                        .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?,
-                };
+                let signature =
+                    validator_private_key.sign(signing_root.0.as_ref(), BLS_DST_SIG, &[]);
+                let signed = SignedDelegation { message, signature };
                 signed_messages.push(SignedMessage::Delegation(signed));
             }
             Action::Revoke => {
                 let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey);
                 let signing_root =
                     compute_commit_boost_signing_root(message.digest(), fork_version)?;
-                let signature = validator_private_key.sign(signing_root.0.into());
-                let signed = SignedRevocation {
-                    message,
-                    signature: BlsSignature::deserialize(&signature.serialize())
-                        .map_err(|err| BlstError::Deserialize { msg: format!("{:?}", err) })?,
-                };
+                let signature =
+                    validator_private_key.sign(signing_root.0.as_ref(), BLS_DST_SIG, &[]);
+                let signed = SignedRevocation { message, signature };
                 signed_messages.push(SignedMessage::Revocation(signed));
             }
         }
