@@ -386,13 +386,13 @@ pub async fn run(
         BlsSigner::new(signer.address(), Some(chain_id), bls_private_key, fork_version);
 
     tokio::select!(
-        _ = axum::serve(listener, app) => {
-            println!("server task terminated, exiting ...")
+        res = axum::serve(listener, app) => {
+            error!("server task terminated because of {res:?}, exiting ...")
         },
-        _ = process_event_stream(event_stream, store_last_slot) => {
-            println!("stream task terminated, exiting ...")
+        res = process_event_stream(event_stream, store_last_slot) => {
+            error!("stream task terminated because of {res:?}, exiting ...")
         },
-        _ = submit_constraints(
+        res = submit_constraints(
             taiyi_escrow,
             slot_stream,
             execution_provider,
@@ -401,7 +401,7 @@ pub async fn run(
             bls_signer,
             relay_url,
             slots_per_epoch
-        ) => { println!("stream task terminated, exiting ...")}
+        ) => { error!("submit constraints task terminated because of {res:?}, exiting ...") }
     );
     Ok(())
 }

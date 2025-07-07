@@ -122,7 +122,10 @@ pub async fn submit_constraints<P: Provider>(
             match preconf_req {
                 PreconfRequest::TypeA(request) => {
                     gas = gas_used(&provider, request.tip_transaction.clone()).await?;
+                    info!("Tip tx: {:?}", request.tip_transaction);
                     for preconf_tx in request.preconf_tx.clone() {
+                        info!("Preconf tx: {:?}", preconf_tx);
+
                         gas += gas_used(&provider, preconf_tx).await?;
                     }
 
@@ -157,6 +160,7 @@ pub async fn submit_constraints<P: Provider>(
                         .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
                         .build(&wallet)
                         .await?;
+                    info!("Get tip tx: {:?}", get_tip_tx);
                     nonce += 1;
                     reserve_without_calldata_bytes.push(to_ssz_bytes(&get_tip_tx));
                 }
@@ -166,41 +170,45 @@ pub async fn submit_constraints<P: Provider>(
         }
 
         let mut constraints = Vec::new();
-        let sponsor_tx = taiyi_escrow
-            .sponsorEthBatch(accounts, amounts)
-            .into_transaction_request()
-            .with_nonce(sponsor_nonce)
-            .with_chain_id(chain_id)
-            .with_gas_limit(1_000_000)
-            .with_max_fee_per_gas(max_fee_per_gas)
-            .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
-            .build(&wallet)
-            .await?;
-        constraints.push(to_ssz_bytes(&sponsor_tx));
+        if !reserve_without_calldata_bytes.is_empty() && !reserve_with_calldata_bytes.is_empty() {
+            let sponsor_tx = taiyi_escrow
+                .sponsorEthBatch(accounts, amounts)
+                .into_transaction_request()
+                .with_nonce(sponsor_nonce)
+                .with_chain_id(chain_id)
+                .with_gas_limit(1_000_000)
+                .with_max_fee_per_gas(max_fee_per_gas)
+                .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
+                .build(&wallet)
+                .await?;
+            info!("Sponsor tx: {:?}", sponsor_tx);
+            constraints.push(to_ssz_bytes(&sponsor_tx));
 
-        let validators = get_validators(&constraints_url).await?;
-        let fee_recipient = validators
-            .iter()
-            .filter_map(|validator| {
-                if validator.slot == next_slot {
-                    Some(validator.entry.message.fee_recipient)
-                } else {
-                    None
-                }
-            })
-            .next()
-            .expect("No validator available for next slot");
-        let validator_payout_tx = TransactionRequest::default()
-            .with_nonce(nonce)
-            .with_chain_id(chain_id)
-            .with_gas_limit(21_000)
-            .with_max_fee_per_gas(max_fee_per_gas)
-            .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
-            .with_to(fee_recipient)
-            .with_value(total_preconf_tips)
-            .build(&wallet)
-            .await?;
-        reserve_without_calldata_bytes.push(to_ssz_bytes(&validator_payout_tx));
+            let validators = get_validators(&constraints_url).await?;
+            let fee_recipient = validators
+                .iter()
+                .filter_map(|validator| {
+                    if validator.slot == next_slot {
+                        Some(validator.entry.message.fee_recipient)
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .expect("No validator available for next slot");
+            let validator_payout_tx = TransactionRequest::default()
+                .with_nonce(nonce)
+                .with_chain_id(chain_id)
+                .with_gas_limit(21_000)
+                .with_max_fee_per_gas(max_fee_per_gas)
+                .with_max_priority_fee_per_gas(max_priority_fee_per_gas)
+                .with_to(fee_recipient)
+                .with_value(total_preconf_tips)
+                .build(&wallet)
+                .await?;
+            info!("Validator payout tx: {:?}", validator_payout_tx);
+            reserve_without_calldata_bytes.push(to_ssz_bytes(&validator_payout_tx));
+        }
 
         info!("Found {} preconf requests for slot {} to be exhausted", pending.len(), next_slot);
         let mut exhaust_txs = Vec::new();
@@ -223,6 +231,8 @@ pub async fn submit_constraints<P: Provider>(
                 .await?;
             nonce += 1;
 
+            info!("Exhaust tx: {:?}", exhaust_tx);
+
             exhaust_txs.push(to_ssz_bytes(&exhaust_tx));
         }
 
@@ -231,7 +241,7 @@ pub async fn submit_constraints<P: Provider>(
         constraints.extend(exhaust_txs);
 
         if constraints.is_empty() {
-            return Ok(());
+            continue;
         }
         info!("Submitting {} constraints to relay for slot {}", constraints.len(), next_slot);
         let message = ConstraintsMessage {
@@ -325,4 +335,21 @@ pub async fn get_validators(url: &str) -> Result<Vec<Validator>, reqwest::Error>
     let url = format!("{url}/relay/v1/builder/validators");
     let validators: Vec<Validator> = Client::new().get(url).send().await?.json().await?;
     Ok(validators)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_slot_stream() {
+        let start = Instant::now();
+        let next_slot_count = 10;
+        let slot_time = Duration::from_secs(1);
+        let mut slot_stream = get_slot_stream(start, next_slot_count, slot_time).unwrap();
+        assert_eq!(slot_stream.next().await.unwrap(), 10);
+        assert_eq!(slot_stream.next().await.unwrap(), 11);
+        assert_eq!(slot_stream.next().await.unwrap(), 12);
+        assert_eq!(slot_stream.next().await.unwrap(), 13);
+    }
 }
