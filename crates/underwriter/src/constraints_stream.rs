@@ -75,27 +75,27 @@ pub async fn submit_constraints<P: Provider>(
 ) -> eyre::Result<()> {
     let sender = signer.address();
     let chain_id = provider.get_chain_id().await?;
-    println!("CHAIN ID: {}", chain_id);
+    debug!("CHAIN ID: {}", chain_id);
 
     let wallet = EthereumWallet::from(signer.clone());
 
     pin_mut!(slot_stream);
     while let Some(slot) = slot_stream.next().await {
-        println!("New slot {:?}", slot);
+        debug!("New slot {:?}", slot);
         let next_slot = slot + 1;
         let is_new_epoch = slot % slots_per_epoch == 0;
 
         let estimate = provider.estimate_eip1559_fees().await?;
         let max_fee_per_gas = estimate.max_fee_per_gas;
         let max_priority_fee_per_gas = estimate.max_priority_fee_per_gas;
-        println!("gas estimate {max_fee_per_gas} {max_priority_fee_per_gas}");
+        debug!("gas estimate {max_fee_per_gas} {max_priority_fee_per_gas}");
 
         let block = provider.get_block_by_number(BlockNumberOrTag::Latest).await?;
         let header = block.expect("Failed to retrieve latest block").header;
 
         let base_fee =
             header.next_block_base_fee(BaseFeeParams::ethereum()).unwrap_or(max_fee_per_gas as u64);
-        println!("base fee {}", base_fee);
+        debug!("base fee {}", base_fee);
 
         let blob_fee = header.next_block_blob_fee(BlobParams::prague()).unwrap_or_default();
         let blob_excess_fee =
