@@ -113,6 +113,10 @@ pub async fn submit_constraints<P: Provider>(
         let mut total_preconf_tips = U256::ZERO;
 
         let (ready, pending) = tx_cache.write().await.take(next_slot).await?;
+        if ready.is_empty() && pending.is_empty() {
+            info!("No constraints in slot {slot}");
+            continue;
+        }
         let sponsor_nonce = nonce;
         nonce += 1;
         for preconf_req in ready {
@@ -188,8 +192,12 @@ pub async fn submit_constraints<P: Provider>(
                     None
                 }
             })
-            .next()
-            .expect("No validator available for next slot");
+            .next();
+        if fee_recipient.is_none() {
+            info!("No validator available for next slot {next_slot}");
+            continue;
+        }
+        let fee_recipient = fee_recipient.expect("Must be present");
         let validator_payout_tx = TransactionRequest::default()
             .with_nonce(nonce)
             .with_chain_id(chain_id)
@@ -231,7 +239,7 @@ pub async fn submit_constraints<P: Provider>(
         constraints.extend(exhaust_txs);
 
         if constraints.is_empty() {
-            return Ok(());
+            continue;
         }
         info!("Submitting {} constraints to relay for slot {}", constraints.len(), next_slot);
         let message = ConstraintsMessage {

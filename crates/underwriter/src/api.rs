@@ -298,13 +298,12 @@ pub async fn run(
     let epoch_duration = Duration::from_secs(slot_duration.as_secs() * slots_per_epoch);
 
     let taiyi_addr = SocketAddr::new(taiyi_rpc_addr, taiyi_rpc_port);
-    let beacon_provider = ProviderBuilder::new().connect_http(Url::from_str(&beacon_rpc_url)?);
     let execution_provider =
         ProviderBuilder::new().connect_http(Url::from_str(&execution_rpc_url)?);
     let signer =
         PrivateKeySigner::from_signing_key(SigningKey::from_slice(&hex_decode(&ecdsa_sk)?)?);
 
-    let chain_id = beacon_provider.get_chain_id().await?;
+    let chain_id = execution_provider.get_chain_id().await?;
 
     let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(vec![]));
     let underwriter = Underwriter::new(available_slots.clone());
@@ -312,12 +311,6 @@ pub async fn run(
     let last_slot = Arc::new(AtomicU64::new(0u64));
     let preconf_fee_provider =
         TaiyiPreconfFeeProvider::new(taiyi_service_url, execution_provider.clone());
-    //     let preconf_fee_provider = if let Some(taiyi_service_url) = taiyi_service_url {
-    //         TaiyiPreconfFeeProvider::new(taiyi_service_url)
-    //     } else {
-    //         TaiyiPreconfFeeProvider::new(taiyi_service_url.unwrap())
-    // //        AlloyPreconfFeeProvider::new(execution_provider.clone())
-    //     };
     let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
     let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
@@ -363,7 +356,7 @@ pub async fn run(
     let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
     let epoch_lookahead = 2;
     let store_last_slot = StoreAvailableSlotsDecorator::new(
-        beacon_rpc_url.clone(),
+        relay_url.clone(),
         alloy_bls_public_key,
         available_slots,
         slots_per_epoch,
@@ -379,8 +372,8 @@ pub async fn run(
 
     tokio::select!(
         _ = axum::serve(listener, app) => { println!("terminating server") },
-        _ = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream")},
-        _ = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
+        err = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream {err:?}")},
+        err = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream {err:?}")}
     );
     Ok(())
 }
