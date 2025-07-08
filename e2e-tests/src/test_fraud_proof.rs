@@ -177,7 +177,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
     info!("poi_preconf_type_a_included up");
-    let signer = new_account(&config).await?;
+    let signer = new_account(&config.execution_url).await?;
 
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
@@ -474,7 +474,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
     info!("poi_preconf_type_a_multiple_txs_included up");
-    let signer = new_account(&config).await?;
+    let signer = new_account(&config.execution_url).await?;
 
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
@@ -791,7 +791,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
     info!("poi_preconf_type_b_included up");
-    let signer = new_account(&config).await?;
+    let signer = new_account(&config.execution_url).await?;
 
     // Initialize provider
     let wallet = EthereumWallet::new(signer.clone());
@@ -801,9 +801,9 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     // Deposit 1ether to TaiyiCore
-    taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
+    taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config.taiyi_core).await?;
 
-    let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
+    let balance = taiyi_balance(provider.clone(), signer.address(), &config.taiyi_core).await?;
     assert_eq!(balance, U256::from(5 * ETH_TO_WEI));
 
     // Pick a slot from the lookahead
