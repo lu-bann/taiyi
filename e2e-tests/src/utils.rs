@@ -33,6 +33,7 @@ use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use crate::taiyi_process::{ResourceHandle, ResourceManager};
 use crate::{
     constant::{
         FUNDING_SIGNER_PRIVATE, SLOT_CHECK_INTERVAL_SECONDS, UNDERWRITER_BLS_SK,
@@ -43,14 +44,7 @@ use crate::{
 
 lazy_static::lazy_static! {
     static ref LOG_INIT: Mutex<bool> = Mutex::new(false);
-    // static ref TAIYI_PROCESS: Mutex<Option<TaiyiProcess>> =  Mutex::new(None);
-    static ref TAIYI_INSTANCE:Arc<TaiyiProcess> = {
-        // This closure is executed only once, on the first access.
-        let config = TestConfig::from_env();
-        let process = TaiyiProcess::new(&config)
-            .expect("Failed to start shared Taiyi process for tests");
-        Arc::new(process)
-    };
+    static ref TAIYI_PROCESS: Mutex<Option<ResourceManager>> =  Mutex::new(None);
     static ref TAIYI_PORT: u16 = {
         get_available_port()
     };
@@ -638,7 +632,7 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     Ok(new_signer)
 }
 
-pub async fn setup_env() -> eyre::Result<(Arc<TaiyiProcess>, TestConfig)> {
+pub async fn setup_env() -> eyre::Result<(ResourceHandle, TestConfig)> {
     init_log();
     let config = TestConfig::from_env();
     info!("Test Config: {:?}", config);
@@ -646,7 +640,7 @@ pub async fn setup_env() -> eyre::Result<(Arc<TaiyiProcess>, TestConfig)> {
     // the first two epoch after genesis is not available for preconf
     wait_until_slot(&config.beacon_url, 32).await.expect("Failed to wait for slot greater than 32");
 
-    let taiyi_handle = init_taiyi_process();
+    let taiyi_handle = init_taiyi_process(&config);
     info!("taiyi_handle: {:?}", taiyi_handle);
 
     wait_taiyi_is_up(&config).await;
@@ -681,6 +675,17 @@ fn init_log() {
     }
 }
 
-fn init_taiyi_process() -> Arc<TaiyiProcess> {
-    TAIYI_INSTANCE.clone()
+fn init_taiyi_process(config: &TestConfig) -> ResourceHandle {
+    let taiyi_process = &mut TAIYI_PROCESS.lock().unwrap();
+    if taiyi_process.is_none() {
+        info!("Starting Underwriter");
+        let resource_manager = ResourceManager::new(config);
+        let handle = resource_manager.acquire();
+        **taiyi_process = Some(resource_manager);
+        handle
+    } else {
+        let resource_manager = taiyi_process.as_ref().unwrap();
+        let handle = resource_manager.acquire();
+        handle
+    }
 }
