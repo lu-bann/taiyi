@@ -175,6 +175,7 @@ pub struct PreconfState<P: PreconfFeeProvider> {
     pub min_duration_until_next_slot: Duration,
     pub slot_model: SlotModel,
     pub account_state: AccountState<OnChainAccountInfoProvider>,
+    pub chain_id: u64,
 }
 
 impl<P: PreconfFeeProvider> PreconfState<P> {
@@ -188,6 +189,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         broadcast_sender: BroadcastSender,
         slot_model: SlotModel,
         account_state: AccountState<OnChainAccountInfoProvider>,
+        chain_id: u64,
     ) -> Self {
         Self {
             underwriter: underwriter.into(),
@@ -200,6 +202,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
             min_duration_until_next_slot: Duration::from_secs(1),
             slot_model,
             account_state,
+            chain_id,
         }
     }
 
@@ -331,6 +334,7 @@ pub async fn run(
         broadcast_sender,
         slot_model.clone(),
         account_state,
+        chain_id,
     ));
     let app = Router::new()
         .route(HEALTH, get(health_check))
@@ -415,7 +419,7 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
     State(state): State<Arc<PreconfState<P>>>,
     Json(request): Json<BlockspaceAllocation>,
 ) -> PreconfApiResult<Json<Uuid>> {
-    let chain_id = 123u64;
+    let chain_id = state.chain_id;
     let (signer, signature) = get_signer_and_signature(headers, request.hash(chain_id))?;
     info!("Received blockspace reservation request, signer: {}", signer);
 
