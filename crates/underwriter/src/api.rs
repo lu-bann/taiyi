@@ -401,7 +401,10 @@ pub async fn run(
             bls_signer,
             relay_url,
             slots_per_epoch
-        ) => { error!("submit constraints task terminated because of {res:?}, exiting ...") }
+        ) => { error!("submit constraints task terminated because of {res:?}, exiting ...") },
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received Ctrl+C, shutting down gracefully...");
+        }
     );
     Ok(())
 }
