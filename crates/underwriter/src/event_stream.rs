@@ -19,8 +19,7 @@ const DELEGATION_ACTION: u8 = 0;
 pub async fn get_event_stream(
     url: &str,
 ) -> Result<impl Stream<Item = Result<Bytes, Error>>, reqwest::Error> {
-    let client = Client::new();
-    let response = client
+    let response = Client::new()
         .get(format!("{url}/eth/v1/events?topics=head"))
         .header("Accept", "text/event-stream")
         .send()
