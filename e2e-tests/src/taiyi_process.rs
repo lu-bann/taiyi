@@ -18,7 +18,7 @@ use crate::{
 // Its Drop implementation will handle cleanup.
 #[derive(Debug)]
 pub struct TaiyiProcess {
-    process: Mutex<Option<Child>>,
+    process: Child,
 }
 
 impl TaiyiProcess {
@@ -53,21 +53,50 @@ impl TaiyiProcess {
         info!("Starting taiyi process with command: {:?}", command);
         let process = command.spawn()?;
 
-        Ok(TaiyiProcess { process: Mutex::new(Some(process)) })
+        Ok(TaiyiProcess { process })
+    }
+    pub fn kill(&mut self) {
+        let _ = self.process.kill();
+        let _ = self.process.wait(); // Wait for the process to exit
     }
 }
 
-// when the last Arc<TaiyiProcess> is dropped,
-// this code will automatically run.
-impl Drop for TaiyiProcess {
+pub struct ResourceManager {
+    resource: Arc<Mutex<TaiyiProcess>>,
+    ref_count: Arc<Mutex<usize>>,
+}
+
+impl ResourceManager {
+    pub fn new(test_config: &TestConfig) -> Self {
+        let taiyi = TaiyiProcess::new(test_config).expect("taiyi process failed");
+        ResourceManager {
+            resource: Arc::new(Mutex::new(taiyi)),
+            ref_count: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    pub fn acquire(&self) -> ResourceHandle {
+        let mut count = self.ref_count.lock().unwrap();
+        *count += 1;
+        ResourceHandle { resource: self.resource.clone(), ref_count: self.ref_count.clone() }
+    }
+}
+
+#[derive(Debug)]
+pub struct ResourceHandle {
+    resource: Arc<Mutex<TaiyiProcess>>,
+    ref_count: Arc<Mutex<usize>>,
+}
+
+impl Drop for ResourceHandle {
     fn drop(&mut self) {
-        if let Some(mut child) = self.process.lock().unwrap().take() {
-            info!("last TaiyiProcess handle dropped. killing taiyi process.");
-            if let Err(e) = child.kill() {
-                error!("failed to kill taiyi process: {}", e);
-            }
-            if let Err(e) = child.wait() {
-                error!("failed to wait for taiyi process exit: {}", e);
+        let mut count = self.ref_count.lock().unwrap();
+        *count -= 1;
+
+        if *count == 0 {
+            // Last handle is being dropped, perform cleanup
+            if let Ok(mut resource) = self.resource.lock() {
+                resource.kill();
             }
         }
     }
