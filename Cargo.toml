@@ -18,7 +18,7 @@ members = [
     "crates/primitives",
     "crates/underwriter",
     "crates/zkvm-verifier",
-#    "e2e-tests",
+    "e2e-tests",
 #    "examples/type_a",
 #    "examples/type_b",
 #    "spammer",

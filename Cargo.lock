@@ -7496,6 +7496,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "taiyi-e2e-tests"
+version = "0.1.8"
+dependencies = [
+ "alloy-consensus",
+ "alloy-contract",
+ "alloy-eips",
+ "alloy-primitives 1.2.0",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-types",
+ "alloy-rpc-types-beacon",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "alloy-transport",
+ "axum",
+ "clap",
+ "eyre",
+ "hex",
+ "lazy_static",
+ "reqwest 0.12.20",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "taiyi-cmd",
+ "taiyi-contracts",
+ "taiyi-primitives",
+ "taiyi-underwriter",
+ "taiyi-zkvm-types",
+ "tokio",
+ "tracing",
+ "tracing-core",
+ "tree_hash",
+ "uuid",
+]
+
+[[package]]
 name = "taiyi-fraud-proof-cli"
 version = "0.1.8"
 dependencies = [
@@ -7592,6 +7630,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
  "tree_hash",
  "tree_hash_derive",
  "url",

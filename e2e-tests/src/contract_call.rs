@@ -34,11 +34,11 @@ sol! {
 pub async fn taiyi_deposit(
     provider: TestProvider,
     amount: u128,
-    test_config: &TestConfig,
+    taiyi_core: Address,
 ) -> eyre::Result<()> {
     let fees = provider.estimate_eip1559_fees().await?;
     info!("Fees: {:?}", fees);
-    let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
+    let taiyi_escrow = TaiyiEscrow::new(taiyi_core, provider.clone());
     // Call deposit function
     let tx = taiyi_escrow
         .deposit()
@@ -57,12 +57,12 @@ pub async fn taiyi_deposit(
 pub async fn taiyi_balance(
     provider: TestProvider,
     address: Address,
-    test_config: &TestConfig,
+    taiyi_core: Address,
 ) -> eyre::Result<U256> {
-    let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
+    let taiyi_escrow = TaiyiEscrow::new(taiyi_core, provider.clone());
     let balance = taiyi_escrow.balanceOf(address).call().await?;
-    info!("Balance: {:?}", balance._0);
-    Ok(balance._0)
+    info!("Balance: {:?}", balance);
+    Ok(balance)
 }
 
 pub async fn revert_call(
