@@ -71,7 +71,7 @@ pub fn serialize_bls_signature<S: serde::Serializer>(
     sig: &Signature,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    serializer.serialize_bytes(&sig.serialize())
+    serializer.serialize_str(&hex::encode(sig.compress()))
 }
 
 pub fn deserialize_bls_signature<'de, D: serde::Deserializer<'de>>(
@@ -86,7 +86,7 @@ pub fn serialize_bls_publickey<S: serde::Serializer>(
     public_key: &PublicKey,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    serializer.serialize_bytes(&public_key.serialize())
+    serializer.serialize_str(&hex::encode(public_key.compress()))
 }
 
 pub fn bls_pubkey_to_alloy(pubkey: &PublicKey) -> alloy_rpc_types_beacon::BlsPublicKey {

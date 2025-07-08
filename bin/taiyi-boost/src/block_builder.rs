@@ -219,7 +219,7 @@ impl LocalBlockBuilder {
         // same rule.
         let domain = compute_domain(self.fork_version)?;
         let object_root = message.tree_hash_root().0;
-        let signing_root = compute_signing_root(object_root, domain.0);
+        let signing_root = compute_signing_root(object_root, domain.0)?;
         let signature =
             self.bls_secret_key.sign(signing_root.as_slice(), BLS_DST_SIG, &[]).to_bytes();
         Ok(SignedExecutionPayloadHeader { message, signature: signature.into() })

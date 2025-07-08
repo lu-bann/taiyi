@@ -24,9 +24,7 @@ pub fn run() -> eyre::Result<()> {
         .expect("tokio runtime build failed");
     match cli.command {
         Commands::Underwriter(underwriter) => {
-            runtime.block_on(async {
-                underwriter.execute().await.expect("underwriter run");
-            });
+            runtime.block_on(async { underwriter.execute().await })?;
             Ok(())
         }
     }

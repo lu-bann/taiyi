@@ -44,8 +44,8 @@ use crate::{
     broadcast_sender::{BroadcastSender, Sender},
     constraints_stream::{get_next_slot_start, get_slot_stream, submit_constraints},
     event_stream::{
-        get_event_stream, process_event_stream, Noop, StoreAvailableSlotsDecorator,
-        StoreLastSlotDecorator, StreamError,
+        get_event_stream, get_initial_assigned_validator, process_event_stream, Noop,
+        StoreAvailableSlotsDecorator, StoreLastSlotDecorator, StreamError,
     },
     preconf_fee_provider::{PreconfFeeProvider, TaiyiPreconfFeeProvider},
     slot_model::SlotModel,
@@ -53,13 +53,13 @@ use crate::{
     underwriter::{verify_tip, Underwriter, UnderwriterError},
 };
 
-const HEALTH: &str = "/health";
-const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
-const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
-const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
-const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
-const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
-const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
+pub const HEALTH: &str = "/health";
+pub const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
+pub const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
+pub const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
+pub const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
+pub const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
+pub const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
 
 #[derive(Debug, Error)]
 pub enum PreconfApiError {
@@ -173,6 +173,7 @@ pub struct PreconfState<P: PreconfFeeProvider> {
     pub min_duration_until_next_slot: Duration,
     pub slot_model: SlotModel,
     pub account_state: AccountState<OnChainAccountInfoProvider>,
+    pub chain_id: u64,
 }
 
 impl<P: PreconfFeeProvider> PreconfState<P> {
@@ -186,6 +187,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         broadcast_sender: BroadcastSender,
         slot_model: SlotModel,
         account_state: AccountState<OnChainAccountInfoProvider>,
+        chain_id: u64,
     ) -> Self {
         Self {
             underwriter: underwriter.into(),
@@ -198,6 +200,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
             min_duration_until_next_slot: Duration::from_secs(1),
             slot_model,
             account_state,
+            chain_id,
         }
     }
 
@@ -290,7 +293,7 @@ pub async fn run(
     fork_version: [u8; 4],
     genesis_timestamp: u64,
 ) -> PreconfApiResult<()> {
-    println!("run...");
+    info!("taiyi starting up");
 
     let genesis_since_epoch = Duration::from_secs(genesis_timestamp);
     let slot_duration = Duration::from_secs(12);
@@ -298,15 +301,28 @@ pub async fn run(
     let epoch_duration = Duration::from_secs(slot_duration.as_secs() * slots_per_epoch);
 
     let taiyi_addr = SocketAddr::new(taiyi_rpc_addr, taiyi_rpc_port);
-    let beacon_provider = ProviderBuilder::new().connect_http(Url::from_str(&beacon_rpc_url)?);
+    // let beacon_provider = ProviderBuilder::new().connect_http(Url::from_str(&beacon_rpc_url)?);
     let execution_provider =
         ProviderBuilder::new().connect_http(Url::from_str(&execution_rpc_url)?);
     let signer =
         PrivateKeySigner::from_signing_key(SigningKey::from_slice(&hex_decode(&ecdsa_sk)?)?);
 
-    let chain_id = beacon_provider.get_chain_id().await?;
-
-    let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(vec![]));
+    let chain_id = execution_provider.get_chain_id().await?;
+    info!("chain_id: {chain_id}");
+    let bls_private_key =
+        SecretKey::from_bytes(&hex_decode(&bls_sk).map_err(PreconfApiError::from)?)?;
+    let alloy_bls_public_key = bls_pubkey_to_alloy(&bls_private_key.sk_to_pk());
+    let slot_info_factory = HoleskySlotInfoFactory;
+    let available_slots = get_initial_assigned_validator(
+        &beacon_rpc_url,
+        &relay_url,
+        slots_per_epoch,
+        alloy_bls_public_key,
+        slot_info_factory,
+    )
+    .await?;
+    info!("available_slots: {:?}", available_slots);
+    let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(available_slots));
     let underwriter = Underwriter::new(available_slots.clone());
 
     let last_slot = Arc::new(AtomicU64::new(0u64));
@@ -336,6 +352,7 @@ pub async fn run(
         broadcast_sender,
         slot_model.clone(),
         account_state,
+        chain_id,
     ));
     let app = Router::new()
         .route(HEALTH, get(health_check))
@@ -357,19 +374,14 @@ pub async fn run(
     let next_slot_count = slot.epoch * slots_per_epoch + slot.slot + 1;
     let slot_stream = get_slot_stream(start, next_slot_count, slot_duration)?;
 
-    let bls_private_key =
-        SecretKey::from_bytes(&hex_decode(&bls_sk).map_err(PreconfApiError::from)?)?;
-    let alloy_bls_public_key = bls_pubkey_to_alloy(&bls_private_key.sk_to_pk());
     let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
-    let epoch_lookahead = 2;
     let store_last_slot = StoreAvailableSlotsDecorator::new(
-        beacon_rpc_url.clone(),
+        relay_url.clone(),
         alloy_bls_public_key,
         available_slots,
         slots_per_epoch,
-        epoch_lookahead,
         store_last_slot,
-        HoleskySlotInfoFactory::default(),
+        slot_info_factory,
     );
     let event_stream = get_event_stream(&beacon_rpc_url).await?;
     let listener = TcpListener::bind(&taiyi_addr).await?;
@@ -378,9 +390,25 @@ pub async fn run(
         BlsSigner::new(signer.address(), Some(chain_id), bls_private_key, fork_version);
 
     tokio::select!(
-        _ = axum::serve(listener, app) => { println!("terminating server") },
-        _ = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream")},
-        _ = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream")}
+        res = axum::serve(listener, app) => {
+            error!("server task terminated because of {res:?}, exiting ...")
+        },
+        res = process_event_stream(event_stream, store_last_slot) => {
+            error!("stream task terminated because of {res:?}, exiting ...")
+        },
+        res = submit_constraints(
+            taiyi_escrow,
+            slot_stream,
+            execution_provider,
+            tx_cache.clone(),
+            signer,
+            bls_signer,
+            relay_url,
+            slots_per_epoch
+        ) => { error!("submit constraints task terminated because of {res:?}, exiting ...") },
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received Ctrl+C, shutting down gracefully...");
+        }
     );
     Ok(())
 }
@@ -407,7 +435,7 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
     State(state): State<Arc<PreconfState<P>>>,
     Json(request): Json<BlockspaceAllocation>,
 ) -> PreconfApiResult<Json<Uuid>> {
-    let chain_id = 123u64;
+    let chain_id = state.chain_id;
     let (signer, signature) = get_signer_and_signature(headers, request.hash(chain_id))?;
     info!("Received blockspace reservation request, signer: {}", signer);
 

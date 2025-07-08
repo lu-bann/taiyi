@@ -14,7 +14,7 @@ pub const BLS_SIGNATURE_BYTES_LEN: usize = 96;
 /// root and signing domain as defined in the Ethereum 2.0 specification.
 #[derive(Default, Debug, tree_hash_derive::TreeHash)]
 struct SigningData {
-    object_root: [u8; 32],
+    object_root: B256,
     signing_domain: [u8; 32],
 }
 
@@ -29,14 +29,15 @@ pub fn compute_fork_data_root(current_version: [u8; 4], genesis_validators_root:
 }
 
 /// Compute the signing root for a given object root and signing domain.
-pub fn compute_signing_root(object_root: [u8; 32], signing_domain: [u8; 32]) -> B256 {
+pub fn compute_signing_root(ssz_object: [u8; 32], signing_domain: [u8; 32]) -> Result<B256> {
+    let object_root = ssz_object.hash_tree_root()?;
     let signing_data = SigningData { object_root, signing_domain };
-    B256::from_slice(signing_data.tree_hash_root().0.as_slice())
+    Ok(B256::from_slice(signing_data.tree_hash_root().0.as_slice()))
 }
 
 /// Helper function to compute the signing root for a message
 pub fn compute_commit_boost_signing_root(message: [u8; 32], fork_version: [u8; 4]) -> Result<B256> {
-    Ok(compute_signing_root(message, compute_domain_from_mask(fork_version)))
+    compute_signing_root(message, compute_domain_from_mask(fork_version))
 }
 
 /// Compute the commit boost domain from the fork version
