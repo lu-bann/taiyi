@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use alloy_network::EthereumWallet;
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
-use alloy_provider::ProviderBuilder;
-use alloy_signer::SignerSync;
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::SolValue;
+use alloy::network::EthereumWallet;
+use alloy::primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::SignerSync;
+use alloy::sol_types::SolValue;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;

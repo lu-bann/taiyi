@@ -1,7 +1,7 @@
-use alloy_consensus::TxEnvelope;
-use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{hex, keccak256, Address, Signature, B256, U256};
-use alloy_sol_types::SolValue;
+use alloy::consensus::TxEnvelope;
+use alloy::eips::eip2718::Encodable2718;
+use alloy::primitives::{hex, keccak256, Address, Signature, B256, U256};
+use alloy::sol_types::SolValue as _;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

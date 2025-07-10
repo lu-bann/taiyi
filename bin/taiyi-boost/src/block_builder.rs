@@ -1,8 +1,8 @@
 // The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/payload_builder.rs
-use alloy_consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
-use alloy_eips::{calc_next_block_base_fee, eip1559::BaseFeeParams};
-use alloy_primitives::{Address, Bytes, FixedBytes, B256, U256};
-use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey};
+use alloy::consensus::{proofs, Block, Header, Sealed, Transaction, TxEnvelope};
+use alloy::eips::{calc_next_block_base_fee, eip1559::BaseFeeParams};
+use alloy::primitives::{Address, Bytes, FixedBytes, B256, U256};
+use alloy::rpc::types::beacon::{constants::BLS_DST_SIG, BlsPublicKey};
 use alloy_rpc_types_engine::JwtSecret;
 use cb_common::{
     constants::APPLICATION_BUILDER_DOMAIN,
@@ -239,12 +239,12 @@ fn compute_domain(fork_version: [u8; 4]) -> eyre::Result<FixedBytes<32>> {
 #[cfg(test)]
 mod tests {
     use crate::ExtraConfig;
-    use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-    use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::{address, Address};
-    use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_signer::k256::ecdsa::SigningKey;
-    use alloy_signer_local::PrivateKeySigner;
+    use alloy::eips::eip2718::{Decodable2718, Encodable2718};
+    use alloy::network::{EthereumWallet, TransactionBuilder};
+    use alloy::primitives::{address, Address};
+    use alloy::providers::{Provider, ProviderBuilder};
+    use alloy::signers::k256::ecdsa::SigningKey;
+    use alloy::signers::local::PrivateKeySigner;
     use cb_common::utils::utcnow_sec;
     use std::env;
     use taiyi_beacon_client::{BlsSecretKeyWrapper, JwtSecretWrapper};

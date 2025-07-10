@@ -1,7 +1,7 @@
-use alloy_consensus::TxEnvelope;
-use alloy_eips::eip2718::{Decodable2718, Eip2718Error};
-use alloy_primitives::{Bytes, B256};
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy::consensus::TxEnvelope;
+use alloy::eips::eip2718::{Decodable2718, Eip2718Error};
+use alloy::primitives::{Bytes, B256};
+use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
 use sha2::{Digest, Sha256};
 
 pub const MAX_CONSTRAINTS_PER_SLOT: usize = 256;

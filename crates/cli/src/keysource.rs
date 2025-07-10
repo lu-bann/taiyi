@@ -1,5 +1,5 @@
 // codes are basically copied from https://github.com/chainbound/bolt/blob/89253d92b079adf0abf6c9279eeed1d5dc7a3aed/bolt-cli/src/common/keystore.rs
-use alloy_primitives::B256;
+use alloy::primitives::B256;
 use clap::Parser;
 use eth2_keystore::Keystore;
 use eyre::{bail, Result};

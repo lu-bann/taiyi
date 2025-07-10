@@ -1,4 +1,4 @@
-use alloy_sol_types::sol;
+use alloy::sol;
 
 sol! {
      /// The public values encoded as a struct that can be easily deserialized inside Solidity.

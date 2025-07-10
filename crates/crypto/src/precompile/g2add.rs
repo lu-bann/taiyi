@@ -1,5 +1,5 @@
 // This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_add.rs
-use alloy_primitives::Bytes;
+use alloy::primitives::Bytes;
 
 use super::{
     blst_utils::{encode_g2_point, p2_add_affine, read_g2_no_subgroup_check},

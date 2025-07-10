@@ -2,17 +2,17 @@
 
 use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
-use alloy_consensus::{constants::ETH_TO_WEI, TxEnvelope};
-use alloy_eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
-use alloy_primitives::{Address, TxHash, U256};
-use alloy_provider::{
+use alloy::consensus::{constants::ETH_TO_WEI, TxEnvelope};
+use alloy::eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
+use alloy::primitives::{Address, TxHash, U256};
+use alloy::providers::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
-use alloy_rpc_types::{BlockTransactionsKind, TransactionRequest};
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
+use alloy::rpc::types::{BlockTransactionsKind, TransactionRequest};
+use alloy::signers::Signer;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol;
 use clap::Parser;
 use ethereum_consensus::deneb::Context;
 use reqwest::{Response, StatusCode, Url};

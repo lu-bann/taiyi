@@ -1,5 +1,5 @@
 // This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/pairing.rs
-use alloy_primitives::{Bytes, B256};
+use alloy::primitives::{Bytes, B256};
 
 use super::{
     blst_utils::{pairing_check, read_g1, read_g2},

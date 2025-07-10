@@ -1,5 +1,5 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/engine_hints/mod.rs
-use alloy_rpc_types_engine::ClientCode;
+use alloy::rpc::types::engine::ClientCode;
 use tracing::error;
 
 use super::EngineApiHint;

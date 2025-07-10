@@ -1,6 +1,6 @@
 #![allow(unused)]
-use alloy_primitives::{keccak256, Bytes, U256};
-use alloy_sol_types::{sol, SolValue};
+use alloy::primitives::{keccak256, Bytes, U256};
+use alloy::sol_types::{sol, SolValue};
 use taiyi_contracts::{Fp, Fp2, G1Point, G2Point};
 
 use crate::precompile::{
@@ -89,10 +89,10 @@ pub fn serialize_bls_publickey<S: serde::Serializer>(
     serializer.serialize_bytes(&public_key.serialize())
 }
 
-pub fn bls_pubkey_to_alloy(pubkey: &PublicKey) -> alloy_rpc_types_beacon::BlsPublicKey {
-    alloy_rpc_types_beacon::BlsPublicKey::from_slice(&pubkey.compress())
+pub fn bls_pubkey_to_alloy(pubkey: &PublicKey) -> alloy::rpc::types::beacon::BlsPublicKey {
+    alloy::rpc::types::beacon::BlsPublicKey::from_slice(&pubkey.compress())
 }
 
-pub fn bls_signature_to_alloy(signature: &Signature) -> alloy_rpc_types_beacon::BlsSignature {
-    alloy_rpc_types_beacon::BlsSignature::from_slice(&signature.compress())
+pub fn bls_signature_to_alloy(signature: &Signature) -> alloy::rpc::types::beacon::BlsSignature {
+    alloy::rpc::types::beacon::BlsSignature::from_slice(&signature.compress())
 }

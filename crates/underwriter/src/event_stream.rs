@@ -1,4 +1,4 @@
-use alloy_rpc_types_beacon::{events::HeadEvent, BlsPublicKey, BlsSignature};
+use alloy::rpc::types::beacon::{events::HeadEvent, BlsPublicKey, BlsSignature};
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 use reqwest::{Client, Error};

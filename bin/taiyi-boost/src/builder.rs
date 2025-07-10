@@ -7,8 +7,8 @@ use std::{
 };
 
 use ::tree_hash::Hash256;
-use alloy_primitives::{utils::format_ether, FixedBytes, B256, U256};
-use alloy_rpc_types_beacon::{BlsPublicKey as AlloyBlsPublicKey, BlsSignature};
+use alloy::primitives::{utils::format_ether, FixedBytes, B256, U256};
+use alloy::rpc::types::beacon::{BlsPublicKey as AlloyBlsPublicKey, BlsSignature};
 use async_trait::async_trait;
 use axum::{
     extract::{Path, State},

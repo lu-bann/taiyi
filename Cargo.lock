@@ -80,6 +80,7 @@ dependencies = [
  "alloy-eips",
  "alloy-genesis",
  "alloy-network",
+ "alloy-node-bindings",
  "alloy-provider",
  "alloy-pubsub",
  "alloy-rpc-client",
@@ -402,7 +403,6 @@ dependencies = [
  "const-hex",
  "derive_more 2.0.1",
  "foldhash",
- "getrandom 0.3.2",
  "hashbrown 0.15.2",
  "indexmap 2.7.0",
  "itoa",
@@ -430,6 +430,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-network",
  "alloy-network-primitives",
+ "alloy-node-bindings",
  "alloy-primitives 1.2.0",
  "alloy-pubsub",
  "alloy-rpc-client",
@@ -701,8 +702,6 @@ dependencies = [
  "alloy-primitives 1.2.0",
  "alloy-signer",
  "async-trait",
- "coins-bip32",
- "coins-bip39",
  "k256",
  "rand 0.8.5",
  "thiserror 2.0.12",
@@ -1345,12 +1344,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
-name = "bech32"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
-
-[[package]]
 name = "bigdecimal"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1511,7 +1504,7 @@ dependencies = [
 name = "bls"
 version = "0.2.0"
 dependencies = [
- "alloy-primitives 1.2.0",
+ "alloy",
  "arbitrary",
  "blst",
  "ethereum_hashing",
@@ -1597,16 +1590,6 @@ dependencies = [
  "serde",
  "serde_repr",
  "serde_with",
-]
-
-[[package]]
-name = "bs58"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
-dependencies = [
- "sha2 0.10.9",
- "tinyvec",
 ]
 
 [[package]]
@@ -1708,7 +1691,6 @@ name = "cb-common"
 version = "0.1.8"
 dependencies = [
  "alloy",
- "alloy-rpc-types-beacon",
  "async-trait",
  "axum",
  "axum-extra",
@@ -1877,57 +1859,6 @@ name = "clap_lex"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
-
-[[package]]
-name = "coins-bip32"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2073678591747aed4000dd468b97b14d7007f7936851d3f2f01846899f5ebf08"
-dependencies = [
- "bs58",
- "coins-core",
- "digest 0.10.7",
- "hmac 0.12.1",
- "k256",
- "serde",
- "sha2 0.10.9",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "coins-bip39"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74b169b26623ff17e9db37a539fe4f15342080df39f129ef7631df7683d6d9d4"
-dependencies = [
- "bitvec",
- "coins-bip32",
- "hmac 0.12.1",
- "once_cell",
- "pbkdf2 0.12.2",
- "rand 0.8.5",
- "sha2 0.10.9",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "coins-core"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b962ad8545e43a28e14e87377812ba9ae748dd4fd963f4c10e9fcc6d13475b"
-dependencies = [
- "base64 0.21.7",
- "bech32",
- "bs58",
- "const-hex",
- "digest 0.10.7",
- "generic-array 0.14.7",
- "ripemd",
- "serde",
- "sha2 0.10.9",
- "sha3",
- "thiserror 1.0.69",
-]
 
 [[package]]
 name = "colorchoice"
@@ -5554,15 +5485,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ripemd"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd124222d17ad93a644ed9d011a40f4fb64aa54275c08cc216524a9ea82fb09f"
-dependencies = [
- "digest 0.10.7",
-]
-
-[[package]]
 name = "rlp"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7221,9 +7143,8 @@ dependencies = [
 name = "taiyi-beacon-client"
 version = "0.1.8"
 dependencies = [
- "alloy-primitives 1.2.0",
+ "alloy",
  "alloy-rpc-types-engine",
- "alloy-rpc-types-eth",
  "blst",
  "const-hex",
  "hex",
@@ -7237,20 +7158,8 @@ dependencies = [
 name = "taiyi-boost"
 version = "0.1.8"
 dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives 1.2.0",
- "alloy-provider",
- "alloy-rlp",
- "alloy-rpc-client",
- "alloy-rpc-types-beacon",
+ "alloy",
  "alloy-rpc-types-engine",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
  "alloy-transport-http",
  "async-trait",
  "axum",
@@ -7300,13 +7209,7 @@ dependencies = [
 name = "taiyi-cmd"
 version = "0.1.8"
 dependencies = [
- "alloy-contract",
- "alloy-network",
- "alloy-primitives 1.2.0",
- "alloy-provider",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
+ "alloy",
  "clap",
  "eth2_keystore",
  "eyre",
@@ -7334,20 +7237,14 @@ dependencies = [
 name = "taiyi-contracts"
 version = "0.1.8"
 dependencies = [
- "alloy-contract",
- "alloy-provider",
- "alloy-rpc-client",
- "alloy-sol-types",
+ "alloy",
 ]
 
 [[package]]
 name = "taiyi-crypto"
 version = "0.1.8"
 dependencies = [
- "alloy-contract",
- "alloy-primitives 1.2.0",
- "alloy-rpc-types-beacon",
- "alloy-sol-types",
+ "alloy",
  "blst",
  "eyre",
  "hex-literal",
@@ -7376,11 +7273,7 @@ dependencies = [
 name = "taiyi-poi"
 version = "1.1.0"
 dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives 1.2.0",
- "alloy-rlp",
- "alloy-sol-types",
+ "alloy",
  "alloy-trie 0.9.0",
  "eth_trie",
  "serde_json",
@@ -7399,15 +7292,7 @@ dependencies = [
 name = "taiyi-primitives"
 version = "0.1.8"
 dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives 1.2.0",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-rpc-types-beacon",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
+ "alloy",
  "eyre",
  "hex",
  "serde",
@@ -7424,18 +7309,7 @@ dependencies = [
 name = "taiyi-underwriter"
 version = "0.1.8"
 dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-eips",
- "alloy-network",
- "alloy-primitives 1.2.0",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-rpc-types-beacon",
- "alloy-rpc-types-trace",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
+ "alloy",
  "axum",
  "blst",
  "bytes",
@@ -7463,11 +7337,7 @@ dependencies = [
 name = "taiyi-underwriter-monitor"
 version = "0.1.8"
 dependencies = [
- "alloy-contract",
- "alloy-eips",
- "alloy-primitives 1.2.0",
- "alloy-provider",
- "alloy-rpc-types",
+ "alloy",
  "clap",
  "eyre",
  "futures-util",
@@ -7487,9 +7357,7 @@ dependencies = [
 name = "taiyi-zkvm-types"
 version = "0.1.8"
 dependencies = [
- "alloy-consensus",
- "alloy-primitives 1.2.0",
- "alloy-sol-types",
+ "alloy",
  "serde",
  "ssz_rs",
  "taiyi-primitives",

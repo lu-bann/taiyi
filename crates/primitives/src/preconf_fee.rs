@@ -1,5 +1,5 @@
-use alloy_eips::eip4844::DATA_GAS_PER_BLOB;
-use alloy_primitives::U256;
+use alloy::eips::eip4844::DATA_GAS_PER_BLOB;
+use alloy::primitives::U256;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]

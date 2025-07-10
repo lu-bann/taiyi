@@ -3,15 +3,15 @@
 #![allow(unused_imports)]
 use std::collections::HashMap;
 
-use alloy_eips::{self, merge::EPOCH_SLOTS};
-use alloy_primitives::{Address, U256};
-use alloy_provider::{
+use alloy::eips::{self, merge::EPOCH_SLOTS};
+use alloy::primitives::{Address, U256};
+use alloy::providers::{
     network::{EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
-use alloy_rpc_types_beacon::events::HeadEvent;
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
+use alloy::rpc::types::beacon::events::HeadEvent;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol;
 use beacon_api_client::mainnet::Client as BeaconClient;
 use clap::Parser;
 use futures::TryStreamExt;

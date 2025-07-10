@@ -1,5 +1,5 @@
-use alloy_consensus::TxEnvelope;
-use alloy_primitives::{Address, Bytes, TxHash, B256, U256};
+use alloy::consensus::TxEnvelope;
+use alloy::primitives::{Address, Bytes, TxHash, B256, U256};
 use serde::{Deserialize, Serialize};
 use taiyi_primitives::{PreconfRequestTypeA, PreconfRequestTypeB};
 

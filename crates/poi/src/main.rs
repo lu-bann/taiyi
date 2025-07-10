@@ -4,15 +4,15 @@
 use core::panic;
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
-use alloy_consensus::{
+use alloy::consensus::{
     transaction::SignerRecoverable, Header, Transaction, TrieAccount, TxEnvelope,
 };
-use alloy_eips::{
+use alloy::eips::{
     eip2718::Decodable2718, eip4844::DATA_GAS_PER_BLOB, eip7840::BlobParams,
     merge::SLOT_DURATION_SECS,
 };
-use alloy_primitives::{keccak256, Address, Signature, B256, U256};
-use alloy_sol_types::{SolCall, SolValue};
+use alloy::primitives::{keccak256, Address, Signature, B256, U256};
+use alloy::sol_types::{SolCall, SolValue};
 use alloy_trie::{proof::verify_proof, Nibbles};
 use eth_trie::{EthTrie, MemoryDB, Trie};
 use taiyi_zkvm_types::{types::*, utils::*};
@@ -95,7 +95,7 @@ pub fn main() {
             verify_proof(
                 previous_block_header.state_root,
                 Nibbles::unpack(keccak256(account_key)),
-                Some(alloy_rlp::encode(account)),
+                Some(alloy::rlp::encode(account)),
                 &account_merkle_proof.account_proof,
             )
             .unwrap();
@@ -239,7 +239,7 @@ pub fn main() {
         verify_proof(
             previous_block_header.state_root,
             Nibbles::unpack(keccak256(account_key)),
-            Some(alloy_rlp::encode(account)),
+            Some(alloy::rlp::encode(account)),
             &account_merkle_proof.account_proof,
         )
         .unwrap();

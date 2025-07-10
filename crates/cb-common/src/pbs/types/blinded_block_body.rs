@@ -1,5 +1,5 @@
 use alloy::primitives::{Address, B256};
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
+use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum, BitList, BitVector, FixedVector, VariableList};

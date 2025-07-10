@@ -2,7 +2,7 @@
 /// The code is modified from bolt: https://github.com/chainbound/bolt/blob/v0.3.0-alpha/bolt-boost/src/proofs.rs
 use std::collections::HashMap;
 
-use alloy_primitives::{TxHash, B256};
+use alloy::primitives::{TxHash, B256};
 
 use super::types::{ConstraintsData, InclusionProofs};
 use crate::types::HashTreeRootType;
@@ -75,7 +75,7 @@ mod tests {
     use std::fs::File;
     use std::env;
 
-    use alloy_primitives::{hex, Bytes, B256, address};
+    use alloy::primitives::{hex, Bytes, B256, address};
     use hex::FromHex;
     use ssz_rs::{HashTreeRoot, List, PathElement, Prove};
 

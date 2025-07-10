@@ -1,5 +1,5 @@
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::Signer;
 use std::{
     future::Future,
     sync::{

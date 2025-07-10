@@ -4,9 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-consensus = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true }
+alloy = { workspace = true }
 serde = { workspace = true }
 ssz_rs = { workspace = true }
 thiserror = { workspace = true }

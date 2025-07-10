@@ -235,7 +235,8 @@ pub async fn load_pbs_config() -> Result<PbsModuleConfig> {
 
     let muxes = match config.muxes {
         Some(muxes) => {
-            let mux_configs = muxes.validate_and_fill(config.chain, &config.pbs.pbs_config).await?;
+            let mux_configs: HashMap<_, RuntimeMuxConfig> =
+                muxes.validate_and_fill(config.chain, &config.pbs.pbs_config).await?;
             Some(mux_configs)
         }
         None => None,
@@ -308,7 +309,7 @@ pub async fn load_pbs_custom_config<T: DeserializeOwned>() -> Result<(PbsModuleC
         ))
     };
 
-    let muxes = match cb_config.muxes {
+    let muxes: Option<HashMap<_, RuntimeMuxConfig>> = match cb_config.muxes {
         Some(muxes) => Some(
             muxes
                 .validate_and_fill(cb_config.chain, &cb_config.pbs.static_config.pbs_config)

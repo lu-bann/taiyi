@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, B256, U256};
+use alloy::primitives::{Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 use crate::{PreconfRequestTypeA, PreconfRequestTypeB};
@@ -49,12 +49,12 @@ impl PreconfRequest {
 
 #[cfg(test)]
 mod tests {
-    use alloy_consensus::TxEnvelope;
-    use alloy_primitives::{hex, Signature, B256, U256};
-    use alloy_provider::network::{EthereumWallet, TransactionBuilder};
-    use alloy_rpc_types::TransactionRequest;
-    use alloy_signer::Signer as _;
-    use alloy_signer_local::PrivateKeySigner;
+    use alloy::consensus::TxEnvelope;
+    use alloy::primitives::{hex, Signature, B256, U256};
+    use alloy::providers::network::{EthereumWallet, TransactionBuilder};
+    use alloy::rpc::types::TransactionRequest;
+    use alloy::signers::Signer as _;
+    use alloy::signers::local::PrivateKeySigner;
     use uuid::Uuid;
 
     use super::*;

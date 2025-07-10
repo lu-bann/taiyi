@@ -1,7 +1,9 @@
-use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{hex, keccak256, Address, B256, U256};
-use alloy_sol_types::SolValue;
+use alloy::primitives::{hex, keccak256, Address, B256, U256};
+use alloy::sol_types::SolValue as _;
+use alloy::{
+    consensus::{Transaction, TxEnvelope},
+    eips::eip2718::Encodable2718,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::PreconfFee;

@@ -1,4 +1,4 @@
-use alloy_provider::Provider;
+use alloy::providers::Provider;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::future::Future;

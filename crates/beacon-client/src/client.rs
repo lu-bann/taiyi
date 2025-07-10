@@ -1,7 +1,7 @@
 use std::{fmt::Debug, ops::Deref};
 
-use alloy_primitives::{Address, B256};
-use alloy_rpc_types_eth::Withdrawal;
+use alloy::primitives::{Address, B256};
+use alloy::rpc::types::eth::Withdrawal;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 

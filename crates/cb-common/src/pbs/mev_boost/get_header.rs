@@ -19,7 +19,7 @@ use alloy::{
     providers::Provider,
     rpc::types::{beacon::BlsPublicKey, Block},
 };
-use alloy_rpc_types_beacon::BlsSignature;
+use alloy::rpc::types::beacon::BlsSignature;
 use axum::http::{HeaderMap, HeaderValue};
 use futures::future::join_all;
 use parking_lot::RwLock;

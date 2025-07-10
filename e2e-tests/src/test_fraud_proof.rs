@@ -1,12 +1,12 @@
 use std::{fs, str::FromStr, time::Instant};
 
-use alloy_consensus::{constants::ETH_TO_WEI, Account, Transaction};
-use alloy_eips::{eip2718::Encodable2718, BlockNumberOrTag};
-use alloy_primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
-use alloy_provider::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
-use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
-use alloy_signer::k256;
-use alloy_sol_types::{sol, SolCall, SolValue};
+use alloy::consensus::{constants::ETH_TO_WEI, Account, Transaction};
+use alloy::eips::{eip2718::Encodable2718, BlockNumberOrTag};
+use alloy::primitives::{address, hex, Address, Bytes, PrimitiveSignature, B256, U256};
+use alloy::providers::{ext::DebugApi, network::EthereumWallet, Provider, ProviderBuilder};
+use alloy::rpc::types::{BlockTransactions, BlockTransactionsKind};
+use alloy::signers::k256;
+use alloy::sol_types::{sol, SolCall, SolValue};
 use eth_trie_proofs::tx_trie::TxsMptHandler;
 use ethereum_consensus::{crypto::PublicKey as BlsPublicKey, ssz::prelude::ssz_rs};
 use reqwest::Url;
@@ -268,7 +268,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: alloy_rlp::encode(U256::from(tx_index)),
+        key: alloy::rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -278,7 +278,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: alloy_rlp::encode(U256::from(tx_index)),
+        key: alloy::rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -335,7 +335,7 @@ async fn poi_preconf_type_a_included() -> eyre::Result<()> {
     stdin.write(&previous_block.header.hash_slow());
 
     // underwriter address
-    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+    let private_key_signer = alloy::signers::local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
             UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
@@ -581,7 +581,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: alloy_rlp::encode(U256::from(tx_index)),
+        key: alloy::rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -592,7 +592,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
         let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
         let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
         tx_merkle_proof.push(TxMerkleProof {
-            key: alloy_rlp::encode(U256::from(tx_index)),
+            key: alloy::rlp::encode(U256::from(tx_index)),
             proof,
             root: inclusion_block.header.transactions_root,
         });
@@ -650,7 +650,7 @@ async fn poi_preconf_type_a_multiple_txs_included() -> eyre::Result<()> {
     stdin.write(&previous_block.header.hash_slow());
 
     // underwriter address
-    let private_key_signer = alloy_signer_local::PrivateKeySigner::from_signing_key(
+    let private_key_signer = alloy::signers::local::PrivateKeySigner::from_signing_key(
         k256::ecdsa::SigningKey::from_slice(&hex::decode(
             UNDERWRITER_ECDSA_SK.strip_prefix("0x").unwrap_or(&UNDERWRITER_ECDSA_SK),
         )?)?,
@@ -949,7 +949,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
 
     tx_merkle_proof.push(TxMerkleProof {
-        key: alloy_rlp::encode(U256::from(tx_index)),
+        key: alloy::rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });
@@ -959,7 +959,7 @@ async fn poi_preconf_type_b_included() -> eyre::Result<()> {
     let tx_index = txs_mpt_handler.tx_hash_to_tx_index(tx_hash.clone()).unwrap();
     let proof = txs_mpt_handler.get_proof(tx_index).unwrap();
     tx_merkle_proof.push(TxMerkleProof {
-        key: alloy_rlp::encode(U256::from(tx_index)),
+        key: alloy::rlp::encode(U256::from(tx_index)),
         proof,
         root: inclusion_block.header.transactions_root,
     });

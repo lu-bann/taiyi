@@ -1,5 +1,5 @@
 // This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g1_msm.rs
-use alloy_primitives::Bytes;
+use alloy::primitives::Bytes;
 
 use super::error::PrecompileError;
 use crate::precompile::{

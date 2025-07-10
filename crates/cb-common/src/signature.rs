@@ -1,4 +1,4 @@
-use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsPublicKey, BlsSignature};
+use alloy::rpc::types::beacon::{constants::BLS_DST_SIG, BlsPublicKey, BlsSignature};
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 

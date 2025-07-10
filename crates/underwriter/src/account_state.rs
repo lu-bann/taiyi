@@ -1,5 +1,5 @@
 use crate::account_info::{AccountInfo, AccountInfoProvider, AccountInfoProviderError};
-use alloy_primitives::{Address, U256};
+use alloy::primitives::{Address, U256};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
@@ -136,7 +136,7 @@ impl<Provider: AccountInfoProvider> AccountState<Provider> {
 pub mod tests {
     use super::*;
     use crate::account_info::MockAccountInfoProvider;
-    use alloy_primitives::{address, Address};
+    use alloy::primitives::{address, Address};
 
     const DUMMY_OWNER: Address = address!("0x0000777735367b36bC9B61C50022d9D0700dB4Ec");
 

@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, U256};
-use alloy_provider::ProviderBuilder;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::network::EthereumWallet;
+use alloy::primitives::{Address, U256};
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;

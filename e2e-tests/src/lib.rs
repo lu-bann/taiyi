@@ -1,14 +1,14 @@
 #![allow(unused_imports, dead_code)]
 #![cfg(test)]
 
-use alloy_provider::{
+use alloy::providers::{
     fillers::{
         BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller,
     },
     network::{Ethereum, EthereumWallet},
     Identity, RootProvider,
 };
-use alloy_transport::BoxTransport;
+use alloy::transports::BoxTransport;
 
 mod constant;
 mod contract_call;
@@ -22,7 +22,7 @@ mod utils;
 type TestProvider = FillProvider<
     JoinFill<
         JoinFill<
-            alloy_provider::Identity,
+            alloy::providers::Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
         >,
         WalletFiller<EthereumWallet>,
