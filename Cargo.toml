@@ -96,7 +96,7 @@ alloy-sol-types = "1"
 alloy-transport = { version = "1" }
 alloy-transport-http = { version = "1", default-features = false }
 alloy-trie = "0.9"
-alloy = { version = "1.0.12", features = ["full", "essentials" ,"rpc-types-beacon"] }
+alloy = { version = "1.0.20", features = ["full", "essentials" ,"rpc-types-beacon"] }
 # sp1
 sp1-build = "5.0.5"
 sp1-sdk = "5.0.5"
