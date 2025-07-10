@@ -10,7 +10,7 @@ aes = { version = "0.7", features = ["ctr"] }
 bls = { workspace = true }
 hex = { workspace = true }
 hmac = "0.11.0"
-pbkdf2 = { version = "0.8.0", default-features = false }
+pbkdf2 = { version = "0.12.2", default-features = false }
 rand = { workspace = true }
 scrypt = { version = "0.7.0", default-features = false }
 serde = { workspace = true }

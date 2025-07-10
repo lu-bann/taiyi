@@ -2586,7 +2586,7 @@ dependencies = [
  "bls",
  "hex",
  "hmac 0.11.0",
- "pbkdf2 0.8.0",
+ "pbkdf2 0.12.2",
  "rand 0.9.1",
  "scrypt",
  "serde",
