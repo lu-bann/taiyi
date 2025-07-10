@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_eips::eip4844::env_settings::EnvKzgSettings;
 use alloy_primitives::{Address, Signature, B256};
@@ -61,6 +63,7 @@ const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
 const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
 const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Error)]
 pub enum PreconfApiError {
     #[error("Missing header for {key}")]

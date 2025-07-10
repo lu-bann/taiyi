@@ -131,7 +131,7 @@ impl<F: EventHandler, Factory: SlotInfoFactory> EventHandler
             .await
             .iter()
             .map(|info| info.slot)
-            .last()
+            .next_back()
             .unwrap_or(slot + 1);
         let slot_in_epoch = slot % self.slots_per_epoch;
         let last_slot = slot + self.epoch_lookahead * self.slots_per_epoch - slot_in_epoch;
