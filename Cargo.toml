@@ -136,7 +136,7 @@ mockall = "0.13.1"
 parking_lot = "0.12.3"
 pbkdf2 = "0.12.2"
 priority-queue = "2.1.1"
-prometheus = "0.13.4"
+prometheus = "0.14.0"
 prost = "0.13.4"
 rand = { version = "0.9.1", features = ["os_rng"] }
 reqwest = { version = "0.12.20", features = ["stream"] }
