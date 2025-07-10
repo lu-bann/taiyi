@@ -92,6 +92,7 @@ pub struct ExecutionPayloadHeader<T: EthSpec> {
 mod tests {
     use alloy::primitives::b256;
     use ssz_types::VariableList;
+    use tree_hash::TreeHash as _;
 
     use super::*;
     use crate::{
