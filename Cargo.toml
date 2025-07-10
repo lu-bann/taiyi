@@ -54,10 +54,8 @@ ignored = [
 [workspace.dependencies]
 taiyi-beacon-client = { path = "crates/beacon-client" }
 taiyi-cmd = { path = "crates/cli" }
-taiyi-common = { path = "crates/common" }
 taiyi-contracts = { path = "crates/contracts" }
 taiyi-crypto = { path = "crates/crypto" }
-taiyi-integration-tests = { path = "tests" }
 taiyi-poi = { path = "crates/poi" }
 taiyi-poni = { path = "crates/poni" }
 taiyi-primitives = { path = "crates/primitives" }
