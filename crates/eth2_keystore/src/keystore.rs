@@ -434,14 +434,20 @@ fn derive_key(password: &[u8], kdf: &Kdf) -> Result<DerivedKey, Error> {
 
     match &kdf {
         Kdf::Pbkdf2(params) => {
-            pbkdf2::<Hmac<Sha256>>(password, params.salt.as_bytes(), params.c, dk.as_mut_bytes());
+            pbkdf2::<Hmac<Sha256>>(password, params.salt.as_bytes(), params.c, dk.as_mut_bytes())
+                .map_err(|e| Error::UnableToSerialize(e.to_string()))?;
         }
         Kdf::Scrypt(params) => {
             scrypt(
                 password,
                 params.salt.as_bytes(),
-                &ScryptParams::new(log2_int(params.n) as u8, params.r, params.p)
-                    .map_err(Error::ScryptInvalidParams)?,
+                &ScryptParams::new(
+                    log2_int(params.n) as u8,
+                    params.r,
+                    params.p,
+                    ScryptParams::RECOMMENDED_LEN,
+                )
+                .map_err(Error::ScryptInvalidParams)?,
                 dk.as_mut_bytes(),
             )
             .map_err(Error::ScryptInvaidOutputLen)?;
