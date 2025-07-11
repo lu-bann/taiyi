@@ -42,6 +42,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: false
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
       - name: Install SP1 toolchain
         run: |
           curl -L https://sp1.succinct.xyz | bash
@@ -52,10 +56,6 @@ jobs:
       - name: Lint check
         run: |
           make lint
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
       - name: Run tests
         run: make coverage
         if: ${{ always() }}
