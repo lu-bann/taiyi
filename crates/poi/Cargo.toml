@@ -9,6 +9,7 @@ taiyi-zkvm-types = { workspace = true }
 alloy = { version = "1", default-features = false, features = [
     "consensus",
     "eips",
+    "signers",
     "rlp",
     "sol-types",
 ]}

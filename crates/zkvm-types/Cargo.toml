@@ -4,7 +4,11 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy = { workspace = true }
+alloy = { version = "1", default-features = false, features = [
+    "consensus",
+    "sol-types",
+    "signers",
+]}
 serde = { workspace = true }
 ssz_rs = { workspace = true }
 thiserror = { workspace = true }

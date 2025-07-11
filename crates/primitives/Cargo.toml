@@ -4,7 +4,13 @@ name = "taiyi-primitives"
 version = { workspace = true }
 
 [dependencies]
-alloy = { workspace = true }
+alloy = { version = "1", default-features = false, features = [
+    "consensus",
+    "eips",
+    "signers",
+    "sol-types",
+    "rpc-types-beacon",
+]}
 eyre = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
