@@ -19,4 +19,4 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-testcontainers-modules = { version = "0.11.6", features = ["postgres"] }
+testcontainers-modules = { version = "0.12.1", features = ["postgres"] }
