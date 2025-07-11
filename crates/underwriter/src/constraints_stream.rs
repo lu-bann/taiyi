@@ -1,19 +1,19 @@
 use std::{num::TryFromIntError, sync::Arc, time::Duration};
 
-use alloy_consensus::TxEnvelope;
-use alloy_eips::{
+use alloy::consensus::TxEnvelope;
+use alloy::eips::{
     eip1559::BaseFeeParams, eip1898::BlockNumberOrTag, eip2718::Encodable2718, eip7840::BlobParams,
     BlockId,
 };
-use alloy_network::{EthereumWallet, TransactionBuilder};
-use alloy_primitives::{keccak256, Bytes, Signature, U256};
-use alloy_provider::ext::DebugApi;
-use alloy_provider::Provider;
-use alloy_rpc_types::TransactionRequest;
-use alloy_rpc_types_beacon::relay::Validator;
-use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::network::{EthereumWallet, TransactionBuilder};
+use alloy::primitives::{keccak256, Bytes, Signature, U256};
+use alloy::providers::ext::DebugApi;
+use alloy::providers::Provider;
+use alloy::rpc::types::beacon::relay::Validator;
+use alloy::rpc::types::trace::geth::GethDebugTracingCallOptions;
+use alloy::rpc::types::TransactionRequest;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::Signer;
 use futures::{pin_mut, stream::Stream, StreamExt};
 use reqwest::Client;
 use taiyi_contracts::{TaiyiEscrow, TaiyiEscrowInstance};

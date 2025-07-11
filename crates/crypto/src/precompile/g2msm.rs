@@ -1,5 +1,5 @@
 // This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_msm.rs
-use alloy_primitives::Bytes;
+use alloy::primitives::Bytes;
 
 use super::{
     blst_utils::{encode_g2_point, p2_msm, read_g2, read_scalar},

@@ -1,5 +1,5 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/engine_hints/geth.rs
-use alloy_primitives::{Bloom, B256};
+use alloy::primitives::{Bloom, B256};
 use lazy_static::lazy_static;
 use regex::Regex;
 use taiyi_primitives::encode_util::hex_decode;

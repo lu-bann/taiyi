@@ -5,7 +5,7 @@ authors = ["Paul Hauner <paul@paulhauner.com>"]
 edition = { workspace = true }
 
 [dependencies]
-alloy-primitives = { workspace = true }
+alloy = { workspace = true }
 arbitrary = { workspace = true }
 blst = { workspace = true, optional = true }
 ethereum_hashing = { workspace = true }

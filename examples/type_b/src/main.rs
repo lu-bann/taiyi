@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used)]
-use alloy_eips::{self, eip4844::DATA_GAS_PER_BLOB};
-use alloy_primitives::{Address, U256};
-use alloy_provider::{
+use alloy::eips::{self, eip4844::DATA_GAS_PER_BLOB};
+use alloy::primitives::{Address, U256};
+use alloy::providers::{
     network::{EthereumWallet, TransactionBuilder},
     Provider, ProviderBuilder,
 };
-use alloy_rpc_types::TransactionRequest;
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
+use alloy::rpc::types::TransactionRequest;
+use alloy::signers::Signer;
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol;
 use beacon_api_client::mainnet::Client as BeaconClient;
 use reqwest::Url;
 use taiyi_primitives::{

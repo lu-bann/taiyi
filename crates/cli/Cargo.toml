@@ -4,13 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-contract = { workspace = true }
-alloy-network = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-provider = { workspace = true }
-alloy-signer = { workspace = true }
-alloy-signer-local = { workspace = true }
-alloy-sol-types = { workspace = true }
+alloy = { workspace = true }
 eth2_keystore = { workspace = true }
 clap = { workspace = true }
 eyre = { workspace = true }

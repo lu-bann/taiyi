@@ -1,5 +1,5 @@
-use alloy_primitives::{Address, ChainId, B256};
-use alloy_rpc_types_beacon::constants::BLS_DST_SIG;
+use alloy::primitives::{Address, ChainId, B256};
+use alloy::rpc::types::beacon::constants::BLS_DST_SIG;
 use taiyi_crypto::bls::{PublicKey, SecretKey, Signature};
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;

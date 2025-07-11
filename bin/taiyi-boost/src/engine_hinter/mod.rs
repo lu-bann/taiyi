@@ -1,11 +1,11 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/fallback/engine_hinter.rs
 use std::ops::Deref;
 
-use alloy_consensus::{Block, BlockBody, Header, Sealed, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
-use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
-use alloy_provider::ext::EngineApi;
-use alloy_rpc_types_engine::{ClientCode, JwtSecret, PayloadStatusEnum};
-use alloy_rpc_types_eth::{Block as RPCBlock, Withdrawal, Withdrawals};
+use alloy::consensus::{Block, BlockBody, Header, Sealed, TxEnvelope, EMPTY_OMMER_ROOT_HASH};
+use alloy::primitives::{Address, Bloom, Bytes, B256, B64, U256};
+use alloy::providers::ext::EngineApi;
+use alloy::rpc::types::engine::{ClientCode, JwtSecret, PayloadStatusEnum};
+use alloy::rpc::types::eth::{Block as RPCBlock, Withdrawal, Withdrawals};
 use engine_hints::parse_hint_from_engine_response;
 use reqwest::Url;
 use tracing::{debug, error};

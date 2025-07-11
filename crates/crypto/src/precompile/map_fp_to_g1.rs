@@ -1,5 +1,5 @@
 // This file is copied from https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/map_fp_to_g1.rs
-use alloy_primitives::Bytes;
+use alloy::primitives::Bytes;
 
 use super::{
     blst_utils::{encode_g1_point, map_fp_to_g1 as blst_map_fp_to_g1, read_fp},

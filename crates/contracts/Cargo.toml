@@ -4,7 +4,4 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-contract = { workspace = true }
-alloy-provider = { workspace = true }
-alloy-rpc-client = { workspace = true }
-alloy-sol-types = { workspace = true }
+alloy = { workspace = true }

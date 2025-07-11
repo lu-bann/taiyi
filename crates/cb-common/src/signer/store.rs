@@ -6,11 +6,11 @@ use std::{
     str::FromStr,
 };
 
+use alloy::rpc::types::beacon::constants::BLS_SIGNATURE_BYTES_LEN;
 use alloy::{
     hex,
     primitives::{Address, Bytes, FixedBytes},
 };
-use alloy_rpc_types_beacon::constants::BLS_SIGNATURE_BYTES_LEN;
 use eth2_keystore::{
     default_kdf,
     json_keystore::{

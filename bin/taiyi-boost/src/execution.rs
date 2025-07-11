@@ -1,15 +1,15 @@
 /// The code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/client/execution.rs
 use std::ops::{Deref, DerefMut};
 
-use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::{Address, Bytes, TxHash, B256, U256, U64};
-use alloy_provider::{
+use alloy::eips::BlockNumberOrTag;
+use alloy::primitives::{Address, Bytes, TxHash, B256, U256, U64};
+use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
     ProviderBuilder, RootProvider,
 };
-use alloy_rpc_client::{BatchRequest, ClientBuilder, RpcClient};
-use alloy_rpc_types_eth::{Block, FeeHistory, TransactionReceipt};
-use alloy_transport::{TransportErrorKind, TransportResult};
+use alloy::rpc::client::{BatchRequest, ClientBuilder, RpcClient};
+use alloy::rpc::types::eth::{Block, FeeHistory, TransactionReceipt};
+use alloy::transports::{TransportErrorKind, TransportResult};
 use futures::{stream::FuturesUnordered, StreamExt};
 use reqwest::Url;
 
@@ -17,7 +17,7 @@ use crate::types::AccountState;
 
 type EthClientProvider = FillProvider<
     JoinFill<
-        alloy_provider::Identity,
+        alloy::providers::Identity,
         JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
     >,
     RootProvider,
@@ -38,7 +38,7 @@ pub struct ExecutionClient {
 impl Deref for ExecutionClient {
     type Target = FillProvider<
         JoinFill<
-            alloy_provider::Identity,
+            alloy::providers::Identity,
             JoinFill<GasFiller, JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>>,
         >,
         RootProvider,
@@ -191,12 +191,12 @@ impl ExecutionClient {
 mod tests {
     use std::str::FromStr;
 
-    use alloy_consensus::constants::ETH_TO_WEI;
-    use alloy_network::{AnyNetwork, TransactionBuilder};
-    use alloy_node_bindings::Anvil;
-    use alloy_primitives::{uint, Uint};
-    use alloy_provider::Provider;
-    use alloy_rpc_types_eth::TransactionRequest;
+    use alloy::consensus::constants::ETH_TO_WEI;
+    use alloy::network::{AnyNetwork, TransactionBuilder};
+    use alloy::node_bindings::Anvil;
+    use alloy::primitives::{uint, Uint};
+    use alloy::providers::Provider;
+    use alloy::rpc::types::eth::TransactionRequest;
 
     use super::*;
 
@@ -239,7 +239,7 @@ mod tests {
 
         let anvil = Anvil::new().block_time(1).chain_id(0).spawn();
         let anvil_url = Url::from_str(&anvil.endpoint()).unwrap();
-        let sender: Address = <alloy_network::EthereumWallet as alloy_network::NetworkWallet<
+        let sender: Address = <alloy::network::EthereumWallet as alloy::network::NetworkWallet<
             AnyNetwork,
         >>::default_signer_address(&anvil.wallet().unwrap());
 

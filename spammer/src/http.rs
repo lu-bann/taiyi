@@ -1,12 +1,12 @@
-use alloy_eips::eip4844::{
+use alloy::eips::eip4844::{
     builder::{SidecarBuilder, SimpleCoder},
     DATA_GAS_PER_BLOB,
 };
-use alloy_primitives::{Address, U256};
-use alloy_provider::network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
-use alloy_rpc_types::TransactionRequest;
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::primitives::{Address, U256};
+use alloy::providers::network::{EthereumWallet, TransactionBuilder, TransactionBuilder4844};
+use alloy::rpc::types::TransactionRequest;
+use alloy::signers::Signer;
+use alloy::signers::local::PrivateKeySigner;
 use reqwest::Url;
 use taiyi_primitives::{
     BlockspaceAllocation, PreconfFeeResponse, PreconfResponseData, SlotInfo,

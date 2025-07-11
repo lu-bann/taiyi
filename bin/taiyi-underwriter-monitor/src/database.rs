@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use alloy_primitives::U256;
+use alloy::primitives::U256;
 use eyre::{eyre, Result};
 use sqlx::{postgres::PgPoolOptions, types::BigDecimal, Pool, Postgres};
 use taiyi_primitives::PreconfRequest;

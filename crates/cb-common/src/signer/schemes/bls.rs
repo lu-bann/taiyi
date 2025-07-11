@@ -1,4 +1,4 @@
-use alloy_rpc_types_beacon::{constants::BLS_DST_SIG, BlsSignature};
+use alloy::rpc::types::beacon::{constants::BLS_DST_SIG, BlsSignature};
 use blst::BLST_ERROR;
 use tree_hash::TreeHash;
 
@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub type BlsSecretKey = blst::min_pk::SecretKey;
-pub type BlsPublicKey = alloy_rpc_types_beacon::BlsPublicKey;
+pub type BlsPublicKey = alloy::rpc::types::beacon::BlsPublicKey;
 
 #[derive(Clone)]
 pub enum BlsSigner {

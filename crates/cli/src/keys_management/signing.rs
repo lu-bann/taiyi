@@ -1,4 +1,4 @@
-use alloy_primitives::B256;
+use alloy::primitives::B256;
 use eyre::{Context, Result};
 use ssz_rs::prelude::*;
 use taiyi_crypto::bls::PublicKey as BlsPublicKey;

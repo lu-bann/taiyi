@@ -1,15 +1,17 @@
 use std::{fmt::Debug, ops::Deref};
 
-use alloy_consensus::{
+use alloy::consensus::{
     Block, Header, Sealed, Signed, TxEip4844Variant, TxEip4844WithSidecar, TxEnvelope,
 };
-use alloy_eips::{
+use alloy::eips::{
     eip2718::{Decodable2718, Eip2718Error, Encodable2718},
     eip4895::{Withdrawal, Withdrawals},
 };
-use alloy_primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
-use alloy_rpc_types_beacon::{BlsPublicKey, BlsSignature};
-use alloy_rpc_types_engine::payload::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
+use alloy::primitives::{keccak256, Address, Bytes, TxHash, B256, U256};
+use alloy::rpc::types::beacon::{BlsPublicKey, BlsSignature};
+use alloy::rpc::types::engine::payload::{
+    ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3,
+};
 use axum::http::HeaderMap;
 use cb_common::pbs::{
     Blob, BlobsBundle, DenebSpec, ElectraSpec, EthSpec, ExecutionPayload, ExecutionPayloadHeader,
@@ -101,7 +103,7 @@ impl TryFrom<ConstraintsMessage> for ConstraintsData {
 /// the inner transaction is computed without blob sidecar.
 fn calculate_tx_proof_data(raw_tx: &Bytes) -> Result<(TxHash, HashTreeRootType), Eip2718Error> {
     let Some(is_type_3) = raw_tx.first().map(|type_id| type_id == &0x03) else {
-        return Err(Eip2718Error::RlpError(alloy_rlp::Error::Custom("empty RLP bytes")));
+        return Err(Eip2718Error::RlpError(alloy::rlp::Error::Custom("empty RLP bytes")));
     };
 
     // For blob transactions (type 3), we need to make sure to strip out the blob sidecar when

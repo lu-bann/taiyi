@@ -14,7 +14,7 @@ pub use registry::*;
 pub use taiyi_escrow::TaiyiEscrow;
 pub use taiyi_middleware::*;
 
-use alloy_provider::{
+use alloy::providers::{
     fillers::{BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller},
     Identity, RootProvider,
 };

@@ -1,4 +1,4 @@
-use alloy_signer::k256::ecdsa::SigningKey;
+use alloy::signers::k256::ecdsa::SigningKey;
 use hex::{decode, encode, FromHexError};
 
 pub fn hex_encode<T: AsRef<[u8]>>(data: T) -> String {

@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, U256};
+use alloy::primitives::{Address, U256};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -51,8 +51,8 @@ impl From<reqwest::Error> for AccountInfoProviderError {
     }
 }
 
-impl From<alloy_contract::Error> for AccountInfoProviderError {
-    fn from(err: alloy_contract::Error) -> Self {
+impl From<alloy::contract::Error> for AccountInfoProviderError {
+    fn from(err: alloy::contract::Error) -> Self {
         Self::Contract { msg: err.to_string() }
     }
 }

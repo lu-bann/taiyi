@@ -1,11 +1,10 @@
 #![allow(clippy::result_large_err)]
-
-use alloy_consensus::{Transaction, TxEnvelope};
-use alloy_eips::eip4844::env_settings::EnvKzgSettings;
-use alloy_primitives::{Address, Signature, B256};
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer::k256::ecdsa::SigningKey;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::consensus::{Transaction, TxEnvelope};
+use alloy::eips::eip4844::env_settings::EnvKzgSettings;
+use alloy::primitives::{Address, Signature, B256};
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::signers::local::PrivateKeySigner;
 use axum::{
     extract::State,
     response::{IntoResponse, Json, Response},
@@ -100,10 +99,10 @@ pub enum PreconfApiError {
     ReservedGasLimitExceeded { gas_limit: u64, reserved_gas_limit: u64 },
 
     #[error("{0}")]
-    BlobTransactionValidationError(#[from] alloy_consensus::BlobTransactionValidationError),
+    BlobTransactionValidationError(#[from] alloy::consensus::BlobTransactionValidationError),
 
     #[error("{0}")]
-    Signature(#[from] alloy_primitives::SignatureError),
+    Signature(#[from] alloy::primitives::SignatureError),
 
     #[error("{0}")]
     ToStr(#[from] reqwest::header::ToStrError),
@@ -139,10 +138,10 @@ pub enum PreconfApiError {
     Blst { msg: String },
 
     #[error("{0}")]
-    RpcTransportError(#[from] alloy_transport::TransportError),
+    RpcTransportError(#[from] alloy::transports::TransportError),
 
     #[error("{0}")]
-    AlloySigner(#[from] alloy_signer::k256::ecdsa::Error),
+    AlloySigner(#[from] alloy::signers::k256::ecdsa::Error),
 
     #[error("{0}")]
     Account(#[from] crate::account_state::AccountError),

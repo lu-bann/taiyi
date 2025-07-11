@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, U256};
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::SolValue;
+use alloy::network::EthereumWallet;
+use alloy::primitives::{Address, U256};
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol_types::SolValue;
 use clap::Parser;
 use eth2_keystore::Keystore;
 use eyre::Result;

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use alloy_primitives::Address;
-use alloy_provider::ProviderBuilder;
+use alloy::primitives::Address;
+use alloy::providers::ProviderBuilder;
 use clap::Parser;
 use eyre::Result;
 use reqwest::Url;

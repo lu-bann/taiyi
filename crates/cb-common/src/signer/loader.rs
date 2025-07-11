@@ -11,7 +11,7 @@ use std::{
 //    Aes128,
 //};
 use alloy::primitives::hex::FromHex;
-use alloy_rpc_types_beacon::BlsPublicKey;
+use alloy::rpc::types::beacon::BlsPublicKey;
 use eth2_keystore::{json_keystore::JsonKeystore, Keystore};
 use eyre::{eyre, Context, OptionExt};
 //use pbkdf2::{hmac, pbkdf2};

@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use alloy_consensus::{constants::ETH_TO_WEI, Transaction};
-use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{keccak256, Address, U256};
-use alloy_provider::{network::EthereumWallet, Provider, ProviderBuilder};
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::{sol, SolCall, SolValue};
+use alloy::consensus::{constants::ETH_TO_WEI, Transaction};
+use alloy::eips::eip2718::Encodable2718;
+use alloy::primitives::{keccak256, Address, U256};
+use alloy::providers::{network::EthereumWallet, Provider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol_types::{sol, SolCall, SolValue};
 use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use reqwest::Url;
 use serde::de;
@@ -117,7 +117,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     assert_eq!(preconf_response.request_id, request_id);
 
     let commitment_string = preconf_response.commitment.unwrap();
-    let commitment = alloy_primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
+    let commitment = alloy::primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
     let mut tx_bytes = Vec::new();
     transaction.clone().encode_2718(&mut tx_bytes);
     let raw_tx = format!("0x{}", hex::encode(&tx_bytes));
@@ -399,7 +399,7 @@ async fn test_type_a_preconf_request() -> eyre::Result<()> {
     info!("preconf_response: {:?}", preconf_response);
 
     let commitment_string = preconf_response.commitment.unwrap();
-    let commitment = alloy_primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
+    let commitment = alloy::primitives::PrimitiveSignature::from_str(&commitment_string).unwrap();
     let type_a = PreconfRequestTypeA {
         tip_transaction: request.tip_transaction.clone(),
         preconf_tx: request.preconf_transaction.clone(),

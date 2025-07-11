@@ -1,15 +1,15 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/client/engine.rs
 use std::ops::Deref;
 
-use alloy_primitives::Bytes;
-use alloy_provider::{ext::EngineApi, RootProvider};
-use alloy_rpc_client::RpcClient;
-use alloy_rpc_types_engine::{ClientCode, ClientVersionV1, JwtSecret};
-use alloy_transport::TransportResult;
-use alloy_transport_http::{
+use alloy::primitives::Bytes;
+use alloy::providers::{ext::EngineApi, RootProvider};
+use alloy::rpc::client::RpcClient;
+use alloy::rpc::types::engine::{ClientCode, ClientVersionV1, JwtSecret};
+use alloy::transports::http::{
     hyper_util::{client::legacy::Client, rt::TokioExecutor},
     AuthLayer, Http, HyperClient,
 };
+use alloy::transports::TransportResult;
 use http_body_util::Full;
 use lazy_static::lazy_static;
 use reqwest::Url;

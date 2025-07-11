@@ -4,7 +4,7 @@ use crate::{
     config::{PbsConfig, PbsModuleConfig},
     pbs::{BuilderEvent, RelayClient},
 };
-use alloy_rpc_types_beacon::BlsPublicKey;
+use alloy::rpc::types::beacon::BlsPublicKey;
 use parking_lot::RwLock;
 
 pub trait BuilderApiState: Clone + Sync + Send + 'static {}

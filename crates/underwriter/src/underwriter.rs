@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use alloy_consensus::transaction::Transaction;
-use alloy_primitives::{Address, U256};
+use alloy::consensus::transaction::Transaction;
+use alloy::primitives::{Address, U256};
 use taiyi_primitives::{
     slot_info::{SlotInfo, SlotInfoError},
     PreconfFee, PreconfRequest, PreconfRequestTypeA, SubmitTypeATransactionRequest,
@@ -122,8 +122,8 @@ pub fn get_required_blobs(request: &PreconfRequestTypeA) -> usize {
 mod tests {
     use super::*;
     use crate::broadcast_sender::MockSender;
-    use alloy_consensus::{TxEip1559, TxEnvelope};
-    use alloy_primitives::{Signature, U256};
+    use alloy::consensus::{TxEip1559, TxEnvelope};
+    use alloy::primitives::{Signature, U256};
 
     #[tokio::test]
     async fn test_reserve_blockspace_fails_if_no_slot_is_available() {

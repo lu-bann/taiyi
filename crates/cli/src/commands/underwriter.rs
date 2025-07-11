@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::str::FromStr;
 
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 use clap::Parser;
 
 pub const HOLESKY_GENESIS_TIMESTAMP: u64 = 1_695_902_400;

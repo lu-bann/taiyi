@@ -1,4 +1,4 @@
-use alloy_consensus::TxEnvelope;
+use alloy::consensus::TxEnvelope;
 use std::collections::{hash_map::Entry, HashMap};
 use taiyi_primitives::{PreconfRequest, PreconfRequestTypeB};
 use thiserror::Error;

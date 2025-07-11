@@ -6,11 +6,14 @@ edition = "2021"
 [dependencies]
 taiyi-zkvm-types = { workspace = true }
 
-alloy-consensus = { workspace = true }
-alloy-eips = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-rlp = { workspace = true }
-alloy-sol-types = { workspace = true }
+alloy = { version = "1", default-features = false, features = [
+    "consensus",
+    "eips",
+    "signers",
+    "rlp",
+    "sol-types",
+    "k256",
+]}
 alloy-trie = { workspace = true }
 eth_trie = { workspace = true }
 serde_json = { workspace = true }

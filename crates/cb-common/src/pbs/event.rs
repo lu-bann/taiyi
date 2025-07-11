@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use alloy::primitives::B256;
-use alloy_rpc_types_beacon::relay::ValidatorRegistration;
+use alloy::rpc::types::beacon::relay::ValidatorRegistration;
 use async_trait::async_trait;
 use axum::{
     extract::State,

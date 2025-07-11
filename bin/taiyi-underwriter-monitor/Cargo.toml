@@ -4,11 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-contract = { workspace = true }
-alloy-eips = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-provider = { workspace = true }
-alloy-rpc-types = { workspace = true }
+alloy = { workspace = true }
 clap = { workspace = true }
 eyre = { workspace = true }
 futures-util = { workspace = true }

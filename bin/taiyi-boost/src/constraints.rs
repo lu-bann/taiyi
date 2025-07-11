@@ -70,13 +70,13 @@ pub async fn subscribe_to_constraints_stream(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use alloy_eips::eip2718::Encodable2718;
-    use alloy_network::{EthereumWallet, TransactionBuilder};
-    use alloy_primitives::{Address, Bytes, U256};
-    use alloy_rpc_types_beacon::BlsPublicKey;
-    use alloy_rpc_types_eth::TransactionRequest;
-    use alloy_signer::k256::ecdsa::SigningKey;
-    use alloy_signer_local::PrivateKeySigner;
+    use alloy::eips::eip2718::Encodable2718;
+    use alloy::network::{EthereumWallet, TransactionBuilder};
+    use alloy::primitives::{Address, Bytes, U256};
+    use alloy::rpc::types::beacon::BlsPublicKey;
+    use alloy::rpc::types::eth::TransactionRequest;
+    use alloy::signers::k256::ecdsa::SigningKey;
+    use alloy::signers::local::PrivateKeySigner;
 
     use super::*;
 

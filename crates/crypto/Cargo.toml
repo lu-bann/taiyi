@@ -4,10 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-alloy-contract = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-rpc-types-beacon = { workspace = true }
-alloy-sol-types = { workspace = true }
+alloy = { workspace = true }
 blst = { workspace = true }
 eyre = { workspace = true }
 hex-literal = { workspace = true }

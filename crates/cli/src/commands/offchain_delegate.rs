@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use alloy_signer::k256::sha2::{Digest, Sha256};
+use alloy::signers::k256::sha2::{Digest, Sha256};
 use clap::{Parser, ValueEnum};
 use eyre::Result;
 use reqwest::Url;

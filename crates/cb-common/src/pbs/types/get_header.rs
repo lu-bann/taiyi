@@ -1,5 +1,5 @@
 use alloy::primitives::{B256, U256};
-use alloy_rpc_types_beacon::BlsSignature;
+use alloy::rpc::types::beacon::BlsSignature;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 

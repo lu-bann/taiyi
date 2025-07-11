@@ -2,10 +2,10 @@ mod database;
 
 use std::{process::exit, str::FromStr as _};
 
-use alloy_eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
-use alloy_primitives::map::HashSet;
-use alloy_provider::{Provider as _, ProviderBuilder, WsConnect};
-use alloy_rpc_types::Block;
+use alloy::eips::{merge::SLOT_DURATION_SECS, BlockId, BlockNumberOrTag};
+use alloy::primitives::map::HashSet;
+use alloy::providers::{Provider as _, ProviderBuilder, WsConnect};
+use alloy::rpc::types::Block;
 use clap::Parser;
 use database::{get_db_connection, u128_to_big_decimal, TaiyiDBConnection, UnderwriterTradeRow};
 use eyre::{eyre, OptionExt};

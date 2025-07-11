@@ -1,5 +1,5 @@
 // the code is modified from bolt's implementation: https://github.com/chainbound/bolt/blob/eed9cec9b644632550479f05823b4487d3ed1ed6/bolt-sidecar/src/builder/mod.rs#L46
-use alloy_rpc_types_engine::{ClientCode, PayloadStatusEnum};
+use alloy::rpc::types::engine::{ClientCode, PayloadStatusEnum};
 use taiyi_beacon_client::BeaconClientError;
 
 #[derive(Debug, thiserror::Error)]
@@ -17,7 +17,7 @@ pub enum BuilderError {
     #[error("Failed HTTP request: {0}")]
     Reqwest(#[from] reqwest::Error),
     #[error("Failed while fetching from RPC: {0}")]
-    Transport(#[from] alloy_transport::TransportError),
+    Transport(#[from] alloy::transports::TransportError),
     #[error("Failed to build payload due to invalid transactions: {0}")]
     InvalidTransactions(String),
     #[error("Got an unexpected response from engine_newPayload query: {0}")]
