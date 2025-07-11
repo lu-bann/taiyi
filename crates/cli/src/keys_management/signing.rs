@@ -29,14 +29,15 @@ pub fn compute_fork_data_root(current_version: [u8; 4], genesis_validators_root:
 }
 
 /// Compute the signing root for a given object root and signing domain.
-pub fn compute_signing_root(object_root: [u8; 32], signing_domain: [u8; 32]) -> B256 {
+pub fn compute_signing_root(ssz_object: [u8; 32], signing_domain: [u8; 32]) -> Result<B256> {
+    let object_root = ssz_object.hash_tree_root()?.0;
     let signing_data = SigningData { object_root, signing_domain };
-    B256::from_slice(signing_data.tree_hash_root().0.as_slice())
+    Ok(B256::from_slice(signing_data.tree_hash_root().0.as_slice()))
 }
 
 /// Helper function to compute the signing root for a message
 pub fn compute_commit_boost_signing_root(message: [u8; 32], fork_version: [u8; 4]) -> Result<B256> {
-    Ok(compute_signing_root(message, compute_domain_from_mask(fork_version)))
+    compute_signing_root(message, compute_domain_from_mask(fork_version))
 }
 
 /// Compute the commit boost domain from the fork version
@@ -78,4 +79,35 @@ pub fn parse_bls_public_key(underwriter_pubkey: &str) -> Result<BlsPublicKey> {
         hex::decode(hex_pk).wrap_err("Failed to hex-decode underwriter pubkey")?.as_slice(),
     )
     .map_err(|e| eyre::eyre!("Failed to parse underwriter public key '{}': {:?}", hex_pk, e))
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_primitives::hex::FromHex;
+
+    use super::*;
+
+    #[test]
+    fn test_compute_signing_root() {
+        let ssz_object = [0; 32];
+        let signing_domain = [0; 32];
+        let signing_root = compute_signing_root(ssz_object, signing_domain).unwrap();
+        assert_eq!(
+            signing_root,
+            B256::from_hex("0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b")
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_compute_commit_boost_signing_root() {
+        let message = [0; 32];
+        let fork_version = [0; 4];
+        let signing_root = compute_commit_boost_signing_root(message, fork_version).unwrap();
+        assert_eq!(
+            signing_root,
+            B256::from_hex("0x26fa1f11292a2c38f7a89024da12aaa49b35db5040905c1f2f1518097acfa2c0")
+                .unwrap()
+        );
+    }
 }
