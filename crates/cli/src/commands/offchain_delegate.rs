@@ -37,7 +37,20 @@ pub struct DelegateCommand {
     #[clap(subcommand)]
     pub source: KeySource,
 
-    pub fork_version: u32,
+    #[clap(long, env = "FORK_VERSION", value_parser = parse_fork_version)]
+    pub fork_version: [u8; 4],
+}
+
+fn parse_fork_version(s: &str) -> Result<[u8; 4], hex::FromHexError> {
+    // Remove "0x" prefix if present
+    let cleaned = s.trim_start_matches("0x");
+    let decoded = hex::decode(cleaned)?;
+    if decoded.len() != 4 {
+        return Err(hex::FromHexError::InvalidStringLength);
+    }
+    let mut res = [0; 4];
+    res.copy_from_slice(&decoded);
+    Ok(res)
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -55,7 +68,7 @@ impl DelegateCommand {
                 let signed_messages = generate_from_local_keys(
                     secret_keys,
                     underwriter_pubkey,
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with local keys", signed_messages.len());
@@ -69,7 +82,7 @@ impl DelegateCommand {
                     &opts.path,
                     keystore_secret,
                     underwriter_pubkey,
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )?;
                 debug!("Signed {} messages with keystore", signed_messages.len());
@@ -86,7 +99,7 @@ impl DelegateCommand {
                     underwriter_pubkey,
                     opts.wallet_path.clone(),
                     opts.passphrases.clone(),
-                    self.fork_version.to_be_bytes(),
+                    self.fork_version,
                     self.action.clone(),
                 )
                 .await?;
@@ -165,9 +178,8 @@ impl DelegationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.delegatee_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.delegatee_pubkey.compress());
         hasher.finalize().into()
     }
 }
@@ -198,9 +210,69 @@ impl RevocationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.underwriter_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.underwriter_pubkey.compress());
         hasher.finalize().into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use taiyi_crypto::bls::PublicKey as BlsPublicKey;
+
+    use crate::commands::offchain_delegate::parse_fork_version;
+
+    use super::{DelegationMessage, RevocationMessage};
+
+    #[test]
+    fn test_delegation_message_digest() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey);
+        let digest = message.digest();
+        assert_eq!(
+            digest,
+            [
+                226, 222, 227, 110, 50, 243, 244, 144, 139, 145, 232, 236, 80, 207, 211, 53, 23,
+                23, 47, 128, 152, 143, 22, 54, 108, 184, 176, 3, 30, 30, 25, 86
+            ]
+        );
+    }
+
+    #[test]
+    fn test_revocation_message_digest() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey);
+        let digest = message.digest();
+        assert_eq!(
+            digest,
+            [
+                84, 104, 200, 42, 91, 64, 136, 102, 191, 97, 15, 88, 26, 22, 201, 239, 235, 15,
+                119, 36, 227, 113, 49, 218, 35, 166, 197, 105, 45, 76, 150, 200
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_fork_version() {
+        let fork_version = parse_fork_version("0x10000910").unwrap();
+        assert_eq!(fork_version, [16, 0, 9, 16]);
     }
 }
