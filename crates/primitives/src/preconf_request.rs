@@ -53,8 +53,8 @@ mod tests {
     use alloy::primitives::{hex, Signature, B256, U256};
     use alloy::providers::network::{EthereumWallet, TransactionBuilder};
     use alloy::rpc::types::TransactionRequest;
-    use alloy::signers::Signer as _;
     use alloy::signers::local::PrivateKeySigner;
+    use alloy::signers::Signer as _;
     use uuid::Uuid;
 
     use super::*;

@@ -3,11 +3,11 @@ use std::{
     str::FromStr,
 };
 
+use alloy::rpc::types::beacon::BlsSignature;
 use alloy::{
     hex,
     primitives::{Address, B256},
 };
-use alloy::rpc::types::beacon::BlsSignature;
 use derive_more::derive::From;
 use serde::{Deserialize, Serialize};
 use tree_hash::TreeHash;

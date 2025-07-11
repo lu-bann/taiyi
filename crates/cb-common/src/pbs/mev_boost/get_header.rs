@@ -14,12 +14,12 @@ use crate::{
     types::Chain,
     utils::{get_user_agent_with_version, ms_into_slot, timestamp_of_slot_start_sec, utcnow_ms},
 };
+use alloy::rpc::types::beacon::BlsSignature;
 use alloy::{
     primitives::{utils::format_ether, B256, U256},
     providers::Provider,
     rpc::types::{beacon::BlsPublicKey, Block},
 };
-use alloy::rpc::types::beacon::BlsSignature;
 use axum::http::{HeaderMap, HeaderValue};
 use futures::future::join_all;
 use parking_lot::RwLock;
