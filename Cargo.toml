@@ -145,7 +145,7 @@ serde = { version = "1.0.216", features = ["derive"] }
 serde_json = "1.0.133"
 serde_repr = "0.1.20"
 serde_yaml = "0.9.33"
-sha2 = "0.9"
+sha2 = "0.10"
 sqlx = { default-features = true, version = "*", features = [
     "runtime-tokio-rustls",
     "postgres",
