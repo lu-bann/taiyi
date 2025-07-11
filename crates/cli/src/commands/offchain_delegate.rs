@@ -178,9 +178,8 @@ impl DelegationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.delegatee_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.delegatee_pubkey.compress());
         hasher.finalize().into()
     }
 }
@@ -211,16 +210,65 @@ impl RevocationMessage {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update([self.action]);
-        hasher.update(self.validator_pubkey.serialize());
-        hasher.update(self.underwriter_pubkey.serialize());
-
+        hasher.update(self.validator_pubkey.compress());
+        hasher.update(self.underwriter_pubkey.compress());
         hasher.finalize().into()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use taiyi_crypto::bls::PublicKey as BlsPublicKey;
+
+    use crate::commands::offchain_delegate::parse_fork_version;
+
+    use super::{DelegationMessage, RevocationMessage};
+
+    #[test]
+    fn test_delegation_message_digest() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let message = DelegationMessage::new(validator_pubkey, underwriter_pubkey);
+        let digest = message.digest();
+        assert_eq!(
+            digest,
+            [
+                226, 222, 227, 110, 50, 243, 244, 144, 139, 145, 232, 236, 80, 207, 211, 53, 23,
+                23, 47, 128, 152, 143, 22, 54, 108, 184, 176, 3, 30, 30, 25, 86
+            ]
+        );
+    }
+
+    #[test]
+    fn test_revocation_message_digest() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let message = RevocationMessage::new(validator_pubkey, underwriter_pubkey);
+        let digest = message.digest();
+        assert_eq!(
+            digest,
+            [
+                84, 104, 200, 42, 91, 64, 136, 102, 191, 97, 15, 88, 26, 22, 201, 239, 235, 15,
+                119, 36, 227, 113, 49, 218, 35, 166, 197, 105, 45, 76, 150, 200
+            ]
+        );
+    }
 
     #[test]
     fn test_parse_fork_version() {
