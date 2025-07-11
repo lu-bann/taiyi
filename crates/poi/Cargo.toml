@@ -12,6 +12,7 @@ alloy = { version = "1", default-features = false, features = [
     "signers",
     "rlp",
     "sol-types",
+    "k256",
 ]}
 alloy-trie = { workspace = true }
 eth_trie = { workspace = true }
