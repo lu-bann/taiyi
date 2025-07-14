@@ -83,7 +83,7 @@ pub fn parse_bls_public_key(underwriter_pubkey: &str) -> Result<BlsPublicKey> {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::hex::FromHex;
+    use alloy::primitives::hex::FromHex;
 
     use super::*;
 
