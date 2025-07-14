@@ -7214,6 +7214,7 @@ dependencies = [
  "prost",
  "reqwest",
  "serde",
+ "serde_json",
  "ssz_rs",
  "taiyi-contracts",
  "taiyi-crypto",
