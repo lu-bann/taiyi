@@ -7243,6 +7243,7 @@ dependencies = [
  "alloy",
  "blst",
  "eyre",
+ "hex",
  "hex-literal",
  "serde",
  "taiyi-contracts",
