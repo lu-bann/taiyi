@@ -115,7 +115,7 @@ derive_more = "2"
 eth_trie = "0.6.0"
 eyre = { version = "0.6.12" }
 ethereum_hashing = "0.7.0"
-ethereum_serde_utils = "0.7"
+ethereum_serde_utils = "0.8"
 ethereum_ssz = "0.9"
 ethereum_ssz_derive = "0.9"
 futures = "0.3.31"
