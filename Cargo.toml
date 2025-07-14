@@ -68,7 +68,7 @@ cb-common = { path = "crates/cb-common" }
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 
-alloy = { version = "1.0.12", features = [
+alloy = { version = "1.0.22", features = [
     "full", 
     "essentials", 
     "consensus",
