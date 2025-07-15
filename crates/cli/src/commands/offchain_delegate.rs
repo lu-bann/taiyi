@@ -218,9 +218,11 @@ impl RevocationMessage {
 
 #[cfg(test)]
 mod tests {
-    use taiyi_crypto::bls::PublicKey as BlsPublicKey;
-
-    use crate::commands::offchain_delegate::parse_fork_version;
+    use crate::commands::offchain_delegate::{
+        parse_fork_version, SignedDelegation, SignedRevocation,
+    };
+    use serde_json;
+    use taiyi_crypto::bls::{PublicKey as BlsPublicKey, Signature as BlsSignature};
 
     use super::{DelegationMessage, RevocationMessage};
 
@@ -274,5 +276,56 @@ mod tests {
     fn test_parse_fork_version() {
         let fork_version = parse_fork_version("0x10000910").unwrap();
         assert_eq!(fork_version, [16, 0, 9, 16]);
+    }
+
+    #[test]
+    fn test_serialize_signed_delegation() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap()
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let signature = BlsSignature::from_bytes(
+            &hex::decode("8efe1c44539699ab3be1d27e856a872e541c9b166b7d41d9068481bed8fc7c5125adc71115f921234f42363a7f16038b150b67e08d6050bdb5602ebb3198344b26aea881077b96904f6acbc5c5d87968a54b497994e368b3373ba8e9c7f99244")
+                .unwrap(),
+        )
+        .unwrap();
+
+        let signed_delegation = SignedDelegation {
+            message: DelegationMessage::new(validator_pubkey, underwriter_pubkey),
+            signature,
+        };
+        let serialized = serde_json::to_string(&signed_delegation).unwrap();
+        assert_eq!(serialized, "{\"message\":{\"action\":0,\"validator_pubkey\":\"a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16\",\"delegatee_pubkey\":\"a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16\"},\"signature\":\"8efe1c44539699ab3be1d27e856a872e541c9b166b7d41d9068481bed8fc7c5125adc71115f921234f42363a7f16038b150b67e08d6050bdb5602ebb3198344b26aea881077b96904f6acbc5c5d87968a54b497994e368b3373ba8e9c7f99244\"}");
+    }
+
+    #[test]
+    fn test_serialize_signed_revocation() {
+        let validator_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let underwriter_pubkey = BlsPublicKey::from_bytes(
+            &hex::decode("a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16")
+                .unwrap(),
+        )
+        .unwrap();
+        let signature = BlsSignature::from_bytes(
+            &hex::decode("8efe1c44539699ab3be1d27e856a872e541c9b166b7d41d9068481bed8fc7c5125adc71115f921234f42363a7f16038b150b67e08d6050bdb5602ebb3198344b26aea881077b96904f6acbc5c5d87968a54b497994e368b3373ba8e9c7f99244")
+                .unwrap(),
+        )
+        .unwrap();
+        let signed_revocation = SignedRevocation {
+            message: RevocationMessage::new(validator_pubkey, underwriter_pubkey),
+            signature,
+        };
+        let serialized = serde_json::to_string(&signed_revocation).unwrap();
+        assert_eq!(serialized, "{\"message\":{\"action\":1,\"validator_pubkey\":\"a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16\",\"underwriter_pubkey\":\"a28647210f27b88486b3f79ebbac5f6da5cd3ab986d5d3d56d44caf538c17f010b04cb1c6f7676f8cd02937fb2753a16\"},\"signature\":\"8efe1c44539699ab3be1d27e856a872e541c9b166b7d41d9068481bed8fc7c5125adc71115f921234f42363a7f16038b150b67e08d6050bdb5602ebb3198344b26aea881077b96904f6acbc5c5d87968a54b497994e368b3373ba8e9c7f99244\"}");
     }
 }
