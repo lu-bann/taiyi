@@ -66,7 +66,13 @@ impl DelegateCommand {
             KeySource::SecretKeys { secret_keys } => {
                 let underwriter_pubkey = parse_bls_public_key(&self.underwriter_pubkey)?;
                 let signed_messages = generate_from_local_keys(
-                    secret_keys,
+                    secret_keys
+                        .iter()
+                        .map(|s| {
+                            hex::decode(s)
+                                .map_err(|e| eyre::eyre!("Failed to decode secret key: {}", e))
+                        })
+                        .collect::<Result<Vec<Vec<u8>>>>()?,
                     underwriter_pubkey,
                     self.fork_version,
                     self.action.clone(),

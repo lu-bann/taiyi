@@ -7209,6 +7209,8 @@ name = "taiyi-cmd"
 version = "0.1.8"
 dependencies = [
  "alloy",
+ "bls",
+ "blst",
  "clap",
  "eth2_keystore",
  "eyre",
@@ -7222,6 +7224,7 @@ dependencies = [
  "taiyi-contracts",
  "taiyi-crypto",
  "taiyi-underwriter",
+ "tempfile",
  "thiserror 2.0.12",
  "tiny-bip39",
  "tonic",

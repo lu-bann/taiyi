@@ -27,5 +27,10 @@ tree_hash = { workspace = true }
 tree_hash_derive = { workspace = true }
 zeroize = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+bls = { workspace = true }
+blst = { workspace = true }
+
 [build-dependencies]
 tonic-build = { workspace = true }
