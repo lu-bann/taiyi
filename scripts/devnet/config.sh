@@ -1,14 +1,12 @@
-set -x
+#!/bin/bash
+
+set -uxeo pipefail
 
 # set default enclave name
-if [ -z "$ENCLAVE_NAME" ]; then
-  export ENCLAVE_NAME="luban"
-fi
+export ENCLAVE_NAME="${ENCLAVE_NAME:-luban}"
+export WORKING_DIR="${WORKING_DIR:-$(pwd)}"
 
-if [ -z "$WORKING_DIR" ]; then
-  export WORKING_DIR="$(pwd)"
-fi
-
+# shellcheck source=.env.ci
 source .env.ci
 
 # Source .env file if it exists
@@ -25,7 +23,7 @@ if kurtosis enclave inspect $ENCLAVE_NAME >/dev/null 2>&1; then
   export RELAY_URL="http://$(kurtosis port print $ENCLAVE_NAME helix-relay api)"
 
   # For mac replace 127.0.0.1 (localhost) with host.docker.internal
-  if [ "$TAIYI_E2E_USE_DOCKER_INTERNAL_HOST" = "1" ]; then
+  if [ "${TAIYI_E2E_USE_DOCKER_INTERNAL_HOST:-0}" = "1" ]; then
     REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX="s@http://127.0.0.1:\([0-9]*\)@http://host.docker.internal:\1@g"
 
     export EXECUTION_URL="$(echo "$EXECUTION_URL" | sed "$REPLACE_LOCALHOST_WITH_DOCKER_INTERNAL_HOST_REGEX")"

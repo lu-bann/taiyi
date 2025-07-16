@@ -1,4 +1,4 @@
-set -xe
+set -uxeo pipefail
 
 source "$(dirname "$0")/config.sh"
 

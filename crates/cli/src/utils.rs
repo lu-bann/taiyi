@@ -15,6 +15,7 @@ pub fn initialize_tracing_log() {
         .compact()
         .with_max_level(level)
         .with_target(true)
-        .with_file(true)
+        // .with_file(true)
         .init();
+    tracing::info!("tracing initialized with level: {level}");
 }

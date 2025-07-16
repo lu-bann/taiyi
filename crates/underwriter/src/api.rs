@@ -54,13 +54,13 @@ use crate::{
     underwriter::{verify_tip, Underwriter, UnderwriterError},
 };
 
-const HEALTH: &str = "/health";
-const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
-const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
-const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
-const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
-const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
-const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
+pub const HEALTH: &str = "/health";
+pub const AVAILABLE_SLOTS: &str = "/commitments/v0/slots";
+pub const PRECONF_FEE: &str = "/commitments/v0/preconf_fee";
+pub const RESERVE_BLOCKSPACE: &str = "/commitments/v0/reserve_blockspace";
+pub const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
+pub const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
+pub const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Error)]
@@ -292,7 +292,7 @@ pub async fn run(
     fork_version: [u8; 4],
     genesis_timestamp: u64,
 ) -> PreconfApiResult<()> {
-    println!("run...");
+    info!("taiyi starting up");
 
     let genesis_since_epoch = Duration::from_secs(genesis_timestamp);
     let slot_duration = Duration::from_secs(12);
@@ -342,7 +342,7 @@ pub async fn run(
         .route(COMMITMENT_STREAM, get(commitments_stream))
         .with_state(state);
 
-    println!("Starting rpc server...");
+    info!("Starting rpc server...");
 
     let now_since_epoch =
         SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid time before epoch");
@@ -373,9 +373,22 @@ pub async fn run(
         BlsSigner::new(signer.address(), Some(chain_id), bls_private_key, fork_version);
 
     tokio::select!(
-        _ = axum::serve(listener, app) => { println!("terminating server") },
-        err = process_event_stream(event_stream, store_last_slot) => { println!("terminating event stream {err:?}")},
-        err = submit_constraints(taiyi_escrow, slot_stream, execution_provider, tx_cache.clone(), signer, bls_signer, relay_url, slots_per_epoch) => { println!("terminating constraint stream {err:?}")}
+        _ = axum::serve(listener, app) => {
+            error!("server task terminated, exiting ...")
+        },
+        _ = process_event_stream(event_stream, store_last_slot) => {
+            error!("stream task terminated, exiting ...")
+        },
+        _ = submit_constraints(
+            taiyi_escrow,
+            slot_stream,
+            execution_provider,
+            tx_cache.clone(),
+            signer,
+            bls_signer,
+            relay_url,
+            slots_per_epoch
+        ) => { error!("stream task terminated, exiting ...")}
     );
     Ok(())
 }

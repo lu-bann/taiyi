@@ -61,8 +61,8 @@ pub async fn taiyi_balance(
 ) -> eyre::Result<U256> {
     let taiyi_escrow = TaiyiEscrow::new(test_config.taiyi_core, provider.clone());
     let balance = taiyi_escrow.balanceOf(address).call().await?;
-    info!("Balance: {:?}", balance._0);
-    Ok(balance._0)
+    info!("Balance: {:?}", balance);
+    Ok(balance)
 }
 
 pub async fn revert_call(

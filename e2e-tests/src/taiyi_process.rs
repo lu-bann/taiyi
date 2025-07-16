@@ -14,6 +14,8 @@ use crate::{
     utils::TestConfig,
 };
 
+// The struct that holds the process.
+// Its Drop implementation will handle cleanup.
 #[derive(Debug)]
 pub struct TaiyiProcess {
     process: Child,
@@ -22,34 +24,37 @@ pub struct TaiyiProcess {
 impl TaiyiProcess {
     pub fn new(config: &TestConfig) -> Result<Self, std::io::Error> {
         let network_dir = format!("{}/{}", config.working_dir, "el_cl_genesis_data");
-        let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("path");
+        let manifest =
+            std::env::var("CARGO_MANIFEST_DIR").expect("no CARGO_MANIFEST_DIR in environment");
         let manifest_path = Path::new(manifest.as_str());
         let binary = manifest_path.parent().expect("parent").join("target/debug/taiyi");
-        let process = Command::new(binary)
-            .args([
-                "underwriter",
-                "--bls-sk",
-                UNDERWRITER_BLS_SK,
-                "--ecdsa-sk",
-                UNDERWRITER_ECDSA_SK,
-                "--network",
-                &network_dir,
-                "--execution-rpc-url",
-                &config.execution_url,
-                "--beacon-rpc-url",
-                &config.beacon_url,
-                "--relay-url",
-                &config.relay_url,
-                "--taiyi-rpc-port",
-                &config.taiyi_port.to_string(),
-                "--taiyi-escrow-address",
-                &config.taiyi_core.to_string(),
-            ])
-            .spawn()?;
+        let mut command = Command::new(binary);
+        command.args([
+            "underwriter",
+            "--bls-sk",
+            UNDERWRITER_BLS_SK,
+            "--ecdsa-sk",
+            UNDERWRITER_ECDSA_SK,
+            "--fork-version",
+            &format!("0x{}", hex::encode(config.fork_version)),
+            "--genesis-timestamp",
+            &config.genesis_time.to_string(),
+            "--execution-rpc-url",
+            &config.execution_url,
+            "--beacon-rpc-url",
+            &config.beacon_url,
+            "--relay-url",
+            &config.relay_url,
+            "--taiyi-rpc-port",
+            &config.taiyi_port.to_string(),
+            "--taiyi-escrow-address",
+            &config.taiyi_core.to_string(),
+        ]);
+        info!("Starting taiyi process with command: {:?}", command);
+        let process = command.spawn()?;
 
         Ok(TaiyiProcess { process })
     }
-
     pub fn kill(&mut self) {
         let _ = self.process.kill();
         let _ = self.process.wait(); // Wait for the process to exit
