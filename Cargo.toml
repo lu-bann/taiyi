@@ -78,6 +78,7 @@ alloy = { version = "1.0.22", features = [
     "node-bindings",
     "rlp",
     "hyper",
+    "rand",
     "rpc-client",
     "rpc-types",
     "rpc-types-beacon",
