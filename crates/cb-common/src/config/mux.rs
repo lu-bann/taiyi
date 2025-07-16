@@ -391,13 +391,14 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "dependent on external API service"]
     async fn test_ssv_network_fetch() -> eyre::Result<()> {
-        let chain = Chain::Holesky;
+        let chain = Chain::Hoodi;
         let node_operator_id = U256::from(200);
 
         let pubkeys = fetch_ssv_pubkeys(chain, node_operator_id).await?;
 
-        assert_eq!(pubkeys.len(), 3);
+        assert_eq!(pubkeys.len(), 1);
 
         Ok(())
     }
