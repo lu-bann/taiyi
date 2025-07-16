@@ -370,14 +370,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "missing JSON file"]
     fn test_spec_mainnet_data_json() {
         let a = env!("CARGO_MANIFEST_DIR");
         let mut path = PathBuf::from(a);
 
         path.pop();
         path.pop();
-        path.push("tests/data/mainnet_spec_data.json");
+        path.push("crates/cb-common/tests/data/mainnet_spec_data.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -392,14 +391,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "missing JSON file"]
     fn test_spec_holesky_json() {
         let a = env!("CARGO_MANIFEST_DIR");
         let mut path = PathBuf::from(a);
 
         path.pop();
         path.pop();
-        path.push("tests/data/holesky_spec.json");
+        path.push("crates/cb-common/tests/data/holesky_spec.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -416,14 +414,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "missing JSON file"]
     fn test_spec_sepolia_data_json() {
         let a = env!("CARGO_MANIFEST_DIR");
         let mut path = PathBuf::from(a);
 
         path.pop();
         path.pop();
-        path.push("tests/data/sepolia_spec_data.json");
+        path.push("crates/cb-common/tests/data/sepolia_spec_data.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -440,14 +437,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "missing JSON file"]
     fn test_spec_hoodi_data_json() {
         let a = env!("CARGO_MANIFEST_DIR");
         let mut path = PathBuf::from(a);
 
         path.pop();
         path.pop();
-        path.push("tests/data/hoodi_spec.json");
+        path.push("crates/cb-common/tests/data/hoodi_spec.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -464,14 +460,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "missing YML file"]
     fn test_spec_helder_yml() {
         let a = env!("CARGO_MANIFEST_DIR");
         let mut path = PathBuf::from(a);
 
         path.pop();
         path.pop();
-        path.push("tests/data/helder_spec.yml");
+        path.push("crates/cb-common/tests/data/helder_spec.yml");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
