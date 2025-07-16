@@ -391,6 +391,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "dependent on external API service"]
     async fn test_ssv_network_fetch() -> eyre::Result<()> {
         let chain = Chain::Hoodi;
         let node_operator_id = U256::from(200);
