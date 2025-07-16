@@ -12,8 +12,8 @@ use alloy::providers::{
     Provider, ProviderBuilder,
 };
 use alloy::rpc::types::{BlockTransactionsKind, TransactionRequest};
-use alloy::signers::Signer;
 use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::Signer;
 use alloy::sol;
 use clap::Parser;
 use eyre::eyre;
