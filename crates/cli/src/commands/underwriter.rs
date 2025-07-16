@@ -4,6 +4,7 @@ use std::str::FromStr;
 use alloy::primitives::Address;
 use clap::Parser;
 use eyre::{eyre, ContextCompat};
+use tracing::info;
 
 #[derive(Debug, Parser)]
 pub struct UnderwriterCommand {
@@ -61,9 +62,9 @@ impl UnderwriterCommand {
         //         init_metrics(metrics_port)?;
         //     }
 
-        println!("Starting on port {}", self.taiyi_rpc_port);
+        info!("Starting on port {}", self.taiyi_rpc_port);
         // decode the fork version from hex string
-        println!("Fork version: {}", self.fork_version);
+        info!("Fork version: {}", self.fork_version);
         let fork_version: [u8; 4] = {
             hex::decode(
                 self.fork_version

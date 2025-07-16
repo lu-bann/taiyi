@@ -109,7 +109,7 @@ impl<F: EventHandler, Factory: SlotInfoFactory> StoreAvailableSlotsDecorator<F, 
         for slot in first_slot..=last_slot {
             if let Some(assigned_validator) = get_assigned_validator(&self.url, slot).await? {
                 if assigned_validator == self.underwriter {
-                    println!("Delegation to underwriter found for slot: {}", slot);
+                    debug!("Delegation to underwriter found for slot: {}", slot);
                     assigned_slots.push(self.slot_info_factory.slot_info(slot));
                 }
             }

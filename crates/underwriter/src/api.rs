@@ -342,7 +342,7 @@ pub async fn run(
         .route(COMMITMENT_STREAM, get(commitments_stream))
         .with_state(state);
 
-    println!("Starting rpc server...");
+    info!("Starting rpc server...");
 
     let now_since_epoch =
         SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid time before epoch");
@@ -374,10 +374,10 @@ pub async fn run(
 
     tokio::select!(
         _ = axum::serve(listener, app) => {
-            println!("server task terminated, exiting ...")
+            error!("server task terminated, exiting ...")
         },
         _ = process_event_stream(event_stream, store_last_slot) => {
-            println!("stream task terminated, exiting ...")
+            error!("stream task terminated, exiting ...")
         },
         _ = submit_constraints(
             taiyi_escrow,
@@ -388,7 +388,7 @@ pub async fn run(
             bls_signer,
             relay_url,
             slots_per_epoch
-        ) => { println!("stream task terminated, exiting ...")}
+        ) => { error!("stream task terminated, exiting ...")}
     );
     Ok(())
 }
