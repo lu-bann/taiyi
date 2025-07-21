@@ -376,7 +376,7 @@ mod tests {
 
         path.pop();
         path.pop();
-        path.push("tests/data/mainnet_spec_data.json");
+        path.push("crates/cb-common/tests/data/mainnet_spec_data.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -397,7 +397,7 @@ mod tests {
 
         path.pop();
         path.pop();
-        path.push("tests/data/holesky_spec.json");
+        path.push("crates/cb-common/tests/data/holesky_spec.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -420,7 +420,7 @@ mod tests {
 
         path.pop();
         path.pop();
-        path.push("tests/data/sepolia_spec_data.json");
+        path.push("crates/cb-common/tests/data/sepolia_spec_data.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -443,7 +443,7 @@ mod tests {
 
         path.pop();
         path.pop();
-        path.push("tests/data/hoodi_spec.json");
+        path.push("crates/cb-common/tests/data/hoodi_spec.json");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
@@ -466,7 +466,7 @@ mod tests {
 
         path.pop();
         path.pop();
-        path.push("tests/data/helder_spec.yml");
+        path.push("crates/cb-common/tests/data/helder_spec.yml");
 
         let s = format!("chain = {{ genesis_time_secs = 1, path = {path:?}}}");
 
