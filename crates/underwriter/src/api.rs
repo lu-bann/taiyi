@@ -365,13 +365,11 @@ pub async fn run(
     let slot_stream = get_slot_stream(start, next_slot_count, slot_duration)?;
 
     let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
-    let epoch_lookahead = 2;
     let store_last_slot = StoreAvailableSlotsDecorator::new(
         relay_url.clone(),
         alloy_bls_public_key,
         available_slots,
         slots_per_epoch,
-        epoch_lookahead,
         store_last_slot,
         slot_info_factory,
     );
