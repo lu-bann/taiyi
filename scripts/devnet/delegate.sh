@@ -10,11 +10,12 @@ source "$(dirname "$0")/config.sh"
 # Sepolia => "0x90000069",
 # Helder => "0x10000000",
 # Hoodi => "0x10000910",
+# local devnet => "0x10000038"
 
 cargo run --bin taiyi-cli delegate \
     --relay-url "$RELAY_URL" \
     --underwriter-pubkey "$UNDERWRITER_BLS_PUBLIC_KEY" \
-    --fork-version 0 \
+    --fork-version 0x10000038 \
     --action delegate \
     local-keystore \
     --path "$WORKING_DIR/1-lighthouse-geth-0-63/keys" \
