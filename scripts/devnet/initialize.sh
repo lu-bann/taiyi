@@ -14,10 +14,9 @@ popd
 
 # TAIYI propser registry would be 0x0A79920c296E86e7BB12Ad20ca7Ffbbd7AE5905B
 # TAIYI CORE would be 0xA791D59427B2b7063050187769AC871B497F4b3C
-[ -d "linglong" ] || git clone https://github.com/lu-bann/linglong --recursive --jobs 8
+# make e2e-clean will REMOVE this folder as it is only needed for e2e testing
+[ -d "linglong" ] || git clone https://github.com/lu-bann/linglong --recursive --jobs 8 --depth 1
 pushd linglong
-git pull
-git submodule update --recursive --init
 bash script/deploy.sh
 bash script/setup-contract.sh
 popd
