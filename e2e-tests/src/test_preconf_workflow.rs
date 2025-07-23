@@ -4,9 +4,9 @@ use alloy::consensus::{constants::ETH_TO_WEI, Transaction};
 use alloy::eips::eip2718::Encodable2718;
 use alloy::primitives::{keccak256, Address, U256};
 use alloy::providers::{network::EthereumWallet, Provider, ProviderBuilder};
+use alloy::rpc::types::beacon::BlsPublicKey;
 use alloy::signers::local::PrivateKeySigner;
 use alloy::sol_types::{sol, SolCall, SolValue};
-use ethereum_consensus::crypto::PublicKey as BlsPublicKey;
 use reqwest::Url;
 use serde::de;
 use taiyi_primitives::{
