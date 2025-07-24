@@ -6,6 +6,7 @@ use std::{path::Path, str::FromStr, sync::Mutex, time::Duration};
 
 use alloy::consensus::{constants::ETH_TO_WEI, TxEnvelope};
 use alloy::eips::{eip4844::DATA_GAS_PER_BLOB, BlockNumberOrTag};
+use alloy::network::NetworkWallet;
 use alloy::primitives::{Address, TxHash, U256};
 use alloy::providers::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
@@ -29,6 +30,7 @@ use taiyi_underwriter::api::{
     AVAILABLE_SLOTS, PRECONF_FEE, RESERVE_BLOCKSPACE, RESERVE_SLOT_WITHOUT_CALLDATA,
     RESERVE_SLOT_WITH_CALLDATA,
 };
+use tokio::sync::Mutex as TokioMutex;
 use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -48,7 +50,7 @@ lazy_static::lazy_static! {
     static ref TAIYI_PORT: u16 = {
         get_available_port()
     };
-    static ref FUNDING_SIGNER_LOCK: Mutex<()> = Mutex::new(());
+    static ref FUNDING_SIGNER_LOCK: TokioMutex<()> = TokioMutex::new(());
 }
 
 sol! {
@@ -69,12 +71,6 @@ sol! {
         bytes underwriterSignedRawTx;
     }
     function getTip(PreconfRequestBType calldata preconfRequestBType);
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ErrorResponse {
-    pub code: u64,
-    pub message: String,
 }
 
 #[derive(Clone)]
@@ -340,7 +336,7 @@ pub async fn generate_tx(
     let fees = provider.estimate_eip1559_fees().await?;
     let wallet = EthereumWallet::from(signer);
     let nonce = provider.get_transaction_count(sender).await?;
-    info!("Transaction nonce: {}", nonce);
+    info!("Transaction nonce: {} for address {}", nonce, wallet.default_signer().address());
     let transaction = TransactionRequest::default()
         .with_from(sender)
         .with_value(U256::from(1000))
@@ -602,8 +598,7 @@ pub async fn send_type_a_request(
     signature: String,
     taiyi_url: &str,
 ) -> eyre::Result<Response> {
-    let request_endpoint =
-        Url::parse(&taiyi_url).unwrap().join(RESERVE_SLOT_WITH_CALLDATA).unwrap();
+    let request_endpoint = Url::parse(taiyi_url).unwrap().join(RESERVE_SLOT_WITH_CALLDATA).unwrap();
     let response = reqwest::Client::new()
         .post(request_endpoint.clone())
         .header("content-type", "application/json")
@@ -614,10 +609,11 @@ pub async fn send_type_a_request(
     Ok(response)
 }
 
-pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> {
+/// create a new signer and fund it with 10 ETH from FUNDING_SIGNER_PRIVATE's address
+pub async fn new_random_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> {
     // because we are using only one funding signer lock
     // using lock to avoid two tests create two account with the same nonce on funding account
-    let _lock = FUNDING_SIGNER_LOCK.lock().unwrap();
+    let _lock = FUNDING_SIGNER_LOCK.lock().await;
     let funding: PrivateKeySigner = FUNDING_SIGNER_PRIVATE.parse()?;
     info!("Funding signer: {:?}", funding.address());
     let wallet = EthereumWallet::new(funding.clone());
@@ -628,7 +624,11 @@ pub async fn new_account(config: &TestConfig) -> eyre::Result<PrivateKeySigner> 
     tx.set_to(new_signer.address());
     tx.set_value(U256::from(10 * ETH_TO_WEI));
     let send = provider.send_transaction(tx).await?;
-    let _ = send.get_receipt().await?;
+    let _ = send.with_required_confirmations(1).get_receipt().await?;
+    assert!(
+        provider.get_balance(new_signer.address()).await? >= U256::from(10 * ETH_TO_WEI),
+        "new signer didn't get enough ETH"
+    );
     Ok(new_signer)
 }
 
