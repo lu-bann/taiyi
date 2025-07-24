@@ -25,7 +25,7 @@ use crate::{
         getTipCall, get_available_slot, get_block_from_slot, get_constraints_from_relay,
         get_preconf_fee, health_check, new_random_account, send_reserve_blockspace_request,
         send_submit_transaction_request, send_type_a_request, setup_env, verify_tx_in_block,
-        verify_txs_inclusion, wait_until_deadline_of_slot, ErrorResponse,
+        verify_txs_inclusion, wait_until_deadline_of_slot,
     },
 };
 
@@ -217,10 +217,9 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
-    info!("reserve_blockspace response: {:?}", body);
+    info!("reserve_blockspace response: status {status}, body: {:?}", body);
     assert_eq!(status, 400);
-    let response = serde_json::from_slice::<String>(&body)?;
-    assert!(response.contains("Balance too low"));
+    assert!(String::from_utf8(body.to_vec())?.contains("Balance too low"));
     drop(taiyi_handle);
     Ok(())
 }
