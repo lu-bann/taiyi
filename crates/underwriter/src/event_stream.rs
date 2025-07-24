@@ -153,7 +153,7 @@ pub async fn process_event_stream<F: EventHandler>(
             match f.handle_event(head).await {
                 Ok(_) => debug!("finished processing event: {}", text),
                 Err(e) => {
-                    error!("error processing event: {e}");
+                    error!("error processing event: {e}. Event was {text}");
                     continue;
                 }
             }
