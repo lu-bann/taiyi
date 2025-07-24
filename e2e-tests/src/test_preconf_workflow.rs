@@ -218,9 +218,9 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     let status = res.status();
     let body = res.bytes().await?;
     info!("reserve_blockspace response: {:?}", body);
-    let response = serde_json::from_slice::<ErrorResponse>(&body)?;
     assert_eq!(status, 400);
-    assert!(response.message.contains("InsufficientEscrowBalance"));
+    let response = serde_json::from_slice::<String>(&body)?;
+    assert!(response.contains("Balance too low"));
     drop(taiyi_handle);
     Ok(())
 }
