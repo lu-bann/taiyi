@@ -45,8 +45,8 @@ use crate::{
     broadcast_sender::{BroadcastSender, Sender},
     constraints_stream::{get_next_slot_start, get_slot_stream, submit_constraints},
     event_stream::{
-        get_event_stream, process_event_stream, Noop, StoreAvailableSlotsDecorator,
-        StoreLastSlotDecorator, StreamError,
+        get_event_stream, get_initial_assigned_validator, process_event_stream, Noop,
+        StoreAvailableSlotsDecorator, StoreLastSlotDecorator, StreamError,
     },
     preconf_fee_provider::{PreconfFeeProvider, TaiyiPreconfFeeProvider},
     slot_model::SlotModel,
@@ -309,8 +309,20 @@ pub async fn run(
         PrivateKeySigner::from_signing_key(SigningKey::from_slice(&hex_decode(&ecdsa_sk)?)?);
 
     let chain_id = execution_provider.get_chain_id().await?;
-
-    let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(vec![]));
+    let bls_private_key =
+        SecretKey::from_bytes(&hex_decode(&bls_sk).map_err(PreconfApiError::from)?)?;
+    let alloy_bls_public_key = bls_pubkey_to_alloy(&bls_private_key.sk_to_pk());
+    let slot_info_factory = HoleskySlotInfoFactory;
+    let available_slots = get_initial_assigned_validator(
+        &beacon_rpc_url,
+        &relay_url,
+        slots_per_epoch,
+        alloy_bls_public_key,
+        slot_info_factory,
+    )
+    .await?;
+    info!("available_slots: {:?}", available_slots);
+    let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(available_slots));
     let underwriter = Underwriter::new(available_slots.clone());
 
     let last_slot = Arc::new(AtomicU64::new(0u64));
@@ -356,19 +368,14 @@ pub async fn run(
     let next_slot_count = slot.epoch * slots_per_epoch + slot.slot + 1;
     let slot_stream = get_slot_stream(start, next_slot_count, slot_duration)?;
 
-    let bls_private_key =
-        SecretKey::from_bytes(&hex_decode(&bls_sk).map_err(PreconfApiError::from)?)?;
-    let alloy_bls_public_key = bls_pubkey_to_alloy(&bls_private_key.sk_to_pk());
     let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
-    let epoch_lookahead = 2;
     let store_last_slot = StoreAvailableSlotsDecorator::new(
         relay_url.clone(),
         alloy_bls_public_key,
         available_slots,
         slots_per_epoch,
-        epoch_lookahead,
         store_last_slot,
-        HoleskySlotInfoFactory::default(),
+        slot_info_factory,
     );
     let event_stream = get_event_stream(&beacon_rpc_url).await?;
     let listener = TcpListener::bind(&taiyi_addr).await?;
