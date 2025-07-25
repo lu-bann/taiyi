@@ -624,7 +624,7 @@ pub async fn new_random_account(config: &TestConfig) -> eyre::Result<PrivateKeyS
     tx.set_to(new_signer.address());
     tx.set_value(U256::from(10 * ETH_TO_WEI));
     let send = provider.send_transaction(tx).await?;
-    let _ = send.with_required_confirmations(1).get_receipt().await?;
+    let _ = send.get_receipt().await?;
     assert!(
         provider.get_balance(new_signer.address()).await? >= U256::from(10 * ETH_TO_WEI),
         "new signer didn't get enough ETH"
