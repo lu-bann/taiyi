@@ -93,7 +93,7 @@ impl<Provider: AccountInfoProvider> AccountState<Provider> {
     ) -> AccountResult<()> {
         let on_chain_account_info = self.get_from_provider(owner).await?;
         verify_balance(on_chain_account_info.amount, amount)?;
-        let expected_nonce = on_chain_account_info.tx_count + tx_count + 1;
+        let expected_nonce = on_chain_account_info.tx_count + tx_count;
         verify_nonce(nonce, expected_nonce)
     }
 
@@ -180,7 +180,7 @@ pub mod tests {
         let account_state = AccountState::new(last_slot, state_provider);
 
         let amount = U256::from(1012);
-        let nonce = 1;
+        let nonce = 0;
         let tx_count = 1;
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
 
@@ -197,7 +197,7 @@ pub mod tests {
         let account_state = AccountState::new(last_slot, state_provider);
 
         let amount = U256::from(400);
-        let nonce = 1;
+        let nonce = 0;
         let tx_count = 1;
         assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
@@ -216,12 +216,12 @@ pub mod tests {
         let account_state = AccountState::new(last_slot, state_provider);
 
         let amount = U256::from(400);
-        let nonce = 1;
+        let nonce = 0;
         let tx_count = 1;
         assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
         let amount = U256::from(612);
-        let nonce = 2;
+        let nonce = 1;
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
 
         assert_eq!(err, AccountError::BalanceTooLow { required: U256::from(1012), balance });
@@ -237,7 +237,7 @@ pub mod tests {
         let account_state = AccountState::new(last_slot.clone(), state_provider);
 
         let amount = U256::from(500);
-        let nonce = 1;
+        let nonce = 0;
         let tx_count = 1;
         assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
 
@@ -257,14 +257,14 @@ pub mod tests {
         let account_state = AccountState::new(last_slot, state_provider);
 
         let amount = U256::from(400);
-        let nonce = 2;
+        let nonce = 1;
         let tx_count = 1;
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
-        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
-        let nonce = 3;
+        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 2 });
+        let nonce = 2;
         assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
-        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 4 });
+        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
     }
 
     #[tokio::test]
@@ -280,12 +280,12 @@ pub mod tests {
         let nonce = 4;
         let tx_count = 1;
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
-        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
-        let nonce = 3;
+        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 2 });
+        let nonce = 2;
         assert!(account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.is_ok());
         let nonce = 5;
         let err = account_state.reserve(&DUMMY_OWNER, nonce, tx_count, amount).await.unwrap_err();
-        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 4 });
+        assert_eq!(err, AccountError::InvalidNonce { nonce, expected: 3 });
     }
 
     #[tokio::test]
