@@ -32,8 +32,13 @@ pub struct BroadcastSender {
 }
 
 impl BroadcastSender {
-    pub fn new(signer: PrivateKeySigner, chain_id: u64, last_slot: Arc<AtomicU64>) -> Self {
-        Self { signer, chain_id, last_slot, broadcast_sender: broadcast::channel(128).0 }
+    pub fn new(
+        signer: PrivateKeySigner,
+        chain_id: u64,
+        last_slot: Arc<AtomicU64>,
+        sender: broadcast::Sender<(PreconfRequest, PreconfResponseData)>,
+    ) -> Self {
+        Self { signer, chain_id, last_slot, broadcast_sender: sender }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<(PreconfRequest, PreconfResponseData)> {
