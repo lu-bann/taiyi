@@ -23,9 +23,9 @@ use crate::{
         generate_reserve_blockspace_request, generate_submit_transaction_request, generate_tx,
         generate_tx_with_nonce, generate_type_a_request, generate_type_a_request_with_nonce,
         getTipCall, get_available_slot, get_block_from_slot, get_constraints_from_relay,
-        get_preconf_fee, health_check, new_account, send_reserve_blockspace_request,
+        get_preconf_fee, health_check, new_random_account, send_reserve_blockspace_request,
         send_submit_transaction_request, send_type_a_request, setup_env, verify_tx_in_block,
-        verify_txs_inclusion, wait_until_deadline_of_slot, ErrorResponse,
+        verify_txs_inclusion, wait_until_deadline_of_slot,
     },
 };
 
@@ -60,7 +60,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
 
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
@@ -69,7 +69,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
     info!("type b preconf request");
     let chain_id = provider.get_chain_id().await?;
 
-    // Deposit 1ether to TaiyiCore
+    // Deposit ether to TaiyiCore
     taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
@@ -192,7 +192,7 @@ async fn test_type_b_preconf_request() -> eyre::Result<()> {
 #[tokio::test]
 async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
@@ -217,10 +217,9 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
     let res = send_reserve_blockspace_request(request, signature, &config.taiyi_url()).await?;
     let status = res.status();
     let body = res.bytes().await?;
-    info!("reserve_blockspace response: {:?}", body);
-    let response = serde_json::from_slice::<ErrorResponse>(&body)?;
+    info!("reserve_blockspace response: status {status}, body: {:?}", body);
     assert_eq!(status, 400);
-    assert!(response.message.contains("InsufficientEscrowBalance"));
+    assert!(String::from_utf8(body.to_vec())?.contains("Balance too low"));
     drop(taiyi_handle);
     Ok(())
 }
@@ -228,7 +227,7 @@ async fn test_reserve_blockspace_invalid_insufficient_balance() -> eyre::Result<
 #[tokio::test]
 async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     let (taiyi_handle, config) = setup_env().await?;
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let wallet = EthereumWallet::new(signer.clone());
     let provider = ProviderBuilder::new()
@@ -275,7 +274,7 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
     info!("submit transaction response: {:?}", body);
     let preconf_response: PreconfResponseData = serde_json::from_slice(&body)?;
     // CUrrently revert tx is not rejected.
-    assert_eq!(status, 200);
+    assert_eq!(status, 200, "status not OK: {preconf_response:?}");
     assert_eq!(preconf_response.request_id, request_id);
     drop(taiyi_handle);
     Ok(())
@@ -285,14 +284,14 @@ async fn test_reserve_blockspace_invalid_reverter() -> eyre::Result<()> {
 async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Result<()> {
     // Start taiyi command in background
     let (_taiyi_handle, config) = setup_env().await?;
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
         .connect_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
-    // Deposit 1ether to TaiyiCore
+    // Deposit ether to TaiyiCore
     taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;
     assert_eq!(balance, U256::from(5 * ETH_TO_WEI));
@@ -367,12 +366,15 @@ async fn test_exhaust_is_called_for_requests_without_preconf_txs() -> eyre::Resu
 async fn test_type_a_preconf_request() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
         .connect_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
+
+    // Deposit 5ether to TaiyiCore
+    taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -467,8 +469,26 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
     let (taiyi_handle, config) = setup_env().await?;
 
     // Create two different users
-    let user1 = new_account(&config).await?;
-    let user2 = new_account(&config).await?;
+    let user1 = new_random_account(&config).await?;
+    let user2 = new_random_account(&config).await?;
+
+    // Deposit ether to TaiyiCore
+    taiyi_deposit(
+        ProviderBuilder::new()
+            .wallet(EthereumWallet::new(user1.clone()))
+            .connect_http(Url::from_str(&config.execution_url)?),
+        5 * ETH_TO_WEI,
+        &config,
+    )
+    .await?;
+    taiyi_deposit(
+        ProviderBuilder::new()
+            .wallet(EthereumWallet::new(user2.clone()))
+            .connect_http(Url::from_str(&config.execution_url)?),
+        5 * ETH_TO_WEI,
+        &config,
+    )
+    .await?;
 
     // Pick a slot from the lookahead
     let available_slot = get_available_slot(&config.taiyi_url()).await?;
@@ -598,14 +618,14 @@ async fn test_send_multiple_type_a_preconf_for_the_same_slot() -> eyre::Result<(
 async fn test_type_a_and_type_b_requests() -> eyre::Result<()> {
     // Start taiyi command in background
     let (taiyi_handle, config) = setup_env().await?;
-    let signer = new_account(&config).await?;
+    let signer = new_random_account(&config).await?;
 
     let provider = ProviderBuilder::new()
         .wallet(EthereumWallet::new(signer.clone()))
         .connect_http(Url::from_str(&config.execution_url)?);
     let chain_id = provider.get_chain_id().await?;
 
-    // Deposit 1ether to TaiyiCore
+    // Deposit ether to TaiyiCore
     taiyi_deposit(provider.clone(), 5 * ETH_TO_WEI, &config).await?;
 
     let balance = taiyi_balance(provider.clone(), signer.address(), &config).await?;

@@ -10,9 +10,6 @@ use tracing::error;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum AccountError {
-    #[error("Failed to query account for {owner}")]
-    FailedQuery { owner: Address },
-
     #[error("Balance too low (balance={balance}, required={required})")]
     BalanceTooLow { balance: U256, required: U256 },
 

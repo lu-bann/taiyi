@@ -39,6 +39,7 @@ use tracing::{error, info};
 use url::Url;
 use uuid::Uuid;
 
+use crate::account_state;
 use crate::{
     account_info::OnChainAccountInfoProvider,
     account_state::AccountState,
@@ -153,8 +154,15 @@ pub enum PreconfApiError {
 
 impl IntoResponse for PreconfApiError {
     fn into_response(self) -> Response {
+        let status_code = match &self {
+            PreconfApiError::Account(account_state::AccountError::BalanceTooLow {
+                balance: _,
+                required: _,
+            }) => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
         let message = self.to_string();
-        (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
+        (status_code, message).into_response()
     }
 }
 
