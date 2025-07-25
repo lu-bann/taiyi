@@ -33,6 +33,7 @@ use taiyi_primitives::{
     SubmitTransactionRequest, SubmitTypeATransactionRequest,
 };
 use thiserror::Error;
+use tokio::sync::broadcast;
 use tokio::{net::TcpListener, sync::RwLock};
 use tracing::{error, info};
 use url::Url;
@@ -329,7 +330,9 @@ pub async fn run(
     let preconf_fee_provider =
         TaiyiPreconfFeeProvider::new(taiyi_service_url, execution_provider.clone());
     let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
-    let broadcast_sender = BroadcastSender::new(signer.clone(), chain_id, last_slot.clone());
+    let (broadcast_sender, _broadcast_receiver) = broadcast::channel(128);
+    let broadcast_sender =
+        BroadcastSender::new(signer.clone(), chain_id, last_slot.clone(), broadcast_sender);
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
 
     let taiyi_escrow = TaiyiEscrowInstance::new(taiyi_escrow_address, execution_provider.clone());
