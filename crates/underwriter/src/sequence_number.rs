@@ -24,7 +24,6 @@ impl SequenceNumberPerSlot {
         next
     }
 
-    #[allow(dead_code)]
     pub fn remove_before(&mut self, first_slot_to_keep: u64) {
         self.sequence_numbers.retain(|k, _| *k >= first_slot_to_keep)
     }
