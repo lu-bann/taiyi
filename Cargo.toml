@@ -157,7 +157,7 @@ thiserror = "2.0.12"
 tempfile = "3.20.0"
 time = { version = "0.3.37", features = ["macros", "formatting", "parsing"] }
 tiny-bip39 = "2.0.0"
-tokio = { version = "1.42.0", features = ["full"] }
+tokio = { version = "1.47.0", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["time"] }
 toml = "0.8.13"
 tonic = { version = "0.12.3", features = ["channel", "prost", "tls"] }
