@@ -99,7 +99,7 @@ alloy-trie = "0.9"
 sp1-build = "5.0.5"
 sp1-sdk = "5.0.5"
 sp1-verifier = "5.0.5"
-sp1-zkvm = "5.0.5"
+sp1-zkvm = "5.1.0"
 
 aes = "0.8"
 ahash = "0.8.11"
