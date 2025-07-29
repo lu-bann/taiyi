@@ -26,6 +26,8 @@ use std::{
 };
 use taiyi_contracts::TaiyiEscrowInstance;
 use taiyi_crypto::bls::{bls_pubkey_to_alloy, SecretKey};
+use taiyi_primitives::encode_util::hex_encode;
+use taiyi_primitives::PreconfResponseData;
 use taiyi_primitives::{
     encode_util::hex_decode,
     slot_info::{HoleskySlotInfoFactory, SlotInfo},
@@ -40,6 +42,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::account_state;
+use crate::preconf_signer::{EcdsaSigner, PreconfSigner};
 use crate::{
     account_info::OnChainAccountInfoProvider,
     account_state::AccountState,
@@ -185,6 +188,7 @@ pub struct PreconfState<P: PreconfFeeProvider> {
     pub slot_model: SlotModel,
     pub account_state: AccountState<OnChainAccountInfoProvider>,
     pub chain_id: u64,
+    pub preconf_signer: EcdsaSigner,
 }
 
 impl<P: PreconfFeeProvider> PreconfState<P> {
@@ -199,6 +203,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         slot_model: SlotModel,
         account_state: AccountState<OnChainAccountInfoProvider>,
         chain_id: u64,
+        preconf_signer: EcdsaSigner,
     ) -> Self {
         Self {
             underwriter: underwriter.into(),
@@ -212,6 +217,7 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
             slot_model,
             account_state,
             chain_id,
+            preconf_signer,
         }
     }
 
@@ -339,15 +345,14 @@ pub async fn run(
         TaiyiPreconfFeeProvider::new(taiyi_service_url, execution_provider.clone());
     let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
     let (broadcast_sender, _broadcast_receiver) = broadcast::channel(128);
-    let broadcast_sender =
-        BroadcastSender::new(signer.clone(), chain_id, last_slot.clone(), broadcast_sender);
+    let broadcast_sender = BroadcastSender::new(broadcast_sender);
     let slot_model = SlotModel::new(genesis_since_epoch, slot_duration, epoch_duration);
 
     let taiyi_escrow = TaiyiEscrowInstance::new(taiyi_escrow_address, execution_provider.clone());
     let state_provider =
         OnChainAccountInfoProvider::new(execution_rpc_url.clone(), taiyi_escrow.clone());
     let account_state = AccountState::new(last_slot.clone(), state_provider);
-
+    let preconf_signer = EcdsaSigner::new(signer.clone(), chain_id);
     let state = Arc::new(PreconfState::new(
         underwriter,
         last_slot.clone(),
@@ -358,6 +363,7 @@ pub async fn run(
         slot_model.clone(),
         account_state,
         chain_id,
+        preconf_signer,
     ));
     let app = Router::new()
         .route(HEALTH, get(health_check))
@@ -456,6 +462,7 @@ async fn reserve_blockspace<P: PreconfFeeProvider>(
 
     let expected_tip = expected_preconf_fee.compute_tip(request.gas_limit, request.blob_count);
     verify_tip(request.preconf_tip(), expected_tip)?;
+    // FIXME: verify balance should consider the case when signer already got some preconf tx in the slot
     state.account_state.verify_sufficient_balance(&signer, request.preconf_tip()).await?;
     state
         .underwriter
@@ -479,7 +486,7 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
     headers: HeaderMap,
     State(state): State<Arc<PreconfState<P>>>,
     Json(request): Json<SubmitTypeATransactionRequest>,
-) -> PreconfApiResult<Json<Uuid>> {
+) -> PreconfApiResult<Json<PreconfResponseData>> {
     let (signer, _) = get_signer_and_signature(headers, request.digest())?;
     info!("Received slot reservation request with calldata, signer: {}", signer);
 
@@ -496,9 +503,10 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
         .await?;
 
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
+    let last_slot = state.last_slot.load(Ordering::Relaxed);
 
     let id = Uuid::new_v4();
-    state
+    let response = state
         .underwriter
         .write()
         .await
@@ -507,10 +515,12 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
             request,
             preconf_fee,
             state.broadcast_sender.clone(),
+            state.preconf_signer.clone(),
             signer,
+            last_slot,
         )
         .await?;
-    Ok(Json(id))
+    Ok(Json(response))
 }
 
 async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
@@ -537,11 +547,18 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
     verify_reserved_gas_limit(request_gas_limit, preconf_request.allocation.gas_limit)?;
     let tx_count = 1;
     state.account_state.reserve(&signer, nonce, tx_count, amount).await?;
+    let last_slot = state.last_slot.load(Ordering::Relaxed);
 
-    state
-        .broadcast_sender
-        .sign_and_send(request.request_id, PreconfRequest::TypeB(preconf_request))
-        .await?;
+    let signature =
+        state.preconf_signer.sign(PreconfRequest::TypeB(preconf_request.clone())).await?;
+    let response = PreconfResponseData {
+        request_id: request.request_id,
+        commitment: Some(hex_encode(signature.as_bytes())),
+        sequence_num: None,
+        current_slot: last_slot,
+    };
+
+    state.broadcast_sender.send(PreconfRequest::TypeB(preconf_request), response).await?;
     Ok(Json(()))
 }
 

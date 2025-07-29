@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use alloy::consensus::transaction::Transaction;
 use alloy::primitives::{Address, U256};
+use taiyi_primitives::encode_util::hex_encode;
+use taiyi_primitives::PreconfResponseData;
 use taiyi_primitives::{
     slot_info::{SlotInfo, SlotInfoError},
     PreconfFee, PreconfRequest, PreconfRequestTypeA, SubmitTypeATransactionRequest,
@@ -10,6 +12,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::preconf_signer::PreconfSigner;
 use crate::{
     api::PreconfApiResult, broadcast_sender::Sender, sequence_number::SequenceNumberPerSlot,
 };
@@ -65,21 +68,23 @@ impl Underwriter {
             .update(gas, blobs, 1)?)
     }
 
-    pub async fn reserve_slot_with_calldata<S: Sender>(
+    pub async fn reserve_slot_with_calldata<S: Sender, Signer: PreconfSigner>(
         &mut self,
         id: Uuid,
         request: SubmitTypeATransactionRequest,
         preconf_fee: PreconfFee,
         sender: S,
-        signer: Address,
-    ) -> PreconfApiResult<()> {
+        signer: Signer,
+        preconf_sender: Address,
+        last_slot: u64,
+    ) -> PreconfApiResult<PreconfResponseData> {
         let sequence_number = Some(self.sequence_number_per_slot.get_next(request.target_slot));
         let preconf_request = PreconfRequestTypeA {
             preconf_tx: request.clone().preconf_transaction,
             tip_transaction: request.clone().tip_transaction,
             target_slot: request.target_slot,
             sequence_number,
-            signer,
+            signer: preconf_sender,
             preconf_fee: preconf_fee.clone(),
         };
 
@@ -90,10 +95,16 @@ impl Underwriter {
         self.reserve_blockspace(request.target_slot, required_gas, required_blobs).await?;
         self.sequence_number_per_slot
             .add(request.target_slot, request.preconf_transaction.len() as u64 + 1);
+        let signature = signer.sign(PreconfRequest::TypeA(preconf_request.clone())).await?;
+        let response = PreconfResponseData {
+            request_id: id,
+            commitment: Some(hex_encode(signature.as_bytes())),
+            sequence_num: sequence_number,
+            current_slot: last_slot,
+        };
+        sender.send(PreconfRequest::TypeA(preconf_request), response.clone()).await?;
 
-        sender.sign_and_send(id, PreconfRequest::TypeA(preconf_request)).await?;
-
-        Ok(())
+        Ok(response)
     }
 }
 
@@ -262,8 +273,8 @@ mod tests {
         let signer = Address::random();
         let mut sender = MockSender::new();
         sender
-            .expect_sign_and_send()
-            .withf(|_, request| match request {
+            .expect_send()
+            .withf(|request, _| match request {
                 PreconfRequest::TypeA(request) => request.sequence_number == Some(1u64),
                 PreconfRequest::TypeB(_) => false,
             })
