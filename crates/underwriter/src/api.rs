@@ -338,9 +338,10 @@ pub async fn run(
     .await?;
     info!("available_slots: {:?}", available_slots);
     let available_slots = Arc::new(RwLock::<Vec<SlotInfo>>::new(available_slots));
-    let underwriter = Underwriter::new(available_slots.clone());
-
     let last_slot = Arc::new(AtomicU64::new(0u64));
+
+    let underwriter = Underwriter::new(available_slots.clone(), last_slot.clone());
+
     let preconf_fee_provider =
         TaiyiPreconfFeeProvider::new(taiyi_service_url, execution_provider.clone());
     let tx_cache = Arc::new(RwLock::new(TxCachePerSlot::new()));
@@ -503,7 +504,6 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
         .await?;
 
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
-    let last_slot = state.last_slot.load(Ordering::Relaxed);
 
     let id = Uuid::new_v4();
     let response = state
@@ -517,7 +517,6 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
             state.broadcast_sender.clone(),
             state.preconf_signer.clone(),
             signer,
-            last_slot,
         )
         .await?;
     Ok(Json(response))
