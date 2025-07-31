@@ -1,7 +1,10 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use alloy::consensus::transaction::Transaction;
 use alloy::primitives::{Address, U256};
+use taiyi_primitives::encode_util::hex_encode;
+use taiyi_primitives::PreconfResponseData;
 use taiyi_primitives::{
     slot_info::{SlotInfo, SlotInfoError},
     PreconfFee, PreconfRequest, PreconfRequestTypeA, SubmitTypeATransactionRequest,
@@ -10,6 +13,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::preconf_signer::PreconfSigner;
 use crate::{
     api::PreconfApiResult, broadcast_sender::Sender, sequence_number::SequenceNumberPerSlot,
 };
@@ -40,13 +44,14 @@ pub fn verify_tip(tip: U256, expected: U256) -> Result<(), UnderwriterError> {
 pub struct Underwriter {
     slot_infos: Arc<RwLock<Vec<SlotInfo>>>,
     sequence_number_per_slot: SequenceNumberPerSlot,
+    last_slot: Arc<AtomicU64>,
 }
 
 pub type UnderwriterResult<T> = Result<T, UnderwriterError>;
 
 impl Underwriter {
-    pub fn new(slot_infos: Arc<RwLock<Vec<SlotInfo>>>) -> Self {
-        Self { slot_infos, sequence_number_per_slot: SequenceNumberPerSlot::default() }
+    pub fn new(slot_infos: Arc<RwLock<Vec<SlotInfo>>>, last_slot: Arc<AtomicU64>) -> Self {
+        Self { slot_infos, sequence_number_per_slot: SequenceNumberPerSlot::default(), last_slot }
     }
 
     pub async fn reserve_blockspace(
@@ -65,23 +70,25 @@ impl Underwriter {
             .update(gas, blobs, 1)?)
     }
 
-    pub async fn reserve_slot_with_calldata<S: Sender>(
+    pub async fn reserve_slot_with_calldata<S: Sender, Signer: PreconfSigner>(
         &mut self,
         id: Uuid,
         request: SubmitTypeATransactionRequest,
         preconf_fee: PreconfFee,
         sender: S,
-        signer: Address,
-    ) -> PreconfApiResult<()> {
+        signer: Signer,
+        preconf_sender: Address,
+    ) -> PreconfApiResult<PreconfResponseData> {
         let sequence_number = Some(self.sequence_number_per_slot.get_next(request.target_slot));
         let preconf_request = PreconfRequestTypeA {
             preconf_tx: request.clone().preconf_transaction,
             tip_transaction: request.clone().tip_transaction,
             target_slot: request.target_slot,
             sequence_number,
-            signer,
+            signer: preconf_sender,
             preconf_fee: preconf_fee.clone(),
         };
+        let last_slot = self.last_slot.load(Ordering::Relaxed);
 
         let required_gas = get_required_gas(&preconf_request);
         let required_blobs = get_required_blobs(&preconf_request);
@@ -90,10 +97,16 @@ impl Underwriter {
         self.reserve_blockspace(request.target_slot, required_gas, required_blobs).await?;
         self.sequence_number_per_slot
             .add(request.target_slot, request.preconf_transaction.len() as u64 + 1);
+        let signature = signer.sign(PreconfRequest::TypeA(preconf_request.clone())).await?;
+        let response = PreconfResponseData {
+            request_id: id,
+            commitment: Some(hex_encode(signature.as_bytes())),
+            sequence_num: sequence_number,
+            current_slot: last_slot,
+        };
+        sender.send(PreconfRequest::TypeA(preconf_request), response.clone()).await?;
 
-        sender.sign_and_send(id, PreconfRequest::TypeA(preconf_request)).await?;
-
-        Ok(())
+        Ok(response)
     }
 }
 
@@ -122,13 +135,15 @@ pub fn get_required_blobs(request: &PreconfRequestTypeA) -> usize {
 mod tests {
     use super::*;
     use crate::broadcast_sender::MockSender;
+    use crate::preconf_signer::MockPreconfSigner;
     use alloy::consensus::{TxEip1559, TxEnvelope};
     use alloy::primitives::{Signature, U256};
 
     #[tokio::test]
     async fn test_reserve_blockspace_fails_if_no_slot_is_available() {
         let slot_infos = Arc::new(RwLock::new(vec![]));
-        let mut underwriter = Underwriter::new(slot_infos);
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos, last_slot);
 
         let target_slot = 234;
         let gas = 100;
@@ -155,7 +170,8 @@ mod tests {
         let slot = 234;
         let slot_info = test_slot_info(slot);
         let slot_infos = Arc::new(RwLock::new(vec![slot_info]));
-        let mut underwriter = Underwriter::new(slot_infos);
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos, last_slot);
 
         let gas = 100;
         let blobs = 3;
@@ -166,7 +182,8 @@ mod tests {
     async fn test_reserve_blockspace_fails_if_target_slot_is_not_available() {
         let slot = 2;
         let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(slot)]));
-        let mut underwriter = Underwriter::new(slot_infos);
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos, last_slot);
 
         let target_slot = 234;
         let gas = 100;
@@ -179,7 +196,8 @@ mod tests {
     async fn test_reserve_blockspace_fails_for_new_slot_that_exceeds_limits() {
         let target_slot = 234;
         let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(target_slot)]));
-        let mut underwriter = Underwriter::new(slot_infos);
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos, last_slot);
 
         let gas = DUMMY_GAS_AVAILABLE + 1;
         let blobs = 3;
@@ -198,7 +216,8 @@ mod tests {
             test_slot_info(target_slot_1),
             test_slot_info(target_slot_2),
         ]));
-        let mut underwriter = Underwriter::new(slot_infos);
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos, last_slot);
 
         let gas = 100;
         let blobs = 3;
@@ -223,7 +242,8 @@ mod tests {
             test_slot_info(target_slot_1),
             test_slot_info(target_slot_2),
         ]));
-        let mut underwriter = Underwriter::new(slot_infos.clone());
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos.clone(), last_slot);
 
         let gas = 100;
         let blobs = 3;
@@ -251,7 +271,8 @@ mod tests {
     async fn test_reserve_slot_with_calldata() {
         let target_slot = 10;
         let slot_infos = Arc::new(RwLock::new(vec![test_slot_info(target_slot)]));
-        let mut underwriter = Underwriter::new(slot_infos.clone());
+        let last_slot = Arc::new(AtomicU64::new(0u64));
+        let mut underwriter = Underwriter::new(slot_infos.clone(), last_slot);
 
         let preconf_fee = PreconfFee { gas_fee: 10, blob_gas_fee: 150 };
         let request = SubmitTypeATransactionRequest {
@@ -261,16 +282,17 @@ mod tests {
         };
         let signer = Address::random();
         let mut sender = MockSender::new();
+        let preconf_signer = MockPreconfSigner::new();
         sender
-            .expect_sign_and_send()
-            .withf(|_, request| match request {
+            .expect_send()
+            .withf(|request, _| match request {
                 PreconfRequest::TypeA(request) => request.sequence_number == Some(1u64),
                 PreconfRequest::TypeB(_) => false,
             })
             .return_once(|_, _| Box::pin(async { Ok(()) }));
         let id = Uuid::new_v4();
         assert!(underwriter
-            .reserve_slot_with_calldata(id, request, preconf_fee, sender, signer,)
+            .reserve_slot_with_calldata(id, request, preconf_fee, sender, preconf_signer, signer)
             .await
             .is_ok());
     }
