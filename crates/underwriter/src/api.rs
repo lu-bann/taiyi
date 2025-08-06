@@ -506,7 +506,7 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
 
     let id = Uuid::new_v4();
-    let response = state
+    let (response, request) = state
         .underwriter
         .write()
         .await
@@ -519,6 +519,11 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
             signer,
         )
         .await?;
+    state
+        .tx_cache
+        .write()
+        .await
+        .add_with_calldata(request.target_slot, PreconfRequest::TypeA(request));
     Ok(Json(response))
 }
 
