@@ -78,7 +78,7 @@ impl Underwriter {
         sender: S,
         signer: Signer,
         preconf_sender: Address,
-    ) -> PreconfApiResult<PreconfResponseData> {
+    ) -> PreconfApiResult<(PreconfResponseData, PreconfRequestTypeA)> {
         let sequence_number = Some(self.sequence_number_per_slot.get_next(request.target_slot));
         let preconf_request = PreconfRequestTypeA {
             preconf_tx: request.clone().preconf_transaction,
@@ -104,9 +104,9 @@ impl Underwriter {
             sequence_num: sequence_number,
             current_slot: last_slot,
         };
-        sender.send(PreconfRequest::TypeA(preconf_request), response.clone()).await?;
+        sender.send(PreconfRequest::TypeA(preconf_request.clone()), response.clone()).await?;
 
-        Ok(response)
+        Ok((response, preconf_request))
     }
 }
 

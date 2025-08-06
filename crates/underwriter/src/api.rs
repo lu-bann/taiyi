@@ -67,6 +67,9 @@ pub const RESERVE_SLOT_WITH_CALLDATA: &str = "/commitments/v0/submit_tx_type_a";
 pub const RESERVE_SLOT_WITHOUT_CALLDATA: &str = "/commitments/v0/submit_tx_type_b";
 pub const COMMITMENT_STREAM: &str = "/commitments/v0/commitment_stream";
 
+const MIN_DURATION_UNTIL_NEXT_SLOT: Duration = Duration::from_millis(1000);
+const CUT_OFF_DEADLINE_DURATION: Duration = Duration::from_millis(500);
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Error)]
 pub enum PreconfApiError {
@@ -184,7 +187,6 @@ pub struct PreconfState<P: PreconfFeeProvider> {
     pub tx_cache: Arc<RwLock<TxCachePerSlot>>,
     pub id_to_slot: RwLock<HashMap<Uuid, u64>>,
     pub broadcast_sender: BroadcastSender,
-    pub min_duration_until_next_slot: Duration,
     pub slot_model: SlotModel,
     pub account_state: AccountState<OnChainAccountInfoProvider>,
     pub chain_id: u64,
@@ -213,7 +215,6 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
             tx_cache,
             id_to_slot: HashMap::new().into(),
             broadcast_sender,
-            min_duration_until_next_slot: Duration::from_secs(1),
             slot_model,
             account_state,
             chain_id,
@@ -244,7 +245,9 @@ impl<P: PreconfFeeProvider> PreconfState<P> {
         let now_since_epoch =
             SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid time before epoch");
         let time_until_next_slot_start = self.slot_model.get_next_slot_start_offset(slot);
-        if time_until_next_slot_start < now_since_epoch + self.min_duration_until_next_slot {
+        if time_until_next_slot_start
+            < now_since_epoch + MIN_DURATION_UNTIL_NEXT_SLOT + CUT_OFF_DEADLINE_DURATION
+        {
             return Err(PreconfApiError::DeadlineExpired {
                 deadline: time_until_next_slot_start.as_secs(),
                 received: now_since_epoch.as_secs(),
@@ -384,7 +387,11 @@ pub async fn run(
     let start = get_next_slot_start(&now_since_genesis, &slot_duration)?;
     let slot = slot_model.get_slot(now_since_epoch);
     let next_slot_count = slot.epoch * slots_per_epoch + slot.slot + 1;
-    let slot_stream = get_slot_stream(start, next_slot_count, slot_duration)?;
+    let constraint_submitted_deadline_stream = get_slot_stream(
+        start + slot_duration - MIN_DURATION_UNTIL_NEXT_SLOT,
+        next_slot_count,
+        slot_duration,
+    )?;
 
     let store_last_slot = StoreLastSlotDecorator::new(last_slot, Noop::new());
     let store_last_slot = StoreAvailableSlotsDecorator::new(
@@ -410,7 +417,7 @@ pub async fn run(
         },
         _ = submit_constraints(
             taiyi_escrow,
-            slot_stream,
+            constraint_submitted_deadline_stream,
             execution_provider,
             tx_cache.clone(),
             signer,
@@ -506,7 +513,7 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
     let preconf_fee = state.preconf_fee_provider.read().await.get(request.target_slot).await?;
 
     let id = Uuid::new_v4();
-    let response = state
+    let (response, request) = state
         .underwriter
         .write()
         .await
@@ -519,6 +526,11 @@ async fn reserve_slot_with_calldata<P: PreconfFeeProvider>(
             signer,
         )
         .await?;
+    state
+        .tx_cache
+        .write()
+        .await
+        .add_with_calldata(request.target_slot, PreconfRequest::TypeA(request));
     Ok(Json(response))
 }
 
