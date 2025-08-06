@@ -111,9 +111,11 @@ pub async fn submit_constraints<P: Provider>(
 
         let mut total_preconf_tips = U256::ZERO;
 
+        debug!("Take from tx_cache for slot {}", next_slot);
         let (ready, pending) = tx_cache.write().await.take(next_slot).await?;
+        debug!("Ready: {:?}, Pending: {:?}", ready.len(), pending.len());
         if ready.is_empty() && pending.is_empty() {
-            info!("No constraints in slot {slot}");
+            debug!("No constraints in slot {slot}");
             continue;
         }
         let sponsor_nonce = nonce;
@@ -240,6 +242,7 @@ pub async fn submit_constraints<P: Provider>(
         if constraints.is_empty() {
             continue;
         }
+
         info!("Submitting {} constraints to relay for slot {}", constraints.len(), next_slot);
         let message = ConstraintsMessage {
             pubkey: bls_pubkey_to_alloy(&bls_signer.public_key()),
@@ -252,13 +255,13 @@ pub async fn submit_constraints<P: Provider>(
         let signed_constraints_message = vec![SignedConstraints { message, signature }];
 
         let max_retries = 5;
-        for i in 0..=max_retries {
-            if let Err(e) =
-                set_constraints(&constraints_url, signed_constraints_message.clone()).await
-            {
-                error!(err = ?e, "Error submitting constraints to relay, retrying...");
-            }
-            if i == max_retries {
+        let mut i = 0;
+        while let Err(e) =
+            set_constraints(&constraints_url, signed_constraints_message.clone()).await
+        {
+            error!(err = ?e, "Error submitting constraints to relay, retrying...");
+            i += 1;
+            if i >= max_retries {
                 error!("Max retries reached while submitting to relay");
                 break;
             }
