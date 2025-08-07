@@ -491,7 +491,7 @@ fn validate_parameters(kdf: &Kdf) -> Result<(), Error> {
                 return Err(Error::InvalidPbkdf2Param);
             }
 
-            // NIST Recommends suggests potential use cases where `c` of 10,000,000 is desireable.
+            // NIST Recommends suggests potential use cases where `c` of 10,000,000 is desirable.
             // As it is 10 years old this has been increased to 80,000,000. Larger values will
             // take over 1 minute to execute on an average machine.
             //
