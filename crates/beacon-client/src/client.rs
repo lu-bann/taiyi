@@ -184,6 +184,7 @@ impl<T: Serialize + serde::de::DeserializeOwned> From<T> for GenericResponse<T> 
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone, Serialize)]
 #[serde(bound = "T: Serialize")]
 pub struct GenericResponseRef<'a, T: Serialize> {
