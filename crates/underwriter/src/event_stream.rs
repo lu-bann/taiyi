@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
+    time::Duration,
 };
 use taiyi_primitives::slot_info::{SlotInfo, SlotInfoFactory};
 use thiserror::Error;
@@ -97,7 +98,7 @@ impl<F: EventHandler, Factory: SlotInfoFactory> StoreAvailableSlotsDecorator<F, 
         last_slot: u64,
     ) -> Result<Vec<SlotInfo>, Error> {
         let mut assigned_slots = vec![];
-        for slot in first_slot..=last_slot {
+        for slot in first_slot..last_slot {
             if let Some(assigned_validator) = get_assigned_validator(&self.url, slot).await? {
                 if assigned_validator == self.underwriter {
                     debug!("Delegation to underwriter found for slot: {}", slot);
@@ -121,6 +122,8 @@ impl<F: EventHandler, Factory: SlotInfoFactory> EventHandler
         if epoch_transition {
             let first_slot = slot + self.slots_per_epoch;
             let last_slot = first_slot + self.slots_per_epoch;
+            // wait for 1 seconds for relay to get the assigned slots ready
+            tokio::time::sleep(Duration::from_secs(1)).await;
             let assigned_slots = self.get_assigned_slots(first_slot, last_slot).await?;
             self.available_slots.write().await.extend(assigned_slots);
         }

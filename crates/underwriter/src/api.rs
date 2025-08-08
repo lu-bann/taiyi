@@ -548,7 +548,7 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
         .await
         .remove(&request.request_id)
         .ok_or(PreconfApiError::UnknownId { id: request.request_id })?;
-    verify_blobs(&[request.transaction.clone()])?;
+    verify_blobs(std::slice::from_ref(&request.transaction))?;
     let request_gas_limit = request.transaction.gas_limit();
     let nonce = request.transaction.nonce();
     let amount = request.transaction.value();
