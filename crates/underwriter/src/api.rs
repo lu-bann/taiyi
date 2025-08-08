@@ -538,7 +538,7 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
     headers: HeaderMap,
     State(state): State<Arc<PreconfState<P>>>,
     Json(request): Json<SubmitTransactionRequest>,
-) -> PreconfApiResult<Json<()>> {
+) -> PreconfApiResult<Json<PreconfResponseData>> {
     let (signer, _) = get_signer_and_signature(headers, request.digest())?;
     info!("Received slot reservation request without calldata");
 
@@ -569,8 +569,8 @@ async fn reserve_slot_without_calldata<P: PreconfFeeProvider>(
         current_slot: last_slot,
     };
 
-    state.broadcast_sender.send(PreconfRequest::TypeB(preconf_request), response).await?;
-    Ok(Json(()))
+    state.broadcast_sender.send(PreconfRequest::TypeB(preconf_request), response.clone()).await?;
+    Ok(Json(response))
 }
 
 pub async fn get_available_slots<P: PreconfFeeProvider>(
