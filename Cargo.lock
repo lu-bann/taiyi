@@ -6633,9 +6633,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-verifier"
-version = "5.1.0"
+version = "5.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f322157eb4ab635d733bb1c538add9c22fd8d41b207020fa148a03bcb0d5082"
+checksum = "76dd71dd696b258cbe6af9ef276dd22d1e8eedd0dab8184beb90facd414e327a"
 dependencies = [
  "blake3",
  "cfg-if",
