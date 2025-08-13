@@ -68,7 +68,7 @@ taiyi-zkvm-types = { path = "crates/zkvm-types" }
 axum = { version = "0.7.9", features = ["macros"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 
-alloy = { version = "1.0.23", features = [
+alloy = { version = "1.0.24", features = [
     "full", 
     "essentials", 
     "consensus",
