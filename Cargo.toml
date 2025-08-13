@@ -96,7 +96,7 @@ alloy-transport-http = { version = "1", default-features = false }
 
 alloy-trie = "0.9"
 # sp1
-sp1-build = "5.1.0"
+sp1-build = "5.2.1"
 sp1-sdk = "5.1.0"
 sp1-verifier = "5.1.0"
 sp1-zkvm = "5.1.0"
