@@ -28,7 +28,7 @@ jobs:
     name: Rust Project
     runs-on: ubuntu-latest-m
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@v2
