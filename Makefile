@@ -1,14 +1,15 @@
 build:
 	cargo build --release
 
+# run all tests except the e2e ones which require environment setup
 test:
-	cargo test
+	cargo test --workspace --exclude taiyi-e2e-tests
 
 coverage:
-	cargo llvm-cov
+	cargo llvm-cov --workspace --exclude taiyi-e2e-tests
 
 coverage-report:
-	cargo llvm-cov --html
+	cargo llvm-cov --html --workspace --exclude taiyi-e2e-tests
 
 format:
 	cargo fmt --all
