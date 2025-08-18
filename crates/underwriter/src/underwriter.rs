@@ -282,7 +282,7 @@ mod tests {
         };
         let signer = Address::random();
         let mut sender = MockSender::new();
-        let preconf_signer = MockPreconfSigner::new();
+        let mut preconf_signer = MockPreconfSigner::new();
         sender
             .expect_send()
             .withf(|request, _| match request {
@@ -290,6 +290,10 @@ mod tests {
                 PreconfRequest::TypeB(_) => false,
             })
             .return_once(|_, _| Box::pin(async { Ok(()) }));
+        preconf_signer.expect_sign().return_once(|request| match request {
+            PreconfRequest::TypeA(_) => Box::pin(async { Ok(get_test_signature()) }),
+            PreconfRequest::TypeB(_) => panic!("Unexpected request type"),
+        });
         let id = Uuid::new_v4();
         assert!(underwriter
             .reserve_slot_with_calldata(id, request, preconf_fee, sender, preconf_signer, signer)
