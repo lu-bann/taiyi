@@ -20,7 +20,7 @@ Please refer technical docs(TBA).
 Prerequisites:
 - The Minimum Supported Rust Version (MSRV) of this project is 1.85.0.
 - Docker engine installed and running
-- Foundry
+- [Foundry](https://github.com/foundry-rs/foundry)
 - [Kurtosis](https://docs.kurtosis.com/install)
 - [succinct](https://github.com/succinctlabs/sp1)
 
