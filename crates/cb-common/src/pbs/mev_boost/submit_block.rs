@@ -181,7 +181,7 @@ async fn send_submit_block(
         }));
     }
 
-    // request has different type so cant be deserialized in the wrong version,
+    // request has different type so can't be deserialized in the wrong version,
     // response has a "version" field
     match (&signed_blinded_block.message, &block_response) {
         (
