@@ -1,6 +1,5 @@
 pub mod constraints;
 pub mod encode_util;
-pub mod log_util;
 mod preconf_fee;
 mod preconf_request;
 mod preconf_request_type_a;
