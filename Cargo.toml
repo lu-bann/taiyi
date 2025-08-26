@@ -104,7 +104,7 @@ sp1-zkvm = "5.2.1"
 aes = "0.8"
 ahash = "0.8.11"
 arbitrary = { version = "1", features = ["derive"] }
-async-trait = "0.1.88"
+async-trait = "0.1.89"
 base64 = "0.22.1"
 bimap = { version = "0.6.3", features = ["serde"] }
 blst = "0.3.15"
