@@ -155,7 +155,7 @@ ssz_rs = { git = "https://github.com/lu-bann/ssz-rs", rev = "b8c202e13bf117a895f
 ssz_types = "0.11"
 thiserror = "2.0.16"
 tempfile = "3.21.0"
-time = { version = "0.3.37", features = ["macros", "formatting", "parsing"] }
+time = { version = "0.3.42", features = ["macros", "formatting", "parsing"] }
 tiny-bip39 = "2.0.0"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["time"] }
