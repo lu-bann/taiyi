@@ -57,7 +57,7 @@ pub const DKLEN: u32 = 32;
 pub const IV_SIZE: usize = 16;
 /// The byte size of a SHA256 hash.
 pub const HASH_SIZE: usize = 32;
-/// The default iteraction count, `c`, for PBKDF2.
+/// The default iteration count, `c`, for PBKDF2.
 pub const DEFAULT_PBKDF2_C: u32 = 262_144;
 
 #[derive(Debug, PartialEq)]
@@ -77,7 +77,7 @@ pub enum Error {
     InvalidSaltLength,
     IncorrectIvSize { expected: usize, len: usize },
     ScryptInvalidParams(InvalidParams),
-    ScryptInvaidOutputLen(InvalidOutputLen),
+    ScryptInvalidOutputLen(InvalidOutputLen),
 }
 
 /// Constructs a `Keystore`.
@@ -450,7 +450,7 @@ fn derive_key(password: &[u8], kdf: &Kdf) -> Result<DerivedKey, Error> {
                 .map_err(Error::ScryptInvalidParams)?,
                 dk.as_mut_bytes(),
             )
-            .map_err(Error::ScryptInvaidOutputLen)?;
+            .map_err(Error::ScryptInvalidOutputLen)?;
         }
     }
 
