@@ -93,7 +93,7 @@ jobs:
           cp target/${{ matrix.target }}/release/taiyi-boost release/taiyi-boost-${{ matrix.target }}
           cp target/${{ matrix.target }}/release/taiyi-cli release/taiyi-cli-${{ matrix.target }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: taiyi-${{ github.sha }}
           path: release/*
