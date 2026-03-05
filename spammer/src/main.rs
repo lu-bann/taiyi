@@ -99,7 +99,7 @@ async fn main() -> eyre::Result<()> {
     // Query available slots and filter out the past slots
     let mut slots = http_client.slots().await?.iter().map(|slot| slot.slot).collect::<Vec<_>>();
     let head_slot = beacon_client.get_sync_status().await?.head_slot;
-    info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
+    info!("Head Slot: {:?}, filtering older slots out of {} slots", head_slot, slots.len());
     slots.retain(|slot| *slot > head_slot);
     info!("Available slots: {:?}", slots.len());
 
@@ -148,7 +148,7 @@ async fn main() -> eyre::Result<()> {
             info!("Epoch changed to: {:?}, querying underwriter for available slots..", epoch);
             let mut slots = http_client.slots().await?;
             let head_slot = beacon_client.get_sync_status().await?.head_slot;
-            info!("Head Slot: {:?}, filering older slots out of {} slots", head_slot, slots.len());
+            info!("Head Slot: {:?}, filtering older slots out of {} slots", head_slot, slots.len());
             slots.retain(|slot| slot.slot > head_slot);
             info!("Available slots: {:?}", slots.len());
 
